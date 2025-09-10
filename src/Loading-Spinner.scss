@@ -1,0 +1,58 @@
+$main-animation-time: 4s;
+span.progress-spinner {
+    svg {
+        animation: pslr calc($main-animation-time/2) linear infinite;
+        aspect-ratio: 1;
+
+        circle {
+            stroke-width: 10%;
+            stroke: var(--spinner-color, #a8c8fb);
+            fill: rgba(black, 0);
+            stroke-dasharray: 282.743;
+            stroke-linecap: butt;
+            transform-origin: 50% 50%;
+            animation-name: pssr;
+            animation-duration: $main-animation-time;
+            animation-iteration-count: infinite;
+            animation-timing-function: cubic-bezier(0.35, 0, 0.25, 1);
+        }
+    }
+}
+
+$pi: 3.14159265;
+
+$radius: 45;
+$circumference: $pi * $radius * 2;
+
+$start: (1 - 0.05) * $circumference;
+$end: (1 - 0.8) * $circumference;
+
+// progress spinner stroke rotate
+@keyframes pssr {
+  0%        { stroke-dashoffset: $start;  transform: rotate(0); }
+  12.5%     { stroke-dashoffset: $end;    transform: rotate(0); }
+  12.5001%  { stroke-dashoffset: $end;    transform: rotateX(180deg) rotate(72.5deg); }
+  25%       { stroke-dashoffset: $start;  transform: rotateX(180deg) rotate(72.5deg); }
+
+  25.0001%   { stroke-dashoffset: $start;  transform: rotate(270deg); }
+  37.5%      { stroke-dashoffset: $end;    transform: rotate(270deg); }
+  37.5001%   { stroke-dashoffset: $end;    transform: rotateX(180deg) rotate(161.5deg); }
+  50%        { stroke-dashoffset: $start;  transform: rotateX(180deg) rotate(161.5deg); }
+
+  50.0001%  { stroke-dashoffset: $start;  transform: rotate(180deg); }
+  62.5%     { stroke-dashoffset: $end;    transform: rotate(180deg); }
+  62.5001%  { stroke-dashoffset: $end;    transform: rotateX(180deg) rotate(251.5deg); }
+  75%       { stroke-dashoffset: $start;  transform: rotateX(180deg) rotate(251.5deg); }
+
+  75.0001%  { stroke-dashoffset: $start;  transform: rotate(90deg); }
+  87.5%     { stroke-dashoffset: $end;    transform: rotate(90deg); }
+  87.5001%  { stroke-dashoffset: $end;    transform: rotateX(180deg) rotate(341.5deg); }
+  100%      { stroke-dashoffset: $start;  transform: rotateX(180deg) rotate(341.5deg); }
+}
+
+
+// progress spinner linear rotate
+@keyframes pslr {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
