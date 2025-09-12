@@ -1,10 +1,10 @@
 import './App.scss'
-import { createSignal, onMount, onCleanup, JSX, createEffect, Component, createMemo, Ref, untrack, createRoot, createResource } from 'solid-js';
+import { createSignal, onMount, onCleanup, JSX, createEffect, Component, createMemo, Ref, untrack, createRoot, createResource, mapArray } from 'solid-js';
 import { $ } from './observable';
 import { CameraDevice, Html5Qrcode, Html5QrcodeResult, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Router } from './router';
 import { ListItem, ListView, ListViewController, RippleEffect, ProgressSpinner, HeaderElement, HeaderIconButton, quiptClick  } from './std-widgets';
 import { DialogManager } from './dialog';
+import { Router, Route, query, redirect, useParams } from '@solidjs/router';
 
 import Hammer from 'hammerjs';
 
@@ -72,7 +72,7 @@ function ScriptList() {
                 items={scripts()} 
                 map={mapToListItem}
                 onDelete={lvDelete}
-                influencesHeader={true}>
+                influencesHeader={false}>
                 <ListView.Empty>
                     { emptyMessage }
                 </ListView.Empty>
@@ -254,7 +254,7 @@ function AddClientQR() {
                             <button class="secondary-button" 
                                 onClick={async () => {await onDismiss(client()!.hex_token); closer()}}>
                                 Abbrechen
-                                <RippleEffect color='#a8c8fb'/>
+                                <RippleEffect color='#06f990'/>
                             </button>
                             <button class="primary-button" 
                                 onClick={async () => {await onAccept(client()!.hex_token); closer()}}>
@@ -295,11 +295,13 @@ function AddClientQR() {
 }
 
 type QuoteViewProps = {
+    last: boolean,
     text: FormattedString,
     actorsInfo: FormattedString|null,
     type: "request"|"response",
     isTextShown?: boolean,
     onShowText?: () => void,
+    confidenceReport?: (source: HTMLElement, confidence: "low"|"medium"|"high") => void
 };
 
 function formatString(string: FormattedString): JSX.Element {
@@ -309,7 +311,7 @@ function formatString(string: FormattedString): JSX.Element {
         if (item.style === null) {
             result.push(item.string);
         } else {
-            result.push(<span style={item.style as any}>{item.string}</span>);
+            result.push(<span style={item.style}>{item.string}</span>);
         }
     }
 
@@ -321,81 +323,80 @@ function QuoteView(props: QuoteViewProps) {
 
     let element: HTMLDivElement = undefined!;
     let contentElement: HTMLSpanElement = undefined!;
-    if (props.type === "response") {
-        createEffect(() => {
-            if (showText()) {
-                props.onShowText && props.onShowText();
-            }
-        });
-    }
+    // if (props.type === "response") {
+    //     createEffect(() => {
+    //         if (showText()) {
+    //             props.onShowText && props.onShowText();
+    //         }
+    //     });
+    // }
 
-    let animating = false;
-    let previousSize: [number, number]|undefined;
-    const resizeObserver = new ResizeObserver(_ => {
-        if (animating) {
-            return;
-        }
-        const rect = element.getBoundingClientRect();
-        if (previousSize === undefined) {
-            previousSize = [rect.width, rect.height];
-        } else {
-            const [prevWidth, prevHeight] = previousSize;
-            const contentRect = contentElement.getBoundingClientRect();
+    // let animating = false;
+    // let previousSize: [number, number]|undefined;
+    // const resizeObserver = new ResizeObserver(_ => {
+    //     if (animating) {
+    //         return;
+    //     }
+    //     const rect = element.getBoundingClientRect();
+    //     if (previousSize === undefined) {
+    //         previousSize = [rect.width, rect.height];
+    //     } else {
+    //         const [prevWidth, prevHeight] = previousSize;
+    //         const contentRect = contentElement.getBoundingClientRect();
 
-            contentElement.classList.add('growing-animation');
-            contentElement.style.top = `${contentRect.top - rect.top}px`;
-            contentElement.style.right = `${rect.right - contentRect.right}px`;
-            contentElement.style.width = `${contentRect.width}px`;
-            contentElement.style.height = `${contentRect.height}px`;
+    //         contentElement.classList.add('growing-animation');
+    //         contentElement.style.top = `${contentRect.top - rect.top}px`;
+    //         contentElement.style.right = `${rect.right - contentRect.right}px`;
+    //         contentElement.style.width = `${contentRect.width}px`;
+    //         contentElement.style.height = `${contentRect.height}px`;
 
-            animating = true;
-            const animation = element.animate([
-                { width: `${prevWidth}px`, height: `${prevHeight}px` },
-                { width: `${rect.width}px`, height: `${rect.height}px` },
-            ], { duration: 200 });
-            animation.addEventListener('finish', () => {
-                contentElement.style.top = null!;
-                contentElement.style.right = null!;
-                contentElement.style.width = null!;
-                contentElement.style.height = null!;
-                contentElement.classList.remove('growing-animation');
-                setTimeout(() => { animating = false; })
-            });
-        }
-    });
+    //         animating = true;
+    //         const animation = element.animate([
+    //             { width: `${prevWidth}px`, height: `${prevHeight}px` },
+    //             { width: `${rect.width}px`, height: `${rect.height}px` },
+    //         ], { duration: 200 });
+    //         animation.addEventListener('finish', () => {
+    //             contentElement.style.top = null!;
+    //             contentElement.style.right = null!;
+    //             contentElement.style.width = null!;
+    //             contentElement.style.height = null!;
+    //             contentElement.classList.remove('growing-animation');
+    //             setTimeout(() => { animating = false; })
+    //         });
+    //     }
+    // });
 
-    onMount(() => {
-        if (props.type === "response") {
-            resizeObserver.observe(element);
-        }
-    })
+    // onMount(() => {
+    //     if (props.type === "response") {
+    //         resizeObserver.observe(element);
+    //     }
+    // })
 
-    onCleanup(() => {
-        if (props.type === "response") {
-            resizeObserver.unobserve(element);
-        }
-    })
-
-    function revealClick() {
-        setShowText(true);
-    }
+    // onCleanup(() => {
+    //     if (props.type === "response") {
+    //         resizeObserver.unobserve(element);
+    //     }
+    // })
 
     return (
         <div class="quote-wrapper">
-            <span class="bubble-handle">
-                <BubbleHandle/>
-            </span>
             <div class={`quote ${props.type}`} 
-                classList={{'invert-padding': !showText()}} 
-                onPointerUp={revealClick}
+                classList={{'last': props.last}}
                 ref={element}>
                 { props.actorsInfo !== null ? <h3>{ formatString(props.actorsInfo) }</h3> : null }
-                <span class="content" classList={{'buttony-style': !showText()}}ref={contentElement}>
-                    { showText() ? formatString(props.text) : "Aufdecken" }
+                <span class="content" ref={contentElement}>
+                    { formatString(props.text) }
                 </span>
-                { !showText() ? <RippleEffect /> : null }
             </div>
-            { props.type === "request" ? <i class="bi bi-mic-fill"/> : null }
+            {
+                props.type === "response" ? (
+                    <div class="confidence-rating">
+                        <span class="smiley" onClick={event => props.confidenceReport?.(event.target, 'low')}/>
+                        <span class="smiley" onClick={event => props.confidenceReport?.(event.target, 'medium')}/>
+                        <span class="smiley" onClick={event => props.confidenceReport?.(event.target, 'high')}/>
+                    </div>
+                ) : null
+            }
         </div>
     );
 }
@@ -732,9 +733,43 @@ function wrapResolveTrigger(script: Script, uuid: string|null): EventuallyCallba
     };
 }
 
+function easeOut(x) {
+    return Math.sin((x * Math.PI) / 2);
+    // return 1 - Math.pow(1 - t, 3); // close approximation
+}
+
+function animateScroll(element: HTMLElement, top: number, duration: number): Promise<void> {
+    let resolve;
+    const promise = new Promise(resolve_ => { resolve = resolve_; });
+    const from = element.scrollTop;
+    const to = top;
+
+    function doAnimation(dt: number, start: number, current: number) {
+        const progress = Math.min(current - start, duration) / duration;
+        if (progress >= 1.0)
+            setTimeout(resolve, 0);
+        else
+            requestAnimationFrame(timestamp => doAnimation(timestamp - current, start, timestamp));
+        element.scrollTop = easeOut(progress) * (to - from) + from;
+    }
+
+    requestAnimationFrame(current => {
+        requestAnimationFrame(timestamp => doAnimation(timestamp - current, current, timestamp));
+    });
+    return promise;
+}
+
+
+const progressBarGreen = '#5d9948';
+const progressBarYellow = '#fad541';
+const progressBarOrange = '#ffa459';
+const progressBarRed = '#fa742c';
 
 function ScriptView(props: { script: string }) {
-    const script = ResourceManager.scriptsResource.findByUUID(props.script)!;
+    const root = document.getElementById("root");
+
+    const params = useParams<{ uuid: string }>();
+    const script = ResourceManager.scriptsResource.findByUUID(params.uuid)!;
     const table = script.table;
 
 
@@ -759,14 +794,6 @@ function ScriptView(props: { script: string }) {
     });
 
     let triggerTuple: [string|null, string, string|null] = table.getTriggersFromIndex(0)!;
-
-    onMount(() => {
-        router.setTitle(scriptName()); 
-    })
-
-    createEffect(() => {
-        router.setTitle(scriptName()); 
-    });
 
     createEffect(() => {
         triggerTuple = table.getTriggersFromIndex(currentIdx())!;
@@ -810,8 +837,6 @@ function ScriptView(props: { script: string }) {
             return;
         }
         router.pushFrame("divisions", () => {
-            const root = document.getElementById('root')!;
-
             return createRoot(dispose => {
                 onCleanup(() => {
                     root.children[root.children.length - 1].remove();
@@ -834,29 +859,229 @@ function ScriptView(props: { script: string }) {
         return newConf;
     }
 
-    let stvRef: TriggerViewerRef = undefined!;
-    let confidenceRef: ConfidenceRef = undefined!;
+    function generateSunflowerColor(idx: number, saturation = 95, value = 70): string {
+        const PHI = (5 ** 0.5 + 1) * 0.5;
+        return `hsl(${((PHI * idx) % 1) * 360}deg, ${saturation}%, ${value}%)`;
+    }
+
+    function append() {
+        const prev = root.scrollTop;
+        setLength(p => p + 1);
+        root.scrollTop = prev;
+        push();
+    }
+
+    let scrollLocked = false;
+
+    function push() {
+        // setLength(p => p + 1);
+        // const view = document.querySelector("div.script-view");
+        // console.log(view?.children.length === length() + 2);
+        // setTimeout(() => {}, 100);
+        // root.scroll({ top: root.scrollHeight, behavior: 'smooth' });
+        scrollLocked = true;
+        animateScroll(root, root.scrollHeight - root.offsetHeight, 250)
+            .then(() => {
+                scrollLocked = false;
+            });
+    }
+
+    function scrollListener(event: Event) {
+        if (scrollLocked) return;
+        const view = document.querySelector("div.script-view");
+        if (root.scrollTop !== (root.scrollHeight - root.offsetHeight)) {
+            view.classList.add('free-scrolling');
+        } else {
+            view.classList.remove('free-scrolling');
+        }
+    }
+
+    const [stickyDivisionVisible, setStickyDivisionVisible] = createSignal<boolean>(false);
+
+    const observer = new IntersectionObserver(entries => {
+        setStickyDivisionVisible(!entries[0].isIntersecting);
+    }, { root });
+
+    onMount(() => {
+        const view = document.querySelector("div.script-view");
+        observer.observe(view.querySelector('h2'));
+        root.addEventListener('scroll', scrollListener);
+    });
+
+    onCleanup(() => {
+        const view = document.querySelector("div.script-view");
+        observer.unobserve(view.querySelector('h2'));
+        root.removeEventListener('scroll', scrollListener);
+    });
+
+    const [length, setLength] = createSignal<number>(1);
+    const [currentScore, setCurrentScore] = createSignal<number>(0);
+    const [scoreString, setScoreString] = createSignal<string>(String(currentScore()));
+    const [progressBarColor, setProgressBarColor] = createSignal<string>(progressBarGreen);
+    const maxPoints = 25 * 4;
+
+    function checkIsLast(n: number, length: number): boolean {
+        const lastIndex = length - 1;
+        return Math.floor(n / 2) === Math.floor(lastIndex / 2);
+    }
+
+    function calculateIndicatorColor(score: number): string {
+        switch (score) {
+            case 1:
+                return progressBarGreen;
+            case 2:
+            case 4:
+                return progressBarYellow;
+            default:
+                return progressBarRed;
+        }
+    }
+
+    function calculateBarColor(score: number): string {
+        const p = score / maxPoints;
+        if (p > 1)
+            return progressBarRed;
+        else if (p >= 0.5)
+            return progressBarOrange;
+        else if (p >= 0.1)
+            return progressBarYellow;
+        return progressBarGreen;
+    }
+
+    function reportConfidence(source: HTMLElement, confidence: "low"|"medium"|"high") {
+        let diff;
+        switch(confidence) {
+            case 'low':
+                diff = 1;
+                break;
+            case 'medium':
+                diff = 2;
+                break;
+            case 'high':
+                diff = 4;
+                break;
+        }
+        append();
+        const view = document.querySelector("div.script-view");
+        const score = view.querySelector('h2.score');
+        const targetRect = score.getBoundingClientRect();
+        const sourceRect = source.getBoundingClientRect();
+        const indicatorColor = calculateIndicatorColor(diff);
+
+        source.parentElement.insertBefore(
+            formatString([{ style: { color: indicatorColor }, string: `+${diff}` }])[0],
+            source.parentElement.firstChild);
+
+        const flyingIcon: HTMLSpanElement = (
+            <span
+                class="flying-icon"
+                style={{ top: `${sourceRect.top}px`, left: `${sourceRect.left}px`, color: indicatorColor }}>
+                +{diff}
+            </span>);
+        document.body.appendChild(flyingIcon);
+
+        const animation = flyingIcon.animate([
+            { top: `${sourceRect.top}px`, left: `${sourceRect.left}px`, offset: 0 },
+            { top: `${targetRect.top}px`, left: `${targetRect.left}px`, offset: 1 },
+        ], { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' });
+
+        animation.addEventListener('finish', () => {
+            flyingIcon.remove();
+            setCurrentScore(p => p + diff);
+            const color = calculateBarColor(currentScore());
+
+            const centerX = targetRect.left + (targetRect.width / 2);
+            const centerY = targetRect.top  + (targetRect.height / 2);
+
+            const size = window.innerWidth;
+            const coordX = centerX - size / 2;
+            const coordY = centerY - size / 2;
+
+            const bubble: HTMLSpanElement = <span
+                class="score-ripple-bubble"
+                style={{ top: `${coordY}px`, left: `${coordX}px`, '--bubble-color': color }}/>;
+            bubble.addEventListener('animationend', () => {
+                bubble.remove();
+            });
+            document.body.appendChild(bubble);
+        });
+    }
+
+    createEffect(prev => {
+        const current = currentScore();
+        setProgressBarColor(calculateBarColor(current));
+        createScoreAnimation(prev, current);
+        return current;
+    }, currentScore())
+
+    function createScoreAnimation(start: number, end: number) {
+        const effect: string[] = [];
+        for (let c = start; c <= end; c++) {
+            effect.push(String(c));
+        }
+
+        let currentIndex = 0;
+        function advance() {
+            if (currentIndex === effect.length - 1)
+                clearInterval(interval);
+            setScoreString(effect[currentIndex]);
+            currentIndex++;
+        }
+
+        let interval;
+        advance();
+        if (effect.length > 1)
+            interval = setInterval(advance, 75);
+    }
+
     return (
         <div class="script-view">
-            <div class="division-symbol" ref={divisionSymbol}
-                data-division-name={currentDivision()} onClick={openOverview}/>
-            <SingleTriggerViewer 
-                ref={stvRef}
-                script={script}
-                prevTrigger={() => wrapResolveTrigger(script, triggerTuple[0])}
-                currentTrigger={() => wrapResolveTrigger(script, triggerTuple[1])!}
-                nextTrigger={() => wrapResolveTrigger(script, triggerTuple[2])}
-                onTriggerChanged={() => confidenceRef.closeView()}
-                goTo={goTo}
-                onReveal={() => {confidenceRef.selectView()}}
-                />
-            <ViewDecider currentTriggerIdx={table.normalizeWithinDivision(currentDivisionIdx(), currentIdx())} 
-                division={currentDivisionIdx()} 
-                script={script}
-                onTriggerSelected={(idx) => {setCurrentIdx(idx); stvRef.updateView()}}/>
-            <span/>
-            <ConfidenceWidget ref={confidenceRef}
-                confidence={currentTriggerConfidence()} onInteraction={updateTriggerConfidence}/>
+            <span class="sticky-division" classList={{"visible": stickyDivisionVisible()}}>
+                2. Szene — Kevin und der böse Wolf
+            </span>
+            <div class="division-preamble">
+                <h2>2. Szene — Kevin und der böse Wolf</h2>
+                <div class="division-info-wrapper">
+                    <div class="division-info">
+                        <span class="info">Mia, Kevin, Bär, Einbrecher · 25 Einsätze</span>
+                        <span class="content">
+                            { formatString([{ style: null, string: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas lacus nunc, ornare sed felis sit amet, laoreet sagittis enim. Fusce eu felis ultricies, tempor dui sed, elementum diam." }]) }
+                        </span>
+                    </div>
+                </div>
+                <div style={{flex: 1}}/>
+                <QuoteView 
+                    last={checkIsLast(0, length())}
+                    type="request"
+                    text={[{ style: null, string:"This is some crazy Text! I hope you can remember it" }]}
+                    actorsInfo={[{ style: null, string: "Your Mom" }]}/>
+            </div>
+            <div class="main-content">
+                { 
+                    mapArray(
+                        () => Array.from({ length: length() - 1 }, (_, index) => index + 1),
+                        n => <QuoteView 
+                             last={checkIsLast(n, length())}
+                             type={n % 2 === 0 ? "request" : "response"}
+                             confidenceReport={n === length() - 1 ? reportConfidence : undefined}
+                             text={[{ style: null, string:"This is some crazy Text! I hope you can remember it" }]}
+                             actorsInfo={n % 2 !== 0 ? null : [{ style: null, string: "Your Mom" }]}/>)
+                }
+            </div>
+            <div class="scroll-padding"/>
+            <div class="controls">
+                <div class="horizontal">
+                    <h2 class="score">{ scoreString() }</h2>
+                    <div 
+                        class="progress"
+                        style={{'--progress-width': Math.min(currentScore() / maxPoints, 1),
+                            '--progress-color': progressBarColor()}}
+                        classList={{glow: progressBarColor() !== progressBarGreen}}>
+                        <div class="inner"/>
+                    </div>
+                </div>
+                <button disabled={length() % 2 === 0} class="primary-button" onClick={append}>Aufdecken</button>
+            </div>
         </div>
     );
 }
@@ -1540,23 +1765,35 @@ async function scriptsInitialized(): Promise<void> {
     }
 }
 
-const router = new Router(
-    { url: '/', element: ScriptList, staticTitle: 'Quipt' },
-    { url: '/script', element: (props) => [<WaitFor 
-        props={props} waiter={scriptsInitialized} component={ScriptView}/>] },
-    { url: '/clients', element: ManageClients, staticTitle: 'Clients verwalten' },
-    { url: '/clients/add', element: AddClientQR, staticTitle: 'Deinen PC hinzufügen' }
+const loadDefaultScript = query(
+    (uuid?: string) => {
+        if (uuid === undefined) {
+            return redirect("/script/12a4b830-4415-4c69-a2b8-69e595f33e2b");
+        }
+        return redirect(`/script/${uuid}`);
+    },
+    "getScriptByUuid"
 );
 
-export default function App() {
-    const canGoBack = $(router.canGoBack);
-    const currentTitle = $(router.currentTitle);
-
+function App(props: { children: JSX.Element }): JSX.Element {
     return (
         <>
-            <HeaderElement showBackButton={canGoBack()} title={currentTitle()} onBack={() => router.goBack()}>
-                { router.currentContents.bind(router) }
+            <HeaderElement showBackButton={false} title={''}>
             </HeaderElement>
+            <div class="routing-contents">
+                {props.children}
+            </div>
+        </>
+    );
+}
+
+export default function() {
+    return (
+        <>
+            <Router root={App}>
+                <Route path="/" preload={() => loadDefaultScript()} />
+                <Route path="/script/:uuid" component={ScriptView} />
+            </Router>
         </>
     );
 }

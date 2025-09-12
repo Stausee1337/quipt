@@ -3,39 +3,30 @@ import { Observable } from "./observable";
 import { PropertiesHyphen as CSSProperties } from 'csstype';
 import { validate, stringify } from 'uuid';
 
-function getSunflowerColor(idx: number, saturation = 50, luminance = 50): string {
+function generateSunflowerColor(idx: number, saturation = 95, value = 70): string {
     const PHI = (5 ** 0.5 + 1) * 0.5;
-	return `hsl(${((PHI * idx) % 1) * 360}deg, ${saturation}%, ${luminance}%)`;
+	return `hsl(${((PHI * idx) % 1) * 360}deg, ${saturation}%, ${value}%)`;
 }
 
-function generateDarkModeColor(input: number) {
-    // Adjust these parameters to control color generation
-    const hue = (input * 137.508) % 360;
-    const saturation = 95;
-    const lightness = 70;
-
-    // Generate a CSS color string using HSL
-    const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-
-    return color;
-}
+const stringJSON = `[{"uuid":"12a4b830-4415-4c69-a2b8-69e595f33e2b","lastUpdated":1696622142,"name":"Test-Script","modifiedTime":1696622142,"actors":["Emil","Emily","Laura","Bär"],"table":[{"type":"division","name":"Akt 1"},{"type":"trigger","uuid":"b55f7d1a-ea1e-4758-8dcf-c5cc2d4908d2"},{"type":"division","name":"Akt 2"},{"type":"trigger","uuid":"1ac271bd-4c26-4490-ab0c-ec9b7c68a000"},{"type":"trigger","uuid":"828ee434-4fae-46ec-a61b-1ca57d191a17"},{"type":"trigger","uuid":"3a36b3b1-a736-42db-9504-73d4bdda4003"},{"type":"division","name":"Akt 3"},{"type":"trigger","uuid":"7dfbddc7-868b-4280-81fa-809b9010cc6b"},{"type":"trigger","uuid":"7c94e1fa-6457-4695-bc18-54b3a5641068"},{"type":"trigger","uuid":"7091af78-7be7-4340-85fd-b2d8c3c93476"},{"type":"trigger","uuid":"c8918989-d043-4722-b505-ff22d9ca8e77"}]}]`
 
 export namespace ResourceManager {
     let database: IDBDatabase= null!;
     export let scriptsResource: ScriptsResource;
 
-    export async function getScripts(): Promise<void> {
-        if (database === null) {
-            await openDatabase()
-        }
+    export function getScripts() {
+        // if (database === null) {
+        //     await openDatabase()
+        // }
 
-        const scriptStore = database.transaction(['Script'], 'readonly').objectStore('Script');
-        const request = scriptStore.getAll();
-        const result = await new Promise<any[]>((resolve, reject) => {
-            request.onerror = _createErrorHandler('Error reading database', reject);
-            request.onsuccess = () => resolve(request.result);
-        });
+        // const scriptStore = database.transaction(['Script'], 'readonly').objectStore('Script');
+        // const request = scriptStore.getAll();
+        // const result = await new Promise<any[]>((resolve, reject) => {
+        //     request.onerror = _createErrorHandler('Error reading database', reject);
+        //     request.onsuccess = () => resolve(request.result);
+        // });
         
+        const result = JSON.parse(stringJSON);
         const scripts = result.map(Script.fromDatabase)
         const lastUpdated = Number(localStorage.getItem('Scripts.lastUpdated') ?? '0');
         // scriptsResource = new ScriptsResource(scripts, lastUpdated);
@@ -417,12 +408,6 @@ export class ScriptsResource extends Resource {
         this.updating.set(false);
     }
 }
-(async function () {
-    ResourceManager.scriptsResource = new ScriptsResource([], 0);
-    ResourceManager.scriptsResource.updating.set(true);
-    await ResourceManager.getScripts();
-    ResourceManager.scriptsResource.updating.set(false);
-})()
 
 type IndexIntoTable = number;
 
@@ -726,7 +711,8 @@ export class Script extends Resource {
             return null;
         }
 
-        const result: FormattedString = ids.map(id => [generateDarkModeColor(id), this.actors[id]])
+        const result: FormattedString = ids
+            .map(id => [generateSunflowerColor(id), this.actors[id]])
             .map(item => ({ style: { color: item[0] }, string: item[1] }));
 
         if (result.length === 1) {
@@ -1186,3 +1172,8 @@ function smartTypeof(value: any): SmartTypes {
     return typeof value;
 
 }
+
+(async function () {
+    ResourceManager.scriptsResource = new ScriptsResource([], 0);
+    await ResourceManager.getScripts();
+})()

@@ -3,6 +3,7 @@ import { untrack } from "solid-js/web";
 import { $, Observable } from "./observable";
 import { DialogManager } from "./dialog";
 import { TrashIcon } from "./bubble-handle";
+import { useNavigate } from "@solidjs/router";
 
 export function ProgressSpinner(props: { size?: number, color?: string | undefined }) {
     const merged = mergeProps({ size: 100 }, props);
@@ -461,45 +462,13 @@ export type HeaderElementProps = {
 
 export function HeaderElement(props: HeaderElementProps) {
     const controller = new HeaderController();
-    const mode = $(controller.mode);
-    const amountSelected = $(controller.amountSelected);
-
-    const headerLeftDefault = (
-        <div class="header-left"> 
-            { 
-                props.showBackButton ? 
-                    <HeaderIconButton icon="arrow-left" onClick={props.onBack}/> : 
-                    null 
-            }
-            <h1>{ props.title }</h1>
-        </div>
-    );
-
-    const headerLeftList = (
-        <div class="header-left"> 
-            <HeaderIconButton icon="arrow-left" onClick={() => controller.listViewUnselect()}/> 
-            <h1>{ amountSelected() }</h1>
-        </div>
-    );
-
-    const headerRight = (
-        <>
-            <HeaderIconButton icon={<TrashIcon/>} onClick={() => controller.delete()}/> 
-        </>
-    );
 
     return (
         <HeaderContext.Provider value={controller}>
-            <div class="header-element" classList={{"list-mode": mode() === "list"}}>
-                { mode() === "default" ? headerLeftDefault : headerLeftList }
-                <div class="header-right">  
-                    { mode() === "list" ? headerRight : null}
-                    <HeaderIconButton icon="three-dots-vertical"/>
-                </div>
+            <div class="header-element">
+                <h1>Quipt</h1>
             </div>
-            { props.children() }
         </HeaderContext.Provider>
-
     );
 }
 

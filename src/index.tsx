@@ -21,7 +21,7 @@ const root = document.getElementById('root');
     }
     // localStorage.setItem('credentials', '{"uuid":"bcf742e7-1208-4778-9131-f583c9bf5b26","password":"Start100!"}');
 
-    Resources.pollForUpdates();
+    // Resources.pollForUpdates();
 
     render(() => <App />, root!)
 })();

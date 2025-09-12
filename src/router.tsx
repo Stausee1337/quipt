@@ -25,26 +25,21 @@ export class Router {
             if (value != null)
                 document.title = value;
         });
-        window.addEventListener('popstate', (e) => {
-            if(this.frameDispose !== undefined) {
-                const dispose = this.frameDispose;
-                this.frameDispose = undefined;
-                dispose();
-                return;
-            }
-            if (document.startViewTransition) { 
-                document.documentElement.classList.add('going-back');
-                document.startViewTransition(() => {
-                    this.setCurrentTitle();
-                    this.setCurrentFactory();
-                    this.setCanGoBack();
-                });
-                return;
-            }
-            this.setCurrentTitle();
-            this.setCurrentFactory();
-            this.setCanGoBack();
+        window.navigation.addEventListener('navigate', event => {
+            console.log(event);
+            event.intercept();
         });
+        // window.addEventListener('popstate', (e) => {
+        //     if(this.frameDispose !== undefined) {
+        //         const dispose = this.frameDispose;
+        //         this.frameDispose = undefined;
+        //         dispose();
+        //         return;
+        //     }
+        //     this.setCurrentTitle();
+        //     this.setCurrentFactory();
+        //     this.setCanGoBack();
+        // });
         this.setCurrentTitle();
         this.setCurrentFactory();
         this.setCanGoBack();
@@ -58,16 +53,11 @@ export class Router {
         this.currentTitle.set(title);
     }
 
-    public route(toUrl: string, state: any | null = null, _cfvt = false) {
-        if (document.startViewTransition && !_cfvt) {
-            document.documentElement.classList.remove('going-back');
-            document.startViewTransition(() => this.route(toUrl, state, true))
-            return;
-        }
+    public route(toUrl: string, state: any | null = null) {
         if (!this._routes.has(toUrl)) {
             throw 'Tried to route to non-existing url';
         }
-        history.pushState(state, '', toUrl);
+        window.navigation.navigate(toUrl);
         this.setCurrentTitle();
         this.setCurrentFactory();
         this.setCanGoBack();
