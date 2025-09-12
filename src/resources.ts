@@ -1,3 +1,4 @@
+import { JSX } from "solid-js";
 import { DialogManager } from "./dialog";
 import { Observable } from "./observable";
 import { PropertiesHyphen as CSSProperties } from 'csstype';
@@ -340,7 +341,7 @@ export abstract class Resource {
     public updating = new Observable(false);
 }
 
-export type FormattedString = Array<{ style: CSSProperties|null, string: string }>;
+export type FormattedString = Array<{ style: JSX.CSSProperties|null, string: string }>;
 
 export type TableItem = {
     type: "division",
