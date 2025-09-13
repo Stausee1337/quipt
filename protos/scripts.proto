@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package scripts;
+
+message Script {
+  string uuid = 1;
+  string name = 2;
+  repeated Division divisions = 3;
+}
+
+message Division {
+  string uuid = 1;
+  string name = 2;
+  repeated uint32 previousTotals = 3;
+  repeated TextCuePair textCues = 4;
+}
+
+message TextCuePair {
+  optional TextCue request = 1;
+  TextCue response = 2;
+  repeated uint32 previousScores = 3;
+}
+
+message TextCue {
+  optional string actor = 1;
+  string text = 2;
+}
+

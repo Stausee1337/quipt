@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+import "auth.proto";
+import "scripts.proto";
+

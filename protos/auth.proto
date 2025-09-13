@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package auth;
+
+message User {
+  string uuid = 1;
+  string email = 2;
+}
+
+message SigninRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message SignupRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message AuthSuccess {
+  string userId = 1;
+  string accessToken = 2;
+  string refreshToken = 3;
+}
+
+enum AuthErrorCode {
+  AUTH_ERROR_UNSPECIFIED = 0;
+  INVALID_CREDENTIALS = 1;
+  EMAIL_ALREADY_EXISTS = 2;
+  WEAK_PASSWORD = 3;
+  TOKEN_EXPIRED = 4;
+  UNAUTHORIZED = 5;
+}
+
+// Generic error structure
+message AuthError {
+  AuthErrorCode code = 1;
+  string message = 2;
+}
+
+message AuthResponse {
+  oneof result {
+    AuthResponse success = 1;
+    AuthError error = 2;
+  };
+}

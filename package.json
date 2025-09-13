@@ -1,18 +1,20 @@
 {
-  "name": "quipt-app2",
+  "name": "quipt-app",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build && ./copy.py",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-defs": "node ./generate-defs.js"
   },
   "dependencies": {
     "@solidjs/router": "^0.15.3",
     "bootstrap-icons": "^1.11.1",
     "hammerjs": "^2.0.8",
     "html5-qrcode": "^2.3.8",
+    "protobufjs": "^7.5.4",
     "sass": "^1.68.0",
     "solid-js": "^1.9.9",
     "uuid": "^9.0.1",
@@ -22,6 +24,7 @@
     "@types/dom-navigation": "^1.0.6",
     "@types/hammerjs": "^2.0.42",
     "@types/uuid": "^9.0.4",
+    "protobufjs-cli": "^1.1.3",
     "vite": "^4.4.5",
     "vite-plugin-node": "^3.0.2",
     "vite-plugin-solid": "^2.7.0"
