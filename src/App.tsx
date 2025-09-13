@@ -1,10 +1,11 @@
 import './App.scss'
-import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray } from 'solid-js';
+import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor } from 'solid-js';
 import { HeaderElement } from './std-widgets';
 import { Router, Route } from '@solidjs/router';
 
 
-import { FormattedString } from './resources';
+import { FormattedString, ResourceManager } from './resources';
+console.log(ResourceManager);
 
 type QuoteViewProps = {
     last: boolean,
@@ -29,6 +30,8 @@ function formatString(string: FormattedString): JSX.Element {
 
     return result;
 }
+
+const textCues = JSON.parse(`[{"requestText":[{"string":"Now I am first  ","style":null}],"responseText":[{"string":"Indeed, you are!  ","style":null}],"requestActors":["Laura"],"responseActors":["Bär"]},{"requestText":[{"string":"Wenn eins plus eins zwei ist, was hält dann eins plus eins davon auf drei zu sein?  ","style":null}],"responseText":[{"string":"The Fuck, laberst du. Du Kecko! ","style":null},{"string":"(kotzt sich in den Fuß)","style":{"font-style":"italic"}},{"string":"  ","style":null}],"requestActors":["Emily"],"responseActors":["Bär"]},{"requestText":[{"string":"Hey I'm Laura. Nice to meet you!  ","style":null}],"responseText":[{"string":"Soory, but I don't understand. WTF motherfucker?   ","style":null}],"requestActors":["Laura"],"responseActors":["Bär"]},{"requestText":[{"string":"(sichtlich verwirrt)","style":{"font-style":"italic"}},{"string":" Macht eigentlich irendetwas von dem ihr da redet einen Sinn?  ","style":null}],"responseText":[{"string":"Bis jetzt habe ich keinen erkennen können  ","style":null}],"requestActors":["Emily"],"responseActors":["Bär"]},{"requestText":[{"style":{"font-style":"italic"},"string":"Du bist der erste in diesem Abschnitt"}],"responseText":[{"string":"Jetzt fliegen hier die fetzten, dass es nur so kracht!  ","style":null}],"requestActors":null,"responseActors":["Bär"]},{"requestText":[{"string":"(noch verwirrter)","style":{"font-style":"italic"}},{"string":" Du warst doch schon die ganze Zeit Teil der Konversation!  ","style":null}],"responseText":[{"string":"(zu Emil)","style":{"font-style":"italic"}},{"string":" Wer bist du jetzt eigentlich?  ","style":null}],"requestActors":["Emily"],"responseActors":["Bär","Laura"]},{"requestText":[{"string":"Vorletzer! Ich bin eins Emil  ","style":null}],"responseText":[{"string":"RIIIIICHTIG  ","style":null}],"requestActors":["Emil"],"responseActors":["Bär"]},{"requestText":[{"string":"Wir lieben dich Bär!  ","style":null}],"responseText":[{"string":"Danke, Danke  ","style":null}],"requestActors":["Emil","Emily"],"responseActors":"all"}]`);
 
 function QuoteView(props: QuoteViewProps) {
     return (
@@ -85,33 +88,66 @@ const progressBarYellow = '#fad541';
 const progressBarOrange = '#ffa459';
 const progressBarRed = '#fa742c';
 
+function xxx(scoreString: Accessor<string>, progressBarColor: Accessor<string>) {
+    function calculateTranslationTo(sourceRect: DOMRect, targetRect: DOMRect): string {
+        const relY = targetRect.top + (targetRect.height / 2) - (sourceRect.height / 2);
+        const relX = targetRect.left  + (targetRect.width / 2) - (sourceRect.width / 2);
+
+        return `translate(${relX}px, ${relY}px)`;
+    }
+    const view = document.querySelector("div.script-view")!;
+    const score = view.querySelector('h2.score')! as HTMLElement;
+    const scoreBox = view.querySelector('div.scorebox')! as HTMLElement;
+
+    
+    const flyingScore = (<h2 class="flying-score">{scoreString()}</h2>) as HTMLHeadingElement;
+    document.body.append(flyingScore);
+
+    const initalTargetRect = score.getBoundingClientRect();
+    const finalTargetRect = scoreBox.getBoundingClientRect();
+
+    const sourceRect = flyingScore.getBoundingClientRect();
+    const initialTranslation = calculateTranslationTo(sourceRect, initalTargetRect);
+    const finalTranslation = calculateTranslationTo(sourceRect, finalTargetRect);
+
+    flyingScore.style.transform = `${finalTranslation} scale(10)`;
+    flyingScore.style.color = progressBarColor();
+
+    const animation = flyingScore.animate([
+        { transform: initialTranslation, offset: 0 },
+        { transform: `${finalTranslation} scale(10)`, color: progressBarColor(), offset: 1 },
+    ], { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' });
+
+    animation.addEventListener('finish', () => {
+        scoreBox.classList.remove('hidden');
+        flyingScore.remove();
+    });
+}
+
 function ScriptView() {
     const root = document.getElementById("root")!;
 
     // const params = useParams<{ uuid: string }>();
     // const script = ResourceManager.scriptsResource.findByUUID(params.uuid)!;
 
-
-
+    let scrollLocked = false;
     function append() {
         const prev = root.scrollTop;
-        setLength(p => p + 1);
+        const currentIdx = currentIndex();
+        if (currentIdx < textCues.length * 2 - 1)
+            setCurrentIndex(currentIdx + 1);
+        else
+            setReachedEnd(true);
+
         root.scrollTop = prev;
-        push();
-    }
 
-    let scrollLocked = false;
-
-    function push() {
-        // setLength(p => p + 1);
-        // const view = document.querySelector("div.script-view");
-        // console.log(view?.children.length === length() + 2);
-        // setTimeout(() => {}, 100);
-        // root.scroll({ top: root.scrollHeight, behavior: 'smooth' });
         scrollLocked = true;
         animateScroll(root, root.scrollHeight - root.offsetHeight, 250)
             .then(() => {
                 scrollLocked = false;
+
+                if (reachedEnd())
+                    xxx(scoreString, progressBarColor);
             });
     }
 
@@ -143,14 +179,14 @@ function ScriptView() {
         root.removeEventListener('scroll', scrollListener);
     });
 
-    const [length, setLength] = createSignal<number>(1);
+    const [currentIndex, setCurrentIndex] = createSignal<number>(0);
     const [currentScore, setCurrentScore] = createSignal<number>(0);
     const [scoreString, setScoreString] = createSignal<string>(String(currentScore()));
     const [progressBarColor, setProgressBarColor] = createSignal<string>(progressBarGreen);
-    const maxPoints = 25 * 4;
+    const [reachedEnd, setReachedEnd] = createSignal<boolean>(false);
+    const maxScore = textCues.length * 4;
 
-    function checkIsLast(n: number, length: number): boolean {
-        const lastIndex = length - 1;
+    function checkIsLast(n: number, lastIndex: number): boolean {
         return Math.floor(n / 2) === Math.floor(lastIndex / 2);
     }
 
@@ -166,12 +202,12 @@ function ScriptView() {
     }
 
     function calculateBarColor(score: number): string {
-        const p = score / maxPoints;
+        const p = score / maxScore;
         if (p > 1)
             return progressBarGreen;
-        else if (p >= 0.5)
+        else if (p > 0.5)
             return progressBarYellow;
-        else if (p >= 0.1)
+        else if (p > 0.25)
             return progressBarOrange;
         return progressBarRed;
     }
@@ -264,6 +300,22 @@ function ScriptView() {
             interval = setInterval(advance, 75);
     }
 
+    function renderQuote(n: number): JSX.Element {
+        const type = n % 2 === 0 ? "request" : "response";
+        const textCue = textCues[Math.floor(n / 2)];
+        const cueData = type === "request" 
+            ? { actors: [{ string: textCue.requestActors, style: null }], text: textCue.requestText }
+            : { actors: [{ string: textCue.responseActors, style: null }], text: textCue.responseText };
+        console.log(textCue);
+        return (
+            <QuoteView 
+                last={checkIsLast(n, currentIndex())}
+                type={type}
+                confidenceReport={n === currentIndex() ? reportConfidence : undefined}
+                text={cueData.text}
+                actorsInfo={cueData.actors}/>);
+    }
+
     return (
         <div class="script-view">
             <span class="sticky-division" classList={{"visible": stickyDivisionVisible()}}>
@@ -280,36 +332,30 @@ function ScriptView() {
                     </div>
                 </div>
                 <div style={{flex: 1}}/>
-                <QuoteView 
-                    last={checkIsLast(0, length())}
-                    type="request"
-                    text={[{ style: null, string:"This is some crazy Text! I hope you can remember it" }]}
-                    actorsInfo={[{ style: null, string: "Your Mom" }]}/>
+                { renderQuote(0) }
             </div>
             <div class="main-content">
                 { 
                     mapArray<number, JSX.Element>(
-                        () => Array.from({ length: length() - 1 }, (_, index) => index + 1),
-                        n => <QuoteView 
-                             last={checkIsLast(n, length())}
-                             type={n % 2 === 0 ? "request" : "response"}
-                             confidenceReport={n === length() - 1 ? reportConfidence : undefined}
-                             text={[{ style: null, string:"This is some crazy Text! I hope you can remember it" }]}
-                             actorsInfo={n % 2 !== 0 ? null : [{ style: null, string: "Your Mom" }]}/>)()
+                        () => Array.from({ length: currentIndex() }, (_, index) => index + 1),
+                        renderQuote)()
                 }
             </div>
-            <div class="scroll-padding"/>
+            { !reachedEnd() 
+                ? <div class="scroll-padding"/> 
+                : (<div class="division-training-end"><div class="scorebox hidden" style={{'--score-color': progressBarColor()}} children={currentScore()}/></div>) 
+            }
             <div class="controls">
                 <div class="horizontal">
                     <h2 class="score">{ scoreString() }</h2>
                     <div 
                         class="progress"
-                        style={{'--progress-width': Math.min(currentScore() / maxPoints, 1),
+                        style={{'--progress-width': Math.min(currentScore() / maxScore, 1),
                             '--progress-color': progressBarColor()}}>
                         <div class="inner"/>
                     </div>
                 </div>
-                <button disabled={length() % 2 === 0} class="primary-button" onClick={append}>Aufdecken</button>
+                <button disabled={currentIndex() % 2 === 1} class="primary-button" onClick={append}>Aufdecken</button>
             </div>
         </div>
     );

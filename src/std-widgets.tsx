@@ -466,6 +466,7 @@ export function HeaderElement(props: HeaderElementProps) {
     return (
         <HeaderContext.Provider value={controller}>
             <div class="header-element">
+                <button><TrashIcon/></button>
                 <h1>Quipt</h1>
             </div>
         </HeaderContext.Provider>

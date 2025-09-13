@@ -9,25 +9,22 @@ function generateSunflowerColor(idx: number, saturation = 95, value = 70): strin
 	return `hsl(${((PHI * idx) % 1) * 360}deg, ${saturation}%, ${value}%)`;
 }
 
-const stringJSON = `[{"uuid":"12a4b830-4415-4c69-a2b8-69e595f33e2b","lastUpdated":1696622142,"name":"Test-Script","modifiedTime":1696622142,"actors":["Emil","Emily","Laura","Bär"],"table":[{"type":"division","name":"Akt 1"},{"type":"trigger","uuid":"b55f7d1a-ea1e-4758-8dcf-c5cc2d4908d2"},{"type":"division","name":"Akt 2"},{"type":"trigger","uuid":"1ac271bd-4c26-4490-ab0c-ec9b7c68a000"},{"type":"trigger","uuid":"828ee434-4fae-46ec-a61b-1ca57d191a17"},{"type":"trigger","uuid":"3a36b3b1-a736-42db-9504-73d4bdda4003"},{"type":"division","name":"Akt 3"},{"type":"trigger","uuid":"7dfbddc7-868b-4280-81fa-809b9010cc6b"},{"type":"trigger","uuid":"7c94e1fa-6457-4695-bc18-54b3a5641068"},{"type":"trigger","uuid":"7091af78-7be7-4340-85fd-b2d8c3c93476"},{"type":"trigger","uuid":"c8918989-d043-4722-b505-ff22d9ca8e77"}]}]`
-
 export namespace ResourceManager {
     let database: IDBDatabase= null!;
     export let scriptsResource: ScriptsResource;
 
-    export function getScripts() {
-        // if (database === null) {
-        //     await openDatabase()
-        // }
+    export async function getScripts() {
+        if (database === null) {
+            await openDatabase()
+        }
 
-        // const scriptStore = database.transaction(['Script'], 'readonly').objectStore('Script');
-        // const request = scriptStore.getAll();
-        // const result = await new Promise<any[]>((resolve, reject) => {
-        //     request.onerror = _createErrorHandler('Error reading database', reject);
-        //     request.onsuccess = () => resolve(request.result);
-        // });
+        const scriptStore = database.transaction(['Script'], 'readonly').objectStore('Script');
+        const request = scriptStore.getAll();
+        const result = await new Promise<any[]>((resolve, reject) => {
+            request.onerror = _createErrorHandler('Error reading database', reject);
+            request.onsuccess = () => resolve(request.result);
+        });
         
-        const result = JSON.parse(stringJSON);
         const scripts = result.map(Script.fromDatabase)
         const lastUpdated = Number(localStorage.getItem('Scripts.lastUpdated') ?? '0');
         // scriptsResource = new ScriptsResource(scripts, lastUpdated);
@@ -1175,6 +1172,28 @@ function smartTypeof(value: any): SmartTypes {
 }
 
 (async function () {
+    console.log('hi');
     ResourceManager.scriptsResource = new ScriptsResource([], 0);
     await ResourceManager.getScripts();
+    const script = ResourceManager.scriptsResource.findByUUID("12a4b830-4415-4c69-a2b8-69e595f33e2b")!;
+    const triggerPromise = script.table
+        .allTriggers()
+        .map(uuid => script.resolveTrigger(uuid))
+    const persistables = (await Promise.all(triggerPromise))
+        .map(trigger => trigger?.mapToPersistable());
+    const textCues = persistables.map(persistable => {
+        const requestIds = persistable!.requestActorIds;
+        const requestActors = Array.isArray(requestIds) ? requestIds.map(id => script.actors[id]) : requestIds;
+        const responseIds = persistable!.responseActorIds;
+        const responseActors = Array.isArray(responseIds) ? responseIds.map(id => script.actors[id]) : responseIds;
+
+        return {
+            requestText: persistable.requestText,
+            responseText: persistable.responseText,
+            requestActors,
+            responseActors
+        };
+    });
+
+    console.log(JSON.stringify(textCues));
 })()
