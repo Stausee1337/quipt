@@ -6,11 +6,14 @@ export namespace auth {
     /** Properties of a User. */
     interface IUser {
 
-        /** User uuid */
-        uuid?: (string|null);
+        /** User id */
+        id?: (string|null);
 
         /** User email */
         email?: (string|null);
+
+        /** User verified */
+        verified?: (boolean|null);
     }
 
     /** Represents a User. */
@@ -22,11 +25,14 @@ export namespace auth {
          */
         constructor(properties?: auth.IUser);
 
-        /** User uuid. */
-        public uuid: string;
+        /** User id. */
+        public id: string;
 
         /** User email. */
         public email: string;
+
+        /** User verified. */
+        public verified: boolean;
 
         /**
          * Encodes the specified User message. Does not implicitly {@link auth.User.verify|verify} messages.
@@ -299,10 +305,10 @@ export namespace auth {
 
     /** AuthErrorCode enum. */
     enum AuthErrorCode {
-        AUTH_ERROR_UNSPECIFIED = 0,
-        INVALID_CREDENTIALS = 1,
-        EMAIL_ALREADY_EXISTS = 2,
-        WEAK_PASSWORD = 3,
+        EMAIL_MALFORMED = 0,
+        WEAK_PASSWORD = 1,
+        INVALID_CREDENTIALS = 2,
+        EMAIL_ALREADY_EXISTS = 3,
         TOKEN_EXPIRED = 4,
         UNAUTHORIZED = 5
     }
@@ -373,81 +379,6 @@ export namespace auth {
 
         /**
          * Gets the default type url for AuthError
-         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-         * @returns The default type url
-         */
-        public static getTypeUrl(typeUrlPrefix?: string): string;
-    }
-
-    /** Properties of an AuthResponse. */
-    interface IAuthResponse {
-
-        /** AuthResponse success */
-        success?: (auth.IAuthResponse|null);
-
-        /** AuthResponse error */
-        error?: (auth.IAuthError|null);
-    }
-
-    /** Represents an AuthResponse. */
-    class AuthResponse implements IAuthResponse {
-
-        /**
-         * Constructs a new AuthResponse.
-         * @param [properties] Properties to set
-         */
-        constructor(properties?: auth.IAuthResponse);
-
-        /** AuthResponse success. */
-        public success?: (auth.IAuthResponse|null);
-
-        /** AuthResponse error. */
-        public error?: (auth.IAuthError|null);
-
-        /** AuthResponse result. */
-        public result?: ("success"|"error");
-
-        /**
-         * Encodes the specified AuthResponse message. Does not implicitly {@link auth.AuthResponse.verify|verify} messages.
-         * @param message AuthResponse message or plain object to encode
-         * @param [writer] Writer to encode to
-         * @returns Writer
-         */
-        public static encode(message: auth.IAuthResponse, writer?: $protobuf.Writer): $protobuf.Writer;
-
-        /**
-         * Decodes an AuthResponse message from the specified reader or buffer.
-         * @param reader Reader or buffer to decode from
-         * @param [length] Message length if known beforehand
-         * @returns AuthResponse
-         * @throws {Error} If the payload is not a reader or valid buffer
-         * @throws {$protobuf.util.ProtocolError} If required fields are missing
-         */
-        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): auth.AuthResponse;
-
-        /**
-         * Creates an AuthResponse message from a plain object. Also converts values to their respective internal types.
-         * @param object Plain object
-         * @returns AuthResponse
-         */
-        public static fromObject(object: { [k: string]: any }): auth.AuthResponse;
-
-        /**
-         * Creates a plain object from an AuthResponse message. Also converts values to other types if specified.
-         * @param message AuthResponse
-         * @param [options] Conversion options
-         * @returns Plain object
-         */
-        public static toObject(message: auth.AuthResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-        /**
-         * Converts this AuthResponse to JSON.
-         * @returns JSON object
-         */
-        public toJSON(): { [k: string]: any };
-
-        /**
-         * Gets the default type url for AuthResponse
          * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
          * @returns The default type url
          */

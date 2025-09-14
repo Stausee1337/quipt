@@ -32,7 +32,7 @@ func NewUserRepo(db *mongo.Database) *UserRepo {
 }
 
 func (r *UserRepo) FindUserByEmail(ctx context.Context, email string) (*User, error) {
-	result := r.users.FindOne(ctx, bson.D{{Key: "Email", Value: email}});
+	result := r.users.FindOne(ctx, bson.D{{Key: "email", Value: email}});
 	var user User
 	if err := result.Decode(&user); err != nil {	
 		if errors.Is(err, mongo.ErrNoDocuments) {

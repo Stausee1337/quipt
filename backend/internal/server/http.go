@@ -41,7 +41,9 @@ func (h *SignupHandler) HandleSignup(w http.ResponseWriter, r *http.Request) {
 
 	var req protos.SignupRequest
 	if err = proto.Unmarshal(body, &req); err != nil {
-		http.Error(w, "bad request data", http.StatusBadRequest);
+		slog.Error(err.Error());
+		w.WriteHeader(http.StatusBadRequest);
+		return;
 	}
 
 	ctx := r.Context()
@@ -52,7 +54,7 @@ func (h *SignupHandler) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		auth, ok := err.(*service.AuthError);
 		if !ok {
-			slog.Error(auth.Error());
+			slog.Error(err.Error());
 			http.Error(w, "internal server error", http.StatusInternalServerError);
 			return
 		}
@@ -65,8 +67,14 @@ func (h *SignupHandler) HandleSignup(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal server error", http.StatusInternalServerError);
 			return
 		}
+		w.WriteHeader(http.StatusBadRequest);
+	} else {
+		response, err = proto.Marshal(user);
+		if err != nil {
+			slog.Error(err.Error());
+			http.Error(w, "internal server error", http.StatusInternalServerError);
+		}
 	}
-	response, err = proto.Marshal(user);
 
 	w.Write(response)
 }

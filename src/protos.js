@@ -22,8 +22,9 @@ export const auth = $root.auth = (() => {
          * Properties of a User.
          * @memberof auth
          * @interface IUser
-         * @property {string|null} [uuid] User uuid
+         * @property {string|null} [id] User id
          * @property {string|null} [email] User email
+         * @property {boolean|null} [verified] User verified
          */
 
         /**
@@ -42,12 +43,12 @@ export const auth = $root.auth = (() => {
         }
 
         /**
-         * User uuid.
-         * @member {string} uuid
+         * User id.
+         * @member {string} id
          * @memberof auth.User
          * @instance
          */
-        User.prototype.uuid = "";
+        User.prototype.id = "";
 
         /**
          * User email.
@@ -56,6 +57,14 @@ export const auth = $root.auth = (() => {
          * @instance
          */
         User.prototype.email = "";
+
+        /**
+         * User verified.
+         * @member {boolean} verified
+         * @memberof auth.User
+         * @instance
+         */
+        User.prototype.verified = false;
 
         /**
          * Encodes the specified User message. Does not implicitly {@link auth.User.verify|verify} messages.
@@ -69,10 +78,12 @@ export const auth = $root.auth = (() => {
         User.encode = function encode(message, writer) {
             if (!writer)
                 writer = $Writer.create();
-            if (message.uuid != null && Object.hasOwnProperty.call(message, "uuid"))
-                writer.uint32(/* id 1, wireType 2 =*/10).string(message.uuid);
+            if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+                writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
             if (message.email != null && Object.hasOwnProperty.call(message, "email"))
                 writer.uint32(/* id 2, wireType 2 =*/18).string(message.email);
+            if (message.verified != null && Object.hasOwnProperty.call(message, "verified"))
+                writer.uint32(/* id 3, wireType 0 =*/24).bool(message.verified);
             return writer;
         };
 
@@ -97,11 +108,15 @@ export const auth = $root.auth = (() => {
                     break;
                 switch (tag >>> 3) {
                 case 1: {
-                        message.uuid = reader.string();
+                        message.id = reader.string();
                         break;
                     }
                 case 2: {
                         message.email = reader.string();
+                        break;
+                    }
+                case 3: {
+                        message.verified = reader.bool();
                         break;
                     }
                 default:
@@ -124,10 +139,12 @@ export const auth = $root.auth = (() => {
             if (object instanceof $root.auth.User)
                 return object;
             let message = new $root.auth.User();
-            if (object.uuid != null)
-                message.uuid = String(object.uuid);
+            if (object.id != null)
+                message.id = String(object.id);
             if (object.email != null)
                 message.email = String(object.email);
+            if (object.verified != null)
+                message.verified = Boolean(object.verified);
             return message;
         };
 
@@ -145,13 +162,16 @@ export const auth = $root.auth = (() => {
                 options = {};
             let object = {};
             if (options.defaults) {
-                object.uuid = "";
+                object.id = "";
                 object.email = "";
+                object.verified = false;
             }
-            if (message.uuid != null && message.hasOwnProperty("uuid"))
-                object.uuid = message.uuid;
+            if (message.id != null && message.hasOwnProperty("id"))
+                object.id = message.id;
             if (message.email != null && message.hasOwnProperty("email"))
                 object.email = message.email;
+            if (message.verified != null && message.hasOwnProperty("verified"))
+                object.verified = message.verified;
             return object;
         };
 
@@ -712,19 +732,19 @@ export const auth = $root.auth = (() => {
      * AuthErrorCode enum.
      * @name auth.AuthErrorCode
      * @enum {number}
-     * @property {number} AUTH_ERROR_UNSPECIFIED=0 AUTH_ERROR_UNSPECIFIED value
-     * @property {number} INVALID_CREDENTIALS=1 INVALID_CREDENTIALS value
-     * @property {number} EMAIL_ALREADY_EXISTS=2 EMAIL_ALREADY_EXISTS value
-     * @property {number} WEAK_PASSWORD=3 WEAK_PASSWORD value
+     * @property {number} EMAIL_MALFORMED=0 EMAIL_MALFORMED value
+     * @property {number} WEAK_PASSWORD=1 WEAK_PASSWORD value
+     * @property {number} INVALID_CREDENTIALS=2 INVALID_CREDENTIALS value
+     * @property {number} EMAIL_ALREADY_EXISTS=3 EMAIL_ALREADY_EXISTS value
      * @property {number} TOKEN_EXPIRED=4 TOKEN_EXPIRED value
      * @property {number} UNAUTHORIZED=5 UNAUTHORIZED value
      */
     auth.AuthErrorCode = (function() {
         const valuesById = {}, values = Object.create(valuesById);
-        values[valuesById[0] = "AUTH_ERROR_UNSPECIFIED"] = 0;
-        values[valuesById[1] = "INVALID_CREDENTIALS"] = 1;
-        values[valuesById[2] = "EMAIL_ALREADY_EXISTS"] = 2;
-        values[valuesById[3] = "WEAK_PASSWORD"] = 3;
+        values[valuesById[0] = "EMAIL_MALFORMED"] = 0;
+        values[valuesById[1] = "WEAK_PASSWORD"] = 1;
+        values[valuesById[2] = "INVALID_CREDENTIALS"] = 2;
+        values[valuesById[3] = "EMAIL_ALREADY_EXISTS"] = 3;
         values[valuesById[4] = "TOKEN_EXPIRED"] = 4;
         values[valuesById[5] = "UNAUTHORIZED"] = 5;
         return values;
@@ -845,19 +865,19 @@ export const auth = $root.auth = (() => {
                     break;
                 }
                 break;
-            case "AUTH_ERROR_UNSPECIFIED":
+            case "EMAIL_MALFORMED":
             case 0:
                 message.code = 0;
                 break;
-            case "INVALID_CREDENTIALS":
+            case "WEAK_PASSWORD":
             case 1:
                 message.code = 1;
                 break;
-            case "EMAIL_ALREADY_EXISTS":
+            case "INVALID_CREDENTIALS":
             case 2:
                 message.code = 2;
                 break;
-            case "WEAK_PASSWORD":
+            case "EMAIL_ALREADY_EXISTS":
             case 3:
                 message.code = 3;
                 break;
@@ -889,7 +909,7 @@ export const auth = $root.auth = (() => {
                 options = {};
             let object = {};
             if (options.defaults) {
-                object.code = options.enums === String ? "AUTH_ERROR_UNSPECIFIED" : 0;
+                object.code = options.enums === String ? "EMAIL_MALFORMED" : 0;
                 object.message = "";
             }
             if (message.code != null && message.hasOwnProperty("code"))
@@ -926,196 +946,6 @@ export const auth = $root.auth = (() => {
         };
 
         return AuthError;
-    })();
-
-    auth.AuthResponse = (function() {
-
-        /**
-         * Properties of an AuthResponse.
-         * @memberof auth
-         * @interface IAuthResponse
-         * @property {auth.IAuthResponse|null} [success] AuthResponse success
-         * @property {auth.IAuthError|null} [error] AuthResponse error
-         */
-
-        /**
-         * Constructs a new AuthResponse.
-         * @memberof auth
-         * @classdesc Represents an AuthResponse.
-         * @implements IAuthResponse
-         * @constructor
-         * @param {auth.IAuthResponse=} [properties] Properties to set
-         */
-        function AuthResponse(properties) {
-            if (properties)
-                for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                    if (properties[keys[i]] != null)
-                        this[keys[i]] = properties[keys[i]];
-        }
-
-        /**
-         * AuthResponse success.
-         * @member {auth.IAuthResponse|null|undefined} success
-         * @memberof auth.AuthResponse
-         * @instance
-         */
-        AuthResponse.prototype.success = null;
-
-        /**
-         * AuthResponse error.
-         * @member {auth.IAuthError|null|undefined} error
-         * @memberof auth.AuthResponse
-         * @instance
-         */
-        AuthResponse.prototype.error = null;
-
-        // OneOf field names bound to virtual getters and setters
-        let $oneOfFields;
-
-        /**
-         * AuthResponse result.
-         * @member {"success"|"error"|undefined} result
-         * @memberof auth.AuthResponse
-         * @instance
-         */
-        Object.defineProperty(AuthResponse.prototype, "result", {
-            get: $util.oneOfGetter($oneOfFields = ["success", "error"]),
-            set: $util.oneOfSetter($oneOfFields)
-        });
-
-        /**
-         * Encodes the specified AuthResponse message. Does not implicitly {@link auth.AuthResponse.verify|verify} messages.
-         * @function encode
-         * @memberof auth.AuthResponse
-         * @static
-         * @param {auth.IAuthResponse} message AuthResponse message or plain object to encode
-         * @param {$protobuf.Writer} [writer] Writer to encode to
-         * @returns {$protobuf.Writer} Writer
-         */
-        AuthResponse.encode = function encode(message, writer) {
-            if (!writer)
-                writer = $Writer.create();
-            if (message.success != null && Object.hasOwnProperty.call(message, "success"))
-                $root.auth.AuthResponse.encode(message.success, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
-            if (message.error != null && Object.hasOwnProperty.call(message, "error"))
-                $root.auth.AuthError.encode(message.error, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
-            return writer;
-        };
-
-        /**
-         * Decodes an AuthResponse message from the specified reader or buffer.
-         * @function decode
-         * @memberof auth.AuthResponse
-         * @static
-         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-         * @param {number} [length] Message length if known beforehand
-         * @returns {auth.AuthResponse} AuthResponse
-         * @throws {Error} If the payload is not a reader or valid buffer
-         * @throws {$protobuf.util.ProtocolError} If required fields are missing
-         */
-        AuthResponse.decode = function decode(reader, length, error) {
-            if (!(reader instanceof $Reader))
-                reader = $Reader.create(reader);
-            let end = length === undefined ? reader.len : reader.pos + length, message = new $root.auth.AuthResponse();
-            while (reader.pos < end) {
-                let tag = reader.uint32();
-                if (tag === error)
-                    break;
-                switch (tag >>> 3) {
-                case 1: {
-                        message.success = $root.auth.AuthResponse.decode(reader, reader.uint32());
-                        break;
-                    }
-                case 2: {
-                        message.error = $root.auth.AuthError.decode(reader, reader.uint32());
-                        break;
-                    }
-                default:
-                    reader.skipType(tag & 7);
-                    break;
-                }
-            }
-            return message;
-        };
-
-        /**
-         * Creates an AuthResponse message from a plain object. Also converts values to their respective internal types.
-         * @function fromObject
-         * @memberof auth.AuthResponse
-         * @static
-         * @param {Object.<string,*>} object Plain object
-         * @returns {auth.AuthResponse} AuthResponse
-         */
-        AuthResponse.fromObject = function fromObject(object) {
-            if (object instanceof $root.auth.AuthResponse)
-                return object;
-            let message = new $root.auth.AuthResponse();
-            if (object.success != null) {
-                if (typeof object.success !== "object")
-                    throw TypeError(".auth.AuthResponse.success: object expected");
-                message.success = $root.auth.AuthResponse.fromObject(object.success);
-            }
-            if (object.error != null) {
-                if (typeof object.error !== "object")
-                    throw TypeError(".auth.AuthResponse.error: object expected");
-                message.error = $root.auth.AuthError.fromObject(object.error);
-            }
-            return message;
-        };
-
-        /**
-         * Creates a plain object from an AuthResponse message. Also converts values to other types if specified.
-         * @function toObject
-         * @memberof auth.AuthResponse
-         * @static
-         * @param {auth.AuthResponse} message AuthResponse
-         * @param {$protobuf.IConversionOptions} [options] Conversion options
-         * @returns {Object.<string,*>} Plain object
-         */
-        AuthResponse.toObject = function toObject(message, options) {
-            if (!options)
-                options = {};
-            let object = {};
-            if (message.success != null && message.hasOwnProperty("success")) {
-                object.success = $root.auth.AuthResponse.toObject(message.success, options);
-                if (options.oneofs)
-                    object.result = "success";
-            }
-            if (message.error != null && message.hasOwnProperty("error")) {
-                object.error = $root.auth.AuthError.toObject(message.error, options);
-                if (options.oneofs)
-                    object.result = "error";
-            }
-            return object;
-        };
-
-        /**
-         * Converts this AuthResponse to JSON.
-         * @function toJSON
-         * @memberof auth.AuthResponse
-         * @instance
-         * @returns {Object.<string,*>} JSON object
-         */
-        AuthResponse.prototype.toJSON = function toJSON() {
-            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-        };
-
-        /**
-         * Gets the default type url for AuthResponse
-         * @function getTypeUrl
-         * @memberof auth.AuthResponse
-         * @static
-         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-         * @returns {string} The default type url
-         */
-        AuthResponse.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-            if (typeUrlPrefix === undefined) {
-                typeUrlPrefix = "type.googleapis.com";
-            }
-            return typeUrlPrefix + "/auth.AuthResponse";
-        };
-
-        return AuthResponse;
     })();
 
     return auth;

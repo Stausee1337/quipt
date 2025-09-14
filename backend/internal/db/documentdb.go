@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 
 	"github.com/stausee1337/quipt/pkg/config"
@@ -12,9 +13,10 @@ import (
 func DocumentDBConnect(cfg *config.Config) *mongo.Client {
 	client_options := options.Client();
 	connection_uri := fmt.Sprintf(
-		"mongodb://%v:%v@%v:%v/?tls=true&tlsAllowInvalidCertificates=true",
+		"mongodb://%v:%v@%v:%v",
 		cfg.DocumentDBUser, cfg.DocumentDBPassword, cfg.DocumentDBHost, cfg.DocumentDBPort)
 	client_options.ApplyURI(connection_uri);
+	client_options.TLSConfig = &tls.Config { InsecureSkipVerify: true };
 	client, err := mongo.Connect(client_options);
 	if  err != nil {
 		panic(err)

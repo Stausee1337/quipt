@@ -5,7 +5,6 @@ import { Router, Route } from '@solidjs/router';
 
 
 import { FormattedString, ResourceManager } from './resources';
-console.log(ResourceManager);
 
 type QuoteViewProps = {
     last: boolean,
@@ -98,7 +97,6 @@ function xxx(scoreString: Accessor<string>, progressBarColor: Accessor<string>) 
     const view = document.querySelector("div.script-view")!;
     const score = view.querySelector('h2.score')! as HTMLElement;
     const scoreBox = view.querySelector('div.scorebox')! as HTMLElement;
-
     
     const flyingScore = (<h2 class="flying-score">{scoreString()}</h2>) as HTMLHeadingElement;
     document.body.append(flyingScore);
@@ -306,7 +304,6 @@ function ScriptView() {
         const cueData = type === "request" 
             ? { actors: [{ string: textCue.requestActors, style: null }], text: textCue.requestText }
             : { actors: [{ string: textCue.responseActors, style: null }], text: textCue.responseText };
-        console.log(textCue);
         return (
             <QuoteView 
                 last={checkIsLast(n, currentIndex())}
@@ -338,12 +335,12 @@ function ScriptView() {
                 { 
                     mapArray<number, JSX.Element>(
                         () => Array.from({ length: currentIndex() }, (_, index) => index + 1),
-                        renderQuote)()
+                        renderQuote)
                 }
             </div>
             { !reachedEnd() 
                 ? <div class="scroll-padding"/> 
-                : (<div class="division-training-end"><div class="scorebox hidden" style={{'--score-color': progressBarColor()}} children={currentScore()}/></div>) 
+                : (<div class="division-training-end"><div class="scorebox hidden" style={{'--score-color': progressBarColor(), '--max-score': `"${maxScore}"`}} children={currentScore()}/></div>) 
             }
             <div class="controls">
                 <div class="horizontal">
