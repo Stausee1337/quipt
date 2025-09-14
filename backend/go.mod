@@ -1,3 +1,7 @@
-module stausee1337/quipt
+module github.com/stausee1337/quipt
 
-go 1.21.1
+go 1.23
+
+toolchain go1.24.7
+
+require google.golang.org/protobuf v1.36.9 // indirect

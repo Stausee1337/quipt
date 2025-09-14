@@ -1,15 +1,15 @@
-package main
+package server
 
 import (
 	"fmt"
 	"os"
 )
 
-type GlobalConfig struct {
+type ServerConfig struct {
 	CorsHost string;
 }
 
-func (self *GlobalConfig) ReadAndValidate() {
+func (self *ServerConfig) ReadAndValidate() {
 	retreiveVariable("CORS_HOST", &self.CorsHost);
 }
 

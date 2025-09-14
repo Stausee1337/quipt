@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+option go_package = "github.com/stausee1337/quipt/gen/protos";
+
 package auth;
 
 message User {
