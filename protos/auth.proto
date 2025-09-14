@@ -5,8 +5,9 @@ option go_package = "github.com/stausee1337/quipt/gen/protos";
 package auth;
 
 message User {
-  string uuid = 1;
+  string id = 1;
   string email = 2;
+  bool verified = 3;
 }
 
 message SigninRequest {
@@ -26,10 +27,10 @@ message AuthSuccess {
 }
 
 enum AuthErrorCode {
-  AUTH_ERROR_UNSPECIFIED = 0;
-  INVALID_CREDENTIALS = 1;
-  EMAIL_ALREADY_EXISTS = 2;
-  WEAK_PASSWORD = 3;
+  EMAIL_MALFORMED = 0;
+  WEAK_PASSWORD = 1;
+  INVALID_CREDENTIALS = 2;
+  EMAIL_ALREADY_EXISTS = 3;
   TOKEN_EXPIRED = 4;
   UNAUTHORIZED = 5;
 }
@@ -40,9 +41,3 @@ message AuthError {
   string message = 2;
 }
 
-message AuthResponse {
-  oneof result {
-    AuthResponse success = 1;
-    AuthError error = 2;
-  };
-}

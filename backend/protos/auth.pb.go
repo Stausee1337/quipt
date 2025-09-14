@@ -24,31 +24,31 @@ const (
 type AuthErrorCode int32
 
 const (
-	AuthErrorCode_AUTH_ERROR_UNSPECIFIED AuthErrorCode = 0
-	AuthErrorCode_INVALID_CREDENTIALS    AuthErrorCode = 1
-	AuthErrorCode_EMAIL_ALREADY_EXISTS   AuthErrorCode = 2
-	AuthErrorCode_WEAK_PASSWORD          AuthErrorCode = 3
-	AuthErrorCode_TOKEN_EXPIRED          AuthErrorCode = 4
-	AuthErrorCode_UNAUTHORIZED           AuthErrorCode = 5
+	AuthErrorCode_EMAIL_MALFORMED      AuthErrorCode = 0
+	AuthErrorCode_WEAK_PASSWORD        AuthErrorCode = 1
+	AuthErrorCode_INVALID_CREDENTIALS  AuthErrorCode = 2
+	AuthErrorCode_EMAIL_ALREADY_EXISTS AuthErrorCode = 3
+	AuthErrorCode_TOKEN_EXPIRED        AuthErrorCode = 4
+	AuthErrorCode_UNAUTHORIZED         AuthErrorCode = 5
 )
 
 // Enum value maps for AuthErrorCode.
 var (
 	AuthErrorCode_name = map[int32]string{
-		0: "AUTH_ERROR_UNSPECIFIED",
-		1: "INVALID_CREDENTIALS",
-		2: "EMAIL_ALREADY_EXISTS",
-		3: "WEAK_PASSWORD",
+		0: "EMAIL_MALFORMED",
+		1: "WEAK_PASSWORD",
+		2: "INVALID_CREDENTIALS",
+		3: "EMAIL_ALREADY_EXISTS",
 		4: "TOKEN_EXPIRED",
 		5: "UNAUTHORIZED",
 	}
 	AuthErrorCode_value = map[string]int32{
-		"AUTH_ERROR_UNSPECIFIED": 0,
-		"INVALID_CREDENTIALS":    1,
-		"EMAIL_ALREADY_EXISTS":   2,
-		"WEAK_PASSWORD":          3,
-		"TOKEN_EXPIRED":          4,
-		"UNAUTHORIZED":           5,
+		"EMAIL_MALFORMED":      0,
+		"WEAK_PASSWORD":        1,
+		"INVALID_CREDENTIALS":  2,
+		"EMAIL_ALREADY_EXISTS": 3,
+		"TOKEN_EXPIRED":        4,
+		"UNAUTHORIZED":         5,
 	}
 )
 
@@ -81,8 +81,9 @@ func (AuthErrorCode) EnumDescriptor() ([]byte, []int) {
 
 type User struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Uuid          string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	Verified      bool                   `protobuf:"varint,3,opt,name=verified,proto3" json:"verified,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -117,9 +118,9 @@ func (*User) Descriptor() ([]byte, []int) {
 	return file_auth_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *User) GetUuid() string {
+func (x *User) GetId() string {
 	if x != nil {
-		return x.Uuid
+		return x.Id
 	}
 	return ""
 }
@@ -129,6 +130,13 @@ func (x *User) GetEmail() string {
 		return x.Email
 	}
 	return ""
+}
+
+func (x *User) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
 }
 
 type SigninRequest struct {
@@ -338,7 +346,7 @@ func (x *AuthError) GetCode() AuthErrorCode {
 	if x != nil {
 		return x.Code
 	}
-	return AuthErrorCode_AUTH_ERROR_UNSPECIFIED
+	return AuthErrorCode_EMAIL_MALFORMED
 }
 
 func (x *AuthError) GetMessage() string {
@@ -348,97 +356,16 @@ func (x *AuthError) GetMessage() string {
 	return ""
 }
 
-type AuthResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Result:
-	//
-	//	*AuthResponse_Success
-	//	*AuthResponse_Error
-	Result        isAuthResponse_Result `protobuf_oneof:"result"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AuthResponse) Reset() {
-	*x = AuthResponse{}
-	mi := &file_auth_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AuthResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AuthResponse) ProtoMessage() {}
-
-func (x *AuthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AuthResponse.ProtoReflect.Descriptor instead.
-func (*AuthResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *AuthResponse) GetResult() isAuthResponse_Result {
-	if x != nil {
-		return x.Result
-	}
-	return nil
-}
-
-func (x *AuthResponse) GetSuccess() *AuthResponse {
-	if x != nil {
-		if x, ok := x.Result.(*AuthResponse_Success); ok {
-			return x.Success
-		}
-	}
-	return nil
-}
-
-func (x *AuthResponse) GetError() *AuthError {
-	if x != nil {
-		if x, ok := x.Result.(*AuthResponse_Error); ok {
-			return x.Error
-		}
-	}
-	return nil
-}
-
-type isAuthResponse_Result interface {
-	isAuthResponse_Result()
-}
-
-type AuthResponse_Success struct {
-	Success *AuthResponse `protobuf:"bytes,1,opt,name=success,proto3,oneof"`
-}
-
-type AuthResponse_Error struct {
-	Error *AuthError `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
-}
-
-func (*AuthResponse_Success) isAuthResponse_Result() {}
-
-func (*AuthResponse_Error) isAuthResponse_Result() {}
-
 var File_auth_proto protoreflect.FileDescriptor
 
 const file_auth_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"auth.proto\x12\x04auth\"0\n" +
-	"\x04User\x12\x12\n" +
-	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email\"A\n" +
+	"auth.proto\x12\x04auth\"H\n" +
+	"\x04User\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1a\n" +
+	"\bverified\x18\x03 \x01(\bR\bverified\"A\n" +
 	"\rSigninRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"A\n" +
@@ -451,16 +378,12 @@ const file_auth_proto_rawDesc = "" +
 	"\frefreshToken\x18\x03 \x01(\tR\frefreshToken\"N\n" +
 	"\tAuthError\x12'\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x13.auth.AuthErrorCodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"q\n" +
-	"\fAuthResponse\x12.\n" +
-	"\asuccess\x18\x01 \x01(\v2\x12.auth.AuthResponseH\x00R\asuccess\x12'\n" +
-	"\x05error\x18\x02 \x01(\v2\x0f.auth.AuthErrorH\x00R\x05errorB\b\n" +
-	"\x06result*\x96\x01\n" +
-	"\rAuthErrorCode\x12\x1a\n" +
-	"\x16AUTH_ERROR_UNSPECIFIED\x10\x00\x12\x17\n" +
-	"\x13INVALID_CREDENTIALS\x10\x01\x12\x18\n" +
-	"\x14EMAIL_ALREADY_EXISTS\x10\x02\x12\x11\n" +
-	"\rWEAK_PASSWORD\x10\x03\x12\x11\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage*\x8f\x01\n" +
+	"\rAuthErrorCode\x12\x13\n" +
+	"\x0fEMAIL_MALFORMED\x10\x00\x12\x11\n" +
+	"\rWEAK_PASSWORD\x10\x01\x12\x17\n" +
+	"\x13INVALID_CREDENTIALS\x10\x02\x12\x18\n" +
+	"\x14EMAIL_ALREADY_EXISTS\x10\x03\x12\x11\n" +
 	"\rTOKEN_EXPIRED\x10\x04\x12\x10\n" +
 	"\fUNAUTHORIZED\x10\x05B)Z'github.com/stausee1337/quipt/gen/protosb\x06proto3"
 
@@ -477,7 +400,7 @@ func file_auth_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_auth_proto_goTypes = []any{
 	(AuthErrorCode)(0),    // 0: auth.AuthErrorCode
 	(*User)(nil),          // 1: auth.User
@@ -485,17 +408,14 @@ var file_auth_proto_goTypes = []any{
 	(*SignupRequest)(nil), // 3: auth.SignupRequest
 	(*AuthSuccess)(nil),   // 4: auth.AuthSuccess
 	(*AuthError)(nil),     // 5: auth.AuthError
-	(*AuthResponse)(nil),  // 6: auth.AuthResponse
 }
 var file_auth_proto_depIdxs = []int32{
 	0, // 0: auth.AuthError.code:type_name -> auth.AuthErrorCode
-	6, // 1: auth.AuthResponse.success:type_name -> auth.AuthResponse
-	5, // 2: auth.AuthResponse.error:type_name -> auth.AuthError
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_auth_proto_init() }
@@ -503,17 +423,13 @@ func file_auth_proto_init() {
 	if File_auth_proto != nil {
 		return
 	}
-	file_auth_proto_msgTypes[5].OneofWrappers = []any{
-		(*AuthResponse_Success)(nil),
-		(*AuthResponse_Error)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
