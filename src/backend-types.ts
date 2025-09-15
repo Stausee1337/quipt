@@ -1,50 +1,75 @@
 import { JSX } from "solid-js";
 import { auth } from './protos';
 
-export interface PostRequests {
-    "/auth/signup": {
-        body: auth.ISignupRequest,
-        success: auth.AuthSuccess,
-        failiure: auth.AuthError,
-    }
-}
-
 type ResultPromise<T, E> = Promise<[T, undefined] | [undefined, E]>;
+
+type Executor = (b: BodyInit | null) => Promise<{ status: number, data: Uint8Array }>;
+
+const postRequests = {
+    "/auth/signup":
+        async (body: auth.ISignupRequest, executeWith: Executor): ResultPromise<auth.AuthSuccess, auth.AuthError> => {
+            const writer = auth.SignupRequest.encode(body);
+            const { status, data } = await executeWith(writer.finish().slice(0, writer.len));
+            if (status !== 200)
+                return [undefined, auth.AuthError.decode(data)];
+            return [auth.AuthSuccess.decode(data), undefined];
+
+        },
+    "/auth/refresh": 
+        async (body: string, executeWith: Executor): Promise<auth.AuthSuccess> => {
+            const { status, data } = await executeWith(body);
+            if (status === 200)
+                return auth.AuthSuccess.decode(data);
+            else if (status === 400)
+                throw new ForceLogout()
+            else
+                throw 'unreachable'
+        }
+};
+
+type PostRequests = typeof postRequests
 
 const apiURL = "localhost:8000";
 
-export async function post<K extends keyof(PostRequests)>(
+export class ForceLogout extends Error {}
+export class APIError extends Error {}
+
+export function post<K extends keyof PostRequests>(
     endpoint: K,
-    bodyObject: PostRequests[K]['body']
-): ResultPromise<PostRequests[K]['success'], PostRequests[K]['failiure']> {
-    let data: Uint8Array, 
-        successDecode: (buffer: Uint8Array) => PostRequests[K]['success'],
-        failiureDecode: (buffer: Uint8Array) => PostRequests[K]['failiure'];
-    switch (endpoint) {
-        case "/auth/signup": {
-            const writer = auth.SignupRequest.encode(bodyObject);
-            data = writer.finish().slice(0, writer.len);
-            console.log(data.byteLength, writer.len);
-            successDecode = buffer => auth.AuthSuccess.decode(buffer)
-            failiureDecode = buffer => auth.AuthError.decode(buffer)
-        } break;
-        default:
-            throw '';
-    }
+    bodyObject: Parameters<PostRequests[K]>[0]
+): ReturnType<PostRequests[K]> {
+    type Result = ReturnType<PostRequests[K]>;
 
+    const fn = postRequests[endpoint];
+    return fn(
+        bodyObject,
+        async (b: BodyInit | null): Promise<{ status: number, data: Uint8Array }> => {
+            let didRefresh = false;
+            do {
+                const response = await fetch(`http://${apiURL}${endpoint}`, { method: "POST", body: b });
+                if (response.ok)
+                    return { status: response.status, data: new Uint8Array(await response.arrayBuffer()) }
+                if (response.status === 401 && !didRefresh && endpoint !== "/auth/refresh") {
+                    await refreshLogin()
+                    didRefresh = true;
+                    continue;
+                }
+                if (response.status >= 500) {
+                    const message = await response.text();
+                    throw new APIError(`Unexpected API response: ${message}`);
+                }
+                return { status: response.status, data: new Uint8Array(await response.arrayBuffer()) };
+            } while (false);
+            throw 'unreachable';
+        }) as Result;
+}
 
-    const response = await fetch(`http://${apiURL}${endpoint}`, { method: "POST", body: data.buffer });
-    const buffer = await response.arrayBuffer();
+const refreshToken = "9232T5JNEfCMIeRU6F167Q.uKl/Vn5TbWEwj6PTQIsCv5TKBlJhwBOuoTe2ghD5jeY";
+// refreshToken:
 
-    if (response.ok) {
-        return [successDecode(new Uint8Array(buffer)), undefined];
-    }
-
-    if (response.status >= 500) {
-        throw `post '${endpoint}' failed with status code ${response.status}`;
-    }
-
-    return [undefined, failiureDecode(new Uint8Array(buffer))];
+export async function refreshLogin(): Promise<void> {
+    const data = await post("/auth/refresh", refreshToken);
+    console.log(data)
 }
 
 // TODO: move somewhere else

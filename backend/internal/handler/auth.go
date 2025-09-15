@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -69,5 +70,40 @@ func (h *SignupHandler) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(response)
+}
+
+func (h *SignupHandler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body);
+	if err != nil {
+		logFatalAndReport(w, err)
+		return
+	}
+	defer r.Body.Close()
+
+	refreshToken := string(body)
+	auth, err := h.auth.RefreshLogin(r.Context(), refreshToken);
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidToken) {
+			http.Error(w, "invalid refresh token", http.StatusBadRequest)
+			return
+		}
+		logFatalAndReport(w, err)
+		return
+	}
+
+	data, err := proto.Marshal(auth)
+	if err != nil {
+		logFatalAndReport(w, err)
+		return
+	}
+
+	w.Write(data)
+
+	// claims := h.auth.GetLoggedInUser(r)
+	// if claims == nil {
+	// 	http.Error(w, "unauthorized", http.StatusUnauthorized)
+	// 	return
+	// }
+	// claims.Uuid
 }
 

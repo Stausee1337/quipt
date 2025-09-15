@@ -5,8 +5,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -57,6 +60,8 @@ type refreshToken struct {
 	expires	time.Duration
 }
 
+const REFRESH_TTL time.Duration = 30 * 24 * time.Hour
+
 func newRefreshToken(userUuid string) (*refreshToken, error) {
 	base64Encoding := base64.StdEncoding.WithPadding(base64.NoPadding)
 
@@ -74,7 +79,7 @@ func newRefreshToken(userUuid string) (*refreshToken, error) {
 	tok.uuid = userUuid
     tok.secret = base64Encoding.EncodeToString(b)
 	// lasts 30 days
-	tok.expires = 30 * 24 * time.Hour
+	tok.expires = REFRESH_TTL
 
 	return &tok, nil
 }
@@ -91,8 +96,7 @@ func (t* refreshToken) data() ([]byte, error) {
 
 	bytes, err := json.Marshal(map[string]any{
 		"uuid": t.uuid,
-		"expires": t.expires,
-		"secret": hashed_secret,
+		"secret": string(hashed_secret),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not json encode refresh token: %w", err)
@@ -128,6 +132,72 @@ func (s *AuthService) SigninUserAtClient(ctx context.Context, user *protos.User)
 		UserId: user.Id,
 		AccessToken: accessToken.signed,
 		RefreshToken: refreshToken.string(),
+		ExpiresAt: accessToken.expires,
+	}, nil
+}
+
+func (s *AuthService) GetLoggedInUser(r *http.Request) *UserClaims {
+	claims, ok := r.Context().Value(userCtxKey).(*UserClaims)
+	if !ok {
+		return nil;
+	}
+	return claims
+}
+
+var ErrInvalidToken = errors.New("invalid refresh token")
+
+func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*protos.AuthSuccess, error) {
+	splits := strings.SplitN(refreshToken, ".", 2)
+	if len(splits) < 2 {
+		return nil, ErrInvalidToken
+	}
+	id, secret := splits[0], splits[1]
+
+	rawData, err := s.db.Get(ctx, id).Result()
+	if err == redis.Nil {
+		return nil, ErrInvalidToken
+	} else if err != nil {
+		return nil, fmt.Errorf("could not lookup refresh token: %w", err)
+	}
+
+	var data map[string]any
+	err = json.Unmarshal([]byte(rawData), &data)
+	if err != nil {
+		return nil, fmt.Errorf("could not json decode for refresh token %q: %w", id, err)
+	}
+
+	fmt.Printf("%v\n", data)
+
+	uuid, ok := data["uuid"].(string)
+	fmt.Printf("%v,%v\n", uuid, ok)
+	if !ok {
+		return nil, fmt.Errorf("invalid data in redis store %q: %w", id, err)
+	}
+	hashedSecret, ok := data["secret"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid data in redis store %q: %w", id, err)
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(hashedSecret), []byte(secret));
+	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+		return nil, ErrInvalidToken
+	} else if err != nil {
+		return nil, err
+	}
+
+	accessToken, err := s.createAccessToken(uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.db.Expire(ctx, id, REFRESH_TTL).Err()
+	if err != nil {
+		return nil, fmt.Errorf("could not prolong refresh tokens TTL %q: %w", id, err)
+	}
+	
+	return &protos.AuthSuccess {
+		UserId: uuid,
+		AccessToken: accessToken.signed,
+		RefreshToken: refreshToken,
 		ExpiresAt: accessToken.expires,
 	}, nil
 }
