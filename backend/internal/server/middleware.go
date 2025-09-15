@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
+	"github.com/stausee1337/quipt/internal/service"
 	"github.com/stausee1337/quipt/pkg/config"
 )
 
@@ -44,3 +46,20 @@ func corsMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 		});
 	};
 }
+
+func authMiddleware(svc *service.AuthService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			authHeader := r.Header.Get("Authorization");
+			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+			ctx := svc.VerifyToken(r.Context(), tokenStr);
+			next.ServeHTTP(w, r.WithContext(ctx));
+		});
+	};
+}
+

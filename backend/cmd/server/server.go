@@ -10,10 +10,13 @@ import (
 func main() {
 	cfg := config.Load();
 
-	client := db.DocumentDBConnect(cfg);
-	defer db.DocumentDBDisconnect(client);
+	dbClient := db.DocumentDBConnect(cfg);
+	defer db.DocumentDBDisconnect(dbClient);
 
-	srv := server.New(cfg, client);
+	redisClient := db.RedisConnect(cfg);
+	defer db.RedisDisconnect(redisClient);
+
+	srv := server.New(cfg, dbClient, redisClient);
 	srv.Run("localhost", 8000);
 }
 

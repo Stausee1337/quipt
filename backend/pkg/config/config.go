@@ -8,6 +8,9 @@ type Config struct {
 	DocumentDBPassword 	string `required:"true" split_words:"true"`
 	DocumentDBHost 		string `required:"true" split_words:"true"`
 	DocumentDBPort 		string `required:"true" split_words:"true"`
+	AuthSecret 			string `required:"true" split_words:"true"`
+	RedisHost 			string `required:"true" split_words:"true"`
+	RedisPort 			string `required:"true" split_words:"true"`
 }
 
 func Load() *Config {

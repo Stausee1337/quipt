@@ -24,6 +24,7 @@ message AuthSuccess {
   string userId = 1;
   string accessToken = 2;
   string refreshToken = 3;
+  int64 expiresAt = 4;
 }
 
 enum AuthErrorCode {
