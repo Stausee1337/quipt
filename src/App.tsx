@@ -1,9 +1,8 @@
 import './App.scss'
-import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor } from 'solid-js';
-import { HeaderElement } from './std-widgets';
-import { Router, Route } from '@solidjs/router';
-
-
+import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createResource, Suspense } from 'solid-js';
+import { HeaderElement, ProgressSpinner } from './std-widgets';
+import { Router, Route, Navigate, useNavigate } from '@solidjs/router';
+import { AuthenticationContextObj, createAuthenticationContext, useAuthentication } from './backend';
 import { FormattedString, ResourceManager } from './resources';
 
 type QuoteViewProps = {
@@ -359,23 +358,48 @@ function ScriptView() {
 }
 
 function App(props: { children: JSX.Element }): JSX.Element {
+    const authenticationContext = createAuthenticationContext();
+    const navigate = useNavigate();
+
+    const unsubscribe = authenticationContext.onLogout.subscribe(() => navigate('/login'));
+    onCleanup(() => {
+        unsubscribe();
+    })
+
     return (
-        <>
+        <AuthenticationContextObj.Provider value={authenticationContext}>
             <HeaderElement showBackButton={false} title={''}>
             </HeaderElement>
             <div class="routing-contents">
                 {props.children}
             </div>
+        </AuthenticationContextObj.Provider>
+    );
+}
+
+function Root(): JSX.Element {
+    const authentication = useAuthentication()!;
+    return (
+        <>
+            {authentication.isLoggedIn() ? <Navigate href="/script"/> : <Navigate href="/login"/>}
         </>
     );
+}
+
+function Login(): JSX.Element {
+    return [];
 }
 
 export default function() {
     return (
         <>
             <Router root={App}>
-                <Route path="/" preload={() => loadDefaultScript()} />
-                <Route path="/script/:uuid" component={ScriptView} />
+                <Route path="/" component={Root}/>
+                <Route path="/login" component={Login}/>
+                <Route path="/script/*uuid" component={ScriptView} />
+                <Route 
+                    path="*paramName"
+                    component={() => <Navigate href="/"/>}/>
             </Router>
         </>
     );

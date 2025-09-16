@@ -236,6 +236,9 @@ export namespace auth {
 
         /** AuthSuccess refreshToken */
         refreshToken?: (string|null);
+
+        /** AuthSuccess expiresAt */
+        expiresAt?: (Long|null);
     }
 
     /** Represents an AuthSuccess. */
@@ -255,6 +258,9 @@ export namespace auth {
 
         /** AuthSuccess refreshToken. */
         public refreshToken: string;
+
+        /** AuthSuccess expiresAt. */
+        public expiresAt: Long;
 
         /**
          * Encodes the specified AuthSuccess message. Does not implicitly {@link auth.AuthSuccess.verify|verify} messages.

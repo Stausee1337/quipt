@@ -3,7 +3,6 @@ import { untrack } from "solid-js/web";
 import { $, Observable } from "./observable";
 import { DialogManager } from "./dialog";
 import { TrashIcon } from "./bubble-handle";
-import { useNavigate } from "@solidjs/router";
 
 export function ProgressSpinner(props: { size?: number, color?: string | undefined }) {
     const merged = mergeProps({ size: 100 }, props);

@@ -549,6 +549,7 @@ export const auth = $root.auth = (() => {
          * @property {string|null} [userId] AuthSuccess userId
          * @property {string|null} [accessToken] AuthSuccess accessToken
          * @property {string|null} [refreshToken] AuthSuccess refreshToken
+         * @property {Long|null} [expiresAt] AuthSuccess expiresAt
          */
 
         /**
@@ -591,6 +592,14 @@ export const auth = $root.auth = (() => {
         AuthSuccess.prototype.refreshToken = "";
 
         /**
+         * AuthSuccess expiresAt.
+         * @member {Long} expiresAt
+         * @memberof auth.AuthSuccess
+         * @instance
+         */
+        AuthSuccess.prototype.expiresAt = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
+
+        /**
          * Encodes the specified AuthSuccess message. Does not implicitly {@link auth.AuthSuccess.verify|verify} messages.
          * @function encode
          * @memberof auth.AuthSuccess
@@ -608,6 +617,8 @@ export const auth = $root.auth = (() => {
                 writer.uint32(/* id 2, wireType 2 =*/18).string(message.accessToken);
             if (message.refreshToken != null && Object.hasOwnProperty.call(message, "refreshToken"))
                 writer.uint32(/* id 3, wireType 2 =*/26).string(message.refreshToken);
+            if (message.expiresAt != null && Object.hasOwnProperty.call(message, "expiresAt"))
+                writer.uint32(/* id 4, wireType 0 =*/32).int64(message.expiresAt);
             return writer;
         };
 
@@ -643,6 +654,10 @@ export const auth = $root.auth = (() => {
                         message.refreshToken = reader.string();
                         break;
                     }
+                case 4: {
+                        message.expiresAt = reader.int64();
+                        break;
+                    }
                 default:
                     reader.skipType(tag & 7);
                     break;
@@ -669,6 +684,15 @@ export const auth = $root.auth = (() => {
                 message.accessToken = String(object.accessToken);
             if (object.refreshToken != null)
                 message.refreshToken = String(object.refreshToken);
+            if (object.expiresAt != null)
+                if ($util.Long)
+                    (message.expiresAt = $util.Long.fromValue(object.expiresAt)).unsigned = false;
+                else if (typeof object.expiresAt === "string")
+                    message.expiresAt = parseInt(object.expiresAt, 10);
+                else if (typeof object.expiresAt === "number")
+                    message.expiresAt = object.expiresAt;
+                else if (typeof object.expiresAt === "object")
+                    message.expiresAt = new $util.LongBits(object.expiresAt.low >>> 0, object.expiresAt.high >>> 0).toNumber();
             return message;
         };
 
@@ -689,6 +713,11 @@ export const auth = $root.auth = (() => {
                 object.userId = "";
                 object.accessToken = "";
                 object.refreshToken = "";
+                if ($util.Long) {
+                    let long = new $util.Long(0, 0, false);
+                    object.expiresAt = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                } else
+                    object.expiresAt = options.longs === String ? "0" : 0;
             }
             if (message.userId != null && message.hasOwnProperty("userId"))
                 object.userId = message.userId;
@@ -696,6 +725,11 @@ export const auth = $root.auth = (() => {
                 object.accessToken = message.accessToken;
             if (message.refreshToken != null && message.hasOwnProperty("refreshToken"))
                 object.refreshToken = message.refreshToken;
+            if (message.expiresAt != null && message.hasOwnProperty("expiresAt"))
+                if (typeof message.expiresAt === "number")
+                    object.expiresAt = options.longs === String ? String(message.expiresAt) : message.expiresAt;
+                else
+                    object.expiresAt = options.longs === String ? $util.Long.prototype.toString.call(message.expiresAt) : options.longs === Number ? new $util.LongBits(message.expiresAt.low >>> 0, message.expiresAt.high >>> 0).toNumber() : message.expiresAt;
             return object;
         };
 
