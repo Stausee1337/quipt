@@ -1,418 +1,418 @@
 @import './colors.scss';
 
 div.header-element {
-    padding: 1rem;
-    z-index: 10;
-    border-bottom: 0.15rem solid $lighter1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: rgba($background, 0.5);
-    backdrop-filter: blur(10px);
-    position: sticky;
-    top: 0;
-    height: 6rem;
-    flex-shrink: 0;
+  padding: 1rem;
+  z-index: 10;
+  border-bottom: 0.15rem solid $lighter1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba($background, 0.5);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  height: 6rem;
+  flex-shrink: 0;
 
-    h1 {
-        @extend .roboto-b800;
-        font-size: 2rem;
-        margin: 0;
-        flex: 1;
-        text-align: center;
-    }
+  h1 {
+    @extend .roboto-b800;
+    font-size: 2rem;
+    margin: 0;
+    flex: 1;
+    text-align: center;
+  }
 
-    button {
-        position: fixed;
-        height: calc(100% - 2rem);
-        padding: 0;
-        top: 1rem;
-        left: 1rem;
-        font-size: 2.5rem;
+  button {
+    position: fixed;
+    height: calc(100% - 2rem);
+    padding: 0;
+    top: 1rem;
+    left: 1rem;
+    font-size: 2.5rem;
 
-        aspect-ratio: 1;
-        border-radius: 0.6rem;
-        border: none;
-        background-color: $color-accent1;
-    }
+    aspect-ratio: 1;
+    border-radius: 0.6rem;
+    border: none;
+    background-color: $color-accent1;
+  }
 }
 
 h1, h2, h3, h4, h5, h6 {
-    margin: 0;
+  margin: 0;
 }
 
 button.header-icon-button {
-    border: none;
-    height: 4.4rem;
-    width: 4.4rem;
-    background: none;
-    position: relative;
-    padding: 0;
-    z-index: 2;
-    border-radius: 50%;
-    overflow: hidden;
-    
-    i {
-        font-size: 2.2rem;
-    }
+  border: none;
+  height: 4.4rem;
+  width: 4.4rem;
+  background: none;
+  position: relative;
+  padding: 0;
+  z-index: 2;
+  border-radius: 50%;
+  overflow: hidden;
+
+  i {
+    font-size: 2.2rem;
+  }
 }
 
 $text-body-font-size: 1.6rem;
 div.ripple-effect-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    overflow: hidden;
-    // pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  // pointer-events: none;
 
-    span.ripple-bubble {
-        border-radius: 50%;
-        animation: fade-and-grow 300ms ease-out;
-        aspect-ratio: 1;
-        display: block;
-        position: absolute;
-        z-index: -1;
-        opacity: var(--ripple-alpha, 0.2);
-        background-color: var(--ripple-bubble-color, white);
-    }
+  span.ripple-bubble {
+    border-radius: 50%;
+    animation: fade-and-grow 300ms ease-out;
+    aspect-ratio: 1;
+    display: block;
+    position: absolute;
+    z-index: -1;
+    opacity: var(--ripple-alpha, 0.2);
+    background-color: var(--ripple-bubble-color, white);
+  }
 }
 
 $button-size: 3.2rem;
 button.primary-button {
-    @extend .roboto-b800;
-    padding: 0 2rem;
-    background-color: $primary;
-    border: 0.1rem solid lighten($primary, 3%);
-    height: $button-size;
-    // line-height: $button-size;
-    border-radius: $button-size;
-    font-size: inherit;
-    overflow: hidden;
-    position: relative;
-    z-index: 1;
-    outline: none;
+  @extend .roboto-b800;
+  padding: 0 2rem;
+  background-color: $primary;
+  border: 0.1rem solid lighten($primary, 3%);
+  height: $button-size;
+  // line-height: $button-size;
+  border-radius: $button-size;
+  font-size: inherit;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  outline: none;
 
-    &:active {
-        background-color: lighten($primary, 5%);
-    }
+  &:active {
+    background-color: lighten($primary, 5%);
+  }
 
-    &:disabled {
-        background-color: $inactive1;
-    }
+  &:disabled {
+    background-color: $inactive1;
+  }
 }
 
 button.secondary-button {
-    @extend .roboto-b800;
-    padding: 0 2rem;
-    border: 0.1rem solid $lighter1;
-    height: $button-size;
-    border-radius: $button-size;
-    font-size: inherit;
-    overflow: hidden;
-    position: relative;
-    z-index: 1;
-    outline: none;
-    background-color: inherit;
+  @extend .roboto-b800;
+  padding: 0 2rem;
+  border: 0.1rem solid $lighter1;
+  height: $button-size;
+  border-radius: $button-size;
+  font-size: inherit;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  outline: none;
+  background-color: inherit;
 
-    &:active {
-        background-color: $lighter1;
-    }
+  &:active {
+    background-color: $lighter1;
+  }
 }
 
 div.scrollable {
-    overflow-x: hidden;
-    overflow-y: auto;
-    height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: 100%;
 }
 
 div.list-item {
-    padding: 1rem;
-    z-index: 1;
-    position: relative;
+  padding: 1rem;
+  z-index: 1;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  transition: background-color 100ms ease-out;
+
+  &.selected {
+    background-color: rgba(white, 0.05);
+    span.icon-container::before {
+      scale: 1;
+    }
+  }
+
+  div.always-content {
     display: flex;
-    justify-content: space-between;
-    transition: background-color 100ms ease-out;
+    gap: 1rem;
+  }
 
-    &.selected {
-        background-color: rgba(white, 0.05);
-        span.icon-container::before {
-            scale: 1;
-        }
+  span.icon-container {
+    width: 4.5rem;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(white, 0.5);
+    position: relative;
+
+    &::before {
+      $icon-container-size: 2rem;
+      content: "\F26E";
+      position: absolute;
+      border-radius: 50%;
+      right: 0;
+      bottom: 0;
+      height: $icon-container-size;
+      line-height: $icon-container-size;
+      aspect-ratio: 1;
+      text-align: center;
+      color: white;
+      font-family: bootstrap-icons !important;
+      background-color: #a8c8fb;
+      z-index: 12;
+      color: #1f1f1f;
+      outline: 0.2rem solid #1f1f1f;
+      font-size: 1.8rem;
+      transition: scale 250ms ease-out;
+      scale: 0;
     }
 
-    div.always-content {
-        display: flex;
-        gap: 1rem;
+    i {
+      @extend .secondary-text;
+      font-size: 3rem;
+    }
+  }
+
+  .content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    h1 {
+      font-weight: 600;
+      font-size: 1.6rem;
+      margin: 0;
+      display: inline-block;
     }
 
-    span.icon-container {
-        width: 4.5rem;
-        aspect-ratio: 1;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: rgba(white, 0.5);
-        position: relative;
-
-        &::before {
-            $icon-container-size: 2rem;
-            content: "\F26E";
-            position: absolute;
-            border-radius: 50%;
-            right: 0;
-            bottom: 0;
-            height: $icon-container-size;
-            line-height: $icon-container-size;
-            aspect-ratio: 1;
-            text-align: center;
-            color: white;
-            font-family: bootstrap-icons !important;
-            background-color: #a8c8fb;
-            z-index: 12;
-            color: #1f1f1f;
-            outline: 0.2rem solid #1f1f1f;
-            font-size: 1.8rem;
-            transition: scale 250ms ease-out;
-            scale: 0;
-        }
-        
-        i {
-            @extend .secondary-text;
-            font-size: 3rem;
-        }
+    span {
+      @extend .secondary-text;
+      display: block;
     }
-
-    .content {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-
-        h1 {
-            font-weight: 600;
-            font-size: 1.6rem;
-            margin: 0;
-            display: inline-block;
-        }
-
-        span {
-            @extend .secondary-text;
-            display: block;
-        }
-    }
+  }
 }
 
 .common-dialog {
-    display: flex;
-    font-size: $text-body-font-size;
-    margin: 0;
-    outline: 0;
-    user-select: none;
+  display: flex;
+  font-size: $text-body-font-size;
+  margin: 0;
+  outline: 0;
+  user-select: none;
 }
 
 dialog#dialog-box { 
-    padding: 1.5rem;
+  padding: 1.5rem;
+  gap: 1rem;
+  border: none;
+  @extend .common-dialog;
+  background-color: $color-accent1;
+  border-radius: 1rem;
+  flex-direction: column;
+  width: 80%;
+  animation: move-in-fade 250ms ease-out;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  &::backdrop {
+    background-color: rgba(black, 0.3);
+  }
+
+  &.removing {
+    animation: fade-out 200ms ease-out forwards;
+  }
+
+  span.description {
+    line-height: 1.7;
+  }
+
+  div.button-line {
+    display: flex;
+    justify-content: flex-end;
     gap: 1rem;
-    border: none;
-    @extend .common-dialog;
-    background-color: $color-accent1;
-    border-radius: 1rem;
-    flex-direction: column;
-    width: 80%;
-    animation: move-in-fade 250ms ease-out;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
 
-    &::backdrop {
-        background-color: rgba(black, 0.3);
+    button.result-button {
+      @extend .secondary-button;
     }
-
-    &.removing {
-        animation: fade-out 200ms ease-out forwards;
-    }
-
-    span.description {
-        line-height: 1.7;
-    }
-
-    div.button-line {
-        display: flex;
-        justify-content: flex-end;
-        gap: 1rem;
-
-        button.result-button {
-            @extend .secondary-button;
-        }
-    }
+  }
 }
 
 div#floating-menu {
-    @extend .common-dialog;
-    background-color: $color-accent2;
-    animation: swoop-in-ltr 200ms ease-in;
-    position: absolute;
-    z-index: 2001;
-    border-right: 0.15rem solid $color-accent1;
+  @extend .common-dialog;
+  background-color: $color-accent2;
+  animation: swoop-in-ltr 200ms ease-in;
+  position: absolute;
+  z-index: 2001;
+  border-right: 0.15rem solid $color-accent1;
 
-    top: 0;
-    left: 0;
-    height: 100svh;
-    width: 75%;
+  top: 0;
+  left: 0;
+  height: 100svh;
+  width: 75%;
 
-    &.removing {
-        animation: swoop-out-rtl 200ms ease-in forwards;
-    }
+  &.removing {
+    animation: swoop-out-rtl 200ms ease-in forwards;
+  }
 }
 
 div#floating-menu-backdrop {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    background-color: rgba(black, 0.3);
-    z-index: 2000;
-    animation: fade-in 200ms ease-in;
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background-color: rgba(black, 0.3);
+  z-index: 2000;
+  animation: fade-in 200ms ease-in;
 
-    &:has(+ div#floating-menu.removing) {
-        animation: fade-out 200ms ease-in forwards;
-    }
+  &:has(+ div#floating-menu.removing) {
+    animation: fade-out 200ms ease-in forwards;
+  }
 }
 
 @keyframes swoop-in-ltr {
-    from {
-        transform: translateX(-100%);
-    }
-    to {
-        transform: translateX(0%);
-    }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0%);
+  }
 }
 
 @keyframes swoop-out-rtl {
-    from {
-        transform: translateX(0%);
-    }
-    to {
-        transform: translateX(-100%);
-    }
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
 }
 
 dialog#bottom-sheet { 
-    background-color: #202127;
-    border-radius: 1rem;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    border: none;
-    display: grid;
-    grid-template-rows: 2rem 1fr;
-    font-size: $text-body-font-size;
-    animation: move-in-fade 250ms ease-out;
-    width: 100vw;
-    max-height: none;
-    max-width: none;
-    margin: 0;
-    bottom: 0;
-    padding: 0;
-    outline: 0;
+  background-color: #202127;
+  border-radius: 1rem;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border: none;
+  display: grid;
+  grid-template-rows: 2rem 1fr;
+  font-size: $text-body-font-size;
+  animation: move-in-fade 250ms ease-out;
+  width: 100vw;
+  max-height: none;
+  max-width: none;
+  margin: 0;
+  bottom: 0;
+  padding: 0;
+  outline: 0;
 
+  &::backdrop {
+    background-color: rgba(black, 0.3);
+  }
+
+  &.fading-out{
+    animation: fade-out 100ms linear forwards;
     &::backdrop {
-        background-color: rgba(black, 0.3);
+      animation: fade-out 100ms linear forwards;
+    }
+  }
+
+  &.removing {
+    animation: move-out-fade 250ms ease-out forwards;
+    &::backdrop {
+      animation: fade-out 250ms linear forwards;
+    }
+  }
+
+  span.sheet-handle {
+    @extend .secondary-text;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+
+    &::after {
+      content: "";
+      height: 0.5rem;
+      border-radius: 0.5rem;
+      background-color: #e3e3e3;
+      width: 5rem;
     }
 
-    &.fading-out{
-        animation: fade-out 100ms linear forwards;
-        &::backdrop {
-            animation: fade-out 100ms linear forwards;
-        }
+    &::before {
+      position: absolute;
+      top: -50%;
+      left: 0;
+      content: "";
+      box-sizing: content-box;
+      width: 100%;
+      height: 200%;
     }
+  }
 
-    &.removing {
-        animation: move-out-fade 250ms ease-out forwards;
-        &::backdrop {
-            animation: fade-out 250ms linear forwards;
-        }
-    }
-
-    span.sheet-handle {
-        @extend .secondary-text;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-
-        &::after {
-            content: "";
-            height: 0.5rem;
-            border-radius: 0.5rem;
-            background-color: #e3e3e3;
-            width: 5rem;
-        }
-
-        &::before {
-            position: absolute;
-            top: -50%;
-            left: 0;
-            content: "";
-            box-sizing: content-box;
-            width: 100%;
-            height: 200%;
-        }
-    }
-
-    div.sheet-content {
-        padding: 1rem;
-    }
+  div.sheet-content {
+    padding: 1rem;
+  }
 }
 
 @keyframes move-out-fade {
-    from {
-        translate: 0;
-        opacity: 1;
-    }
-    to {
-        translate: 0 75%;
-        opacity: 0;
-    }
+  from {
+    translate: 0;
+    opacity: 1;
+  }
+  to {
+    translate: 0 75%;
+    opacity: 0;
+  }
 }
 
 @keyframes move-in-fade {
-    from {
-        translate: 0 75%;
-        opacity: 0;
-    }
-    to {
-        translate: 0;
-        opacity: 1;
-    }
+  from {
+    translate: 0 75%;
+    opacity: 0;
+  }
+  to {
+    translate: 0;
+    opacity: 1;
+  }
 }
 
 @keyframes fade-in {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fade-out {
-    from {
-        opacity: 1;
-    }
-    to {
-        opacity: 0;
-    }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes zoom-in {
-    from {
-        scale: 0;
-    }
-    to {
-        scale: 1;
-    }
+  from {
+    scale: 0;
+  }
+  to {
+    scale: 1;
+  }
 }

@@ -1,6 +1,6 @@
 import './App.scss'
-import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createResource, Suspense } from 'solid-js';
-import { HeaderElement, ProgressSpinner } from './std-widgets';
+import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createResource, Suspense, createContext, useContext } from 'solid-js';
+import { HeaderElement, MenuElement, ProgressSpinner } from './std-widgets';
 import { Router, Route, Navigate, useNavigate } from '@solidjs/router';
 import { AuthenticationContextObj, createAuthenticationContext, useAuthentication } from './backend';
 import { FormattedString, ResourceManager } from './resources';
@@ -357,22 +357,35 @@ function ScriptView() {
     );
 }
 
+const IsMobileContext = createContext<() => boolean>();
+
 function App(props: { children: JSX.Element }): JSX.Element {
     const authenticationContext = createAuthenticationContext();
     const navigate = useNavigate();
+    const [isMobile, setIsMobile] = createSignal(window.innerWidth <= 768);
 
     const unsubscribe = authenticationContext.onLogout.subscribe(() => navigate('/login'));
     onCleanup(() => {
         unsubscribe();
-    })
+    });
+
+    const mql = window.matchMedia("(max-width: 768px)");
+    mql.addEventListener('change', () => {
+        setIsMobile(window.innerWidth <= 768);
+    });
 
     return (
         <AuthenticationContextObj.Provider value={authenticationContext}>
-            <HeaderElement showBackButton={false} title={''}>
-            </HeaderElement>
-            <div class="routing-contents">
-                {props.children}
-            </div>
+            <IsMobileContext.Provider value={isMobile}>
+                { 
+                    isMobile() 
+                        ? <HeaderElement showBackButton={false} title={''}/> 
+                        : <MenuElement/> 
+                }
+                <div class="routing-contents">
+                    {props.children}
+                </div>
+            </IsMobileContext.Provider>
         </AuthenticationContextObj.Provider>
     );
 }
@@ -382,6 +395,16 @@ function Root(): JSX.Element {
     return (
         <>
             {authentication.isLoggedIn() ? <Navigate href="/script"/> : <Navigate href="/login"/>}
+        </>
+    );
+}
+
+function ScriptRoute(): JSX.Element {
+    const isMobile = useContext(IsMobileContext)!;
+
+    return (
+        <>
+            { isMobile() ? <ScriptView/> : <h1>edit your scripts here</h1> }
         </>
     );
 }
@@ -396,7 +419,7 @@ export default function() {
             <Router root={App}>
                 <Route path="/" component={Root}/>
                 <Route path="/login" component={Login}/>
-                <Route path="/script/*uuid" component={ScriptView} />
+                <Route path="/script/*uuid" component={ScriptRoute} />
                 <Route 
                     path="*paramName"
                     component={() => <Navigate href="/"/>}/>

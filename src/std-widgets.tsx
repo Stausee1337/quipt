@@ -477,19 +477,22 @@ function ListElement(
     );
 }
 
-function MenuElement(
+export function MenuElement(
     props: {
-        closer: () => void
+        closer?: () => void
     }
 ): JSX.Element {
+    const closer = props.closer;
 
     return (
         <nav class="side-menu">
             <div class="header">
                 <div class="top-line">
-                    <button class="close" onClick={props.closer}>
-                        <i class="bi bi-x"/>
-                    </button>
+                    { closer !== undefined ? (
+                        <button class="close" onClick={props.closer}>
+                            <i class="bi bi-x"/>
+                        </button> ) : null
+                    }
                 </div>
 
                 <ListElement icon="pencil-square">Neues Skript</ListElement>
@@ -506,8 +509,7 @@ function MenuElement(
 
             <div class="footer">
                 <ListElement icon="person-circle" static>
-                    xxx@email.x
-                    <span style="flex: 1;"/>
+                    <span style="flex:1">xxx@email.x</span>
                     <button class="secondary-button">Logout</button>
                 </ListElement>
             </div>
