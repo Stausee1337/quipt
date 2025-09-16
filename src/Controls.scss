@@ -25,10 +25,10 @@ div.header-element {
     button {
         position: fixed;
         height: calc(100% - 2rem);
-        align-self: flex-start;
         padding: 0;
         top: 1rem;
         left: 1rem;
+        font-size: 2.5rem;
 
         aspect-ratio: 1;
         border-radius: 0.6rem;
@@ -104,18 +104,21 @@ button.primary-button {
 }
 
 button.secondary-button {
+    @extend .roboto-b800;
+    padding: 0 2rem;
+    border: 0.1rem solid $lighter1;
     height: $button-size;
     border-radius: $button-size;
-    color: #a8c8fb;
+    font-size: inherit;
     overflow: hidden;
     position: relative;
     z-index: 1;
-    font-weight: 500;
-    border: none;
     outline: none;
-    background: none;
-    padding: 0 1.5rem;
-    line-height: $button-size;
+    background-color: inherit;
+
+    &:active {
+        background-color: $lighter1;
+    }
 }
 
 div.scrollable {
@@ -201,24 +204,27 @@ div.list-item {
     }
 }
 
-dialog#dialog-box { 
-    background-color: #202127;
-    box-shadow: 0 0 1px rgba(black, 0.3);
-    border-radius: 2rem;
-    border: none;
+.common-dialog {
     display: flex;
-    flex-direction: column;
     font-size: $text-body-font-size;
-    width: 80%;
-    padding: 2.5rem;
-    gap: 2rem;
-    animation: move-in-fade 250ms ease-out;
     margin: 0;
+    outline: 0;
+    user-select: none;
+}
+
+dialog#dialog-box { 
+    padding: 1.5rem;
+    gap: 1rem;
+    border: none;
+    @extend .common-dialog;
+    background-color: $color-accent1;
+    border-radius: 1rem;
+    flex-direction: column;
+    width: 80%;
+    animation: move-in-fade 250ms ease-out;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    outline: 0;
-    user-select: none;
 
     &::backdrop {
         background-color: rgba(black, 0.3);
@@ -226,12 +232,6 @@ dialog#dialog-box {
 
     &.removing {
         animation: fade-out 200ms ease-out forwards;
-    }
-
-    h1.heading {
-        margin: 0;
-        font-size: 1.8rem;
-        font-weight: 400;
     }
 
     span.description {
@@ -244,20 +244,60 @@ dialog#dialog-box {
         gap: 1rem;
 
         button.result-button {
-            $rb-height: 4rem;
-            height: $rb-height;
-            border-radius: $rb-height;
-            color: #a8c8fb;
-            overflow: hidden;
-            position: relative;
-            z-index: 1;
-            font-weight: 600;
-            border: none;
-            outline: none;
-            background: none;
-            padding: 0 1.5rem;
-            line-height: $rb-height;
+            @extend .secondary-button;
         }
+    }
+}
+
+div#floating-menu {
+    @extend .common-dialog;
+    background-color: $color-accent2;
+    animation: swoop-in-ltr 200ms ease-in;
+    position: absolute;
+    z-index: 2001;
+    border-right: 0.15rem solid $color-accent1;
+
+    top: 0;
+    left: 0;
+    height: 100svh;
+    width: 75%;
+
+    &.removing {
+        animation: swoop-out-rtl 200ms ease-in forwards;
+    }
+}
+
+div#floating-menu-backdrop {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background-color: rgba(black, 0.3);
+    z-index: 2000;
+    animation: fade-in 200ms ease-in;
+
+    &:has(+ div#floating-menu.removing) {
+        animation: fade-out 200ms ease-in forwards;
+    }
+}
+
+@keyframes swoop-in-ltr {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(0%);
+    }
+}
+
+@keyframes swoop-out-rtl {
+    from {
+        transform: translateX(0%);
+    }
+    to {
+        transform: translateX(-100%);
     }
 }
 
@@ -346,6 +386,15 @@ dialog#bottom-sheet {
     }
     to {
         translate: 0;
+        opacity: 1;
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
         opacity: 1;
     }
 }

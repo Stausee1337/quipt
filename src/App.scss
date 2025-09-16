@@ -85,96 +85,73 @@ div.script-list-container {
     }
 }
 
-div#qr-scanner-container {
-    background-color: black;
-    height: 100%;
-
-    &.loading {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-}
-
-
-div.balls-view {
+nav.side-menu {
+    background-color: $color-accent2;
+    flex: 1;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    // display: flex;
+    // flex-direction: column;
     position: relative;
-    display: flex;
-    justify-content: center;
+    overflow: never;
+    overflow-y: auto;
+    padding: 0 1rem;
+    gap: 0.5rem;
 
-    touch-action: none;
-    user-select: none;
-    -webkit-user-drag: none;
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-
-    div.balls-container {
-        display: flex;
-        position: absolute;
-        justify-content: center;
-        align-items: flex-end;
+    div.header {
         top: 0;
-        height: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        position: sticky;
+        background-color: inherit;
+        border-bottom: 0.15rem solid $color-accent1;
+        touch-action: none;
 
-        span.ball {
-            background-color: rgba(white, 0.5);
-            height: calc(7px * var(--ball-scale-factor, 1));
-            width: calc(7px * var(--ball-scale-factor, 1));
-            border-radius: 50%;
-            transform-origin: bottom left;
-            $cccalc: calc((var(--ball-scale-factor, 1) - 1) / 3);
-            margin: calc(15px * $cccalc*$cccalc*$cccalc) 
-                calc(2px + (1px * (var(--ball-scale-factor, 1) - 1)));
-            position: relative;    
+        div.top-line {
+            height: 6rem;
+            display: flex;
+            justify-content: flex-end;
+            padding: 1rem 0;
 
-            &.highlighted {
-                background-color: #06f990;
-            }
-
-            &::before {
-                position: absolute;
-                content: "";
-                height: calc(7px * var(--ball-scale-factor, 1));
-                width: calc(7px * var(--ball-scale-factor, 1));
-                left: calc(-2px - (1px * (var(--ball-scale-factor, 1) - 1)));
-                padding: calc(2px * ((var(--ball-scale-factor, 1) - 1) / 3)) 
-                    calc(2px + (1px * (var(--ball-scale-factor, 1) - 1)));
+            button.close {
+                background-color: inherit;
+                outline: none;
+                border: none;
+                font-size: 2.5rem;
+                padding: 0;
             }
         }
     }
 
-    div.current-quote-container {
-        position: absolute;
-        width: 100%;
-    }
-}
+    span.list-element {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem;
+        border-radius: 1rem;
+        align-items: center;
 
-div.current-quote-container > div.current-quote {
-    box-shadow: 0 0 0 1px rgba(black, 0.3);
-    border-radius: 1rem;
-    padding: 1rem;
-    font-size: 1.6rem;
-    max-width: 80%;
-    overflow: hidden;
-    touch-action: none;
-    background-color: #0d1117;
-    display: inline-block;
-    position: fixed;
-    opacity: 0;
-    pointer-events: none;
-    // transition: opacity 100ms linear;
-    overflow: hidden;
-    z-index: 1;
+        &:not(.static):hover {
+            background-color: $background;
+        }
 
-    span.content {
-        white-space: pre-wrap;
-        display: block;
+        &.current {
+            background-color: $color-accent1;
+        }
     }
 
-    h3 {
-        margin: 0;
-        font-size: 1.4rem;
-        font-weight: 800;
-        display: inline-block;
+    div.footer {
+        touch-action: none;
+        i {
+            font-size: 3rem;
+        }
+        position: sticky;
+        height: 6rem;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: inherit;
+        border-top: 0.15rem solid $color-accent1;
     }
 }
 

@@ -17,7 +17,7 @@ type DialogDescriptor = {
 
 export class DialogManager {
     public static async openDialog(dialog: DialogDescriptor): Promise<string> {
-        const rootElement: HTMLDivElement = <div id="dialog-root"/>
+        const rootElement = <div id="dialog-root"/> as HTMLDivElement;
         document.body.appendChild(rootElement);
 
         const result = await createRoot(async dispose => {
@@ -34,12 +34,27 @@ export class DialogManager {
     }
 
     public static async openBottomSheet(content: Component<{ closer: () => void }>): Promise<void> {
-        const rootElement: HTMLDivElement = <div id="dialog-root"/>
+        const rootElement = <div id="dialog-root"/> as HTMLDivElement;
         document.body.appendChild(rootElement);
 
         await createRoot(async dispose => {
             await new Promise<void>(resolve => {
                 const dialogBox = <BottomSheet onClose={resolve}>{ content }</BottomSheet>;
+                insert(rootElement, () => dialogBox, null);
+            });
+            dispose();
+        });
+
+        rootElement.remove();
+    }
+
+    public static async openSideMenu(content: Component<{ closer: () => void }>): Promise<void> {
+        const rootElement = <div id="dialog-root"/> as HTMLDivElement;
+        document.body.appendChild(rootElement);
+
+        await createRoot(async dispose => {
+            await new Promise<void>(resolve => {
+                const dialogBox = <SideMenu onClose={resolve}>{ content }</SideMenu>;
                 insert(rootElement, () => dialogBox, null);
             });
             dispose();
@@ -153,6 +168,33 @@ function BottomSheet(props: { onClose: () => void, children: Component<{ closer:
     return dialog;
 }
 
+function SideMenu(
+    { children: Children, onClose }: {
+        children: Component<{ closer: () => void }>,
+        onClose: () => void
+    }
+): JSX.Element {
+    function deferClose() {
+        dialog.classList.add('removing');
+        dialog.addEventListener('animationend', () => {
+            onClose();
+        }, { once: true });
+    }
+
+    const dialog = (
+        <div id="floating-menu">
+            <Children closer={deferClose}/>
+        </div>
+    ) as HTMLDivElement;
+
+    return (
+        <>
+            <div id="floating-menu-backdrop" onClick={deferClose}/>
+            {dialog}
+        </>
+    );
+}
+
 function DialogBox(descriptor: DialogDescriptor & { onClose: (reason: string) => void }) {
     function deferClose(dialogResult: string) {
         dialog.classList.add('removing');
@@ -171,9 +213,9 @@ function DialogBox(descriptor: DialogDescriptor & { onClose: (reason: string) =>
         }
         deferClose("cancel");
     }
-    const dialog: HTMLDialogElement = (
+    const dialog = (
         <dialog id="dialog-box" onClose={() => descriptor.onClose(dialog.returnValue)} onClick={clickHandler}>
-            <h1 class="heading">{descriptor.heading}</h1> 
+            <h3 class="heading">{descriptor.heading}</h3> 
             { descriptor.description != undefined ? 
                 <span class="description secondary-text">{descriptor.description}</span> : null }
             { descriptor.content != undefined ? <descriptor.content/>: null }
@@ -181,12 +223,11 @@ function DialogBox(descriptor: DialogDescriptor & { onClose: (reason: string) =>
                 { descriptor.dialogButtons.map(desc => 
                     <button class="result-button" onClick={chf(desc.dialogResult)}>
                         { desc.title }
-                        <RippleEffect color="#a8c8fb"/>
                     </button>
                 ) }
             </div>
         </dialog>
-    );
+    ) as HTMLDialogElement;
 
     onMount(() => {
         dialog.showModal();

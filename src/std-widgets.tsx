@@ -2,7 +2,6 @@ import { Component, JSX, ParentProps, Ref, createComponent, createContext, creat
 import { untrack } from "solid-js/web";
 import { $, Observable } from "./observable";
 import { DialogManager } from "./dialog";
-import { TrashIcon } from "./bubble-handle";
 
 export function ProgressSpinner(props: { size?: number, color?: string | undefined }) {
     const merged = mergeProps({ size: 100 }, props);
@@ -459,13 +458,74 @@ export type HeaderElementProps = {
     children: () => JSX.Element
 };
 
+function ListElement(
+    props: {
+        icon?: string,
+        children: JSX.Element,
+        static?: boolean
+    }
+): JSX.Element {
+    return (
+        <span class="list-element" classList={{ static: props.static }}>
+            { 
+                props.icon !== undefined 
+                    ? <i class={`bi bi-${props.icon}`}/> 
+                    : null
+            }
+            { props.children }
+        </span>
+    );
+}
+
+function MenuElement(
+    props: {
+        closer: () => void
+    }
+): JSX.Element {
+
+    return (
+        <nav class="side-menu">
+            <div class="header">
+                <div class="top-line">
+                    <button class="close" onClick={props.closer}>
+                        <i class="bi bi-x"/>
+                    </button>
+                </div>
+
+                <ListElement icon="pencil-square">Neues Skript</ListElement>
+
+                <ListElement static>
+                    <h3>Skripte</h3>
+                </ListElement>
+            </div>
+
+            { 
+                Array.from({ length: 50 })
+                    .map(v => <ListElement>{ String(v) }</ListElement>)
+            }
+
+            <div class="footer">
+                <ListElement icon="person-circle" static>
+                    xxx@email.x
+                    <span style="flex: 1;"/>
+                    <button class="secondary-button">Logout</button>
+                </ListElement>
+            </div>
+        </nav>
+    );
+}
+
 export function HeaderElement(props: HeaderElementProps) {
     const controller = new HeaderController();
+
+    function openMenu() {
+        DialogManager.openSideMenu(MenuElement);
+    }
 
     return (
         <HeaderContext.Provider value={controller}>
             <div class="header-element">
-                <button><TrashIcon/></button>
+                <button onClick={openMenu}><i class="bi bi-list"/></button>
                 <h1>Quipt</h1>
             </div>
         </HeaderContext.Provider>
