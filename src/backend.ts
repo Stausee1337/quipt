@@ -155,6 +155,7 @@ export interface OnLogoutLifecylce {
 export interface AuthenticationContext {
     onLogout: OnLogoutLifecylce;
     requests: AuthenticatedRequestsProvider|undefined;
+    logout(): void,
     isLoggedIn(): boolean;
     loginUser(data: auth.AuthSuccess): any;
 }
@@ -235,6 +236,10 @@ export function createAuthenticationContext(): AuthenticationContext {
         onLogout,
         isLoggedIn,
         requests: isLoggedIn() ? createRequests() : undefined,
+        logout() {
+            logout();
+            // TODO: delete refresh token
+        },
         loginUser(data) {
             if (isLoggedIn()) return;
 

@@ -364,7 +364,7 @@ function App(props: { children: JSX.Element }): JSX.Element {
     const navigate = useNavigate();
     const [isMobile, setIsMobile] = createSignal(window.innerWidth <= 768);
 
-    const unsubscribe = authenticationContext.onLogout.subscribe(() => navigate('/login'));
+    const unsubscribe = authenticationContext.onLogout.subscribe(() => navigate('/signin'));
     onCleanup(() => {
         unsubscribe();
     });
@@ -373,6 +373,14 @@ function App(props: { children: JSX.Element }): JSX.Element {
     mql.addEventListener('change', () => {
         setIsMobile(window.innerWidth <= 768);
     });
+
+    createEffect(() => {
+        const root = document.querySelector('#root')!;
+        if (!isMobile() && authenticationContext.isLoggedIn())
+            root.classList.add('sidebar-visible');
+        else
+            root.classList.remove('sidebar-visible');
+    })
 
     return (
         <IsMobileContext.Provider value={isMobile}>
@@ -439,6 +447,10 @@ interface FormData {
     data: Record<string, string>;
     valid: boolean;
     submitted: boolean;
+    readonly error: string|undefined;
+    blur(name?: string): void;
+    focus(name: string): void;
+    resetInput(name?: string): void;
     postErrorMessage(message: string): void;
 }
 
@@ -456,7 +468,7 @@ function createReactiveFormData(): FormData {
             setData(value);
         },
         get valid() {
-            return valid() && formError() === undefined;
+            return valid();
         },
         set valid(value) {
             setValid(value);
@@ -467,6 +479,12 @@ function createReactiveFormData(): FormData {
         set submitted(value) {
             setSubmitted(value);
         },
+        get error() {
+            return formError();
+        },
+        blur() {},
+        focus() {},
+        resetInput() {},
         postErrorMessage(message) {
             setFormError(message);
         },
@@ -476,6 +494,7 @@ function createReactiveFormData(): FormData {
 function quiptForm(element: HTMLFormElement, formData: Accessor<FormData>) {
     let valueBinding: Record<string, string> = {};
     let validBinding: Record<string, boolean> = {};
+    let elementBinding: Record<string, HTMLInputElement> = {};
 
     createEffect(() => {
         const currentFormData = formData();
@@ -484,6 +503,41 @@ function quiptForm(element: HTMLFormElement, formData: Accessor<FormData>) {
         } else {
             element.classList.remove('submitted');
         }
+
+        if (currentFormData.error) {
+            element.classList.add('error');
+        } else {
+            element.classList.remove('error');
+        }
+
+        currentFormData.resetInput = (name) => {
+            if (name !== undefined) {
+                const element = elementBinding[name];
+                if (element !== undefined)
+                    element.value = '';
+                return;
+            }
+            for (const element of Object.values(elementBinding))
+                element.value = ''; 
+        };
+
+        currentFormData.focus = (name) => {
+            const element = elementBinding[name];
+            if (element !== undefined)
+                element.focus();
+            return;
+        };
+
+        currentFormData.blur = (name) => {
+            if (name !== undefined) {
+                const element = elementBinding[name];
+                if (element !== undefined)
+                    element.blur();
+                return;
+            }
+            for (const element of Object.values(elementBinding))
+                element.blur(); 
+        };
     });
 
     function onSubmit(e: SubmitEvent) {
@@ -491,7 +545,6 @@ function quiptForm(element: HTMLFormElement, formData: Accessor<FormData>) {
 
         const currentFormData = formData();
         currentFormData.submitted = true;
-        element.classList.add('submitted');
 
         const event = new QuiptFormEvent(currentFormData.valid, valueBinding);
         element.dispatchEvent(event);
@@ -509,15 +562,18 @@ function quiptForm(element: HTMLFormElement, formData: Accessor<FormData>) {
 
     element.addEventListener('submit', onSubmit);
     element.addEventListener('еееInputChange', onInputChange)
-    const observer = new MutationObserver(createDataBinding);
+    const observer = new MutationObserver(createBinding);
 
-    function createDataBinding() {
+    function createBinding() {
         valueBinding = {};
+        validBinding = {};
+        elementBinding = {};
         for (const input of Array.from(element)) {
             if (!(input instanceof HTMLInputElement))
                 continue;
             valueBinding[input.name] = input.value;
             validBinding[input.name] = input.classList.contains('valid');
+            elementBinding[input.name] = input;
         }
         const currentFormData = formData();
         currentFormData.data = valueBinding;
@@ -525,7 +581,7 @@ function quiptForm(element: HTMLFormElement, formData: Accessor<FormData>) {
     }
 
     onMount(() => {
-        createDataBinding();
+        createBinding();
         observer.observe(element, { childList: true, subtree: true });
     })
 
@@ -651,12 +707,67 @@ namespace validators {
         },
         message: 'Dieses Feld ist erforderlich'
     }
+
+    export function minLength(min: number): Validator {
+        return {
+            validate(value: string): boolean {
+                return min <= value.length;
+            },
+            message: `Muss zwischen mindestens ${min} Zeichen lang sein`
+        };
+    }
+
+    export function lengthRange(min: number, max: number): Validator {
+        return {
+            validate(value: string): boolean {
+                return min <= value.length && value.length <= max;
+            },
+            message: `Muss zwischen ${min} und ${max} Zeichen lang sein`
+        };
+    }
+
+    export function regex(regex: RegExp, message: string): Validator {
+        return {
+            validate(value: string): boolean {
+                return value.match(regex) !== null;
+            },
+            message
+        };
+    }
+
+    export function equal(accesor: Accessor<string>, name: string): Validator {
+        return {
+            validate(value: string): boolean {
+                return value === accesor();
+            },
+            message: `Feld stimmt nicht mit ${name} überein`
+        };
+    }
 }
+
+function convertErrorToMessage(error: auth.AuthError): string {
+    switch (error.code) {
+        case auth.AuthErrorCode.INVALID_CREDENTIALS:
+            return 'Benuzername order Passwort ist falsch'
+        case auth.AuthErrorCode.USERNAME_MALFORMED:
+            return 'Benuzername kann nicht vergeben werden'
+        case auth.AuthErrorCode.USERNAME_ALREADY_EXISTS:
+            return 'Der Benuzername exsitiert bereits'
+        case auth.AuthErrorCode.WEAK_PASSWORD:
+            return 'Das Passwort ist zu schwach'
+    }
+    throw 'unreachable'
+}
+
+const passwordRegex = /^(?=.*[0-9])(?=.*[A-Z])(?=.*[a-z])(?=.*[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]).+$/;
+const regexError = 'Passwort muss mindestens einen Groß- sowie Kleinbuchstaben, eine Zahl und ein Sonderzeichen enthalten';
 
 function UserAuthenticate(
     props: RouteSectionProps
 ): JSX.Element {
+    const navigate = useNavigate()!;
     const authentication = useAuthentication()!;
+    const [loading, setLoading] = createSignal(false);
 
     const keys: Record<string, string> = {
         '/signin': 'Anmelden',
@@ -667,28 +778,35 @@ function UserAuthenticate(
             return;
         }
 
+        const currentFormData = formData();
+        setLoading(true);
+        currentFormData.blur();
+
         const endpoint: "/auth/signin"|"/auth/signup" = props.location.pathname === '/signin'
             ? "/auth/signin"
             : "/auth/signup";
-        const [success, error] = await defaultRequests.post(endpoint, {})
+        const [success, error] = await defaultRequests.post(endpoint, {
+            username: e.formData['username'] ?? '',
+            password: e.formData['password'] ?? ''
+        })
+
+        setLoading(false);
 
         if (error !== undefined) {
-            formData().postErrorMessage(convertErrorToMessage(error));
+            currentFormData.postErrorMessage(convertErrorToMessage(error));
+            const input = props.location.pathname === '/signin'
+                ? 'password'
+                : 'username';
+            currentFormData.resetInput(input);
+            currentFormData.focus(input);
             return;
         }
 
         authentication.loginUser(success);
+        navigate('/');
     }
 
     const [formData, setFormData] = createSignal(createReactiveFormData());
-
-    createEffect(() => {
-        console.log(formData().data);
-    })
-
-    createEffect(() => {
-        console.log(formData().valid);
-    })
 
     const content = createMemo<JSX.Element>(() => {
         setFormData(createReactiveFormData());
@@ -713,6 +831,7 @@ function UserAuthenticate(
                             use:quiptValidator={[validators.required]}/>
                         <span class="error-message">{ passwordMessage() }</span>
                     </div>
+                    <span class="error-message">{ formData().error }</span>
                     <p>Du hat noch kein Konto? <A href="/signup">Jetzt eins erstellen!</A></p>
                     <button class="primary-button"
                         disabled={!formData().valid && formData().submitted}>
@@ -721,20 +840,51 @@ function UserAuthenticate(
                 </>
             );
         } else {
+            const [userMessage, setUserMeessage] = createSignal<string>();
+            const [passwordMessage, setPasswordMessage] = createSignal<string>();
+            const [password2Message, setPassword2Message] = createSignal<string>();
             return (
                 <>
-                    <input placeholder="Benutzername" type="text"/>
-                    <input placeholder="Passwort" type="password"/>
-                    <input placeholder="Passwort wiederholen" type="password"/>
+                    <div class="input-box">
+                        <input type="text"
+                            placeholder="Benutzername"
+                            name="username"
+                            onQuiptValidationChange={e => setUserMeessage(e.message)}
+                            use:quiptValidator={[validators.required, validators.minLength(3)]}/>
+                        <span class="error-message">{ userMessage() }</span>
+                    </div>
+                    <div class="input-box">
+                        <input type="password"
+                            placeholder="Passwort"
+                            name="password"
+                            onQuiptValidationChange={e => setPasswordMessage(e.message)}
+                            use:quiptValidator={[validators.required, validators.lengthRange(8, 72), validators.regex(passwordRegex, regexError)]}/>
+                        <span class="error-message">{ passwordMessage() }</span>
+                    </div>
+                    <div class="input-box">
+                        <input type="password"
+                            placeholder="Passwort wiederholen"
+                            name="password2"
+                            onQuiptValidationChange={e => setPassword2Message(e.message)}
+                            use:quiptValidator={[validators.equal(() => formData().data['password'], 'Passwort')]}/>
+                        <span class="error-message">{ password2Message() }</span>
+                    </div>
+                    <span class="error-message">{ formData().error }</span>
                     <p>Du bist bereits bei Quipt? <A href="/signin">Anmelden!</A></p>
-                    <button class="primary-button">Registrieren</button>
+                    <button class="primary-button"
+                        disabled={!formData().valid && formData().submitted}>
+                        Registrieren
+                    </button>
                 </>
             );
         }
     });
 
     return (
-        <form class="auth-box" use:quiptForm={formData()} onQuiptSubmit={onSubmit}>
+        <form class="auth-box"
+            classList={{'interactable': !loading()}}
+            use:quiptForm={formData()}
+            onQuiptSubmit={onSubmit}>
             <h2>{ keys[props.location.pathname] }</h2>
             { content() }
         </form>

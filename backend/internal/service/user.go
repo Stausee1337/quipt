@@ -63,7 +63,12 @@ func (s* UserService) Signin(
 		return nil, err;
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)[:72] /* slice for bcrypt */);
+	passwordBytes := []byte(password)
+	if len(passwordBytes) > 72 {
+		passwordBytes = passwordBytes[:72]
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), passwordBytes);
 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 		return nil, &AuthError{
 			Code: protos.AuthErrorCode_INVALID_CREDENTIALS,

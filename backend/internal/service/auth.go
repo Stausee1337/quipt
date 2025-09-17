@@ -166,10 +166,7 @@ func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*p
 		return nil, fmt.Errorf("could not json decode for refresh token %q: %w", id, err)
 	}
 
-	fmt.Printf("%v\n", data)
-
 	uuid, ok := data["uuid"].(string)
-	fmt.Printf("%v,%v\n", uuid, ok)
 	if !ok {
 		return nil, fmt.Errorf("invalid data in redis store %q: %w", id, err)
 	}

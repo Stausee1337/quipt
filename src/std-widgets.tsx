@@ -483,6 +483,7 @@ export function MenuElement(
         closer?: () => void
     }
 ): JSX.Element {
+    const authentication = useAuthentication()!;
     const closer = props.closer;
 
     return (
@@ -511,7 +512,10 @@ export function MenuElement(
             <div class="footer">
                 <ListElement icon="person-circle" static>
                     <span style="flex:1">xxx@email.x</span>
-                    <button class="secondary-button">Logout</button>
+                    <button class="secondary-button"
+                        onClick={() => authentication.logout()}>
+                        Logout
+                    </button>
                 </ListElement>
             </div>
         </nav>
