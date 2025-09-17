@@ -10,29 +10,12 @@ import (
 	"github.com/stausee1337/quipt/internal/handler"
 	"github.com/stausee1337/quipt/internal/service"
 	"github.com/stausee1337/quipt/pkg/config"
-	pb "github.com/stausee1337/quipt/protos"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"google.golang.org/protobuf/proto"
 )
 
 type Server struct {
 	router http.Handler
 	config config.Config
-}
-
-
-func addScore(w http.ResponseWriter, r *http.Request) {
-	Actor := "Bär";
-	queue := pb.TextCue {
-		Text: "Hallo, Welt",
-		Actor: &Actor,
-	};
-	data, error := proto.Marshal(&queue);
-	if error != nil {
-		w.WriteHeader(500);
-		fmt.Fprintln(w, "internal server error");
-	}
-	w.Write(data);
 }
 
 func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Server {
@@ -46,7 +29,6 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 	r.Use(corsMiddleware(cfg));
 	r.Use(authMiddleware(authService));
 
-	r.Get("/add-score", addScore);
 	signup_handler := handler.NewSignupHandler(userService, authService);
 	r.Post("/auth/signup", signup_handler.HandleSignup);
 	r.Post("/auth/signin", signup_handler.HandleSignin);

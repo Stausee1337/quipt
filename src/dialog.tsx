@@ -1,7 +1,6 @@
-import { Component, JSX, ParentProps, createContext, createRoot, createSignal, onCleanup, onMount, useContext } from "solid-js";
-import { Portal, insert } from "solid-js/web";
+import { Component, JSX, Owner, createRoot, onCleanup, onMount } from "solid-js";
+import { insert } from "solid-js/web";
 import Hammer from 'hammerjs';
-import { RippleEffect } from "./std-widgets";
 
 type DialogButton = {
     title: string,
@@ -48,17 +47,20 @@ export class DialogManager {
         rootElement.remove();
     }
 
-    public static async openSideMenu(content: Component<{ closer: () => void }>): Promise<void> {
+    public static async openSideMenu(content: Component<{ closer: () => void }>, detachedOwner?: typeof Owner): Promise<void> {
         const rootElement = <div id="dialog-root"/> as HTMLDivElement;
         document.body.appendChild(rootElement);
 
-        await createRoot(async dispose => {
-            await new Promise<void>(resolve => {
-                const dialogBox = <SideMenu onClose={resolve}>{ content }</SideMenu>;
-                insert(rootElement, () => dialogBox, null);
-            });
-            dispose();
-        });
+        await createRoot(
+            async dispose => {
+                await new Promise<void>(resolve => {
+                    const dialogBox = <SideMenu onClose={resolve}>{ content }</SideMenu>;
+                    insert(rootElement, () => dialogBox, null);
+                });
+                dispose();
+            }, 
+            detachedOwner
+        );
 
         rootElement.remove();
     }

@@ -1,4 +1,4 @@
-import { Component, JSX, ParentProps, Ref, createComponent, createContext, createEffect, createSignal, Accessor, mergeProps, onCleanup, onMount, useContext } from "solid-js";
+import { Component, JSX, ParentProps, Ref, createComponent, createContext, createEffect, createSignal, Accessor, mergeProps, onCleanup, onMount, useContext, getOwner } from "solid-js";
 import { untrack } from "solid-js/web";
 import { $, Observable } from "./observable";
 import { DialogManager } from "./dialog";
@@ -486,6 +486,15 @@ export function MenuElement(
     const authentication = useAuthentication()!;
     const closer = props.closer;
 
+    if (closer !== undefined) {
+        const unsubscribe = authentication.onLogout.subscribe(() => {
+            closer();
+        });
+        onCleanup(() => {
+            unsubscribe();
+        })
+    }
+
     return (
         <nav class="side-menu">
             <div class="header">
@@ -525,9 +534,10 @@ export function MenuElement(
 export function HeaderElement(props: HeaderElementProps) {
     const controller = new HeaderController();
     const authentication = useAuthentication()!;
+    const owner = getOwner();
 
     function openMenu() {
-        DialogManager.openSideMenu(MenuElement);
+        DialogManager.openSideMenu(MenuElement, owner);
     }
 
     return (
