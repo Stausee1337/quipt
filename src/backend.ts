@@ -1,6 +1,7 @@
 import { Accessor, JSX, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
 import { auth } from './protos';
 import { ResourceReturn } from "solid-js";
+import { Resource } from "solid-js";
 
 type ResultPromise<T, E> = Promise<[T, undefined] | [undefined, E]>;
 
@@ -133,18 +134,35 @@ const authenticatedGetRequests = {
 
 export class AuthenticatedRequestsProvider extends CachableRequestsProvider<typeof authenticatedGetRequests, {}> {
     constructor(
-        private getAccessToken: Accessor<string|undefined>,
+        private getAccessToken: Resource<string|undefined>,
         private refreshLogin: () => Promise<void>,
     ) {
         super(authenticatedGetRequests, {});
+    }
+
+    get loading(): boolean {
+        return this.getAccessToken.loading;
     }
 
     get accessToken(): string {
         return this.getAccessToken()!;
     }
 
+    waitForTokenLoad(): Promise<void> {
+        if (this.getAccessToken.loading) {
+            return new Promise(resolve => {
+                createEffect(() => {
+                    if (!this.getAccessToken.loading)
+                        resolve();
+                })
+            })
+        }
+        return Promise.resolve();
+    }
+
     executorFactory(method: string, endpoint: string): Executor {
         return async (b: BodyInit | null): Promise<{ status: number, data: Uint8Array }> => {
+            await this.waitForTokenLoad();
             const headers = {
                 'Authorization': `Bearer ${this.accessToken}`
             };
@@ -171,7 +189,6 @@ export class AuthenticatedRequestsProvider extends CachableRequestsProvider<type
     }
 }
 
-// TODO: move somewhere else
 export type FormattedString = Array<{ style: JSX.CSSProperties|null, string: string }>;
 
 type Markdown = string;
@@ -248,18 +265,12 @@ export function createAuthenticationContext(): AuthenticationContext {
 
     function logout() {
         setIsLoggedIn(false);
+        ctx.requests = undefined; 
         setRefreshToken(undefined);
         onLogout.trigger();
     }
 
     const [isLoggedIn, setIsLoggedIn] = createSignal<boolean>(refreshToken() !== undefined);
-
-    createEffect(() => {
-        if (isLoggedIn())
-            ctx.requests = createRequests();
-        else
-            ctx.requests = undefined; 
-    });
 
     const ctx: AuthenticationContext = {
         onLogout,
@@ -274,6 +285,7 @@ export function createAuthenticationContext(): AuthenticationContext {
         loginUser(data) {
             if (isLoggedIn()) return;
 
+            ctx.requests = createRequests();
             setIsLoggedIn(true);
             setRefreshToken(data.refreshToken);
             mutateAccessToken(data.accessToken);
