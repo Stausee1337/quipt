@@ -9,8 +9,8 @@ export namespace auth {
         /** User id */
         id?: (string|null);
 
-        /** User email */
-        email?: (string|null);
+        /** User username */
+        username?: (string|null);
 
         /** User verified */
         verified?: (boolean|null);
@@ -28,8 +28,8 @@ export namespace auth {
         /** User id. */
         public id: string;
 
-        /** User email. */
-        public email: string;
+        /** User username. */
+        public username: string;
 
         /** User verified. */
         public verified: boolean;
@@ -84,8 +84,8 @@ export namespace auth {
     /** Properties of a SigninRequest. */
     interface ISigninRequest {
 
-        /** SigninRequest email */
-        email?: (string|null);
+        /** SigninRequest username */
+        username?: (string|null);
 
         /** SigninRequest password */
         password?: (string|null);
@@ -100,8 +100,8 @@ export namespace auth {
          */
         constructor(properties?: auth.ISigninRequest);
 
-        /** SigninRequest email. */
-        public email: string;
+        /** SigninRequest username. */
+        public username: string;
 
         /** SigninRequest password. */
         public password: string;
@@ -156,8 +156,8 @@ export namespace auth {
     /** Properties of a SignupRequest. */
     interface ISignupRequest {
 
-        /** SignupRequest email */
-        email?: (string|null);
+        /** SignupRequest username */
+        username?: (string|null);
 
         /** SignupRequest password */
         password?: (string|null);
@@ -172,8 +172,8 @@ export namespace auth {
          */
         constructor(properties?: auth.ISignupRequest);
 
-        /** SignupRequest email. */
-        public email: string;
+        /** SignupRequest username. */
+        public username: string;
 
         /** SignupRequest password. */
         public password: string;
@@ -311,10 +311,10 @@ export namespace auth {
 
     /** AuthErrorCode enum. */
     enum AuthErrorCode {
-        EMAIL_MALFORMED = 0,
+        USERNAME_MALFORMED = 0,
         WEAK_PASSWORD = 1,
         INVALID_CREDENTIALS = 2,
-        EMAIL_ALREADY_EXISTS = 3,
+        USERNAME_ALREADY_EXISTS = 3,
         TOKEN_EXPIRED = 4,
         UNAUTHORIZED = 5
     }

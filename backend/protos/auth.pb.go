@@ -24,31 +24,31 @@ const (
 type AuthErrorCode int32
 
 const (
-	AuthErrorCode_EMAIL_MALFORMED      AuthErrorCode = 0
-	AuthErrorCode_WEAK_PASSWORD        AuthErrorCode = 1
-	AuthErrorCode_INVALID_CREDENTIALS  AuthErrorCode = 2
-	AuthErrorCode_EMAIL_ALREADY_EXISTS AuthErrorCode = 3
-	AuthErrorCode_TOKEN_EXPIRED        AuthErrorCode = 4
-	AuthErrorCode_UNAUTHORIZED         AuthErrorCode = 5
+	AuthErrorCode_USERNAME_MALFORMED      AuthErrorCode = 0
+	AuthErrorCode_WEAK_PASSWORD           AuthErrorCode = 1
+	AuthErrorCode_INVALID_CREDENTIALS     AuthErrorCode = 2
+	AuthErrorCode_USERNAME_ALREADY_EXISTS AuthErrorCode = 3
+	AuthErrorCode_TOKEN_EXPIRED           AuthErrorCode = 4
+	AuthErrorCode_UNAUTHORIZED            AuthErrorCode = 5
 )
 
 // Enum value maps for AuthErrorCode.
 var (
 	AuthErrorCode_name = map[int32]string{
-		0: "EMAIL_MALFORMED",
+		0: "USERNAME_MALFORMED",
 		1: "WEAK_PASSWORD",
 		2: "INVALID_CREDENTIALS",
-		3: "EMAIL_ALREADY_EXISTS",
+		3: "USERNAME_ALREADY_EXISTS",
 		4: "TOKEN_EXPIRED",
 		5: "UNAUTHORIZED",
 	}
 	AuthErrorCode_value = map[string]int32{
-		"EMAIL_MALFORMED":      0,
-		"WEAK_PASSWORD":        1,
-		"INVALID_CREDENTIALS":  2,
-		"EMAIL_ALREADY_EXISTS": 3,
-		"TOKEN_EXPIRED":        4,
-		"UNAUTHORIZED":         5,
+		"USERNAME_MALFORMED":      0,
+		"WEAK_PASSWORD":           1,
+		"INVALID_CREDENTIALS":     2,
+		"USERNAME_ALREADY_EXISTS": 3,
+		"TOKEN_EXPIRED":           4,
+		"UNAUTHORIZED":            5,
 	}
 )
 
@@ -82,7 +82,7 @@ func (AuthErrorCode) EnumDescriptor() ([]byte, []int) {
 type User struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	Verified      bool                   `protobuf:"varint,3,opt,name=verified,proto3" json:"verified,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -125,9 +125,9 @@ func (x *User) GetId() string {
 	return ""
 }
 
-func (x *User) GetEmail() string {
+func (x *User) GetUsername() string {
 	if x != nil {
-		return x.Email
+		return x.Username
 	}
 	return ""
 }
@@ -141,7 +141,7 @@ func (x *User) GetVerified() bool {
 
 type SigninRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
 	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -177,9 +177,9 @@ func (*SigninRequest) Descriptor() ([]byte, []int) {
 	return file_auth_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SigninRequest) GetEmail() string {
+func (x *SigninRequest) GetUsername() string {
 	if x != nil {
-		return x.Email
+		return x.Username
 	}
 	return ""
 }
@@ -193,7 +193,7 @@ func (x *SigninRequest) GetPassword() string {
 
 type SignupRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
 	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -229,9 +229,9 @@ func (*SignupRequest) Descriptor() ([]byte, []int) {
 	return file_auth_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *SignupRequest) GetEmail() string {
+func (x *SignupRequest) GetUsername() string {
 	if x != nil {
-		return x.Email
+		return x.Username
 	}
 	return ""
 }
@@ -354,7 +354,7 @@ func (x *AuthError) GetCode() AuthErrorCode {
 	if x != nil {
 		return x.Code
 	}
-	return AuthErrorCode_EMAIL_MALFORMED
+	return AuthErrorCode_USERNAME_MALFORMED
 }
 
 func (x *AuthError) GetMessage() string {
@@ -369,16 +369,16 @@ var File_auth_proto protoreflect.FileDescriptor
 const file_auth_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"auth.proto\x12\x04auth\"H\n" +
+	"auth.proto\x12\x04auth\"N\n" +
 	"\x04User\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1a\n" +
-	"\bverified\x18\x03 \x01(\bR\bverified\"A\n" +
-	"\rSigninRequest\x12\x14\n" +
-	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"A\n" +
-	"\rSignupRequest\x12\x14\n" +
-	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12\x1a\n" +
+	"\bverified\x18\x03 \x01(\bR\bverified\"G\n" +
+	"\rSigninRequest\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"G\n" +
+	"\rSignupRequest\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"\x89\x01\n" +
 	"\vAuthSuccess\x12\x16\n" +
 	"\x06userId\x18\x01 \x01(\tR\x06userId\x12 \n" +
@@ -387,12 +387,12 @@ const file_auth_proto_rawDesc = "" +
 	"\texpiresAt\x18\x04 \x01(\x03R\texpiresAt\"N\n" +
 	"\tAuthError\x12'\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x13.auth.AuthErrorCodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage*\x8f\x01\n" +
-	"\rAuthErrorCode\x12\x13\n" +
-	"\x0fEMAIL_MALFORMED\x10\x00\x12\x11\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage*\x95\x01\n" +
+	"\rAuthErrorCode\x12\x16\n" +
+	"\x12USERNAME_MALFORMED\x10\x00\x12\x11\n" +
 	"\rWEAK_PASSWORD\x10\x01\x12\x17\n" +
-	"\x13INVALID_CREDENTIALS\x10\x02\x12\x18\n" +
-	"\x14EMAIL_ALREADY_EXISTS\x10\x03\x12\x11\n" +
+	"\x13INVALID_CREDENTIALS\x10\x02\x12\x1b\n" +
+	"\x17USERNAME_ALREADY_EXISTS\x10\x03\x12\x11\n" +
 	"\rTOKEN_EXPIRED\x10\x04\x12\x10\n" +
 	"\fUNAUTHORIZED\x10\x05B)Z'github.com/stausee1337/quipt/gen/protosb\x06proto3"
 

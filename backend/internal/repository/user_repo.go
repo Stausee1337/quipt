@@ -11,12 +11,12 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-var ErrUnknownEmail = errors.New("unknown email");
+var ErrUnknownUser = errors.New("unknown email");
 
 type User struct {
 	Uuid 		[16]byte
 	Sub			*string
-	Email 		string
+	Username 	string
 	Password 	[]byte
 	Verified 	bool
 }
@@ -31,14 +31,14 @@ func NewUserRepo(db *mongo.Database) *UserRepo {
 	};
 }
 
-func (r *UserRepo) FindUserByEmail(ctx context.Context, email string) (*User, error) {
-	result := r.users.FindOne(ctx, bson.D{{Key: "email", Value: email}});
+func (r *UserRepo) FindUserByName(ctx context.Context, username string) (*User, error) {
+	result := r.users.FindOne(ctx, bson.D{{Key: "username", Value: username}});
 	var user User
 	if err := result.Decode(&user); err != nil {	
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, ErrUnknownEmail;
+			return nil, ErrUnknownUser;
 		}
-		return nil, fmt.Errorf("query user %q: %w", email, err);
+		return nil, fmt.Errorf("query user %q: %w", username, err);
 	}
 	return &user, nil
 }
@@ -51,7 +51,7 @@ func (r *UserRepo) CreateUser(ctx context.Context, user *User) error {
 	user.Uuid = uuid
 	_, error = r.users.InsertOne(ctx, user);
 	if error != nil {
-		return fmt.Errorf("create user %q: %w", user.Email, error)
+		return fmt.Errorf("create user %q: %w", user.Username, error)
 	}
 	return nil
 }

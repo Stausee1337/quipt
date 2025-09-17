@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
@@ -28,24 +27,14 @@ func (w *AuthError) Error() string {
 
 type UserService struct {
 	repo 		*repository.UserRepo
-	emailRegex	*regexp.Regexp
 }
 
 const EMAIL_REGEX = `^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`;
 
 func NewUserService(db *mongo.Database) *UserService {
-	regex, err := regexp.Compile(EMAIL_REGEX);
-	if err != nil {
-		panic(err);
-	}
 	return &UserService{
 		repo: repository.NewUserRepo(db),
-		emailRegex: regex,
 	}
-}
-
-func (s *UserService) validateEmail(email string) bool {
-	return s.emailRegex.MatchString(email);
 }
 
 func (s *UserService) hashPassword(password string) ([]byte, error) {
@@ -56,17 +45,52 @@ func (s *UserService) hashPassword(password string) ([]byte, error) {
 	return result, nil
 }
 
+func (s* UserService) Signin(
+	ctx context.Context,
+	username string,
+	password string,
+) (*protos.User, error) {
+	user, err := s.repo.FindUserByName(ctx, username)
+	if err != nil {
+		if errors.Is(err, repository.ErrUnknownUser) {
+			// we should do compare hash and password here anyways,
+			// in order not to have a response time difference between email or password invalid
+			return nil, &AuthError{
+				Code: protos.AuthErrorCode_INVALID_CREDENTIALS,
+				Message: "invalid credentials",
+			};
+		}
+		return nil, err;
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)[:72] /* slice for bcrypt */);
+	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+		return nil, &AuthError{
+			Code: protos.AuthErrorCode_INVALID_CREDENTIALS,
+			Message: "invalid credentials",
+		};
+	} else if err != nil {
+		return nil, fmt.Errorf("could not hash password %q: %w", username, err);
+	}
+
+	return &protos.User{
+		Id: uuid.UUID(user.Uuid).String(),
+		Username: user.Username,
+		Verified: user.Verified,
+	}, nil;
+}
+
 func (s *UserService) Signup(
 	ctx context.Context,
-	email string,
+	username string,
 	password string,
 	sub *string,
 	verified bool,
 ) (*protos.User, error) {
-	if !s.validateEmail(email) {
+	if len(username) < 3 {
 		return nil, &AuthError {
-			Code: protos.AuthErrorCode_EMAIL_MALFORMED,
-			Message: "malformed email",
+			Code: protos.AuthErrorCode_USERNAME_MALFORMED,
+			Message: "malformed username",
 		}
 	}
 
@@ -76,13 +100,13 @@ func (s *UserService) Signup(
 			Message: "password too weak",
 		}
 	}
-	_, err := s.repo.FindUserByEmail(ctx, email)
+	_, err := s.repo.FindUserByName(ctx, username)
 	if err == nil {
 		return nil, &AuthError {
-			Code: protos.AuthErrorCode_EMAIL_ALREADY_EXISTS,
-			Message: "email already exists",
+			Code: protos.AuthErrorCode_USERNAME_ALREADY_EXISTS,
+			Message: "username already exists",
 		}
-	} else if !errors.Is(err, repository.ErrUnknownEmail) {
+	} else if !errors.Is(err, repository.ErrUnknownUser) {
 		return nil, err;
 	}
 
@@ -93,7 +117,7 @@ func (s *UserService) Signup(
 
 	user := repository.User {
 		Sub: sub,
-		Email: email,
+		Username: username,
 		Password: hashed_password,
 		Verified: verified,	
 	};
@@ -104,7 +128,7 @@ func (s *UserService) Signup(
 
 	return &protos.User {
 		Id: uuid.UUID(user.Uuid).String(),
-		Email: email,
+		Username: username,
 		Verified: verified,
 	}, nil;
 }

@@ -23,7 +23,7 @@ export const auth = $root.auth = (() => {
          * @memberof auth
          * @interface IUser
          * @property {string|null} [id] User id
-         * @property {string|null} [email] User email
+         * @property {string|null} [username] User username
          * @property {boolean|null} [verified] User verified
          */
 
@@ -51,12 +51,12 @@ export const auth = $root.auth = (() => {
         User.prototype.id = "";
 
         /**
-         * User email.
-         * @member {string} email
+         * User username.
+         * @member {string} username
          * @memberof auth.User
          * @instance
          */
-        User.prototype.email = "";
+        User.prototype.username = "";
 
         /**
          * User verified.
@@ -80,8 +80,8 @@ export const auth = $root.auth = (() => {
                 writer = $Writer.create();
             if (message.id != null && Object.hasOwnProperty.call(message, "id"))
                 writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
-            if (message.email != null && Object.hasOwnProperty.call(message, "email"))
-                writer.uint32(/* id 2, wireType 2 =*/18).string(message.email);
+            if (message.username != null && Object.hasOwnProperty.call(message, "username"))
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.username);
             if (message.verified != null && Object.hasOwnProperty.call(message, "verified"))
                 writer.uint32(/* id 3, wireType 0 =*/24).bool(message.verified);
             return writer;
@@ -112,7 +112,7 @@ export const auth = $root.auth = (() => {
                         break;
                     }
                 case 2: {
-                        message.email = reader.string();
+                        message.username = reader.string();
                         break;
                     }
                 case 3: {
@@ -141,8 +141,8 @@ export const auth = $root.auth = (() => {
             let message = new $root.auth.User();
             if (object.id != null)
                 message.id = String(object.id);
-            if (object.email != null)
-                message.email = String(object.email);
+            if (object.username != null)
+                message.username = String(object.username);
             if (object.verified != null)
                 message.verified = Boolean(object.verified);
             return message;
@@ -163,13 +163,13 @@ export const auth = $root.auth = (() => {
             let object = {};
             if (options.defaults) {
                 object.id = "";
-                object.email = "";
+                object.username = "";
                 object.verified = false;
             }
             if (message.id != null && message.hasOwnProperty("id"))
                 object.id = message.id;
-            if (message.email != null && message.hasOwnProperty("email"))
-                object.email = message.email;
+            if (message.username != null && message.hasOwnProperty("username"))
+                object.username = message.username;
             if (message.verified != null && message.hasOwnProperty("verified"))
                 object.verified = message.verified;
             return object;
@@ -210,7 +210,7 @@ export const auth = $root.auth = (() => {
          * Properties of a SigninRequest.
          * @memberof auth
          * @interface ISigninRequest
-         * @property {string|null} [email] SigninRequest email
+         * @property {string|null} [username] SigninRequest username
          * @property {string|null} [password] SigninRequest password
          */
 
@@ -230,12 +230,12 @@ export const auth = $root.auth = (() => {
         }
 
         /**
-         * SigninRequest email.
-         * @member {string} email
+         * SigninRequest username.
+         * @member {string} username
          * @memberof auth.SigninRequest
          * @instance
          */
-        SigninRequest.prototype.email = "";
+        SigninRequest.prototype.username = "";
 
         /**
          * SigninRequest password.
@@ -257,8 +257,8 @@ export const auth = $root.auth = (() => {
         SigninRequest.encode = function encode(message, writer) {
             if (!writer)
                 writer = $Writer.create();
-            if (message.email != null && Object.hasOwnProperty.call(message, "email"))
-                writer.uint32(/* id 1, wireType 2 =*/10).string(message.email);
+            if (message.username != null && Object.hasOwnProperty.call(message, "username"))
+                writer.uint32(/* id 1, wireType 2 =*/10).string(message.username);
             if (message.password != null && Object.hasOwnProperty.call(message, "password"))
                 writer.uint32(/* id 2, wireType 2 =*/18).string(message.password);
             return writer;
@@ -285,7 +285,7 @@ export const auth = $root.auth = (() => {
                     break;
                 switch (tag >>> 3) {
                 case 1: {
-                        message.email = reader.string();
+                        message.username = reader.string();
                         break;
                     }
                 case 2: {
@@ -312,8 +312,8 @@ export const auth = $root.auth = (() => {
             if (object instanceof $root.auth.SigninRequest)
                 return object;
             let message = new $root.auth.SigninRequest();
-            if (object.email != null)
-                message.email = String(object.email);
+            if (object.username != null)
+                message.username = String(object.username);
             if (object.password != null)
                 message.password = String(object.password);
             return message;
@@ -333,11 +333,11 @@ export const auth = $root.auth = (() => {
                 options = {};
             let object = {};
             if (options.defaults) {
-                object.email = "";
+                object.username = "";
                 object.password = "";
             }
-            if (message.email != null && message.hasOwnProperty("email"))
-                object.email = message.email;
+            if (message.username != null && message.hasOwnProperty("username"))
+                object.username = message.username;
             if (message.password != null && message.hasOwnProperty("password"))
                 object.password = message.password;
             return object;
@@ -378,7 +378,7 @@ export const auth = $root.auth = (() => {
          * Properties of a SignupRequest.
          * @memberof auth
          * @interface ISignupRequest
-         * @property {string|null} [email] SignupRequest email
+         * @property {string|null} [username] SignupRequest username
          * @property {string|null} [password] SignupRequest password
          */
 
@@ -398,12 +398,12 @@ export const auth = $root.auth = (() => {
         }
 
         /**
-         * SignupRequest email.
-         * @member {string} email
+         * SignupRequest username.
+         * @member {string} username
          * @memberof auth.SignupRequest
          * @instance
          */
-        SignupRequest.prototype.email = "";
+        SignupRequest.prototype.username = "";
 
         /**
          * SignupRequest password.
@@ -425,8 +425,8 @@ export const auth = $root.auth = (() => {
         SignupRequest.encode = function encode(message, writer) {
             if (!writer)
                 writer = $Writer.create();
-            if (message.email != null && Object.hasOwnProperty.call(message, "email"))
-                writer.uint32(/* id 1, wireType 2 =*/10).string(message.email);
+            if (message.username != null && Object.hasOwnProperty.call(message, "username"))
+                writer.uint32(/* id 1, wireType 2 =*/10).string(message.username);
             if (message.password != null && Object.hasOwnProperty.call(message, "password"))
                 writer.uint32(/* id 2, wireType 2 =*/18).string(message.password);
             return writer;
@@ -453,7 +453,7 @@ export const auth = $root.auth = (() => {
                     break;
                 switch (tag >>> 3) {
                 case 1: {
-                        message.email = reader.string();
+                        message.username = reader.string();
                         break;
                     }
                 case 2: {
@@ -480,8 +480,8 @@ export const auth = $root.auth = (() => {
             if (object instanceof $root.auth.SignupRequest)
                 return object;
             let message = new $root.auth.SignupRequest();
-            if (object.email != null)
-                message.email = String(object.email);
+            if (object.username != null)
+                message.username = String(object.username);
             if (object.password != null)
                 message.password = String(object.password);
             return message;
@@ -501,11 +501,11 @@ export const auth = $root.auth = (() => {
                 options = {};
             let object = {};
             if (options.defaults) {
-                object.email = "";
+                object.username = "";
                 object.password = "";
             }
-            if (message.email != null && message.hasOwnProperty("email"))
-                object.email = message.email;
+            if (message.username != null && message.hasOwnProperty("username"))
+                object.username = message.username;
             if (message.password != null && message.hasOwnProperty("password"))
                 object.password = message.password;
             return object;
@@ -766,19 +766,19 @@ export const auth = $root.auth = (() => {
      * AuthErrorCode enum.
      * @name auth.AuthErrorCode
      * @enum {number}
-     * @property {number} EMAIL_MALFORMED=0 EMAIL_MALFORMED value
+     * @property {number} USERNAME_MALFORMED=0 USERNAME_MALFORMED value
      * @property {number} WEAK_PASSWORD=1 WEAK_PASSWORD value
      * @property {number} INVALID_CREDENTIALS=2 INVALID_CREDENTIALS value
-     * @property {number} EMAIL_ALREADY_EXISTS=3 EMAIL_ALREADY_EXISTS value
+     * @property {number} USERNAME_ALREADY_EXISTS=3 USERNAME_ALREADY_EXISTS value
      * @property {number} TOKEN_EXPIRED=4 TOKEN_EXPIRED value
      * @property {number} UNAUTHORIZED=5 UNAUTHORIZED value
      */
     auth.AuthErrorCode = (function() {
         const valuesById = {}, values = Object.create(valuesById);
-        values[valuesById[0] = "EMAIL_MALFORMED"] = 0;
+        values[valuesById[0] = "USERNAME_MALFORMED"] = 0;
         values[valuesById[1] = "WEAK_PASSWORD"] = 1;
         values[valuesById[2] = "INVALID_CREDENTIALS"] = 2;
-        values[valuesById[3] = "EMAIL_ALREADY_EXISTS"] = 3;
+        values[valuesById[3] = "USERNAME_ALREADY_EXISTS"] = 3;
         values[valuesById[4] = "TOKEN_EXPIRED"] = 4;
         values[valuesById[5] = "UNAUTHORIZED"] = 5;
         return values;
@@ -899,7 +899,7 @@ export const auth = $root.auth = (() => {
                     break;
                 }
                 break;
-            case "EMAIL_MALFORMED":
+            case "USERNAME_MALFORMED":
             case 0:
                 message.code = 0;
                 break;
@@ -911,7 +911,7 @@ export const auth = $root.auth = (() => {
             case 2:
                 message.code = 2;
                 break;
-            case "EMAIL_ALREADY_EXISTS":
+            case "USERNAME_ALREADY_EXISTS":
             case 3:
                 message.code = 3;
                 break;
@@ -943,7 +943,7 @@ export const auth = $root.auth = (() => {
                 options = {};
             let object = {};
             if (options.defaults) {
-                object.code = options.enums === String ? "EMAIL_MALFORMED" : 0;
+                object.code = options.enums === String ? "USERNAME_MALFORMED" : 0;
                 object.message = "";
             }
             if (message.code != null && message.hasOwnProperty("code"))
