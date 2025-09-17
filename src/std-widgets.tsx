@@ -485,7 +485,7 @@ export function MenuElement(
 ): JSX.Element {
     const authentication = useAuthentication()!;
     const closer = props.closer;
-    const [user, {}] = createResource(() => authentication.requests!.get("/get-user"));
+    const [user, {}] = authentication.requests!.getCached("/get-user");
 
     if (closer !== undefined) {
         const unsubscribe = authentication.onLogout.subscribe(() => {

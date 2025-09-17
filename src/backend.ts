@@ -1,5 +1,6 @@
 import { Accessor, JSX, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
 import { auth } from './protos';
+import { ResourceReturn } from "solid-js";
 
 type ResultPromise<T, E> = Promise<[T, undefined] | [undefined, E]>;
 
@@ -50,7 +51,7 @@ export class APIError extends Error {}
 export class UnexpectedLogout extends Error {}
 
 abstract class BaseRequestProvider<
-    GetRequests extends Record<string, (...args: any) => any>,
+    GetRequests extends Record<string, (e: Executor) => any>,
     PostRequests extends Record<string, (args: any, e: Executor) => any>
 > {
     constructor(
@@ -76,6 +77,30 @@ abstract class BaseRequestProvider<
     abstract executorFactory(method: string, endpoint: string): Executor;
 }
 
+abstract class CachableRequestsProvider<
+    GetRequests extends Record<string, (e: Executor) => any>,
+    PostRequests extends Record<string, (args: any, e: Executor) => any>
+> extends BaseRequestProvider<GetRequests, PostRequests> {
+
+    caches: Map<keyof GetRequests | keyof PostRequests, ResourceReturn<any>> = new Map();
+    constructor(
+        getRequests: GetRequests,
+        postRequests: PostRequests,
+    ) {
+        super(getRequests, postRequests);
+    }
+
+    getCached<K extends keyof GetRequests>(endpoint: K): ResourceReturn<ReturnType<GetRequests[K]>> {
+        let cache = this.caches.get(endpoint);
+        if (cache !== undefined)
+            return cache
+        cache = createResource(() => this.get(endpoint));
+        this.caches.set(endpoint, cache);
+        return cache;
+    }
+
+}
+
 export class DefaultRequestsProvider extends BaseRequestProvider<{}, typeof defaultPostRequests> {
     constructor() {
         super({}, defaultPostRequests);
@@ -95,7 +120,6 @@ export class DefaultRequestsProvider extends BaseRequestProvider<{}, typeof defa
     }
 }
 
-
 export const defaultRequests = new DefaultRequestsProvider();
 
 const authenticatedGetRequests = {
@@ -107,7 +131,7 @@ const authenticatedGetRequests = {
     }
 };
 
-export class AuthenticatedRequestsProvider extends BaseRequestProvider<typeof authenticatedGetRequests, {}> {
+export class AuthenticatedRequestsProvider extends CachableRequestsProvider<typeof authenticatedGetRequests, {}> {
     constructor(
         private getAccessToken: Accessor<string|undefined>,
         private refreshLogin: () => Promise<void>,
@@ -146,10 +170,6 @@ export class AuthenticatedRequestsProvider extends BaseRequestProvider<typeof au
         }
     }
 }
-
-const refreshToken = "9232T5JNEfCMIeRU6F167Q.uKl/Vn5TbWEwj6PTQIsCv5TKBlJhwBOuoTe2ghD5jeY";
-// refreshToken:
-
 
 // TODO: move somewhere else
 export type FormattedString = Array<{ style: JSX.CSSProperties|null, string: string }>;
