@@ -33,6 +33,14 @@ const defaultPostRequests = {
                 return undefined;
             else
                 throw 'unreachable'
+        },
+    "/auth/expire": 
+        async (body: string, executeWith: Executor): Promise<void> => {
+            const { status } = await executeWith(body);
+            if (status === 204)
+                return;
+            else
+                throw 'unreachable'
         }
 };
 
@@ -209,6 +217,7 @@ export function createAuthenticationContext(): AuthenticationContext {
                 return;
             }
             setupAutomaticRefresh(data);
+            setRefreshToken(data.refreshToken);
             return data.accessToken;
         });
 
@@ -237,8 +246,10 @@ export function createAuthenticationContext(): AuthenticationContext {
         isLoggedIn,
         requests: isLoggedIn() ? createRequests() : undefined,
         logout() {
+            const currentRefreshToken = refreshToken();
+            if (currentRefreshToken !== undefined)
+                defaultRequests.post("/auth/expire", currentRefreshToken);
             logout();
-            // TODO: delete refresh token
         },
         loginUser(data) {
             if (isLoggedIn()) return;

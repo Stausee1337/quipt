@@ -88,10 +88,10 @@ func (t *refreshToken) string() string {
 	return fmt.Sprintf("%v.%v", t.id, t.secret)
 }
 
-func (t* refreshToken) data() ([]byte, error) {
+func (t* refreshToken) commit(ctx context.Context, db *redis.Client) error {
 	hashed_secret, err := bcrypt.GenerateFromPassword([]byte(t.secret), bcrypt.DefaultCost);
 	if err != nil {
-		return nil, fmt.Errorf("could not hash secret refresh token: %w", err)
+		return fmt.Errorf("could not hash secret refresh token: %w", err)
 	}
 
 	bytes, err := json.Marshal(map[string]any{
@@ -99,9 +99,18 @@ func (t* refreshToken) data() ([]byte, error) {
 		"secret": string(hashed_secret),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("could not json encode refresh token: %w", err)
+		return fmt.Errorf("could not json encode refresh token: %w", err)
 	}
-	return bytes, nil
+
+	err = db.Set(
+		ctx, t.id,
+		bytes, t.expires,
+	).Err();
+
+	if err != nil {
+		return fmt.Errorf("could not add refresh token into redis: %w", err)
+	}
+	return nil
 }
 
 func (s *AuthService) SigninUserAtClient(ctx context.Context, user *protos.User) (*protos.AuthSuccess, error) {
@@ -113,19 +122,9 @@ func (s *AuthService) SigninUserAtClient(ctx context.Context, user *protos.User)
 	if err != nil {
 		return nil, err
 	}
-	data, err := refreshToken.data()
+	err = refreshToken.commit(ctx, s.db)
 	if err != nil {
 		return nil, err
-	}
-	err = s.db.Set(
-		ctx,
-		refreshToken.id,
-		data,
-		refreshToken.expires,
-	).Err();
-
-	if err != nil {
-		return nil, fmt.Errorf("could not add refresh token into redis: %w", err)
 	}
 
 	return &protos.AuthSuccess {
@@ -134,6 +133,23 @@ func (s *AuthService) SigninUserAtClient(ctx context.Context, user *protos.User)
 		RefreshToken: refreshToken.string(),
 		ExpiresAt: accessToken.expires,
 	}, nil
+}
+
+func (s* AuthService) SignoutUserFromClient(ctx context.Context, refreshToken string) error {
+	splits := strings.SplitN(refreshToken, ".", 2)
+	if len(splits) < 2 {
+		return nil
+	}
+	id := splits[0]
+
+	err := s.db.Del(ctx, id).Err()
+	if err == redis.Nil {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not delete refresh token: %w", err)
+	}
+
+	return nil
 }
 
 func (s *AuthService) GetLoggedInUser(r *http.Request) *UserClaims {
@@ -186,15 +202,25 @@ func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*p
 		return nil, err
 	}
 
-	err = s.db.Expire(ctx, id, REFRESH_TTL).Err()
+	err = s.db.Del(ctx, id).Err()
 	if err != nil {
-		return nil, fmt.Errorf("could not prolong refresh tokens TTL %q: %w", id, err)
+		return nil, fmt.Errorf("could not delete prev refresh token %q: %w", id, err)
+	}
+
+	nextRefreshToken, err := newRefreshToken(uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	err = nextRefreshToken.commit(ctx, s.db)
+	if err != nil {
+		return nil, err
 	}
 	
 	return &protos.AuthSuccess {
 		UserId: uuid,
 		AccessToken: accessToken.signed,
-		RefreshToken: refreshToken,
+		RefreshToken: nextRefreshToken.string(),
 		ExpiresAt: accessToken.expires,
 	}, nil
 }

@@ -51,6 +51,7 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 	r.Post("/auth/signup", signup_handler.HandleSignup);
 	r.Post("/auth/signin", signup_handler.HandleSignin);
 	r.Post("/auth/refresh", signup_handler.HandleRefresh);
+	r.Post("/auth/expire", signup_handler.HandleExpire);
 
 	return &Server{router: r};
 }

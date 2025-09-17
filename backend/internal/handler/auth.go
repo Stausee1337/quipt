@@ -159,3 +159,20 @@ func (h *SignupHandler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 	// claims.Uuid
 }
 
+func (h *SignupHandler) HandleExpire(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body);
+	if err != nil {
+		logFatalAndReport(w, err)
+		return
+	}
+	defer r.Body.Close()
+
+	refreshToken := string(body)
+
+	err = h.auth.SignoutUserFromClient(r.Context(), refreshToken)
+	if err != nil {
+		slog.Error(err.Error())
+	}
+
+	w.WriteHeader(http.StatusNoContent);
+}
