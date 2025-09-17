@@ -251,11 +251,9 @@ dialog#dialog-box {
 
 div#floating-menu {
   @extend .common-dialog;
-  background-color: $color-accent2;
   animation: swoop-in-ltr 200ms ease-in;
   position: absolute;
   z-index: 2001;
-  border-right: 0.15rem solid $color-accent1;
 
   top: 0;
   left: 0;

@@ -15,7 +15,11 @@
   min-height: 0;
   overflow: auto;
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr;
+
+  &:has(#root:nth-child(2)) {
+    grid-template-columns: auto 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -96,6 +100,7 @@ div.script-list-container {
 nav.side-menu {
   width: 30rem;
   background-color: $color-accent2;
+  border-right: 0.15rem solid $color-accent1;
   display: grid;
   grid-template-rows: auto 1fr auto;
   // display: flex;
@@ -785,6 +790,86 @@ div.overflow-wrapper {
     display: block;
     text-align: center;
   }
+}
+
+div.routing-contents:has(form.auth-box) {
+  display: grid;
+
+  form.auth-box {
+    justify-self: center;
+    align-self: center;
+    background-color: white;
+    padding: 9rem 3rem 3rem 3rem;
+    border-radius: 3rem;
+    gap: 3rem;
+    background-color: $color-accent1;
+    width: 50rem;
+
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    
+    input {
+      padding: 1.5rem 2rem;
+      font-size: 1.6rem;
+      border: 0.1rem solid $lighter1;
+      border-radius: 0.5rem;
+      background-color: inherit;
+      outline: 0;
+
+      &:focus {
+        border: 0.1rem solid $lighter2;
+      }
+    }
+
+    div.button-line {
+      display: flex;
+      align-self: flex-end;
+    }
+
+    div.input-box {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+
+      span.error-message {
+        text-align: left;
+        color: red;
+        display: none;
+
+        &::before {
+          display: inline-block;
+          font-family: bootstrap-icons !important;
+          font-style: normal;
+          font-weight: normal !important;
+          font-variant: normal;
+          text-transform: none;
+          line-height: 1;
+          vertical-align: -.125em;
+          content: "\f332";
+          margin-right: 0.5rem;
+        }
+      }
+
+      &:has(input.touched.invalid) span.error-message {
+        display: inline;
+      }
+    }
+
+    &.submitted div.input-box:has(input.invalid) span.error-message {
+        display: inline;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  div.routing-contents:has(form.auth-box) form.auth-box {
+    width: 100%;
+    padding: 6rem 2rem 2rem 2rem;
+    border-radius: 2rem;
+    gap: 2rem;
+  }
+
 }
 
 div.clients-manager {

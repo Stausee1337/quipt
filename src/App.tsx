@@ -1,8 +1,8 @@
 import './App.scss'
-import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createResource, Suspense, createContext, useContext } from 'solid-js';
+import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createResource, Suspense, createContext, useContext, createMemo } from 'solid-js';
 import { HeaderElement, MenuElement, ProgressSpinner } from './std-widgets';
-import { Router, Route, Navigate, useNavigate } from '@solidjs/router';
-import { AuthenticationContextObj, createAuthenticationContext, useAuthentication } from './backend';
+import { Router, Route, Navigate, useNavigate, RouteSectionProps, A } from '@solidjs/router';
+import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth } from './backend';
 import { FormattedString, ResourceManager } from './resources';
 
 type QuoteViewProps = {
@@ -360,7 +360,7 @@ function ScriptView() {
 const IsMobileContext = createContext<() => boolean>();
 
 function App(props: { children: JSX.Element }): JSX.Element {
-    const authenticationContext = createAuthenticationContext();
+    const authenticationContext = useAuthentication()!;
     const navigate = useNavigate();
     const [isMobile, setIsMobile] = createSignal(window.innerWidth <= 768);
 
@@ -375,18 +375,16 @@ function App(props: { children: JSX.Element }): JSX.Element {
     });
 
     return (
-        <AuthenticationContextObj.Provider value={authenticationContext}>
-            <IsMobileContext.Provider value={isMobile}>
-                { 
-                    isMobile() 
-                        ? <HeaderElement showBackButton={false} title={''}/> 
-                        : <MenuElement/> 
-                }
-                <div class="routing-contents">
-                    {props.children}
-                </div>
-            </IsMobileContext.Provider>
-        </AuthenticationContextObj.Provider>
+        <IsMobileContext.Provider value={isMobile}>
+            { 
+                isMobile() 
+                    ? <HeaderElement showBackButton={false} title={''}/> 
+                    : ( authenticationContext.isLoggedIn() && <MenuElement/> )
+            }
+            <div class="routing-contents">
+                {props.children}
+            </div>
+        </IsMobileContext.Provider>
     );
 }
 
@@ -394,7 +392,7 @@ function Root(): JSX.Element {
     const authentication = useAuthentication()!;
     return (
         <>
-            {authentication.isLoggedIn() ? <Navigate href="/script"/> : <Navigate href="/login"/>}
+            {authentication.isLoggedIn() ? <Navigate href="/script"/> : <Navigate href="/signin"/>}
         </>
     );
 }
@@ -409,22 +407,356 @@ function ScriptRoute(): JSX.Element {
     );
 }
 
-function Login(): JSX.Element {
-    return [];
+class QuiptFormEvent extends Event {
+    constructor(
+        public valid: boolean,
+        public formData: Record<string, string>
+    ) {
+        super('quiptsubmit');
+    }
+}
+
+class QuiptInputEvent extends Event {
+    constructor(
+        public kind: 'quiptvalidationchange',
+        public value: string,
+        public valid: boolean,
+        public message: string|undefined
+    ) {
+        super(kind);
+    }
+
+}
+
+declare global {
+interface HTMLElementEventMap {
+    'quiptsubmit': QuiptFormEvent,
+    'еееInputChange': Event & { еееValue: string, еееValid: boolean },
+}
+}
+
+interface FormData {
+    data: Record<string, string>;
+    valid: boolean;
+    submitted: boolean;
+    postErrorMessage(message: string): void;
+}
+
+function createReactiveFormData(): FormData {
+    const [data, setData] = createSignal<Record<string, string>>({});
+    const [valid, setValid] = createSignal<boolean>(false);
+    const [submitted, setSubmitted] = createSignal<boolean>(false);
+    const [formError, setFormError] = createSignal<string>();
+    
+    return {
+        get data() {
+            return data();
+        },
+        set data(value) {
+            setData(value);
+        },
+        get valid() {
+            return valid() && formError() === undefined;
+        },
+        set valid(value) {
+            setValid(value);
+        },
+        get submitted() {
+            return submitted();
+        },
+        set submitted(value) {
+            setSubmitted(value);
+        },
+        postErrorMessage(message) {
+            setFormError(message);
+        },
+    };
+}
+
+function quiptForm(element: HTMLFormElement, formData: Accessor<FormData>) {
+    let valueBinding: Record<string, string> = {};
+    let validBinding: Record<string, boolean> = {};
+
+    createEffect(() => {
+        const currentFormData = formData();
+        if (currentFormData.submitted) {
+            element.classList.add('submitted');
+        } else {
+            element.classList.remove('submitted');
+        }
+    });
+
+    function onSubmit(e: SubmitEvent) {
+        e.preventDefault();
+
+        const currentFormData = formData();
+        currentFormData.submitted = true;
+        element.classList.add('submitted');
+
+        const event = new QuiptFormEvent(currentFormData.valid, valueBinding);
+        element.dispatchEvent(event);
+    }
+
+    function onInputChange(e: Event & { еееValue: string, еееValid: boolean }) {
+        if (!(e.target instanceof HTMLInputElement))
+            return;
+        valueBinding[e.target.name] = e.еееValue;
+        validBinding[e.target.name] = e.еееValid;
+        const currentFormData = formData();
+        currentFormData.data = {...valueBinding};
+        currentFormData.valid = Object.values(validBinding).every(x => x);
+    }
+
+    element.addEventListener('submit', onSubmit);
+    element.addEventListener('еееInputChange', onInputChange)
+    const observer = new MutationObserver(createDataBinding);
+
+    function createDataBinding() {
+        valueBinding = {};
+        for (const input of Array.from(element)) {
+            if (!(input instanceof HTMLInputElement))
+                continue;
+            valueBinding[input.name] = input.value;
+            validBinding[input.name] = input.classList.contains('valid');
+        }
+        const currentFormData = formData();
+        currentFormData.data = valueBinding;
+        currentFormData.valid = Object.values(validBinding).every(x => x);
+    }
+
+    onMount(() => {
+        createDataBinding();
+        observer.observe(element, { childList: true, subtree: true });
+    })
+
+    onCleanup(() => {
+        element.removeEventListener('submit', onSubmit);
+        observer.disconnect()
+    })
+}
+
+interface Validator {
+    validate(v: string): boolean;
+    message: string
+}
+
+function quiptValidator(element: HTMLInputElement, validataors: Accessor<Validator | Validator[]>) {
+    type Pristineness = "pristine"|"dirty";
+    type Touchedness = "untouched"|"touched";
+    type Validity = "invalid"|"valid";
+
+    const [value, setValue] = createSignal<string>(element.value);
+    const [validity, setValidity] = createSignal<Validity>("invalid");
+    const [touchedness, setTouchedness] = createSignal<Touchedness>("untouched");
+    const [pristineness, setPristineness] = createSignal<Pristineness>("pristine");
+
+    onMount(() => {
+        const [message, validity] = runValidators();
+        setValidity(validity);
+        element.dispatchEvent(new QuiptInputEvent(
+            'quiptvalidationchange',
+            value(), validity === "valid", message
+        ));
+    })
+
+    createEffect<Pristineness>(prev => {
+        const current = pristineness();
+        element.classList.remove(prev)
+        element.classList.add(current)
+        return current;
+    }, pristineness())
+
+    createEffect<Touchedness>(prev => {
+        const current = touchedness();
+        element.classList.remove(prev)
+        element.classList.add(current)
+        return current;
+    }, touchedness())
+
+    createEffect<Validity>(prev => {
+        const current = validity();
+        element.classList.remove(prev)
+        element.classList.add(current)
+        return current;
+    }, validity())
+
+    createEffect(() => {
+        const event = new Event('еееInputChange', { bubbles: true }) as (Event & { еееValue: string, еееValid: boolean });
+        event.еееValue = value();
+        event.еееValid = validity() === "valid";
+        element.dispatchEvent(event);
+    })
+
+    element.classList.add(pristineness());
+    element.classList.add(touchedness());
+    element.classList.add(validity());
+
+    element.addEventListener('change', valueChange);
+    element.addEventListener('input', valueChange);
+
+    element.addEventListener('blur', focusChange);
+
+    createEffect(() => {
+        const [message, validity] = runValidators();
+        setValidity(validity);
+        element.dispatchEvent(new QuiptInputEvent(
+            'quiptvalidationchange',
+            value(), validity === "valid", message
+        ));
+    });
+
+    function valueChange() {
+        setValue(element.value);
+        setPristineness("dirty");
+    }
+
+    function focusChange() {
+        setTouchedness("touched");
+    }
+
+    function runValidators(): [undefined, "valid"]|[string, "invalid"] {
+        const currentValidators = validataors();
+        const validatorsArray = Array.isArray(currentValidators)
+            ? currentValidators 
+            : [currentValidators];
+
+        const currentValue = value();
+        for (const validator of validatorsArray) {
+            if (!validator.validate(currentValue))
+                return [validator.message, "invalid"]
+        }
+
+        return [undefined, "valid"]
+    }
+}
+
+declare module "solid-js" {
+    namespace JSX {
+        interface DirectiveFunctions {
+            quiptForm: typeof quiptForm;
+            quiptValidator: typeof quiptValidator;
+        }
+
+        interface CustomEventHandlersCamelCase<T> {
+            onQuiptSubmit?: EventHandlerUnion<T, QuiptFormEvent> | undefined;
+            onQuiptValidationChange?: EventHandlerUnion<T, QuiptInputEvent> | undefined;
+        }
+    }
+}
+
+namespace validators {
+    export const required = {
+        validate(value: string): boolean {
+            return value !== "";
+        },
+        message: 'Dieses Feld ist erforderlich'
+    }
+}
+
+function UserAuthenticate(
+    props: RouteSectionProps
+): JSX.Element {
+    const authentication = useAuthentication()!;
+
+    const keys: Record<string, string> = {
+        '/signin': 'Anmelden',
+        '/signup': 'Quipt Konto erstellen'
+    };
+    async function onSubmit(e: QuiptFormEvent) {
+        if (!e.valid) {
+            return;
+        }
+
+        const endpoint: "/auth/signin"|"/auth/signup" = props.location.pathname === '/signin'
+            ? "/auth/signin"
+            : "/auth/signup";
+        const [success, error] = await defaultRequests.post(endpoint, {})
+
+        if (error !== undefined) {
+            formData().postErrorMessage(convertErrorToMessage(error));
+            return;
+        }
+
+        authentication.loginUser(success);
+    }
+
+    const [formData, setFormData] = createSignal(createReactiveFormData());
+
+    createEffect(() => {
+        console.log(formData().data);
+    })
+
+    createEffect(() => {
+        console.log(formData().valid);
+    })
+
+    const content = createMemo<JSX.Element>(() => {
+        setFormData(createReactiveFormData());
+        if (props.location.pathname === '/signin') {
+            const [userMessage, setUserMeessage] = createSignal<string>();
+            const [passwordMessage, setPasswordMessage] = createSignal<string>();
+            return (
+                <>
+                    <div class="input-box">
+                        <input type="text"
+                            name="username"
+                            placeholder="Benutzername"
+                            onQuiptValidationChange={e => setUserMeessage(e.message)}
+                            use:quiptValidator={[validators.required]}/>
+                        <span class="error-message">{ userMessage() }</span>
+                    </div>
+                    <div class="input-box">
+                        <input type="password"
+                            name="password"
+                            placeholder="Passwort"
+                            onQuiptValidationChange={e => setPasswordMessage(e.message)}
+                            use:quiptValidator={[validators.required]}/>
+                        <span class="error-message">{ passwordMessage() }</span>
+                    </div>
+                    <p>Du hat noch kein Konto? <A href="/signup">Jetzt eins erstellen!</A></p>
+                    <button class="primary-button"
+                        disabled={!formData().valid && formData().submitted}>
+                        Anmelden
+                    </button>
+                </>
+            );
+        } else {
+            return (
+                <>
+                    <input placeholder="Benutzername" type="text"/>
+                    <input placeholder="Passwort" type="password"/>
+                    <input placeholder="Passwort wiederholen" type="password"/>
+                    <p>Du bist bereits bei Quipt? <A href="/signin">Anmelden!</A></p>
+                    <button class="primary-button">Registrieren</button>
+                </>
+            );
+        }
+    });
+
+    return (
+        <form class="auth-box" use:quiptForm={formData()} onQuiptSubmit={onSubmit}>
+            <h2>{ keys[props.location.pathname] }</h2>
+            { content() }
+        </form>
+    );
 }
 
 export default function() {
+    const authenticationContext = createAuthenticationContext();
     return (
-        <>
+        <AuthenticationContextObj.Provider value={authenticationContext}>
             <Router root={App}>
                 <Route path="/" component={Root}/>
-                <Route path="/login" component={Login}/>
-                <Route path="/script/*uuid" component={ScriptRoute} />
+                {
+                    !authenticationContext.isLoggedIn()
+                        ? <Route path={["/signin", "/signup"]} component={UserAuthenticate}/>
+                        : <Route path="/script/*uuid" component={ScriptRoute} />
+                }
                 <Route 
                     path="*paramName"
                     component={() => <Navigate href="/"/>}/>
             </Router>
-        </>
+        </AuthenticationContextObj.Provider>
     );
 }
 

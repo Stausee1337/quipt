@@ -6,6 +6,15 @@ type ResultPromise<T, E> = Promise<[T, undefined] | [undefined, E]>;
 type Executor = (b: BodyInit | null) => Promise<{ status: number, data: Uint8Array }>;
 
 const defaultPostRequests = {
+    "/auth/signin":
+        async (body: auth.ISigninRequest, executeWith: Executor): ResultPromise<auth.AuthSuccess, auth.AuthError> => {
+            const writer = auth.SigninRequest.encode(body);
+            const { status, data } = await executeWith(writer.finish().slice(0, writer.len));
+            if (status !== 200)
+                return [undefined, auth.AuthError.decode(data)];
+            return [auth.AuthSuccess.decode(data), undefined];
+
+        },
     "/auth/signup":
         async (body: auth.ISignupRequest, executeWith: Executor): ResultPromise<auth.AuthSuccess, auth.AuthError> => {
             const writer = auth.SignupRequest.encode(body);
@@ -268,5 +277,5 @@ export type TextCue = Readonly<{
     actor: string|null, text: Markdown
 }>;
 
-// export { auth } from './protos';
+export { auth } from './protos';
 

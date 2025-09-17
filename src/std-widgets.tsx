@@ -2,6 +2,7 @@ import { Component, JSX, ParentProps, Ref, createComponent, createContext, creat
 import { untrack } from "solid-js/web";
 import { $, Observable } from "./observable";
 import { DialogManager } from "./dialog";
+import { useAuthentication } from "./backend";
 
 export function ProgressSpinner(props: { size?: number, color?: string | undefined }) {
     const merged = mergeProps({ size: 100 }, props);
@@ -519,6 +520,7 @@ export function MenuElement(
 
 export function HeaderElement(props: HeaderElementProps) {
     const controller = new HeaderController();
+    const authentication = useAuthentication()!;
 
     function openMenu() {
         DialogManager.openSideMenu(MenuElement);
@@ -527,7 +529,11 @@ export function HeaderElement(props: HeaderElementProps) {
     return (
         <HeaderContext.Provider value={controller}>
             <div class="header-element">
-                <button onClick={openMenu}><i class="bi bi-list"/></button>
+            {   
+                authentication.isLoggedIn()
+                    ? <button onClick={openMenu}><i class="bi bi-list"/></button>
+                    : null
+            }
                 <h1>Quipt</h1>
             </div>
         </HeaderContext.Provider>
