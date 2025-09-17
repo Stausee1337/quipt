@@ -42,6 +42,12 @@ func corsMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", cfg.CorsHost);
 			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent) // or 200 OK
+				return
+			}
+
 			next.ServeHTTP(w, r);
 		});
 	};

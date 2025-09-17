@@ -1,4 +1,4 @@
-import { Component, JSX, ParentProps, Ref, createComponent, createContext, createEffect, createSignal, Accessor, mergeProps, onCleanup, onMount, useContext, getOwner } from "solid-js";
+import { Component, JSX, ParentProps, Ref, createComponent, createContext, createEffect, createSignal, Accessor, mergeProps, onCleanup, onMount, useContext, getOwner, createResource } from "solid-js";
 import { untrack } from "solid-js/web";
 import { $, Observable } from "./observable";
 import { DialogManager } from "./dialog";
@@ -485,6 +485,7 @@ export function MenuElement(
 ): JSX.Element {
     const authentication = useAuthentication()!;
     const closer = props.closer;
+    const [user, {}] = createResource(() => authentication.requests!.get("/get-user"));
 
     if (closer !== undefined) {
         const unsubscribe = authentication.onLogout.subscribe(() => {
@@ -518,15 +519,18 @@ export function MenuElement(
                     .map(v => <ListElement>{ String(v) }</ListElement>)
             }
 
-            <div class="footer">
-                <ListElement icon="person-circle" static>
-                    <span style="flex:1">xxx@email.x</span>
-                    <button class="secondary-button"
-                        onClick={() => authentication.logout()}>
-                        Logout
-                    </button>
-                </ListElement>
-            </div>
+            {
+                (user.loading && !user.error) ? null :
+                <div class="footer">
+                    <ListElement icon="person-circle" static>
+                        <span style="flex:1">{ user()!.username }</span>
+                        <button class="secondary-button"
+                            onClick={() => authentication.logout()}>
+                            Logout
+                        </button>
+                    </ListElement>
+                </div>
+            }
         </nav>
     );
 }

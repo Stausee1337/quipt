@@ -26,10 +26,8 @@ func (w *AuthError) Error() string {
 }
 
 type UserService struct {
-	repo 		*repository.UserRepo
+	repo *repository.UserRepo
 }
-
-const EMAIL_REGEX = `^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`;
 
 func NewUserService(db *mongo.Database) *UserService {
 	return &UserService{
@@ -135,6 +133,24 @@ func (s *UserService) Signup(
 		Id: uuid.UUID(user.Uuid).String(),
 		Username: username,
 		Verified: verified,
+	}, nil;
+}
+
+func (s *UserService) GetUserById(ctx context.Context, uuidString string) (*protos.User, error) {
+	parsedUuid, err := uuid.Parse(uuidString)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse uuid %q: %w", uuidString, err)
+	}
+
+	user, err := s.repo.FindUserById(ctx, parsedUuid)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protos.User {
+		Id: uuid.UUID(user.Uuid).String(),
+		Username: user.Username,
+		Verified: user.Verified,
 	}, nil;
 }
 

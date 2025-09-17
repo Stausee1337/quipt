@@ -99,7 +99,7 @@ export class DefaultRequestsProvider extends BaseRequestProvider<{}, typeof defa
 export const defaultRequests = new DefaultRequestsProvider();
 
 const authenticatedGetRequests = {
-    "/user": async (executor: Executor): Promise<auth.User|undefined> => {
+    "/get-user": async (executor: Executor): Promise<auth.User> => {
         const { status, data } = await executor(null);
         if (status === 200)
             return auth.User.decode(data);
@@ -122,7 +122,7 @@ export class AuthenticatedRequestsProvider extends BaseRequestProvider<typeof au
     executorFactory(method: string, endpoint: string): Executor {
         return async (b: BodyInit | null): Promise<{ status: number, data: Uint8Array }> => {
             const headers = {
-                'Authorization': `Baerar ${this.accessToken}`
+                'Authorization': `Bearer ${this.accessToken}`
             };
             let didRefresh = false;
             do {

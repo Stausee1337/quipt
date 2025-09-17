@@ -35,6 +35,9 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 	r.Post("/auth/refresh", signup_handler.HandleRefresh);
 	r.Post("/auth/expire", signup_handler.HandleExpire);
 
+	user_handler := handler.NewUserHandler(userService, authService)
+	r.Get("/get-user", user_handler.HandleGet)
+
 	return &Server{router: r};
 }
 

@@ -44,7 +44,7 @@ func NewAuthService(cfg *config.Config, db *redis.Client) *AuthService {
 func (s *AuthService) VerifyToken(ctx context.Context, tokenStr string) context.Context {
 	var claims UserClaims
 	token, error := jwt.ParseWithClaims(tokenStr, &claims, func(t *jwt.Token) (any, error) {
-		return s.cfg.AuthSecret, nil
+		return []byte(s.cfg.AuthSecret), nil
 	});
 
 	if error != nil || !token.Valid {

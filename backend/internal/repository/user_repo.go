@@ -31,6 +31,18 @@ func NewUserRepo(db *mongo.Database) *UserRepo {
 	};
 }
 
+func (r *UserRepo) FindUserById(ctx context.Context, id uuid.UUID) (*User, error) {
+	result := r.users.FindOne(ctx, bson.D{{Key: "uuid", Value: id}});
+	var user User
+	if err := result.Decode(&user); err != nil {	
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, ErrUnknownUser;
+		}
+		return nil, fmt.Errorf("query user %q: %w", id, err);
+	}
+	return &user, nil
+}
+
 func (r *UserRepo) FindUserByName(ctx context.Context, username string) (*User, error) {
 	result := r.users.FindOne(ctx, bson.D{{Key: "username", Value: username}});
 	var user User
