@@ -40,7 +40,8 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 	r.Get("/get-user", userHandler.HandleGet)
 
 	scriptsHandler := handler.NewScriptsHanlder(authService, scriptsService)
-	r.Get("/list-scripts", scriptsHandler.HandleGet)
+	r.Get("/list-scripts", scriptsHandler.HandleList)
+	r.Get("/script/{ScriptID}", scriptsHandler.HandleGet)
 
 	return &Server{router: r};
 }

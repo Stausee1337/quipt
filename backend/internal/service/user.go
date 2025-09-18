@@ -139,7 +139,7 @@ func (s *UserService) Signup(
 func (s *UserService) GetUserById(ctx context.Context, uuidString string) (*protos.User, error) {
 	parsedUuid, err := uuid.Parse(uuidString)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse uuid %q: %w", uuidString, err)
+		return nil, fmt.Errorf("could not parse user uuid %q: %w", uuidString, err)
 	}
 
 	user, err := s.repo.FindUserById(ctx, parsedUuid)

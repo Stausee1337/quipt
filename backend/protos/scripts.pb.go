@@ -21,6 +21,104 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ScriptErrorCode int32
+
+const (
+	ScriptErrorCode_ID_MALFORMED   ScriptErrorCode = 0
+	ScriptErrorCode_UNKNOWN_SCRIPT ScriptErrorCode = 1
+)
+
+// Enum value maps for ScriptErrorCode.
+var (
+	ScriptErrorCode_name = map[int32]string{
+		0: "ID_MALFORMED",
+		1: "UNKNOWN_SCRIPT",
+	}
+	ScriptErrorCode_value = map[string]int32{
+		"ID_MALFORMED":   0,
+		"UNKNOWN_SCRIPT": 1,
+	}
+)
+
+func (x ScriptErrorCode) Enum() *ScriptErrorCode {
+	p := new(ScriptErrorCode)
+	*p = x
+	return p
+}
+
+func (x ScriptErrorCode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ScriptErrorCode) Descriptor() protoreflect.EnumDescriptor {
+	return file_scripts_proto_enumTypes[0].Descriptor()
+}
+
+func (ScriptErrorCode) Type() protoreflect.EnumType {
+	return &file_scripts_proto_enumTypes[0]
+}
+
+func (x ScriptErrorCode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ScriptErrorCode.Descriptor instead.
+func (ScriptErrorCode) EnumDescriptor() ([]byte, []int) {
+	return file_scripts_proto_rawDescGZIP(), []int{0}
+}
+
+type ScriptError struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          ScriptErrorCode        `protobuf:"varint,1,opt,name=code,proto3,enum=scripts.ScriptErrorCode" json:"code,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScriptError) Reset() {
+	*x = ScriptError{}
+	mi := &file_scripts_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScriptError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScriptError) ProtoMessage() {}
+
+func (x *ScriptError) ProtoReflect() protoreflect.Message {
+	mi := &file_scripts_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScriptError.ProtoReflect.Descriptor instead.
+func (*ScriptError) Descriptor() ([]byte, []int) {
+	return file_scripts_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ScriptError) GetCode() ScriptErrorCode {
+	if x != nil {
+		return x.Code
+	}
+	return ScriptErrorCode_ID_MALFORMED
+}
+
+func (x *ScriptError) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type Scripts struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scripts       []*Script              `protobuf:"bytes,1,rep,name=scripts,proto3" json:"scripts,omitempty"`
@@ -30,7 +128,7 @@ type Scripts struct {
 
 func (x *Scripts) Reset() {
 	*x = Scripts{}
-	mi := &file_scripts_proto_msgTypes[0]
+	mi := &file_scripts_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +140,7 @@ func (x *Scripts) String() string {
 func (*Scripts) ProtoMessage() {}
 
 func (x *Scripts) ProtoReflect() protoreflect.Message {
-	mi := &file_scripts_proto_msgTypes[0]
+	mi := &file_scripts_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +153,7 @@ func (x *Scripts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Scripts.ProtoReflect.Descriptor instead.
 func (*Scripts) Descriptor() ([]byte, []int) {
-	return file_scripts_proto_rawDescGZIP(), []int{0}
+	return file_scripts_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Scripts) GetScripts() []*Script {
@@ -76,7 +174,7 @@ type Script struct {
 
 func (x *Script) Reset() {
 	*x = Script{}
-	mi := &file_scripts_proto_msgTypes[1]
+	mi := &file_scripts_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -88,7 +186,7 @@ func (x *Script) String() string {
 func (*Script) ProtoMessage() {}
 
 func (x *Script) ProtoReflect() protoreflect.Message {
-	mi := &file_scripts_proto_msgTypes[1]
+	mi := &file_scripts_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -101,7 +199,7 @@ func (x *Script) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Script.ProtoReflect.Descriptor instead.
 func (*Script) Descriptor() ([]byte, []int) {
-	return file_scripts_proto_rawDescGZIP(), []int{1}
+	return file_scripts_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Script) GetUuid() string {
@@ -127,17 +225,16 @@ func (x *Script) GetDivisions() []*Division {
 
 type Division struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	Uuid           string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	PreviousTotals []uint32               `protobuf:"varint,3,rep,packed,name=previousTotals,proto3" json:"previousTotals,omitempty"`
-	TextCues       []*TextCuePair         `protobuf:"bytes,4,rep,name=textCues,proto3" json:"textCues,omitempty"`
+	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	PreviousTotals []uint32               `protobuf:"varint,2,rep,packed,name=previousTotals,proto3" json:"previousTotals,omitempty"`
+	TextCues       []*TextCuePair         `protobuf:"bytes,3,rep,name=textCues,proto3" json:"textCues,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Division) Reset() {
 	*x = Division{}
-	mi := &file_scripts_proto_msgTypes[2]
+	mi := &file_scripts_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -149,7 +246,7 @@ func (x *Division) String() string {
 func (*Division) ProtoMessage() {}
 
 func (x *Division) ProtoReflect() protoreflect.Message {
-	mi := &file_scripts_proto_msgTypes[2]
+	mi := &file_scripts_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -162,14 +259,7 @@ func (x *Division) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Division.ProtoReflect.Descriptor instead.
 func (*Division) Descriptor() ([]byte, []int) {
-	return file_scripts_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *Division) GetUuid() string {
-	if x != nil {
-		return x.Uuid
-	}
-	return ""
+	return file_scripts_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Division) GetName() string {
@@ -204,7 +294,7 @@ type TextCuePair struct {
 
 func (x *TextCuePair) Reset() {
 	*x = TextCuePair{}
-	mi := &file_scripts_proto_msgTypes[3]
+	mi := &file_scripts_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -216,7 +306,7 @@ func (x *TextCuePair) String() string {
 func (*TextCuePair) ProtoMessage() {}
 
 func (x *TextCuePair) ProtoReflect() protoreflect.Message {
-	mi := &file_scripts_proto_msgTypes[3]
+	mi := &file_scripts_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -229,7 +319,7 @@ func (x *TextCuePair) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TextCuePair.ProtoReflect.Descriptor instead.
 func (*TextCuePair) Descriptor() ([]byte, []int) {
-	return file_scripts_proto_rawDescGZIP(), []int{3}
+	return file_scripts_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TextCuePair) GetRequest() *TextCue {
@@ -255,7 +345,7 @@ func (x *TextCuePair) GetPreviousScores() []uint32 {
 
 type TextCue struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Actor         *string                `protobuf:"bytes,1,opt,name=actor,proto3,oneof" json:"actor,omitempty"`
+	Actors        []string               `protobuf:"bytes,1,rep,name=actors,proto3" json:"actors,omitempty"`
 	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -263,7 +353,7 @@ type TextCue struct {
 
 func (x *TextCue) Reset() {
 	*x = TextCue{}
-	mi := &file_scripts_proto_msgTypes[4]
+	mi := &file_scripts_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -275,7 +365,7 @@ func (x *TextCue) String() string {
 func (*TextCue) ProtoMessage() {}
 
 func (x *TextCue) ProtoReflect() protoreflect.Message {
-	mi := &file_scripts_proto_msgTypes[4]
+	mi := &file_scripts_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -288,14 +378,14 @@ func (x *TextCue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TextCue.ProtoReflect.Descriptor instead.
 func (*TextCue) Descriptor() ([]byte, []int) {
-	return file_scripts_proto_rawDescGZIP(), []int{4}
+	return file_scripts_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *TextCue) GetActor() string {
-	if x != nil && x.Actor != nil {
-		return *x.Actor
+func (x *TextCue) GetActors() []string {
+	if x != nil {
+		return x.Actors
 	}
-	return ""
+	return nil
 }
 
 func (x *TextCue) GetText() string {
@@ -309,28 +399,32 @@ var File_scripts_proto protoreflect.FileDescriptor
 
 const file_scripts_proto_rawDesc = "" +
 	"\n" +
-	"\rscripts.proto\x12\ascripts\"4\n" +
+	"\rscripts.proto\x12\ascripts\"U\n" +
+	"\vScriptError\x12,\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x18.scripts.ScriptErrorCodeR\x04code\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"4\n" +
 	"\aScripts\x12)\n" +
 	"\ascripts\x18\x01 \x03(\v2\x0f.scripts.ScriptR\ascripts\"a\n" +
 	"\x06Script\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12/\n" +
-	"\tdivisions\x18\x03 \x03(\v2\x11.scripts.DivisionR\tdivisions\"\x8c\x01\n" +
+	"\tdivisions\x18\x03 \x03(\v2\x11.scripts.DivisionR\tdivisions\"x\n" +
 	"\bDivision\x12\x12\n" +
-	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12&\n" +
-	"\x0epreviousTotals\x18\x03 \x03(\rR\x0epreviousTotals\x120\n" +
-	"\btextCues\x18\x04 \x03(\v2\x14.scripts.TextCuePairR\btextCues\"\xa0\x01\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
+	"\x0epreviousTotals\x18\x02 \x03(\rR\x0epreviousTotals\x120\n" +
+	"\btextCues\x18\x03 \x03(\v2\x14.scripts.TextCuePairR\btextCues\"\xa0\x01\n" +
 	"\vTextCuePair\x12/\n" +
 	"\arequest\x18\x01 \x01(\v2\x10.scripts.TextCueH\x00R\arequest\x88\x01\x01\x12,\n" +
 	"\bresponse\x18\x02 \x01(\v2\x10.scripts.TextCueR\bresponse\x12&\n" +
 	"\x0epreviousScores\x18\x03 \x03(\rR\x0epreviousScoresB\n" +
 	"\n" +
-	"\b_request\"B\n" +
-	"\aTextCue\x12\x19\n" +
-	"\x05actor\x18\x01 \x01(\tH\x00R\x05actor\x88\x01\x01\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04textB\b\n" +
-	"\x06_actorB)Z'github.com/stausee1337/quipt/gen/protosb\x06proto3"
+	"\b_request\"5\n" +
+	"\aTextCue\x12\x16\n" +
+	"\x06actors\x18\x01 \x03(\tR\x06actors\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text*7\n" +
+	"\x0fScriptErrorCode\x12\x10\n" +
+	"\fID_MALFORMED\x10\x00\x12\x12\n" +
+	"\x0eUNKNOWN_SCRIPT\x10\x01B)Z'github.com/stausee1337/quipt/gen/protosb\x06proto3"
 
 var (
 	file_scripts_proto_rawDescOnce sync.Once
@@ -344,25 +438,29 @@ func file_scripts_proto_rawDescGZIP() []byte {
 	return file_scripts_proto_rawDescData
 }
 
-var file_scripts_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_scripts_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_scripts_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_scripts_proto_goTypes = []any{
-	(*Scripts)(nil),     // 0: scripts.Scripts
-	(*Script)(nil),      // 1: scripts.Script
-	(*Division)(nil),    // 2: scripts.Division
-	(*TextCuePair)(nil), // 3: scripts.TextCuePair
-	(*TextCue)(nil),     // 4: scripts.TextCue
+	(ScriptErrorCode)(0), // 0: scripts.ScriptErrorCode
+	(*ScriptError)(nil),  // 1: scripts.ScriptError
+	(*Scripts)(nil),      // 2: scripts.Scripts
+	(*Script)(nil),       // 3: scripts.Script
+	(*Division)(nil),     // 4: scripts.Division
+	(*TextCuePair)(nil),  // 5: scripts.TextCuePair
+	(*TextCue)(nil),      // 6: scripts.TextCue
 }
 var file_scripts_proto_depIdxs = []int32{
-	1, // 0: scripts.Scripts.scripts:type_name -> scripts.Script
-	2, // 1: scripts.Script.divisions:type_name -> scripts.Division
-	3, // 2: scripts.Division.textCues:type_name -> scripts.TextCuePair
-	4, // 3: scripts.TextCuePair.request:type_name -> scripts.TextCue
-	4, // 4: scripts.TextCuePair.response:type_name -> scripts.TextCue
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	0, // 0: scripts.ScriptError.code:type_name -> scripts.ScriptErrorCode
+	3, // 1: scripts.Scripts.scripts:type_name -> scripts.Script
+	4, // 2: scripts.Script.divisions:type_name -> scripts.Division
+	5, // 3: scripts.Division.textCues:type_name -> scripts.TextCuePair
+	6, // 4: scripts.TextCuePair.request:type_name -> scripts.TextCue
+	6, // 5: scripts.TextCuePair.response:type_name -> scripts.TextCue
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_scripts_proto_init() }
@@ -370,20 +468,20 @@ func file_scripts_proto_init() {
 	if File_scripts_proto != nil {
 		return
 	}
-	file_scripts_proto_msgTypes[3].OneofWrappers = []any{}
 	file_scripts_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scripts_proto_rawDesc), len(file_scripts_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   5,
+			NumEnums:      1,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_scripts_proto_goTypes,
 		DependencyIndexes: file_scripts_proto_depIdxs,
+		EnumInfos:         file_scripts_proto_enumTypes,
 		MessageInfos:      file_scripts_proto_msgTypes,
 	}.Build()
 	File_scripts_proto = out.File

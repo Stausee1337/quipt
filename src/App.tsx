@@ -1,7 +1,7 @@
 import './App.scss'
 import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createResource, Suspense, createContext, useContext, createMemo } from 'solid-js';
 import { HeaderElement, MenuElement, ProgressSpinner } from './std-widgets';
-import { Router, Route, Navigate, useNavigate, RouteSectionProps, A } from '@solidjs/router';
+import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams } from '@solidjs/router';
 import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth } from './backend';
 import { FormattedString, ResourceManager } from './resources';
 
@@ -123,6 +123,17 @@ function xxx(scoreString: Accessor<string>, progressBarColor: Accessor<string>) 
 
 function ScriptView() {
     const root = document.getElementById("root")!;
+    const params = useParams()!;
+    const authenticated = useAuthentication()!;
+    const [script] = createResource(
+        () => authenticated.requests!.getParametrized("/script", params.uuid));
+
+    createEffect(() => {
+        if (!script.loading) {
+            const x = script();
+            console.log(x);
+        }
+    })
 
     // const params = useParams<{ uuid: string }>();
     // const script = ResourceManager.scriptsResource.findByUUID(params.uuid)!;
@@ -407,6 +418,20 @@ function Root(): JSX.Element {
 
 function ScriptRoute(): JSX.Element {
     const isMobile = useContext(IsMobileContext)!;
+    const params = useParams()
+    const navigate = useNavigate()
+    const authentication = useAuthentication()!;
+
+    createEffect(() => {
+        if (params.script === undefined || params.division === undefined) {
+            const [scripts] = authentication.requests!.getCached("/list-scripts");
+            if (!scripts.loading && !scripts.error) {
+                const script = params.script ?? scripts()![0].uuid!;
+                navigate(`/script/${script}/1`);
+            }
+            return [];
+        }
+    });
 
     return (
         <>
@@ -900,7 +925,7 @@ export default function() {
                 {
                     !authenticationContext.isLoggedIn()
                         ? <Route path={["/signin", "/signup"]} component={UserAuthenticate}/>
-                        : <Route path="/script/*uuid" component={ScriptRoute} />
+                        : <Route path={["/script", "/script/:uuid", "/script/:uuid/:division"]} component={ScriptRoute} />
                 }
                 <Route 
                     path="*paramName"

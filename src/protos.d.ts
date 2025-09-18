@@ -395,6 +395,84 @@ export namespace auth {
 /** Namespace scripts. */
 export namespace scripts {
 
+    /** ScriptErrorCode enum. */
+    enum ScriptErrorCode {
+        ID_MALFORMED = 0,
+        UNKNOWN_SCRIPT = 1
+    }
+
+    /** Properties of a ScriptError. */
+    interface IScriptError {
+
+        /** ScriptError code */
+        code?: (scripts.ScriptErrorCode|null);
+
+        /** ScriptError message */
+        message?: (string|null);
+    }
+
+    /** Represents a ScriptError. */
+    class ScriptError implements IScriptError {
+
+        /**
+         * Constructs a new ScriptError.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: scripts.IScriptError);
+
+        /** ScriptError code. */
+        public code: scripts.ScriptErrorCode;
+
+        /** ScriptError message. */
+        public message: string;
+
+        /**
+         * Encodes the specified ScriptError message. Does not implicitly {@link scripts.ScriptError.verify|verify} messages.
+         * @param message ScriptError message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encode(message: scripts.IScriptError, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a ScriptError message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns ScriptError
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): scripts.ScriptError;
+
+        /**
+         * Creates a ScriptError message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns ScriptError
+         */
+        public static fromObject(object: { [k: string]: any }): scripts.ScriptError;
+
+        /**
+         * Creates a plain object from a ScriptError message. Also converts values to other types if specified.
+         * @param message ScriptError
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        public static toObject(message: scripts.ScriptError, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this ScriptError to JSON.
+         * @returns JSON object
+         */
+        public toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the default type url for ScriptError
+         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns The default type url
+         */
+        public static getTypeUrl(typeUrlPrefix?: string): string;
+    }
+
     /** Properties of a Scripts. */
     interface IScripts {
 
@@ -542,9 +620,6 @@ export namespace scripts {
     /** Properties of a Division. */
     interface IDivision {
 
-        /** Division uuid */
-        uuid?: (string|null);
-
         /** Division name */
         name?: (string|null);
 
@@ -563,9 +638,6 @@ export namespace scripts {
          * @param [properties] Properties to set
          */
         constructor(properties?: scripts.IDivision);
-
-        /** Division uuid. */
-        public uuid: string;
 
         /** Division name. */
         public name: string;
@@ -707,8 +779,8 @@ export namespace scripts {
     /** Properties of a TextCue. */
     interface ITextCue {
 
-        /** TextCue actor */
-        actor?: (string|null);
+        /** TextCue actors */
+        actors?: (string[]|null);
 
         /** TextCue text */
         text?: (string|null);
@@ -723,14 +795,11 @@ export namespace scripts {
          */
         constructor(properties?: scripts.ITextCue);
 
-        /** TextCue actor. */
-        public actor?: (string|null);
+        /** TextCue actors. */
+        public actors: string[];
 
         /** TextCue text. */
         public text: string;
-
-        /** TextCue _actor. */
-        public _actor?: "actor";
 
         /**
          * Encodes the specified TextCue message. Does not implicitly {@link scripts.TextCue.verify|verify} messages.

@@ -5,7 +5,7 @@ import { Resource } from "solid-js";
 
 type ResultPromise<T, E> = Promise<[T, undefined] | [undefined, E]>;
 
-type Executor = (b: BodyInit | null) => Promise<{ status: number, data: Uint8Array }>;
+type Executor = (b: BodyInit | null, endpointOverride?: string) => Promise<{ status: number, data: Uint8Array }>;
 
 type RemovePromise<T> = T extends Promise<infer U> ? U : T;
 
@@ -55,10 +55,12 @@ export class UnexpectedLogout extends Error {}
 
 abstract class BaseRequestProvider<
     GetRequests extends Record<string, (e: Executor) => any>,
+    ParametrizedGetRequests extends Record<string, (parameter: string, e: Executor) => any>,
     PostRequests extends Record<string, (args: any, e: Executor) => any>
 > {
     constructor(
         private getRequests: GetRequests,
+        private parametrizedGetRequests: ParametrizedGetRequests,
         private postRequests: PostRequests
     ) { }
 
@@ -67,6 +69,13 @@ abstract class BaseRequestProvider<
 
         const fn = this.getRequests[endpoint];
         return fn(this.executorFactory("GET", endpoint)) as Result;
+    }
+
+    getParametrized<K extends keyof ParametrizedGetRequests>(endpoint: K, parameter: string): ReturnType<ParametrizedGetRequests[K]> {
+        type Result = ReturnType<ParametrizedGetRequests[K]>;
+
+        const fn = this.parametrizedGetRequests[endpoint];
+        return fn(parameter, this.executorFactory("GET", endpoint)) as Result;
     }
 
     post<K extends keyof PostRequests>(
@@ -82,15 +91,17 @@ abstract class BaseRequestProvider<
 
 abstract class CachableRequestsProvider<
     GetRequests extends Record<string, (e: Executor) => any>,
+    ParametrizedGetRequests extends Record<string, (parameter: string, e: Executor) => any>,
     PostRequests extends Record<string, (args: any, e: Executor) => any>
-> extends BaseRequestProvider<GetRequests, PostRequests> {
+> extends BaseRequestProvider<GetRequests, ParametrizedGetRequests, PostRequests> {
 
     caches: Map<keyof GetRequests, ResourceReturn<any>> = new Map();
     constructor(
         getRequests: GetRequests,
+        parametrizedGetRequests: ParametrizedGetRequests,
         postRequests: PostRequests,
     ) {
-        super(getRequests, postRequests);
+        super(getRequests, parametrizedGetRequests, postRequests);
     }
 
     getCached<K extends keyof GetRequests>(endpoint: K): ResourceReturn<RemovePromise<ReturnType<GetRequests[K]>>> {
@@ -104,9 +115,9 @@ abstract class CachableRequestsProvider<
 
 }
 
-export class DefaultRequestsProvider extends BaseRequestProvider<{}, typeof defaultPostRequests> {
+export class DefaultRequestsProvider extends BaseRequestProvider<{}, {}, typeof defaultPostRequests> {
     constructor() {
-        super({}, defaultPostRequests);
+        super({}, {}, defaultPostRequests);
     }
 
     executorFactory(method: string, endpoint: string): Executor {
@@ -141,12 +152,24 @@ const authenticatedGetRequests = {
     },
 };
 
-export class AuthenticatedRequestsProvider extends CachableRequestsProvider<typeof authenticatedGetRequests, {}> {
+const authenticatedParametrizedGetRequests = {
+    "/script": async (scriptId: string, executor: Executor): ResultPromise<scripts.Script, scripts.ScriptError> => {
+        const { status, data } = await executor(null, `/script/${scriptId}`);
+        if (status === 200)
+            return [scripts.Script.decode(data), undefined];
+        else if (status === 400)
+            return [undefined, scripts.ScriptError.decode(data)];
+        else
+            throw 'unreachable';
+    },
+};
+
+export class AuthenticatedRequestsProvider extends CachableRequestsProvider<typeof authenticatedGetRequests, typeof authenticatedParametrizedGetRequests, {}> {
     constructor(
         private getAccessToken: Resource<string|undefined>,
         private refreshLogin: () => Promise<void>,
     ) {
-        super(authenticatedGetRequests, {});
+        super(authenticatedGetRequests, authenticatedParametrizedGetRequests, {});
     }
 
     get loading(): boolean {
@@ -170,12 +193,13 @@ export class AuthenticatedRequestsProvider extends CachableRequestsProvider<type
     }
 
     executorFactory(method: string, endpoint: string): Executor {
-        return async (b: BodyInit | null): Promise<{ status: number, data: Uint8Array }> => {
+        return async (b: BodyInit | null, endpointOverride): Promise<{ status: number, data: Uint8Array }> => {
             await this.waitForTokenLoad();
             const headers = {
                 'Authorization': `Bearer ${this.accessToken}`
             };
             let didRefresh = false;
+            endpoint = endpointOverride ?? endpoint;
             do {
                 const response = await fetch(`http://${apiURL}${endpoint}`, { method, body: b, headers });
                 if (response.ok)

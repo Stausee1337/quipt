@@ -4,6 +4,16 @@ option go_package = "github.com/stausee1337/quipt/gen/protos";
 
 package scripts;
 
+enum ScriptErrorCode {
+  ID_MALFORMED = 0;
+  UNKNOWN_SCRIPT = 1;
+}
+
+message ScriptError {
+  ScriptErrorCode code = 1;
+  string message = 2;
+}
+
 message Scripts {
   repeated Script scripts = 1;
 }
@@ -15,10 +25,9 @@ message Script {
 }
 
 message Division {
-  string uuid = 1;
-  string name = 2;
-  repeated uint32 previousTotals = 3;
-  repeated TextCuePair textCues = 4;
+  string name = 1;
+  repeated uint32 previousTotals = 2;
+  repeated TextCuePair textCues = 3;
 }
 
 message TextCuePair {
@@ -28,7 +37,7 @@ message TextCuePair {
 }
 
 message TextCue {
-  optional string actor = 1;
+  repeated string actors = 1;
   string text = 2;
 }
 

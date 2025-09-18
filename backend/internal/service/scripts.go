@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -9,6 +10,15 @@ import (
 	"github.com/stausee1337/quipt/protos"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
+
+type ScriptError struct {
+	Code	protos.ScriptErrorCode
+	Message	string
+}
+
+func (w *ScriptError) Error() string {
+	return w.Message;
+}
 
 type ScriptsService struct {
 	repo *repository.ScriptsRepo
@@ -29,7 +39,7 @@ func (s *ScriptsService) GetAllScripts(
 		return nil, fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
 	}
 
-	rawScripts, err := s.repo.GetScriptsForOnwer(ctx, parsedUserId);
+	rawScripts, err := s.repo.FindScriptsForOnwer(ctx, parsedUserId);
 	if err != nil {
 		return nil, err
 	}
@@ -44,5 +54,97 @@ func (s *ScriptsService) GetAllScripts(
 	}
 
 	return scripts, nil
+}
+
+func (s *ScriptsService) GetScriptById(
+	ctx context.Context,
+	userUuid string,
+	uuidString string,
+) (*protos.Script, error) {
+	parsedUserId, err := uuid.Parse(userUuid)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
+	}
+
+	parsedUuid, err := uuid.Parse(uuidString)
+	if err != nil {
+		return nil, &ScriptError {
+			Code: protos.ScriptErrorCode_ID_MALFORMED,
+			Message: "malformed id",
+		}
+	}
+
+	script, err := s.repo.FindScriptById(ctx, parsedUuid)
+	if errors.Is(err, repository.ErrUnknownScript) {
+		return nil, &ScriptError {
+			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
+			Message: "unknown script",
+		}
+	} else if err != nil {
+		return nil, err
+	}
+
+	if script.Owner != parsedUserId {
+		// the user doesn't own the script
+		return nil, &ScriptError {
+			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
+			Message: "unknown script",
+		}
+	}
+
+	repoDivisions, err := s.repo.QueryAllDivisionObjects(ctx, script.Divisions)
+	if err != nil {
+		return nil, err
+	}
+
+	divisions := transformRepoDivisions(repoDivisions);
+
+	return &protos.Script {
+		Uuid: uuid.UUID(script.Uuid).String(),
+		Name: script.Name,
+		Divisions: divisions,
+	}, nil
+}
+
+func transformRepoDivisions(repoDivisions []*repository.Division) []*protos.Division {
+	var resultDivisions []*protos.Division
+
+	for _, repoDivision := range repoDivisions {
+		resultTextCues := transformRepoTextCues(repoDivision.TextCues);
+		resultDivision := protos.Division {
+			Name: repoDivision.Name,
+			PreviousTotals: repoDivision.PreviousTotals,
+			TextCues: resultTextCues,
+		};
+		resultDivisions = append(resultDivisions, &resultDivision)
+	}
+
+	return resultDivisions
+}
+
+func transformRepoTextCues(repoTextCues []repository.TextCuePair) []*protos.TextCuePair {
+	var resultTextCues []*protos.TextCuePair
+
+	for _, repoTextCue := range repoTextCues {
+		var resultRequest *protos.TextCue = nil
+		if repoTextCue.Request != nil {
+			resultRequest = transformRepoTextCue(*repoTextCue.Request)
+		}
+		resultTextCue := protos.TextCuePair {
+			Request: resultRequest,
+			Response: transformRepoTextCue(repoTextCue.Response),
+			PreviousScores: repoTextCue.PreviousScores,
+		};
+		resultTextCues = append(resultTextCues, &resultTextCue)
+	}
+
+	return resultTextCues
+}
+
+func transformRepoTextCue(textCue repository.TextCue) *protos.TextCue {
+	return &protos.TextCue {
+		Actors: textCue.Actors,
+		Text: textCue.Text,
+	};
 }
 

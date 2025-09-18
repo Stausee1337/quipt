@@ -994,6 +994,202 @@ export const scripts = $root.scripts = (() => {
      */
     const scripts = {};
 
+    /**
+     * ScriptErrorCode enum.
+     * @name scripts.ScriptErrorCode
+     * @enum {number}
+     * @property {number} ID_MALFORMED=0 ID_MALFORMED value
+     * @property {number} UNKNOWN_SCRIPT=1 UNKNOWN_SCRIPT value
+     */
+    scripts.ScriptErrorCode = (function() {
+        const valuesById = {}, values = Object.create(valuesById);
+        values[valuesById[0] = "ID_MALFORMED"] = 0;
+        values[valuesById[1] = "UNKNOWN_SCRIPT"] = 1;
+        return values;
+    })();
+
+    scripts.ScriptError = (function() {
+
+        /**
+         * Properties of a ScriptError.
+         * @memberof scripts
+         * @interface IScriptError
+         * @property {scripts.ScriptErrorCode|null} [code] ScriptError code
+         * @property {string|null} [message] ScriptError message
+         */
+
+        /**
+         * Constructs a new ScriptError.
+         * @memberof scripts
+         * @classdesc Represents a ScriptError.
+         * @implements IScriptError
+         * @constructor
+         * @param {scripts.IScriptError=} [properties] Properties to set
+         */
+        function ScriptError(properties) {
+            if (properties)
+                for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * ScriptError code.
+         * @member {scripts.ScriptErrorCode} code
+         * @memberof scripts.ScriptError
+         * @instance
+         */
+        ScriptError.prototype.code = 0;
+
+        /**
+         * ScriptError message.
+         * @member {string} message
+         * @memberof scripts.ScriptError
+         * @instance
+         */
+        ScriptError.prototype.message = "";
+
+        /**
+         * Encodes the specified ScriptError message. Does not implicitly {@link scripts.ScriptError.verify|verify} messages.
+         * @function encode
+         * @memberof scripts.ScriptError
+         * @static
+         * @param {scripts.IScriptError} message ScriptError message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        ScriptError.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.code != null && Object.hasOwnProperty.call(message, "code"))
+                writer.uint32(/* id 1, wireType 0 =*/8).int32(message.code);
+            if (message.message != null && Object.hasOwnProperty.call(message, "message"))
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.message);
+            return writer;
+        };
+
+        /**
+         * Decodes a ScriptError message from the specified reader or buffer.
+         * @function decode
+         * @memberof scripts.ScriptError
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {scripts.ScriptError} ScriptError
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        ScriptError.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            let end = length === undefined ? reader.len : reader.pos + length, message = new $root.scripts.ScriptError();
+            while (reader.pos < end) {
+                let tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.code = reader.int32();
+                        break;
+                    }
+                case 2: {
+                        message.message = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Creates a ScriptError message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof scripts.ScriptError
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {scripts.ScriptError} ScriptError
+         */
+        ScriptError.fromObject = function fromObject(object) {
+            if (object instanceof $root.scripts.ScriptError)
+                return object;
+            let message = new $root.scripts.ScriptError();
+            switch (object.code) {
+            default:
+                if (typeof object.code === "number") {
+                    message.code = object.code;
+                    break;
+                }
+                break;
+            case "ID_MALFORMED":
+            case 0:
+                message.code = 0;
+                break;
+            case "UNKNOWN_SCRIPT":
+            case 1:
+                message.code = 1;
+                break;
+            }
+            if (object.message != null)
+                message.message = String(object.message);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a ScriptError message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof scripts.ScriptError
+         * @static
+         * @param {scripts.ScriptError} message ScriptError
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        ScriptError.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            let object = {};
+            if (options.defaults) {
+                object.code = options.enums === String ? "ID_MALFORMED" : 0;
+                object.message = "";
+            }
+            if (message.code != null && message.hasOwnProperty("code"))
+                object.code = options.enums === String ? $root.scripts.ScriptErrorCode[message.code] === undefined ? message.code : $root.scripts.ScriptErrorCode[message.code] : message.code;
+            if (message.message != null && message.hasOwnProperty("message"))
+                object.message = message.message;
+            return object;
+        };
+
+        /**
+         * Converts this ScriptError to JSON.
+         * @function toJSON
+         * @memberof scripts.ScriptError
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        ScriptError.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for ScriptError
+         * @function getTypeUrl
+         * @memberof scripts.ScriptError
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        ScriptError.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/scripts.ScriptError";
+        };
+
+        return ScriptError;
+    })();
+
     scripts.Scripts = (function() {
 
         /**
@@ -1366,7 +1562,6 @@ export const scripts = $root.scripts = (() => {
          * Properties of a Division.
          * @memberof scripts
          * @interface IDivision
-         * @property {string|null} [uuid] Division uuid
          * @property {string|null} [name] Division name
          * @property {Array.<number>|null} [previousTotals] Division previousTotals
          * @property {Array.<scripts.ITextCuePair>|null} [textCues] Division textCues
@@ -1388,14 +1583,6 @@ export const scripts = $root.scripts = (() => {
                     if (properties[keys[i]] != null)
                         this[keys[i]] = properties[keys[i]];
         }
-
-        /**
-         * Division uuid.
-         * @member {string} uuid
-         * @memberof scripts.Division
-         * @instance
-         */
-        Division.prototype.uuid = "";
 
         /**
          * Division name.
@@ -1433,19 +1620,17 @@ export const scripts = $root.scripts = (() => {
         Division.encode = function encode(message, writer) {
             if (!writer)
                 writer = $Writer.create();
-            if (message.uuid != null && Object.hasOwnProperty.call(message, "uuid"))
-                writer.uint32(/* id 1, wireType 2 =*/10).string(message.uuid);
             if (message.name != null && Object.hasOwnProperty.call(message, "name"))
-                writer.uint32(/* id 2, wireType 2 =*/18).string(message.name);
+                writer.uint32(/* id 1, wireType 2 =*/10).string(message.name);
             if (message.previousTotals != null && message.previousTotals.length) {
-                writer.uint32(/* id 3, wireType 2 =*/26).fork();
+                writer.uint32(/* id 2, wireType 2 =*/18).fork();
                 for (let i = 0; i < message.previousTotals.length; ++i)
                     writer.uint32(message.previousTotals[i]);
                 writer.ldelim();
             }
             if (message.textCues != null && message.textCues.length)
                 for (let i = 0; i < message.textCues.length; ++i)
-                    $root.scripts.TextCuePair.encode(message.textCues[i], writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
+                    $root.scripts.TextCuePair.encode(message.textCues[i], writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
             return writer;
         };
 
@@ -1470,14 +1655,10 @@ export const scripts = $root.scripts = (() => {
                     break;
                 switch (tag >>> 3) {
                 case 1: {
-                        message.uuid = reader.string();
-                        break;
-                    }
-                case 2: {
                         message.name = reader.string();
                         break;
                     }
-                case 3: {
+                case 2: {
                         if (!(message.previousTotals && message.previousTotals.length))
                             message.previousTotals = [];
                         if ((tag & 7) === 2) {
@@ -1488,7 +1669,7 @@ export const scripts = $root.scripts = (() => {
                             message.previousTotals.push(reader.uint32());
                         break;
                     }
-                case 4: {
+                case 3: {
                         if (!(message.textCues && message.textCues.length))
                             message.textCues = [];
                         message.textCues.push($root.scripts.TextCuePair.decode(reader, reader.uint32()));
@@ -1514,8 +1695,6 @@ export const scripts = $root.scripts = (() => {
             if (object instanceof $root.scripts.Division)
                 return object;
             let message = new $root.scripts.Division();
-            if (object.uuid != null)
-                message.uuid = String(object.uuid);
             if (object.name != null)
                 message.name = String(object.name);
             if (object.previousTotals) {
@@ -1555,12 +1734,8 @@ export const scripts = $root.scripts = (() => {
                 object.previousTotals = [];
                 object.textCues = [];
             }
-            if (options.defaults) {
-                object.uuid = "";
+            if (options.defaults)
                 object.name = "";
-            }
-            if (message.uuid != null && message.hasOwnProperty("uuid"))
-                object.uuid = message.uuid;
             if (message.name != null && message.hasOwnProperty("name"))
                 object.name = message.name;
             if (message.previousTotals && message.previousTotals.length) {
@@ -1841,7 +2016,7 @@ export const scripts = $root.scripts = (() => {
          * Properties of a TextCue.
          * @memberof scripts
          * @interface ITextCue
-         * @property {string|null} [actor] TextCue actor
+         * @property {Array.<string>|null} [actors] TextCue actors
          * @property {string|null} [text] TextCue text
          */
 
@@ -1854,6 +2029,7 @@ export const scripts = $root.scripts = (() => {
          * @param {scripts.ITextCue=} [properties] Properties to set
          */
         function TextCue(properties) {
+            this.actors = [];
             if (properties)
                 for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                     if (properties[keys[i]] != null)
@@ -1861,12 +2037,12 @@ export const scripts = $root.scripts = (() => {
         }
 
         /**
-         * TextCue actor.
-         * @member {string|null|undefined} actor
+         * TextCue actors.
+         * @member {Array.<string>} actors
          * @memberof scripts.TextCue
          * @instance
          */
-        TextCue.prototype.actor = null;
+        TextCue.prototype.actors = $util.emptyArray;
 
         /**
          * TextCue text.
@@ -1875,20 +2051,6 @@ export const scripts = $root.scripts = (() => {
          * @instance
          */
         TextCue.prototype.text = "";
-
-        // OneOf field names bound to virtual getters and setters
-        let $oneOfFields;
-
-        /**
-         * TextCue _actor.
-         * @member {"actor"|undefined} _actor
-         * @memberof scripts.TextCue
-         * @instance
-         */
-        Object.defineProperty(TextCue.prototype, "_actor", {
-            get: $util.oneOfGetter($oneOfFields = ["actor"]),
-            set: $util.oneOfSetter($oneOfFields)
-        });
 
         /**
          * Encodes the specified TextCue message. Does not implicitly {@link scripts.TextCue.verify|verify} messages.
@@ -1902,8 +2064,9 @@ export const scripts = $root.scripts = (() => {
         TextCue.encode = function encode(message, writer) {
             if (!writer)
                 writer = $Writer.create();
-            if (message.actor != null && Object.hasOwnProperty.call(message, "actor"))
-                writer.uint32(/* id 1, wireType 2 =*/10).string(message.actor);
+            if (message.actors != null && message.actors.length)
+                for (let i = 0; i < message.actors.length; ++i)
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.actors[i]);
             if (message.text != null && Object.hasOwnProperty.call(message, "text"))
                 writer.uint32(/* id 2, wireType 2 =*/18).string(message.text);
             return writer;
@@ -1930,7 +2093,9 @@ export const scripts = $root.scripts = (() => {
                     break;
                 switch (tag >>> 3) {
                 case 1: {
-                        message.actor = reader.string();
+                        if (!(message.actors && message.actors.length))
+                            message.actors = [];
+                        message.actors.push(reader.string());
                         break;
                     }
                 case 2: {
@@ -1957,8 +2122,13 @@ export const scripts = $root.scripts = (() => {
             if (object instanceof $root.scripts.TextCue)
                 return object;
             let message = new $root.scripts.TextCue();
-            if (object.actor != null)
-                message.actor = String(object.actor);
+            if (object.actors) {
+                if (!Array.isArray(object.actors))
+                    throw TypeError(".scripts.TextCue.actors: array expected");
+                message.actors = [];
+                for (let i = 0; i < object.actors.length; ++i)
+                    message.actors[i] = String(object.actors[i]);
+            }
             if (object.text != null)
                 message.text = String(object.text);
             return message;
@@ -1977,12 +2147,14 @@ export const scripts = $root.scripts = (() => {
             if (!options)
                 options = {};
             let object = {};
+            if (options.arrays || options.defaults)
+                object.actors = [];
             if (options.defaults)
                 object.text = "";
-            if (message.actor != null && message.hasOwnProperty("actor")) {
-                object.actor = message.actor;
-                if (options.oneofs)
-                    object._actor = "actor";
+            if (message.actors && message.actors.length) {
+                object.actors = [];
+                for (let j = 0; j < message.actors.length; ++j)
+                    object.actors[j] = message.actors[j];
             }
             if (message.text != null && message.hasOwnProperty("text"))
                 object.text = message.text;
