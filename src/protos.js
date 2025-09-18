@@ -994,6 +994,168 @@ export const scripts = $root.scripts = (() => {
      */
     const scripts = {};
 
+    scripts.Scripts = (function() {
+
+        /**
+         * Properties of a Scripts.
+         * @memberof scripts
+         * @interface IScripts
+         * @property {Array.<scripts.IScript>|null} [scripts] Scripts scripts
+         */
+
+        /**
+         * Constructs a new Scripts.
+         * @memberof scripts
+         * @classdesc Represents a Scripts.
+         * @implements IScripts
+         * @constructor
+         * @param {scripts.IScripts=} [properties] Properties to set
+         */
+        function Scripts(properties) {
+            this.scripts = [];
+            if (properties)
+                for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * Scripts scripts.
+         * @member {Array.<scripts.IScript>} scripts
+         * @memberof scripts.Scripts
+         * @instance
+         */
+        Scripts.prototype.scripts = $util.emptyArray;
+
+        /**
+         * Encodes the specified Scripts message. Does not implicitly {@link scripts.Scripts.verify|verify} messages.
+         * @function encode
+         * @memberof scripts.Scripts
+         * @static
+         * @param {scripts.IScripts} message Scripts message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        Scripts.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.scripts != null && message.scripts.length)
+                for (let i = 0; i < message.scripts.length; ++i)
+                    $root.scripts.Script.encode(message.scripts[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+            return writer;
+        };
+
+        /**
+         * Decodes a Scripts message from the specified reader or buffer.
+         * @function decode
+         * @memberof scripts.Scripts
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {scripts.Scripts} Scripts
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        Scripts.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            let end = length === undefined ? reader.len : reader.pos + length, message = new $root.scripts.Scripts();
+            while (reader.pos < end) {
+                let tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        if (!(message.scripts && message.scripts.length))
+                            message.scripts = [];
+                        message.scripts.push($root.scripts.Script.decode(reader, reader.uint32()));
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Creates a Scripts message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof scripts.Scripts
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {scripts.Scripts} Scripts
+         */
+        Scripts.fromObject = function fromObject(object) {
+            if (object instanceof $root.scripts.Scripts)
+                return object;
+            let message = new $root.scripts.Scripts();
+            if (object.scripts) {
+                if (!Array.isArray(object.scripts))
+                    throw TypeError(".scripts.Scripts.scripts: array expected");
+                message.scripts = [];
+                for (let i = 0; i < object.scripts.length; ++i) {
+                    if (typeof object.scripts[i] !== "object")
+                        throw TypeError(".scripts.Scripts.scripts: object expected");
+                    message.scripts[i] = $root.scripts.Script.fromObject(object.scripts[i]);
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a Scripts message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof scripts.Scripts
+         * @static
+         * @param {scripts.Scripts} message Scripts
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        Scripts.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            let object = {};
+            if (options.arrays || options.defaults)
+                object.scripts = [];
+            if (message.scripts && message.scripts.length) {
+                object.scripts = [];
+                for (let j = 0; j < message.scripts.length; ++j)
+                    object.scripts[j] = $root.scripts.Script.toObject(message.scripts[j], options);
+            }
+            return object;
+        };
+
+        /**
+         * Converts this Scripts to JSON.
+         * @function toJSON
+         * @memberof scripts.Scripts
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        Scripts.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for Scripts
+         * @function getTypeUrl
+         * @memberof scripts.Scripts
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        Scripts.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/scripts.Scripts";
+        };
+
+        return Scripts;
+    })();
+
     scripts.Script = (function() {
 
         /**

@@ -1,11 +1,13 @@
-import { Accessor, JSX, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
-import { auth } from './protos';
+import { JSX, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
+import { auth, scripts } from './protos';
 import { ResourceReturn } from "solid-js";
 import { Resource } from "solid-js";
 
 type ResultPromise<T, E> = Promise<[T, undefined] | [undefined, E]>;
 
 type Executor = (b: BodyInit | null) => Promise<{ status: number, data: Uint8Array }>;
+
+type RemovePromise<T> = T extends Promise<infer U> ? U : T;
 
 const defaultPostRequests = {
     "/auth/signin":
@@ -83,7 +85,7 @@ abstract class CachableRequestsProvider<
     PostRequests extends Record<string, (args: any, e: Executor) => any>
 > extends BaseRequestProvider<GetRequests, PostRequests> {
 
-    caches: Map<keyof GetRequests | keyof PostRequests, ResourceReturn<any>> = new Map();
+    caches: Map<keyof GetRequests, ResourceReturn<any>> = new Map();
     constructor(
         getRequests: GetRequests,
         postRequests: PostRequests,
@@ -91,7 +93,7 @@ abstract class CachableRequestsProvider<
         super(getRequests, postRequests);
     }
 
-    getCached<K extends keyof GetRequests>(endpoint: K): ResourceReturn<ReturnType<GetRequests[K]>> {
+    getCached<K extends keyof GetRequests>(endpoint: K): ResourceReturn<RemovePromise<ReturnType<GetRequests[K]>>> {
         let cache = this.caches.get(endpoint);
         if (cache !== undefined)
             return cache
@@ -129,7 +131,14 @@ const authenticatedGetRequests = {
         if (status === 200)
             return auth.User.decode(data);
         throw 'unreachable';
-    }
+    },
+    "/list-scripts": async (executor: Executor): Promise<scripts.IScript[]> => {
+        const { status, data } = await executor(null);
+        if (status !== 200)
+            throw 'unreachable';
+        const scriptsResp = scripts.Scripts.decode(data);
+        return scriptsResp.scripts;
+    },
 };
 
 export class AuthenticatedRequestsProvider extends CachableRequestsProvider<typeof authenticatedGetRequests, {}> {

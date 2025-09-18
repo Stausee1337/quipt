@@ -4,6 +4,10 @@ option go_package = "github.com/stausee1337/quipt/gen/protos";
 
 package scripts;
 
+message Scripts {
+  repeated Script scripts = 1;
+}
+
 message Script {
   string uuid = 1;
   string name = 2;

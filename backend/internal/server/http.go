@@ -24,19 +24,23 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 
 	authService := service.NewAuthService(cfg, redis)
 	userService := service.NewUserService(db)
+	scriptsService := service.NewScriptsService(db)
 
 	r.Use(loggingMiddleware);
 	r.Use(corsMiddleware(cfg));
 	r.Use(authMiddleware(authService));
 
-	signup_handler := handler.NewSignupHandler(userService, authService);
-	r.Post("/auth/signup", signup_handler.HandleSignup);
-	r.Post("/auth/signin", signup_handler.HandleSignin);
-	r.Post("/auth/refresh", signup_handler.HandleRefresh);
-	r.Post("/auth/expire", signup_handler.HandleExpire);
+	signupHandler := handler.NewSignupHandler(userService, authService);
+	r.Post("/auth/signup", signupHandler.HandleSignup);
+	r.Post("/auth/signin", signupHandler.HandleSignin);
+	r.Post("/auth/refresh", signupHandler.HandleRefresh);
+	r.Post("/auth/expire", signupHandler.HandleExpire);
 
-	user_handler := handler.NewUserHandler(userService, authService)
-	r.Get("/get-user", user_handler.HandleGet)
+	userHandler := handler.NewUserHandler(userService, authService)
+	r.Get("/get-user", userHandler.HandleGet)
+
+	scriptsHandler := handler.NewScriptsHanlder(authService, scriptsService)
+	r.Get("/list-scripts", scriptsHandler.HandleGet)
 
 	return &Server{router: r};
 }

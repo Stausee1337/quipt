@@ -486,6 +486,7 @@ export function MenuElement(
     const authentication = useAuthentication()!;
     const closer = props.closer;
     const [user, {}] = authentication.requests!.getCached("/get-user");
+    const [scripts , {}] = authentication.requests!.getCached("/list-scripts");
 
     if (closer !== undefined) {
         const unsubscribe = authentication.onLogout.subscribe(() => {
@@ -515,12 +516,12 @@ export function MenuElement(
             </div>
 
             { 
-                Array.from({ length: 50 })
-                    .map(v => <ListElement>{ String(v) }</ListElement>)
+                (scripts.loading || scripts.error) ? null :
+                    scripts()!.map(v => <ListElement>{ v.name }</ListElement>)
             }
 
             {
-                (user.loading && !user.error) ? null :
+                (user.loading || user.error) ? null :
                 <div class="footer">
                     <ListElement icon="person-circle" static>
                         <span style="flex:1">{ user()!.username }</span>

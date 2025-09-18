@@ -395,6 +395,72 @@ export namespace auth {
 /** Namespace scripts. */
 export namespace scripts {
 
+    /** Properties of a Scripts. */
+    interface IScripts {
+
+        /** Scripts scripts */
+        scripts?: (scripts.IScript[]|null);
+    }
+
+    /** Represents a Scripts. */
+    class Scripts implements IScripts {
+
+        /**
+         * Constructs a new Scripts.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: scripts.IScripts);
+
+        /** Scripts scripts. */
+        public scripts: scripts.IScript[];
+
+        /**
+         * Encodes the specified Scripts message. Does not implicitly {@link scripts.Scripts.verify|verify} messages.
+         * @param message Scripts message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encode(message: scripts.IScripts, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a Scripts message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns Scripts
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): scripts.Scripts;
+
+        /**
+         * Creates a Scripts message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns Scripts
+         */
+        public static fromObject(object: { [k: string]: any }): scripts.Scripts;
+
+        /**
+         * Creates a plain object from a Scripts message. Also converts values to other types if specified.
+         * @param message Scripts
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        public static toObject(message: scripts.Scripts, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this Scripts to JSON.
+         * @returns JSON object
+         */
+        public toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the default type url for Scripts
+         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns The default type url
+         */
+        public static getTypeUrl(typeUrlPrefix?: string): string;
+    }
+
     /** Properties of a Script. */
     interface IScript {
 
