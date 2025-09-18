@@ -3,6 +3,7 @@ import { untrack } from "solid-js/web";
 import { $, Observable } from "./observable";
 import { DialogManager } from "./dialog";
 import { useAuthentication } from "./backend";
+import { ScriptContextObj } from "./App";
 
 export function ProgressSpinner(props: { size?: number, color?: string | undefined }) {
     const merged = mergeProps({ size: 100 }, props);
@@ -463,11 +464,12 @@ function ListElement(
     props: {
         icon?: string,
         children: JSX.Element,
-        static?: boolean
+        static?: boolean,
+        current?: boolean
     }
 ): JSX.Element {
     return (
-        <span class="list-element" classList={{ static: props.static }}>
+        <span class="list-element" classList={{ static: props.static, current: props.current }}>
             { 
                 props.icon !== undefined 
                     ? <i class={`bi bi-${props.icon}`}/> 
@@ -487,6 +489,7 @@ export function MenuElement(
     const closer = props.closer;
     const [user, {}] = authentication.requests!.getCached("/get-user");
     const [scripts , {}] = authentication.requests!.getCached("/list-scripts");
+    const scriptContext = useContext(ScriptContextObj)!;
 
     if (closer !== undefined) {
         const unsubscribe = authentication.onLogout.subscribe(() => {
@@ -519,7 +522,11 @@ export function MenuElement(
             <div>
                  { 
                      (scripts.loading || scripts.error) ? null :
-                         scripts()!.map(v => <ListElement>{ v.name }</ListElement>)
+                         scripts()!.map(
+                             v => (
+                                 <ListElement current={v.uuid === scriptContext.currentScript}>
+                                 { v.name }
+                                 </ListElement>))
                  }
             </div>
 

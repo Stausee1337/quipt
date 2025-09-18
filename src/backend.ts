@@ -343,7 +343,7 @@ export type Script = Readonly<{
 }>;
 
 export type Division = Readonly<{
-    name: string|null,
+    name: string,
     previousTotals: number[],
     textCues: TextCuePair[]
 }>;

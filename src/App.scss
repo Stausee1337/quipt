@@ -148,11 +148,11 @@ nav.side-menu {
     text-overflow: ellipsis;
 
     &:not(.static):hover {
-      background-color: $background;
+      background-color: $color-accent1;
     }
 
     &.current {
-      background-color: $color-accent1;
+      background-color: $background;
     }
   }
 

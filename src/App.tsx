@@ -1,9 +1,9 @@
 import './App.scss'
-import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createResource, Suspense, createContext, useContext, createMemo } from 'solid-js';
-import { HeaderElement, MenuElement, ProgressSpinner } from './std-widgets';
-import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams } from '@solidjs/router';
-import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth } from './backend';
-import { FormattedString, ResourceManager } from './resources';
+import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createContext, useContext, createMemo, Switch, Match, Component, createResource } from 'solid-js';
+import { HeaderElement, MenuElement } from './std-widgets';
+import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams, useLocation, useIsRouting } from '@solidjs/router';
+import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth, scripts, Division, Script, AuthenticationContext } from './backend';
+import { FormattedString } from './resources';
 
 type QuoteViewProps = {
     last: boolean,
@@ -28,8 +28,6 @@ function formatString(string: FormattedString): JSX.Element {
 
     return result;
 }
-
-const textCues = JSON.parse(`[{"requestText":[{"string":"Now I am first  ","style":null}],"responseText":[{"string":"Indeed, you are!  ","style":null}],"requestActors":["Laura"],"responseActors":["Bär"]},{"requestText":[{"string":"Wenn eins plus eins zwei ist, was hält dann eins plus eins davon auf drei zu sein?  ","style":null}],"responseText":[{"string":"The Fuck, laberst du. Du Kecko! ","style":null},{"string":"(kotzt sich in den Fuß)","style":{"font-style":"italic"}},{"string":"  ","style":null}],"requestActors":["Emily"],"responseActors":["Bär"]},{"requestText":[{"string":"Hey I'm Laura. Nice to meet you!  ","style":null}],"responseText":[{"string":"Soory, but I don't understand. WTF motherfucker?   ","style":null}],"requestActors":["Laura"],"responseActors":["Bär"]},{"requestText":[{"string":"(sichtlich verwirrt)","style":{"font-style":"italic"}},{"string":" Macht eigentlich irendetwas von dem ihr da redet einen Sinn?  ","style":null}],"responseText":[{"string":"Bis jetzt habe ich keinen erkennen können  ","style":null}],"requestActors":["Emily"],"responseActors":["Bär"]},{"requestText":[{"style":{"font-style":"italic"},"string":"Du bist der erste in diesem Abschnitt"}],"responseText":[{"string":"Jetzt fliegen hier die fetzten, dass es nur so kracht!  ","style":null}],"requestActors":null,"responseActors":["Bär"]},{"requestText":[{"string":"(noch verwirrter)","style":{"font-style":"italic"}},{"string":" Du warst doch schon die ganze Zeit Teil der Konversation!  ","style":null}],"responseText":[{"string":"(zu Emil)","style":{"font-style":"italic"}},{"string":" Wer bist du jetzt eigentlich?  ","style":null}],"requestActors":["Emily"],"responseActors":["Bär","Laura"]},{"requestText":[{"string":"Vorletzer! Ich bin eins Emil  ","style":null}],"responseText":[{"string":"RIIIIICHTIG  ","style":null}],"requestActors":["Emil"],"responseActors":["Bär"]},{"requestText":[{"string":"Wir lieben dich Bär!  ","style":null}],"responseText":[{"string":"Danke, Danke  ","style":null}],"requestActors":["Emil","Emily"],"responseActors":"all"}]`);
 
 function QuoteView(props: QuoteViewProps) {
     return (
@@ -121,22 +119,22 @@ function xxx(scoreString: Accessor<string>, progressBarColor: Accessor<string>) 
     });
 }
 
-function ScriptView() {
+function TrainingRunView(
+    props: {
+        division: Readonly<Division>
+    }
+) {
+    const textCues = props.division.textCues;
+
+    const [stickyDivisionVisible, setStickyDivisionVisible] = createSignal<boolean>(false);
+    const [currentIndex, setCurrentIndex] = createSignal<number>(0);
+    const [currentScore, setCurrentScore] = createSignal<number>(0);
+    const [scoreString, setScoreString] = createSignal<string>(String(currentScore()));
+    const [progressBarColor, setProgressBarColor] = createSignal<string>(progressBarGreen);
+    const [reachedEnd, setReachedEnd] = createSignal<boolean>(false);
+    const maxScore = textCues.length * 4;
+
     const root = document.getElementById("root")!;
-    const params = useParams()!;
-    const authenticated = useAuthentication()!;
-    const [script] = createResource(
-        () => authenticated.requests!.getParametrized("/script", params.uuid));
-
-    createEffect(() => {
-        if (!script.loading) {
-            const x = script();
-            console.log(x);
-        }
-    })
-
-    // const params = useParams<{ uuid: string }>();
-    // const script = ResourceManager.scriptsResource.findByUUID(params.uuid)!;
 
     let scrollLocked = false;
     function append() {
@@ -169,7 +167,6 @@ function ScriptView() {
         }
     }
 
-    const [stickyDivisionVisible, setStickyDivisionVisible] = createSignal<boolean>(false);
 
     const observer = new IntersectionObserver(entries => {
         setStickyDivisionVisible(!entries[0].isIntersecting);
@@ -182,17 +179,10 @@ function ScriptView() {
     });
 
     onCleanup(() => {
-        const view = document.querySelector("div.script-view")!;
+        const view = document.querySelector("div.script-view");
         observer.unobserve(view.querySelector('h2')!);
         root.removeEventListener('scroll', scrollListener);
     });
-
-    const [currentIndex, setCurrentIndex] = createSignal<number>(0);
-    const [currentScore, setCurrentScore] = createSignal<number>(0);
-    const [scoreString, setScoreString] = createSignal<string>(String(currentScore()));
-    const [progressBarColor, setProgressBarColor] = createSignal<string>(progressBarGreen);
-    const [reachedEnd, setReachedEnd] = createSignal<boolean>(false);
-    const maxScore = textCues.length * 4;
 
     function checkIsLast(n: number, lastIndex: number): boolean {
         return Math.floor(n / 2) === Math.floor(lastIndex / 2);
@@ -312,14 +302,14 @@ function ScriptView() {
         const type = n % 2 === 0 ? "request" : "response";
         const textCue = textCues[Math.floor(n / 2)];
         const cueData = type === "request" 
-            ? { actors: [{ string: textCue.requestActors, style: null }], text: textCue.requestText }
-            : { actors: [{ string: textCue.responseActors, style: null }], text: textCue.responseText };
+            ? { actors: [{ string: textCue.request?.actors, style: null }], text: textCue.request!.text! }
+            : { actors: [{ string: textCue.response!.actors, style: null }], text: textCue.response!.text! };
         return (
             <QuoteView 
                 last={checkIsLast(n, currentIndex())}
                 type={type}
                 confidenceReport={n === currentIndex() ? reportConfidence : undefined}
-                text={cueData.text}
+                text={[{ style: null, string: cueData.text }]}
                 actorsInfo={cueData.actors}/>);
     }
 
@@ -374,6 +364,7 @@ function App(props: { children: JSX.Element }): JSX.Element {
     const authenticationContext = useAuthentication()!;
     const navigate = useNavigate();
     const [isMobile, setIsMobile] = createSignal(window.innerWidth <= 768);
+    const scriptContext = createScriptContext(authenticationContext);
 
     const unsubscribe = authenticationContext.onLogout.subscribe(() => navigate('/signin'));
     onCleanup(() => {
@@ -395,14 +386,16 @@ function App(props: { children: JSX.Element }): JSX.Element {
 
     return (
         <IsMobileContext.Provider value={isMobile}>
-            { 
-                isMobile() 
-                    ? <HeaderElement showBackButton={false} title={''}/> 
-                    : ( authenticationContext.isLoggedIn() && <MenuElement/> )
-            }
-            <div class="routing-contents">
-                {props.children}
-            </div>
+            <ScriptContextObj.Provider value={scriptContext}>
+                { 
+                    isMobile() 
+                        ? <HeaderElement showBackButton={false} title={''}/> 
+                        : ( authenticationContext.isLoggedIn() && <MenuElement/> )
+                }
+                <div class="routing-contents">
+                    {props.children}
+                </div>
+            </ScriptContextObj.Provider>
         </IsMobileContext.Provider>
     );
 }
@@ -418,26 +411,105 @@ function Root(): JSX.Element {
 
 function ScriptRoute(): JSX.Element {
     const isMobile = useContext(IsMobileContext)!;
-    const params = useParams()
-    const navigate = useNavigate()
-    const authentication = useAuthentication()!;
-
-    createEffect(() => {
-        if (params.script === undefined || params.division === undefined) {
-            const [scripts] = authentication.requests!.getCached("/list-scripts");
-            if (!scripts.loading && !scripts.error) {
-                const script = params.script ?? scripts()![0].uuid!;
-                navigate(`/script/${script}/1`);
-            }
-            return [];
-        }
-    });
 
     return (
         <>
-            { isMobile() ? <ScriptView/> : <h1>edit your scripts here</h1> }
+            { isMobile() ? <MobileScriptRedirect/> : null }
         </>
     );
+}
+
+function MobileScriptRedirect(): JSX.Element {
+    const params = useParams()
+    const navigate = useNavigate()
+    const authentication = useAuthentication()!;
+    const scriptContext = useContext(ScriptContextObj)!;
+
+    const x = createMemo(() => {
+        if (params.uuid !== undefined && params.division !== undefined)
+            return "training-run";
+        else if (params.uuid !== undefined)
+            return "script-overview";
+        const [scripts] = authentication.requests!.getCached("/list-scripts");
+        if (!scripts.loading && !scripts.error) {
+            const script = params.uuid ?? scripts()![0].uuid!;
+            navigate(`/script/${script}`);
+        }
+        return "loading-redirect";
+    });
+
+    return (
+        <Switch fallback={null}>
+            <Match when={x() === "training-run"}>
+                { scriptContext.instantiateDelayed(TrainingRunWrapper) }
+            </Match>
+            <Match when={x() === "script-overview"}>
+                { scriptContext.instantiateDelayed(ScriptOverview) }
+            </Match>
+        </Switch>
+    );
+}
+
+function TrainingRunWrapper(
+    props: {
+        script: Script
+    }
+): JSX.Element {
+    return <TrainingRunView division={props.script.divisions[1]}/>
+}
+
+function ScriptOverview(): JSX.Element {
+    return <h1>This is a script overview</h1>
+}
+
+
+export const ScriptContextObj = createContext<ScriptContext>();
+
+interface ScriptContext {
+    readonly currentScript: string|undefined;
+    instantiateDelayed(component: Component<{ script: Script }>): JSX.Element;
+}
+
+function createScriptContext(authenticationContext: AuthenticationContext): ScriptContext {
+    const location = useParams();
+    const [currentScriptId, setCurrentScriptId] = createSignal<string|undefined>(location.uuid);
+    const scriptCache: Map<string, Script> = new Map();
+
+    const [currentScript, { refetch }] = createResource(async () => {
+        const currentId = currentScriptId();
+        if (currentId === undefined)
+            return undefined;
+        let currentScript = scriptCache.get(currentId);
+        if (currentScript !== undefined)
+            return currentScript;
+        const [script, error] = await authenticationContext.requests!.getParametrized("/script", currentId)
+        if (error !== undefined) {
+            throw `could not get script: ${error}`;
+        }
+        return script as Script;
+    });
+
+    createEffect(() => {
+        setCurrentScriptId(location.uuid); 
+        refetch();
+    });
+
+    return {
+        get currentScript() {
+            return currentScriptId();
+        },
+        instantiateDelayed(Component) {
+            return (
+                <>
+                    {
+                        currentScript.state === "ready" && currentScript() !== undefined
+                            ? <Component script={currentScript()!}/>
+                            : null
+                    }
+                </>
+            );
+        },
+    };
 }
 
 class QuiptFormEvent extends Event {
