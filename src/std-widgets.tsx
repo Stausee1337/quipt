@@ -497,6 +497,7 @@ export function MenuElement(
         })
     }
 
+
     return (
         <nav class="side-menu">
             <div class="header">
@@ -515,10 +516,12 @@ export function MenuElement(
                 </ListElement>
             </div>
 
-            { 
-                (scripts.loading || scripts.error) ? null :
-                    scripts()!.map(v => <ListElement>{ v.name }</ListElement>)
-            }
+            <div>
+                 { 
+                     (scripts.loading || scripts.error) ? null :
+                         scripts()!.map(v => <ListElement>{ v.name }</ListElement>)
+                 }
+            </div>
 
             {
                 (user.loading || user.error) ? null :

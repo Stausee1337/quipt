@@ -103,6 +103,7 @@ nav.side-menu {
   border-right: 0.15rem solid $color-accent1;
   display: grid;
   grid-template-rows: auto 1fr auto;
+  grid-template-areas: "header" "content" "footer";
   // display: flex;
   // flex-direction: column;
   position: relative;
@@ -112,6 +113,7 @@ nav.side-menu {
   gap: 0.5rem;
 
   div.header {
+    grid-area: header;
     top: 0;
     display: flex;
     flex-direction: column;
@@ -155,6 +157,7 @@ nav.side-menu {
   }
 
   div.footer {
+    grid-area: footer;
     touch-action: none;
     i {
       font-size: 3rem;
