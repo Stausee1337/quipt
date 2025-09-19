@@ -4,6 +4,7 @@ import { HeaderElement, MenuElement } from './std-widgets';
 import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams, useLocation, useIsRouting } from '@solidjs/router';
 import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth, scripts, Division, Script, AuthenticationContext, TextCue } from './backend';
 import { FormattedString } from './resources';
+import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 
 type QuoteViewProps = {
     last: boolean,
@@ -363,7 +364,10 @@ function TrainingRunView(
             </div>
             { !reachedEnd() 
                 ? <div class="scroll-padding"/> 
-                : (<div class="division-training-end"><div class="scorebox hidden" style={{'--score-color': progressBarColor(), '--max-score': `"${maxScore}"`}} children={currentScore()}/></div>) 
+                : <TrainingRunCompletedView 
+                    maxScore={maxScore}
+                    currentScore={currentScore()}
+                    progressBarColor={progressBarColor()}/>
             }
             <div class="controls">
                 <div class="horizontal">
@@ -379,6 +383,105 @@ function TrainingRunView(
             </div>
         </div>
     );
+}
+
+function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
+    const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+    gradient.addColorStop(0.35, 'rgba(227, 227, 227, 0)');
+    gradient.addColorStop(1, 'rgba(227, 227, 227, 0.5)');
+    const data: ChartData = {
+        labels: ['1', '2', '3', '4', '5', '6', '7'],
+        datasets: [
+            {
+                data: [0, 0, 0, 0, 3, 4, 7],
+                borderColor: '#e3e3e3',
+                backgroundColor: gradient,
+                fill: true
+            }
+        ]
+    };
+
+    return {
+        type: 'line',
+        data: data,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+                title: {
+                    display: false,
+                },
+                tooltip: {
+                    callbacks: {
+                        title: () => [],
+                        label(context) {
+                            // Just return the value
+                            return context.formattedValue;
+                        }
+                    }
+                },   
+            },
+            clip: 5,
+            interaction: {
+                mode: 'nearest',
+                intersect: false
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    clip: false
+                },
+                y: {
+                    min: 0,
+                    max: 8,
+                    ticks: {
+                        stepSize: 4,
+                    },
+                    grid: {
+                        color: '#252525',
+                    }
+                }
+            }
+        },
+    };
+}
+
+function TrainingRunCompletedView(
+    props: {
+        maxScore: number,
+        currentScore: number,
+        progressBarColor: string,
+    }
+) {
+    return (
+        <div class="division-training-end">
+            <div class="scorebox hidden"
+                style={{'--score-color': props.progressBarColor, '--max-score': `"${props.maxScore}"`}}>
+                {props.currentScore}
+            </div>
+            <SimpleChart onConfig={chartConfigFactory}/>
+        </div>)
+}
+
+function SimpleChart(
+    props: {
+        onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration
+    }
+): JSX.Element {
+
+    const chartJSCanvas = <canvas/> as HTMLCanvasElement;
+    let chart: Chart|undefined;
+
+    onMount(() => {
+        const ctx = chartJSCanvas.getContext("2d")!;
+        chart = new Chart(ctx, props.onConfig(ctx));
+    })
+
+    return <>{ chartJSCanvas }</>
 }
 
 const IsMobileContext = createContext<() => boolean>();
