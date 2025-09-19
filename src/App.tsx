@@ -2,7 +2,7 @@ import './App.scss'
 import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createContext, useContext, createMemo, Switch, Match, Component, createResource } from 'solid-js';
 import { HeaderElement, MenuElement } from './std-widgets';
 import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams, useLocation, useIsRouting } from '@solidjs/router';
-import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth, scripts, Division, Script, AuthenticationContext } from './backend';
+import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth, scripts, Division, Script, AuthenticationContext, TextCue } from './backend';
 import { FormattedString } from './resources';
 
 type QuoteViewProps = {
@@ -119,6 +119,28 @@ function xxx(scoreString: Accessor<string>, progressBarColor: Accessor<string>) 
     });
 }
 
+interface DivisionInfo {
+    actors: string[],
+    textCues: number
+}
+
+function computeDivisionInfo(division: Division): DivisionInfo {
+    const actorsCollection: Set<string> = new Set();
+    const addActors = (textCue: TextCue) => textCue.actors.forEach(actorsCollection.add.bind(actorsCollection))
+    for (const textCuePair of division.textCues) {
+        if (textCuePair.request !== null)
+            addActors(textCuePair.request);
+        addActors(textCuePair.response);
+    }
+
+    const actors = Array.from(actorsCollection);
+    actors.sort();
+    return {
+        actors,
+        textCues: division.textCues.length
+    };
+}
+
 function TrainingRunView(
     props: {
         division: Readonly<Division>
@@ -133,6 +155,7 @@ function TrainingRunView(
     const [progressBarColor, setProgressBarColor] = createSignal<string>(progressBarGreen);
     const [reachedEnd, setReachedEnd] = createSignal<boolean>(false);
     const maxScore = textCues.length * 4;
+    const info = computeDivisionInfo(props.division);
 
     const root = document.getElementById("root")!;
 
@@ -302,7 +325,7 @@ function TrainingRunView(
         const type = n % 2 === 0 ? "request" : "response";
         const textCue = textCues[Math.floor(n / 2)];
         const cueData = type === "request" 
-            ? { actors: [{ string: textCue.request?.actors, style: null }], text: textCue.request!.text! }
+            ? { actors: [{ string: textCue.request?.actors, style: null }], text: textCue.request?.text ?? "Du bist der erste in diesem Abschnitt" }
             : { actors: [{ string: textCue.response!.actors, style: null }], text: textCue.response!.text! };
         return (
             <QuoteView 
@@ -316,13 +339,13 @@ function TrainingRunView(
     return (
         <div class="script-view">
             <span class="sticky-division" classList={{"visible": stickyDivisionVisible()}}>
-                2. Szene — Kevin und der böse Wolf
+                { props.division.name }
             </span>
             <div class="division-preamble">
-                <h2>2. Szene — Kevin und der böse Wolf</h2>
+                <h2>{ props.division.name }</h2>
                 <div class="division-info-wrapper">
                     <div class="division-info">
-                        <span class="info">Mia, Kevin, Bär, Einbrecher · 25 Einsätze</span>
+                        <span class="info">{ info.actors.join(', ') } · { info.textCues } Einsätze</span>
                         <span class="content">
                             { formatString([{ style: null, string: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas lacus nunc, ornare sed felis sit amet, laoreet sagittis enim. Fusce eu felis ultricies, tempor dui sed, elementum diam." }]) }
                         </span>
@@ -455,11 +478,39 @@ function TrainingRunWrapper(
         script: Script
     }
 ): JSX.Element {
-    return <TrainingRunView division={props.script.divisions[1]}/>
+    const params = useParams();
+    const index = Number(params.division) - 1;
+    console.log(index);
+    return <TrainingRunView division={props.script.divisions[index]}/>
 }
 
-function ScriptOverview(): JSX.Element {
-    return <h1>This is a script overview</h1>
+function ScriptOverview(
+    props: {
+        script: Script
+    }
+): JSX.Element {
+
+    function renderDivision(division: Division, idx: Accessor<number>) {
+
+        return (
+            <A class="division-info" href={`/script/${props.script.uuid}/${idx() + 1}`}>
+                <div class="general-info">
+                    <h3>{ division.name }</h3>
+                    <span class="info">4 Spieler</span>
+                    <span class="info">25 Einsätze</span>
+                </div>
+            </A>
+        );
+    }
+
+    return (
+        <div class="script-overview">
+            <h2>{ props.script.name }</h2>
+            {
+                mapArray(() => props.script.divisions, renderDivision) as any
+            }
+        </div> 
+    );
 }
 
 
@@ -484,9 +535,12 @@ function createScriptContext(authenticationContext: AuthenticationContext): Scri
             return currentScript;
         const [script, error] = await authenticationContext.requests!.getParametrized("/script", currentId)
         if (error !== undefined) {
+            setCurrentScriptId(undefined);
             throw `could not get script: ${error}`;
         }
-        return script as Script;
+        currentScript = script as Script;
+        scriptCache.set(currentId, currentScript);
+        return currentScript;
     });
 
     createEffect(() => {

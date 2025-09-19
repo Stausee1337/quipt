@@ -1,9 +1,10 @@
 import { Component, JSX, ParentProps, Ref, createComponent, createContext, createEffect, createSignal, Accessor, mergeProps, onCleanup, onMount, useContext, getOwner, createResource } from "solid-js";
-import { untrack } from "solid-js/web";
+import { Dynamic, untrack } from "solid-js/web";
 import { $, Observable } from "./observable";
 import { DialogManager } from "./dialog";
 import { useAuthentication } from "./backend";
 import { ScriptContextObj } from "./App";
+import { A, useBeforeLeave } from "@solidjs/router";
 
 export function ProgressSpinner(props: { size?: number, color?: string | undefined }) {
     const merged = mergeProps({ size: 100 }, props);
@@ -465,18 +466,23 @@ function ListElement(
         icon?: string,
         children: JSX.Element,
         static?: boolean,
-        current?: boolean
+        current?: boolean,
+        href?: string
     }
 ): JSX.Element {
+    
     return (
-        <span class="list-element" classList={{ static: props.static, current: props.current }}>
+        <Dynamic component={props.href === undefined ? 'span' : A}
+            href={props.href}
+            class="list-element"
+            classList={{ static: props.static, current: props.current }}>
             { 
                 props.icon !== undefined 
                     ? <i class={`bi bi-${props.icon}`}/> 
                     : null
             }
             { props.children }
-        </span>
+        </Dynamic>
     );
 }
 
@@ -492,6 +498,9 @@ export function MenuElement(
     const scriptContext = useContext(ScriptContextObj)!;
 
     if (closer !== undefined) {
+        useBeforeLeave(() => {
+            closer();
+        })
         const unsubscribe = authentication.onLogout.subscribe(() => {
             closer();
         });
@@ -524,7 +533,8 @@ export function MenuElement(
                      (scripts.loading || scripts.error) ? null :
                          scripts()!.map(
                              v => (
-                                 <ListElement current={v.uuid === scriptContext.currentScript}>
+                                 <ListElement href={`/script/${v.uuid}`}
+                                    current={v.uuid === scriptContext.currentScript}>
                                  { v.name }
                                  </ListElement>))
                  }

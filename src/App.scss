@@ -139,13 +139,16 @@ nav.side-menu {
     }
   }
 
-  span.list-element {
+  a.list-element, span.list-element {
     display: flex;
     gap: 1rem;
     padding: 1rem;
     border-radius: 1rem;
     align-items: center;
     text-overflow: ellipsis;
+    color: inherit;
+    font-weight: inherit;
+    text-decoration: none;
 
     &:not(.static):hover {
       background-color: $color-accent1;
@@ -175,6 +178,45 @@ nav.side-menu {
 @media (max-width: 768px) {
   nav.side-menu {
     flex: 1;
+  }
+}
+
+div.script-overview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+
+  a.division-info {
+    color: inherit;
+    font-weight: inherit;
+    text-decoration: none;
+    position: relative;
+    padding: 1rem;
+
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+
+    &:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      width: calc(100% - 2rem);
+      left: 50%;
+      transform: translateX(-50%);
+
+      border-bottom: 0.15rem solid $lighter1;
+    }
+
+    div.general-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+
+      span.info {
+        color: $lighter1;
+        font-size: 1.4rem;
+      }
+    }
   }
 }
 
@@ -827,6 +869,7 @@ div.routing-contents:has(form.auth-box) {
     background-color: $color-accent1;
     width: 50rem;
     position: relative;
+    overflow: hidden;
 
     display: flex;
     flex-direction: column;

@@ -355,7 +355,7 @@ export type TextCuePair = Readonly<{
 }>;
 
 export type TextCue = Readonly<{
-    actor: string|null, text: Markdown
+    actors: string[], text: Markdown
 }>;
 
 export { auth } from './protos';
