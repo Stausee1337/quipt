@@ -847,4 +847,82 @@ export namespace scripts {
          */
         public static getTypeUrl(typeUrlPrefix?: string): string;
     }
+
+    /** Properties of a DivisionScoreUpdate. */
+    interface IDivisionScoreUpdate {
+
+        /** DivisionScoreUpdate scriptId */
+        scriptId?: (string|null);
+
+        /** DivisionScoreUpdate divisionIdx */
+        divisionIdx?: (number|null);
+
+        /** DivisionScoreUpdate newScores */
+        newScores?: (number[]|null);
+    }
+
+    /** Represents a DivisionScoreUpdate. */
+    class DivisionScoreUpdate implements IDivisionScoreUpdate {
+
+        /**
+         * Constructs a new DivisionScoreUpdate.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: scripts.IDivisionScoreUpdate);
+
+        /** DivisionScoreUpdate scriptId. */
+        public scriptId: string;
+
+        /** DivisionScoreUpdate divisionIdx. */
+        public divisionIdx: number;
+
+        /** DivisionScoreUpdate newScores. */
+        public newScores: number[];
+
+        /**
+         * Encodes the specified DivisionScoreUpdate message. Does not implicitly {@link scripts.DivisionScoreUpdate.verify|verify} messages.
+         * @param message DivisionScoreUpdate message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encode(message: scripts.IDivisionScoreUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a DivisionScoreUpdate message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns DivisionScoreUpdate
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): scripts.DivisionScoreUpdate;
+
+        /**
+         * Creates a DivisionScoreUpdate message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns DivisionScoreUpdate
+         */
+        public static fromObject(object: { [k: string]: any }): scripts.DivisionScoreUpdate;
+
+        /**
+         * Creates a plain object from a DivisionScoreUpdate message. Also converts values to other types if specified.
+         * @param message DivisionScoreUpdate
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        public static toObject(message: scripts.DivisionScoreUpdate, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this DivisionScoreUpdate to JSON.
+         * @returns JSON object
+         */
+        public toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the default type url for DivisionScoreUpdate
+         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns The default type url
+         */
+        public static getTypeUrl(typeUrlPrefix?: string): string;
+    }
 }

@@ -81,15 +81,15 @@ func (r *ScriptsRepo) FindScriptById(ctx context.Context, id uuid.UUID) (*Script
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, ErrUnknownScript;
 		}
-		return nil, fmt.Errorf("query user %q: %w", id, err);
+		return nil, fmt.Errorf("query script %q: %w", id, err);
 	}
 	return &script, nil
 }
 
-func (r* ScriptsRepo) QueryAllDivisionObjects(ctx context.Context, division_ids []bson.ObjectID) ([]*Division, error) {
-	cursor, err := r.divisions.Find(ctx, bson.M{"_id": bson.M{"$in": division_ids}});
+func (r* ScriptsRepo) QueryAllDivisionObjects(ctx context.Context, divisionIds []bson.ObjectID) ([]*Division, error) {
+	cursor, err := r.divisions.Find(ctx, bson.M{"_id": bson.M{"$in": divisionIds}});
 	if err != nil {
-		return nil, fmt.Errorf("could not query by ids %q: %w", division_ids, err);
+		return nil, fmt.Errorf("could not query by ids %q: %w", divisionIds, err);
 	}
 
 	defer cursor.Close(ctx)
@@ -98,15 +98,88 @@ func (r* ScriptsRepo) QueryAllDivisionObjects(ctx context.Context, division_ids 
 	for cursor.Next(ctx) {
 		var division Division
 		if err := cursor.Decode(&division); err != nil {
-			return nil, fmt.Errorf("could not query by ids %q: %w", division_ids, err);
+			return nil, fmt.Errorf("could not query by ids %q: %w", divisionIds, err);
 		}
 		divisions = append(divisions, &division)
 	}
 
 	if err := cursor.Err(); err != nil {
-		return nil, fmt.Errorf("could not query by ids %q: %w", division_ids, err);
+		return nil, fmt.Errorf("could not query by ids %q: %w", divisionIds, err);
 	}
 
 	return divisions, nil
+}
+
+func (r *ScriptsRepo) LoadDivision(
+	ctx context.Context,
+	divisionId bson.ObjectID,
+) (*Division, error) {
+
+	result := r.divisions.FindOne(ctx, bson.M{"_id": divisionId});
+	var division Division
+	if err := result.Decode(&division); err != nil {	
+		return nil, fmt.Errorf("query script %q: %w", divisionId, err);
+	}
+	return &division, nil
+}
+
+func (r *ScriptsRepo) UpdateTextCueScores(ctx context.Context, division bson.ObjectID, newScores []uint32) error {
+	update := mongo.Pipeline{
+		bson.D{{Key: "$set", Value: bson.M{
+                "textCues": bson.M{
+                    "$map": bson.M{
+                        "input": bson.M{"$range": bson.A{0, bson.M{"$size": "$textCues"}}},
+                        "as": "idx",
+                        "in": bson.M{
+                            "$mergeObjects": bson.A{
+                                bson.M{"$arrayElemAt": bson.A{"$textCues", "$$idx"}},
+                                bson.M{
+                                    "previousScores": bson.M{
+                                        "$concatArrays": bson.A{
+                                            bson.M{
+                                                "$getField": bson.M{
+                                                    "field": "previousScores",
+                                                    "input": bson.M{"$arrayElemAt": bson.A{"$textCues", "$$idx"}},
+                                                },
+                                            },
+                                            bson.A{
+												bson.M{"$arrayElemAt": bson.A{newScores, "$$idx"}},
+											},
+										},
+                                    },
+                                },
+							},
+                        },
+                    },
+                },
+            },
+		}},
+	};
+	_, err := r.divisions.UpdateOne(
+		ctx,
+		bson.M{"_id": division},
+		update,
+	);
+
+	if err != nil {
+		return fmt.Errorf("could not aggregate new scores %q: %w", division, err);
+	}
+
+	var sum uint32 = 0
+	for _, score := range newScores {
+		sum += score
+	}
+
+	_, err = r.divisions.UpdateOne(
+		ctx,
+		bson.M{"_id": division},
+		bson.M{"$push": bson.M{"previousTotals": sum}},
+	)
+
+	if err != nil {
+		return fmt.Errorf("could not push new total score %q: %w", division, err);
+	}
+
+	return nil;
 }
 

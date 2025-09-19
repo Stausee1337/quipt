@@ -7,6 +7,8 @@ package scripts;
 enum ScriptErrorCode {
   ID_MALFORMED = 0;
   UNKNOWN_SCRIPT = 1;
+  DIVISION_OUT_OF_BOUNDS = 2;
+  INVALID_SCORE_DATA = 3;
 }
 
 message ScriptError {
@@ -39,5 +41,11 @@ message TextCuePair {
 message TextCue {
   repeated string actors = 1;
   string text = 2;
+}
+
+message DivisionScoreUpdate { 
+  string scriptId = 1;
+  uint32 divisionIdx = 2;
+  repeated uint32 newScores = 3;
 }
 

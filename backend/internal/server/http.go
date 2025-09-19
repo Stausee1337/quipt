@@ -42,6 +42,7 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 	scriptsHandler := handler.NewScriptsHanlder(authService, scriptsService)
 	r.Get("/list-scripts", scriptsHandler.HandleList)
 	r.Get("/script/{ScriptID}", scriptsHandler.HandleGet)
+	r.Post("/commit-scores", scriptsHandler.HandleUpdate)
 
 	return &Server{router: r};
 }

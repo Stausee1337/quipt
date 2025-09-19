@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/stausee1337/quipt/internal/repository"
@@ -104,6 +105,74 @@ func (s *ScriptsService) GetScriptById(
 		Name: script.Name,
 		Divisions: divisions,
 	}, nil
+}
+
+func (s *ScriptsService) UpdateScriptDivisionScores(
+	ctx context.Context,
+	userUuid string,
+	request *protos.DivisionScoreUpdate,
+) error {
+	if slices.Contains(request.NewScores, 0) {
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_INVALID_SCORE_DATA,
+			Message: "invalid score data",
+		}
+	}
+
+	parsedUserId, err := uuid.Parse(userUuid)
+	if err != nil {
+		return fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
+	}
+
+	parsedUuid, err := uuid.Parse(request.ScriptId)
+	if err != nil {
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_ID_MALFORMED,
+			Message: "malformed id",
+		}
+	}
+
+	script, err := s.repo.FindScriptById(ctx, parsedUuid)
+	if errors.Is(err, repository.ErrUnknownScript) {
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
+			Message: "unknown script",
+		}
+	} else if err != nil {
+		return err
+	}
+
+	if script.Owner != parsedUserId {
+		// the user doesn't own the script
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
+			Message: "unknown script",
+		}
+	}
+
+	if request.DivisionIdx >= uint32(len(script.Divisions)) {
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_DIVISION_OUT_OF_BOUNDS,
+			Message: "division out of bounds",
+		}
+	}
+
+	divisionId := script.Divisions[request.DivisionIdx];
+
+	division, err := s.repo.LoadDivision(ctx, divisionId)
+	if err != nil {
+		return err
+	}
+
+	if len(division.TextCues) != len(request.NewScores) {
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_INVALID_SCORE_DATA,
+			Message: "invalid score data",
+		}
+	}
+
+	err = s.repo.UpdateTextCueScores(ctx, divisionId, request.NewScores)
+	return err
 }
 
 func transformRepoDivisions(repoDivisions []*repository.Division) []*protos.Division {

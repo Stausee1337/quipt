@@ -24,8 +24,10 @@ const (
 type ScriptErrorCode int32
 
 const (
-	ScriptErrorCode_ID_MALFORMED   ScriptErrorCode = 0
-	ScriptErrorCode_UNKNOWN_SCRIPT ScriptErrorCode = 1
+	ScriptErrorCode_ID_MALFORMED           ScriptErrorCode = 0
+	ScriptErrorCode_UNKNOWN_SCRIPT         ScriptErrorCode = 1
+	ScriptErrorCode_DIVISION_OUT_OF_BOUNDS ScriptErrorCode = 2
+	ScriptErrorCode_INVALID_SCORE_DATA     ScriptErrorCode = 3
 )
 
 // Enum value maps for ScriptErrorCode.
@@ -33,10 +35,14 @@ var (
 	ScriptErrorCode_name = map[int32]string{
 		0: "ID_MALFORMED",
 		1: "UNKNOWN_SCRIPT",
+		2: "DIVISION_OUT_OF_BOUNDS",
+		3: "INVALID_SCORE_DATA",
 	}
 	ScriptErrorCode_value = map[string]int32{
-		"ID_MALFORMED":   0,
-		"UNKNOWN_SCRIPT": 1,
+		"ID_MALFORMED":           0,
+		"UNKNOWN_SCRIPT":         1,
+		"DIVISION_OUT_OF_BOUNDS": 2,
+		"INVALID_SCORE_DATA":     3,
 	}
 )
 
@@ -395,6 +401,66 @@ func (x *TextCue) GetText() string {
 	return ""
 }
 
+type DivisionScoreUpdate struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScriptId      string                 `protobuf:"bytes,1,opt,name=scriptId,proto3" json:"scriptId,omitempty"`
+	DivisionIdx   uint32                 `protobuf:"varint,2,opt,name=divisionIdx,proto3" json:"divisionIdx,omitempty"`
+	NewScores     []uint32               `protobuf:"varint,3,rep,packed,name=newScores,proto3" json:"newScores,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DivisionScoreUpdate) Reset() {
+	*x = DivisionScoreUpdate{}
+	mi := &file_scripts_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DivisionScoreUpdate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DivisionScoreUpdate) ProtoMessage() {}
+
+func (x *DivisionScoreUpdate) ProtoReflect() protoreflect.Message {
+	mi := &file_scripts_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DivisionScoreUpdate.ProtoReflect.Descriptor instead.
+func (*DivisionScoreUpdate) Descriptor() ([]byte, []int) {
+	return file_scripts_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *DivisionScoreUpdate) GetScriptId() string {
+	if x != nil {
+		return x.ScriptId
+	}
+	return ""
+}
+
+func (x *DivisionScoreUpdate) GetDivisionIdx() uint32 {
+	if x != nil {
+		return x.DivisionIdx
+	}
+	return 0
+}
+
+func (x *DivisionScoreUpdate) GetNewScores() []uint32 {
+	if x != nil {
+		return x.NewScores
+	}
+	return nil
+}
+
 var File_scripts_proto protoreflect.FileDescriptor
 
 const file_scripts_proto_rawDesc = "" +
@@ -421,10 +487,16 @@ const file_scripts_proto_rawDesc = "" +
 	"\b_request\"5\n" +
 	"\aTextCue\x12\x16\n" +
 	"\x06actors\x18\x01 \x03(\tR\x06actors\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text*7\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"q\n" +
+	"\x13DivisionScoreUpdate\x12\x1a\n" +
+	"\bscriptId\x18\x01 \x01(\tR\bscriptId\x12 \n" +
+	"\vdivisionIdx\x18\x02 \x01(\rR\vdivisionIdx\x12\x1c\n" +
+	"\tnewScores\x18\x03 \x03(\rR\tnewScores*k\n" +
 	"\x0fScriptErrorCode\x12\x10\n" +
 	"\fID_MALFORMED\x10\x00\x12\x12\n" +
-	"\x0eUNKNOWN_SCRIPT\x10\x01B)Z'github.com/stausee1337/quipt/gen/protosb\x06proto3"
+	"\x0eUNKNOWN_SCRIPT\x10\x01\x12\x1a\n" +
+	"\x16DIVISION_OUT_OF_BOUNDS\x10\x02\x12\x16\n" +
+	"\x12INVALID_SCORE_DATA\x10\x03B)Z'github.com/stausee1337/quipt/gen/protosb\x06proto3"
 
 var (
 	file_scripts_proto_rawDescOnce sync.Once
@@ -439,15 +511,16 @@ func file_scripts_proto_rawDescGZIP() []byte {
 }
 
 var file_scripts_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_scripts_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_scripts_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_scripts_proto_goTypes = []any{
-	(ScriptErrorCode)(0), // 0: scripts.ScriptErrorCode
-	(*ScriptError)(nil),  // 1: scripts.ScriptError
-	(*Scripts)(nil),      // 2: scripts.Scripts
-	(*Script)(nil),       // 3: scripts.Script
-	(*Division)(nil),     // 4: scripts.Division
-	(*TextCuePair)(nil),  // 5: scripts.TextCuePair
-	(*TextCue)(nil),      // 6: scripts.TextCue
+	(ScriptErrorCode)(0),        // 0: scripts.ScriptErrorCode
+	(*ScriptError)(nil),         // 1: scripts.ScriptError
+	(*Scripts)(nil),             // 2: scripts.Scripts
+	(*Script)(nil),              // 3: scripts.Script
+	(*Division)(nil),            // 4: scripts.Division
+	(*TextCuePair)(nil),         // 5: scripts.TextCuePair
+	(*TextCue)(nil),             // 6: scripts.TextCue
+	(*DivisionScoreUpdate)(nil), // 7: scripts.DivisionScoreUpdate
 }
 var file_scripts_proto_depIdxs = []int32{
 	0, // 0: scripts.ScriptError.code:type_name -> scripts.ScriptErrorCode
@@ -475,7 +548,7 @@ func file_scripts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scripts_proto_rawDesc), len(file_scripts_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -81,6 +83,53 @@ func (h *ScriptsHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	w.Write(response)
+}
+
+func (h *ScriptsHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
+	claims := h.auth.GetLoggedInUser(r)
+	if claims == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body);
+	if err != nil {
+		logFatalAndReport(w, err)
+		return
+	}
+	defer r.Body.Close()
+
+	var req protos.DivisionScoreUpdate
+	if err = proto.Unmarshal(body, &req); err != nil {
+		slog.Error(err.Error());
+		w.WriteHeader(http.StatusBadRequest);
+		return;
+	}
+
+	ctx := r.Context()
+
+	err = h.scripts.UpdateScriptDivisionScores(ctx, claims.Uuid, &req)
+
+	if err == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	} 
+
+	scriptErr, ok := err.(*service.ScriptError);
+	if !ok {
+		logFatalAndReport(w, err)
+		return
+	}
+	response, err := proto.Marshal(&protos.ScriptError {
+		Code: scriptErr.Code,
+		Message: scriptErr.Message,
+	});
+	if err != nil {
+		logFatalAndReport(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusBadRequest);
 	w.Write(response)
 }
 

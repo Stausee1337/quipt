@@ -2190,6 +2190,215 @@ export const scripts = $root.scripts = (() => {
         return TextCue;
     })();
 
+    scripts.DivisionScoreUpdate = (function() {
+
+        /**
+         * Properties of a DivisionScoreUpdate.
+         * @memberof scripts
+         * @interface IDivisionScoreUpdate
+         * @property {string|null} [scriptId] DivisionScoreUpdate scriptId
+         * @property {number|null} [divisionIdx] DivisionScoreUpdate divisionIdx
+         * @property {Array.<number>|null} [newScores] DivisionScoreUpdate newScores
+         */
+
+        /**
+         * Constructs a new DivisionScoreUpdate.
+         * @memberof scripts
+         * @classdesc Represents a DivisionScoreUpdate.
+         * @implements IDivisionScoreUpdate
+         * @constructor
+         * @param {scripts.IDivisionScoreUpdate=} [properties] Properties to set
+         */
+        function DivisionScoreUpdate(properties) {
+            this.newScores = [];
+            if (properties)
+                for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * DivisionScoreUpdate scriptId.
+         * @member {string} scriptId
+         * @memberof scripts.DivisionScoreUpdate
+         * @instance
+         */
+        DivisionScoreUpdate.prototype.scriptId = "";
+
+        /**
+         * DivisionScoreUpdate divisionIdx.
+         * @member {number} divisionIdx
+         * @memberof scripts.DivisionScoreUpdate
+         * @instance
+         */
+        DivisionScoreUpdate.prototype.divisionIdx = 0;
+
+        /**
+         * DivisionScoreUpdate newScores.
+         * @member {Array.<number>} newScores
+         * @memberof scripts.DivisionScoreUpdate
+         * @instance
+         */
+        DivisionScoreUpdate.prototype.newScores = $util.emptyArray;
+
+        /**
+         * Encodes the specified DivisionScoreUpdate message. Does not implicitly {@link scripts.DivisionScoreUpdate.verify|verify} messages.
+         * @function encode
+         * @memberof scripts.DivisionScoreUpdate
+         * @static
+         * @param {scripts.IDivisionScoreUpdate} message DivisionScoreUpdate message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        DivisionScoreUpdate.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.scriptId != null && Object.hasOwnProperty.call(message, "scriptId"))
+                writer.uint32(/* id 1, wireType 2 =*/10).string(message.scriptId);
+            if (message.divisionIdx != null && Object.hasOwnProperty.call(message, "divisionIdx"))
+                writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.divisionIdx);
+            if (message.newScores != null && message.newScores.length) {
+                writer.uint32(/* id 3, wireType 2 =*/26).fork();
+                for (let i = 0; i < message.newScores.length; ++i)
+                    writer.uint32(message.newScores[i]);
+                writer.ldelim();
+            }
+            return writer;
+        };
+
+        /**
+         * Decodes a DivisionScoreUpdate message from the specified reader or buffer.
+         * @function decode
+         * @memberof scripts.DivisionScoreUpdate
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {scripts.DivisionScoreUpdate} DivisionScoreUpdate
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        DivisionScoreUpdate.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            let end = length === undefined ? reader.len : reader.pos + length, message = new $root.scripts.DivisionScoreUpdate();
+            while (reader.pos < end) {
+                let tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.scriptId = reader.string();
+                        break;
+                    }
+                case 2: {
+                        message.divisionIdx = reader.uint32();
+                        break;
+                    }
+                case 3: {
+                        if (!(message.newScores && message.newScores.length))
+                            message.newScores = [];
+                        if ((tag & 7) === 2) {
+                            let end2 = reader.uint32() + reader.pos;
+                            while (reader.pos < end2)
+                                message.newScores.push(reader.uint32());
+                        } else
+                            message.newScores.push(reader.uint32());
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Creates a DivisionScoreUpdate message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof scripts.DivisionScoreUpdate
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {scripts.DivisionScoreUpdate} DivisionScoreUpdate
+         */
+        DivisionScoreUpdate.fromObject = function fromObject(object) {
+            if (object instanceof $root.scripts.DivisionScoreUpdate)
+                return object;
+            let message = new $root.scripts.DivisionScoreUpdate();
+            if (object.scriptId != null)
+                message.scriptId = String(object.scriptId);
+            if (object.divisionIdx != null)
+                message.divisionIdx = object.divisionIdx >>> 0;
+            if (object.newScores) {
+                if (!Array.isArray(object.newScores))
+                    throw TypeError(".scripts.DivisionScoreUpdate.newScores: array expected");
+                message.newScores = [];
+                for (let i = 0; i < object.newScores.length; ++i)
+                    message.newScores[i] = object.newScores[i] >>> 0;
+            }
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a DivisionScoreUpdate message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof scripts.DivisionScoreUpdate
+         * @static
+         * @param {scripts.DivisionScoreUpdate} message DivisionScoreUpdate
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        DivisionScoreUpdate.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            let object = {};
+            if (options.arrays || options.defaults)
+                object.newScores = [];
+            if (options.defaults) {
+                object.scriptId = "";
+                object.divisionIdx = 0;
+            }
+            if (message.scriptId != null && message.hasOwnProperty("scriptId"))
+                object.scriptId = message.scriptId;
+            if (message.divisionIdx != null && message.hasOwnProperty("divisionIdx"))
+                object.divisionIdx = message.divisionIdx;
+            if (message.newScores && message.newScores.length) {
+                object.newScores = [];
+                for (let j = 0; j < message.newScores.length; ++j)
+                    object.newScores[j] = message.newScores[j];
+            }
+            return object;
+        };
+
+        /**
+         * Converts this DivisionScoreUpdate to JSON.
+         * @function toJSON
+         * @memberof scripts.DivisionScoreUpdate
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        DivisionScoreUpdate.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for DivisionScoreUpdate
+         * @function getTypeUrl
+         * @memberof scripts.DivisionScoreUpdate
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        DivisionScoreUpdate.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/scripts.DivisionScoreUpdate";
+        };
+
+        return DivisionScoreUpdate;
+    })();
+
     return scripts;
 })();
 
