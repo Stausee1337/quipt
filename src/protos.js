@@ -1000,11 +1000,15 @@ export const scripts = $root.scripts = (() => {
      * @enum {number}
      * @property {number} ID_MALFORMED=0 ID_MALFORMED value
      * @property {number} UNKNOWN_SCRIPT=1 UNKNOWN_SCRIPT value
+     * @property {number} DIVISION_OUT_OF_BOUNDS=2 DIVISION_OUT_OF_BOUNDS value
+     * @property {number} INVALID_SCORE_DATA=3 INVALID_SCORE_DATA value
      */
     scripts.ScriptErrorCode = (function() {
         const valuesById = {}, values = Object.create(valuesById);
         values[valuesById[0] = "ID_MALFORMED"] = 0;
         values[valuesById[1] = "UNKNOWN_SCRIPT"] = 1;
+        values[valuesById[2] = "DIVISION_OUT_OF_BOUNDS"] = 2;
+        values[valuesById[3] = "INVALID_SCORE_DATA"] = 3;
         return values;
     })();
 
@@ -1130,6 +1134,14 @@ export const scripts = $root.scripts = (() => {
             case "UNKNOWN_SCRIPT":
             case 1:
                 message.code = 1;
+                break;
+            case "DIVISION_OUT_OF_BOUNDS":
+            case 2:
+                message.code = 2;
+                break;
+            case "INVALID_SCORE_DATA":
+            case 3:
+                message.code = 3;
                 break;
             }
             if (object.message != null)

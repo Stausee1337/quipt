@@ -658,9 +658,11 @@ function TrainingRunWrapper(
     }
 ): JSX.Element {
     const params = useParams();
+    const authentication = useAuthentication()!;
     const index = Number(params.division) - 1;
     const division = props.script.divisions[index];
     const newConfidences: number[] = Array(division.textCues.length).fill(0);
+    let didCommitNewConfidences = false;
 
     const manager: TrainingRunManager = {
         addConfidenceRating(cueIdx, confidence) {
@@ -702,6 +704,18 @@ function TrainingRunWrapper(
             return { diff, streak, trend };
         },
         commitRun() {
+            if (!didCommitNewConfidences) {
+                didCommitNewConfidences = true;
+                authentication.requests!
+                    .post(
+                        "/commit-scores",
+                        {
+                            scriptId: props.script.uuid,
+                            divisionIdx: index,
+                            newScores: newConfidences
+                        })
+                    .catch(console.error);
+            }
             return [...division.previousTotals, newConfidences.reduce((a, b) => a + b)];
         },
     };

@@ -164,12 +164,29 @@ const authenticatedParametrizedGetRequests = {
     },
 };
 
-export class AuthenticatedRequestsProvider extends CachableRequestsProvider<typeof authenticatedGetRequests, typeof authenticatedParametrizedGetRequests, {}> {
+const authenticatedPostRequests = {
+    "/commit-scores": 
+        async (body: scripts.IDivisionScoreUpdate, executor: Executor): Promise<scripts.ScriptError|undefined> => {
+            const writer = scripts.DivisionScoreUpdate.encode(body);
+            const { status, data } = await executor(writer.finish().slice(0, writer.len));
+            if (status === 204)
+                return undefined
+            else if (status === 400)
+                return scripts.ScriptError.decode(data);
+            else
+                throw 'unreachable';
+        },
+};
+
+export class AuthenticatedRequestsProvider extends CachableRequestsProvider<
+    typeof authenticatedGetRequests,
+    typeof authenticatedParametrizedGetRequests,
+    typeof authenticatedPostRequests> {
     constructor(
         private getAccessToken: Resource<string|undefined>,
         private refreshLogin: () => Promise<void>,
     ) {
-        super(authenticatedGetRequests, authenticatedParametrizedGetRequests, {});
+        super(authenticatedGetRequests, authenticatedParametrizedGetRequests, authenticatedPostRequests);
     }
 
     get loading(): boolean {

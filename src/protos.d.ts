@@ -398,7 +398,9 @@ export namespace scripts {
     /** ScriptErrorCode enum. */
     enum ScriptErrorCode {
         ID_MALFORMED = 0,
-        UNKNOWN_SCRIPT = 1
+        UNKNOWN_SCRIPT = 1,
+        DIVISION_OUT_OF_BOUNDS = 2,
+        INVALID_SCORE_DATA = 3
     }
 
     /** Properties of a ScriptError. */
