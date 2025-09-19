@@ -142,9 +142,37 @@ function computeDivisionInfo(division: Division): DivisionInfo {
     };
 }
 
+interface TrainingRunManager {
+    addConfidenceRating(
+        cueIdx: number,
+        confidence: "low"|"medium"|"high"
+    ): {
+        diff: number,
+        streak: number,
+        trend: "dd"|"d"|"u"|"uu"|undefined
+    };
+
+    commitRun(): number[];
+}
+
+const trendIcons = {
+    'uu': 'chevron-double-up',
+    'u': 'chevron-up',
+    'd': 'chevron-down',
+    'dd': 'chevron-double-down',
+};
+
+const trendColors = {
+    'uu': progressBarGreen,
+    'u': progressBarGreen,
+    'd': progressBarRed,
+    'dd': progressBarRed,
+};
+
 function TrainingRunView(
     props: {
-        division: Readonly<Division>
+        division: Readonly<Division>,
+        manager: TrainingRunManager
     }
 ) {
     const textCues = props.division.textCues;
@@ -191,7 +219,6 @@ function TrainingRunView(
         }
     }
 
-
     const observer = new IntersectionObserver(entries => {
         setStickyDivisionVisible(!entries[0].isIntersecting);
     }, { root });
@@ -203,7 +230,7 @@ function TrainingRunView(
     });
 
     onCleanup(() => {
-        const view = document.querySelector("div.script-view");
+        const view = document.querySelector("div.script-view")!;
         observer.unobserve(view.querySelector('h2')!);
         root.removeEventListener('scroll', scrollListener);
     });
@@ -234,38 +261,19 @@ function TrainingRunView(
         return progressBarRed;
     }
 
-    function reportConfidence(source: HTMLElement, confidence: "low"|"medium"|"high") {
-        let diff = 0;
-        switch(confidence) {
-            case 'low':
-                diff = 1;
-                break;
-            case 'medium':
-                diff = 2;
-                break;
-            case 'high':
-                diff = 4;
-                break;
-        }
-        append();
-
-        const view = document.querySelector("div.script-view")!;
-        const score = view.querySelector('h2.score')!;
-        const targetRect = score.getBoundingClientRect();
-        const sourceRect = source.getBoundingClientRect();
-        const indicatorColor = calculateIndicatorColor(diff);
-
-        const parent = source.parentElement!;
-        parent.insertBefore(
-            formatString([{ style: { color: indicatorColor }, string: `+${diff}` }])[0],
-            parent.firstChild);
-
-        const flyingIcon = (
+    function doTheFlyingIconThing(
+        targetRect: DOMRect,
+        sourceRect: DOMRect,
+        diff: number,
+        indicatorColor: string
+    ): Animation {
+        let flyingIcon = (
             <span
                 class="flying-icon"
                 style={{ top: `${sourceRect.top}px`, left: `${sourceRect.left}px`, color: indicatorColor }}>
                 +{diff}
             </span>) as HTMLSpanElement;
+
         document.body.appendChild(flyingIcon);
 
         const animation = flyingIcon.animate([
@@ -293,6 +301,62 @@ function TrainingRunView(
             });
             document.body.appendChild(bubble);
         });
+
+        return animation;
+    }
+
+    async function reportConfidence(source: HTMLElement, confidence: "low"|"medium"|"high") {
+        const { diff, streak, trend } = props.manager.addConfidenceRating(
+            Math.floor(currentIndex() / 2), confidence);
+        append();
+
+        const view = document.querySelector("div.script-view")!;
+        const score = view.querySelector('h2.score')!;
+        const targetRect = score.getBoundingClientRect();
+        const indicatorColor = calculateIndicatorColor(diff);
+
+        const parent = source.parentElement!;
+
+        if (trend !== undefined) {
+            const trendColor = trendColors[trend];
+            parent.insertBefore(
+                <i style={{ color: trendColor }} class={`bi bi-${trendIcons[trend]}`}/> as HTMLElement,
+                parent.firstChild
+            );
+        }
+
+        const x = formatString([{ style: { color: indicatorColor }, string: `+${diff}` }])[0] as any;
+        parent.insertBefore(
+            x,
+            parent.firstChild);
+
+
+        let sourceRect = x.getBoundingClientRect();
+
+        let streakIndicator;
+        if (streak > 0) {
+            streakIndicator = (
+                <span style={{ color: progressBarOrange }}>
+                    <i class="bi bi-fire"/> { streak }
+                </span>
+            ) as HTMLElement,
+            parent.insertBefore(
+                streakIndicator,
+                parent.firstChild
+            );
+        }
+
+        let animation = doTheFlyingIconThing(targetRect, sourceRect, diff, indicatorColor);
+
+        if (streak === 0)
+            return;
+
+        await animation.finished;
+
+        sourceRect = streakIndicator!.getBoundingClientRect();
+
+        doTheFlyingIconThing(targetRect, sourceRect, streak, progressBarOrange)
+
     }
 
     createEffect<number>(prev => {
@@ -364,10 +428,9 @@ function TrainingRunView(
             </div>
             { !reachedEnd() 
                 ? <div class="scroll-padding"/> 
-                : <TrainingRunCompletedView 
-                    maxScore={maxScore}
+                : <TrainingRunCompletedView maxScore={maxScore}
                     currentScore={currentScore()}
-                    previousScores={props.division.previousTotals}
+                    scoreHistory={props.manager.commitRun()}
                     progressBarColor={progressBarColor()}/>
             }
             <div class="controls">
@@ -396,21 +459,11 @@ function TrainingRunCompletedView(
         maxScore: number,
         currentScore: number,
         progressBarColor: string,
-        previousScores: number[],
+        scoreHistory: number[],
     }
 ) {
-    const [scoreUpdated, setScoreUpdated] = createSignal(false);
-
-    createEffect<number>(prev => {
-        const current = props.currentScore;
-        if (current > prev)
-            setScoreUpdated(true);
-        return current;
-    }, props.currentScore)
-
     function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
-        const scores = props.previousScores.slice(-6);
-        scores.push(props.currentScore);
+        const scores = props.scoreHistory.slice(-6);
         const data = leftPad(scores, 7);
         const hightestRelativeScore = Math.max(props.maxScore, ...data);
 
@@ -485,7 +538,7 @@ function TrainingRunCompletedView(
                 style={{'--score-color': props.progressBarColor, '--max-score': `"${props.maxScore}"`}}>
                 { props.currentScore}
             </div>
-            { !scoreUpdated() ? null : <SimpleChart onConfig={chartConfigFactory}/> }
+            <SimpleChart onConfig={chartConfigFactory}/>
         </div>
     );
 }
@@ -606,8 +659,54 @@ function TrainingRunWrapper(
 ): JSX.Element {
     const params = useParams();
     const index = Number(params.division) - 1;
-    console.log(index);
-    return <TrainingRunView division={props.script.divisions[index]}/>
+    const division = props.script.divisions[index];
+    const newConfidences: number[] = Array(division.textCues.length).fill(0);
+
+    const manager: TrainingRunManager = {
+        addConfidenceRating(cueIdx, confidence) {
+            let newScore = 0;
+            switch(confidence) {
+                case 'low':
+                    newScore = 1;
+                break;
+                case 'medium':
+                    newScore = 2;
+                break;
+                case 'high':
+                    newScore = 4;
+                break;
+            }
+            const diff = newScore;
+
+            let streak = 0;
+            let trend: "dd"|"d"|"u"|"uu"|undefined;
+            const previousScore = division.textCues[cueIdx].previousScores.at(-1);
+            if (previousScore === undefined)
+                return { diff: newScore, streak: 0, trend }
+
+            const delta = newScore - previousScore;
+            if (previousScore >= 4 && newScore === 4) {
+                newScore = previousScore + 1;
+                streak = newScore - 4;
+                trend = "uu";
+            } else if (delta > 0 && delta <= 2)
+                trend = "u";
+            else if (delta < 0 && delta >= -2)
+                trend = "d";
+            else if (delta >= 3)
+                trend = "uu";
+            else if (delta <= -3)
+                trend = "dd";
+            newConfidences[cueIdx] = newScore;
+
+            return { diff, streak, trend };
+        },
+        commitRun() {
+            return [...division.previousTotals, newConfidences.reduce((a, b) => a + b)];
+        },
+    };
+
+    return <TrainingRunView division={division} manager={manager} />
 }
 
 function ScriptOverview(
