@@ -367,6 +367,7 @@ function TrainingRunView(
                 : <TrainingRunCompletedView 
                     maxScore={maxScore}
                     currentScore={currentScore()}
+                    previousScores={props.division.previousTotals}
                     progressBarColor={progressBarColor()}/>
             }
             <div class="controls">
@@ -385,23 +386,43 @@ function TrainingRunView(
     );
 }
 
+function leftPad(data: number[], length: number): number[] {
+    const padding = Array(length - data.length).fill(0);
+    return [...padding, ...data];
+}
+
 function TrainingRunCompletedView(
     props: {
         maxScore: number,
         currentScore: number,
         progressBarColor: string,
+        previousScores: number[],
     }
 ) {
+    const [scoreUpdated, setScoreUpdated] = createSignal(false);
+
+    createEffect<number>(prev => {
+        const current = props.currentScore;
+        if (current > prev)
+            setScoreUpdated(true);
+        return current;
+    }, props.currentScore)
 
     function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
+        const scores = props.previousScores.slice(-6);
+        scores.push(props.currentScore);
+        const data = leftPad(scores, 7);
+        const hightestRelativeScore = Math.max(props.maxScore, ...data);
+
         const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
         gradient.addColorStop(0.35, 'rgba(227, 227, 227, 0)');
         gradient.addColorStop(1, 'rgba(227, 227, 227, 0.5)');
-        const data: ChartData = {
+
+        const chartData: ChartData = {
             labels: ['1', '2', '3', '4', '5', '6', '7'],
             datasets: [
                 {
-                    data: [0, 0, 0, 0, 3, 4, 7],
+                    data,
                     borderColor: '#e3e3e3',
                     backgroundColor: gradient,
                     fill: true
@@ -411,7 +432,7 @@ function TrainingRunCompletedView(
 
         return {
             type: 'line',
-            data: data,
+            data: chartData,
             options: {
                 responsive: true,
                 plugins: {
@@ -445,9 +466,9 @@ function TrainingRunCompletedView(
                     },
                     y: {
                         min: 0,
-                        max: 8,
+                        max: hightestRelativeScore,
                         ticks: {
-                            stepSize: 4,
+                            stepSize: props.maxScore / 4,
                         },
                         grid: {
                             color: '#252525',
@@ -462,10 +483,11 @@ function TrainingRunCompletedView(
         <div class="division-training-end">
             <div class="scorebox hidden"
                 style={{'--score-color': props.progressBarColor, '--max-score': `"${props.maxScore}"`}}>
-                {props.currentScore}
+                { props.currentScore}
             </div>
-            <SimpleChart onConfig={chartConfigFactory}/>
-        </div>)
+            { !scoreUpdated() ? null : <SimpleChart onConfig={chartConfigFactory}/> }
+        </div>
+    );
 }
 
 function SimpleChart(
