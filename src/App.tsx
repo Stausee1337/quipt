@@ -385,71 +385,6 @@ function TrainingRunView(
     );
 }
 
-function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
-    const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
-    gradient.addColorStop(0.35, 'rgba(227, 227, 227, 0)');
-    gradient.addColorStop(1, 'rgba(227, 227, 227, 0.5)');
-    const data: ChartData = {
-        labels: ['1', '2', '3', '4', '5', '6', '7'],
-        datasets: [
-            {
-                data: [0, 0, 0, 0, 3, 4, 7],
-                borderColor: '#e3e3e3',
-                backgroundColor: gradient,
-                fill: true
-            }
-        ]
-    };
-
-    return {
-        type: 'line',
-        data: data,
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    display: false,
-                },
-                title: {
-                    display: false,
-                },
-                tooltip: {
-                    callbacks: {
-                        title: () => [],
-                        label(context) {
-                            // Just return the value
-                            return context.formattedValue;
-                        }
-                    }
-                },   
-            },
-            clip: 5,
-            interaction: {
-                mode: 'nearest',
-                intersect: false
-            },
-            scales: {
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    clip: false
-                },
-                y: {
-                    min: 0,
-                    max: 8,
-                    ticks: {
-                        stepSize: 4,
-                    },
-                    grid: {
-                        color: '#252525',
-                    }
-                }
-            }
-        },
-    };
-}
-
 function TrainingRunCompletedView(
     props: {
         maxScore: number,
@@ -457,6 +392,72 @@ function TrainingRunCompletedView(
         progressBarColor: string,
     }
 ) {
+
+    function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
+        const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+        gradient.addColorStop(0.35, 'rgba(227, 227, 227, 0)');
+        gradient.addColorStop(1, 'rgba(227, 227, 227, 0.5)');
+        const data: ChartData = {
+            labels: ['1', '2', '3', '4', '5', '6', '7'],
+            datasets: [
+                {
+                    data: [0, 0, 0, 0, 3, 4, 7],
+                    borderColor: '#e3e3e3',
+                    backgroundColor: gradient,
+                    fill: true
+                }
+            ]
+        };
+
+        return {
+            type: 'line',
+            data: data,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    title: {
+                        display: false,
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: () => [],
+                            label(context) {
+                                // Just return the value
+                                return context.formattedValue;
+                            }
+                        }
+                    },   
+                },
+                clip: 5,
+                interaction: {
+                    mode: 'nearest',
+                    intersect: false
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        clip: false
+                    },
+                    y: {
+                        min: 0,
+                        max: 8,
+                        ticks: {
+                            stepSize: 4,
+                        },
+                        grid: {
+                            color: '#252525',
+                        }
+                    }
+                }
+            },
+        };
+    }
+
     return (
         <div class="division-training-end">
             <div class="scorebox hidden"
@@ -473,7 +474,7 @@ function SimpleChart(
     }
 ): JSX.Element {
 
-    const chartJSCanvas = <canvas/> as HTMLCanvasElement;
+    const chartJSCanvas = <canvas class="chart-js"/> as HTMLCanvasElement;
     let chart: Chart|undefined;
 
     onMount(() => {
@@ -593,7 +594,56 @@ function ScriptOverview(
     }
 ): JSX.Element {
 
+
     function renderDivision(division: Division, idx: Accessor<number>) {
+        function chartConfigFactory(): ChartConfiguration {
+            const data = [0, 0, 0, 0, 3, 4, 7];
+            const chartData: ChartData = {
+                labels: data.map((_, idx) => idx),
+                datasets: [
+                    {
+                        data: data,
+                        borderColor: '#e3e3e3',
+                        backgroundColor: 'rgba(227, 227, 227, 0.5)',
+                        fill: true, 
+                        borderWidth: 1
+                    }
+                ]
+            };
+
+            return {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    elements: {
+                        point: { radius: 0 },
+                    },
+                    plugins: {
+                        legend: {
+                            display: false,
+                        },
+                        title: {
+                            display: false,
+                        },
+                        tooltip: {
+                            enabled: false
+                        },
+                    },
+                    interaction: undefined,
+                    hover: { mode: undefined },
+                    scales: {
+                        x: {
+                            display: false
+                        },
+                        y: {
+                            display: false
+                        }
+                    }
+                },
+            };
+        }
 
         return (
             <A class="division-info" href={`/script/${props.script.uuid}/${idx() + 1}`}>
@@ -602,6 +652,7 @@ function ScriptOverview(
                     <span class="info">4 Spieler</span>
                     <span class="info">25 Einsätze</span>
                 </div>
+                <SimpleChart onConfig={chartConfigFactory}/>
             </A>
         );
     }
