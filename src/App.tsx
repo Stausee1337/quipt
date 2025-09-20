@@ -350,13 +350,12 @@ function TrainingRunView(
 
         if (streak === 0)
             return;
+        const streakPoints = calculatePointsForStreak(streak);
 
         await animation.finished;
-
         sourceRect = streakIndicator!.getBoundingClientRect();
 
-        doTheFlyingIconThing(targetRect, sourceRect, streak, progressBarOrange)
-
+        doTheFlyingIconThing(targetRect, sourceRect, streakPoints, progressBarOrange);
     }
 
     createEffect<number>(prev => {
@@ -654,6 +653,27 @@ function MobileScriptRedirect(): JSX.Element {
     );
 }
 
+function calculatePointsForStreak(streak: number): number {
+    return 0.5 * (streak**2 + streak);
+}
+
+function calculateStreakFromPoints(points: number): number {
+    const a = 0.5;
+    const b = 0.5;
+    const c = -points;
+
+    const discriminant = b**2 - 4 * a * c;
+    if (discriminant < 0)
+        throw 'unreachable';
+
+    const s = Math.sqrt(discriminant);
+
+    const x1 = (-b + s) / (2 * a);
+    const x2 = (-b - s) / (2 * a);
+
+    return Math.max(x1, x2);
+}
+
 function TrainingRunWrapper(
     props: {
         script: Script
@@ -692,8 +712,8 @@ function TrainingRunWrapper(
 
             const delta = newScore - previousScore;
             if (previousScore >= 4 && newScore === 4) {
-                newScore = previousScore + 1;
-                streak = newScore - 4;
+                streak = calculateStreakFromPoints(previousScore - 4) + 1;
+                newScore = 4 + calculatePointsForStreak(streak);
                 trend = "uu";
             } else if (delta > 0 && delta <= 2)
                 trend = "u";
