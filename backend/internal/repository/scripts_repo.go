@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -20,7 +21,7 @@ type Script struct {
 }
 
 type Division struct {
-	_id 			bson.ObjectID
+	ID 				bson.ObjectID `bson:"_id,omitempty"`
 	Name			string
 	PreviousTotals	[]uint32
 	TextCues 		[]TextCuePair
@@ -106,6 +107,10 @@ func (r* ScriptsRepo) QueryAllDivisionObjects(ctx context.Context, divisionIds [
 	if err := cursor.Err(); err != nil {
 		return nil, fmt.Errorf("could not query by ids %q: %w", divisionIds, err);
 	}
+
+	slices.SortFunc(divisions, func (a *Division, b *Division) int {
+		return slices.Index(divisionIds, a.ID) - slices.Index(divisionIds, b.ID)
+	});
 
 	return divisions, nil
 }
