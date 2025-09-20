@@ -152,7 +152,10 @@ interface TrainingRunManager {
         trend: "dd"|"d"|"u"|"uu"|undefined
     };
 
-    commitRun(): number[];
+    commitRun(): { 
+        scoreHistory: number[],
+        hasBorkenRecord: boolean,
+    };
 }
 
 const trendIcons = {
@@ -439,7 +442,7 @@ function TrainingRunView(
                 ? <div class="scroll-padding"/> 
                 : <TrainingRunCompletedView maxScore={maxScore}
                     currentScore={currentScore()}
-                    scoreHistory={props.manager.commitRun()}
+                    manager={props.manager}
                     progressBarColor={progressBarColor()}/>
             }
             <div class="controls">
@@ -470,13 +473,14 @@ function TrainingRunCompletedView(
         maxScore: number,
         currentScore: number,
         progressBarColor: string,
-        scoreHistory: number[],
+        manager: TrainingRunManager,
     }
 ) {
-    const highScore = Math.max(props.maxScore, ...props.scoreHistory);
+    const { scoreHistory, hasBorkenRecord } = props.manager.commitRun();
+    const highScore = Math.max(props.maxScore, ...scoreHistory);
 
     function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
-        const scores = props.scoreHistory.slice(-6);
+        const scores = scoreHistory.slice(-6);
         const data = leftPad(scores, 7);
         const hightestRelativeScore = Math.max(props.maxScore, ...data);
 
@@ -549,9 +553,14 @@ function TrainingRunCompletedView(
         <div class="division-training-end">
             <div class="scorebox hidden"
                 style={{'--score-color': props.progressBarColor, '--max-score': `"${highScore}"`}}>
-                { props.currentScore}
+                { props.currentScore }
             </div>
             <SimpleChart onConfig={chartConfigFactory}/>
+            { 
+                hasBorkenRecord
+                    ? <h3><i class="bi bi-trophy-fill" style={{ color: progressBarYellow }}/> Neuer High Score!</h3>
+                    : null
+            }
         </div>
     );
 }
@@ -753,7 +762,13 @@ function TrainingRunWrapper(
                         })
                     .then(console.error);
             }
-            return [...division.previousTotals, newConfidences.reduce((a, b) => a + b)];
+            const newScore = newConfidences.reduce((a, b) => a + b);
+            const previousHighScore = Math.max(...division.previousTotals);
+            const scoreHistory = [...division.previousTotals, newScore];
+            return {
+                scoreHistory,
+                hasBorkenRecord: newScore > previousHighScore
+            };
         },
     };
 
