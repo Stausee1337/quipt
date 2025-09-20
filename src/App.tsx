@@ -3,9 +3,10 @@ import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor
 import { HeaderElement, MenuElement } from './std-widgets';
 import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams } from '@solidjs/router';
 import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth, Division, Script, AuthenticationContext, TextCue } from './backend';
-import { FormattedString } from './resources';
 import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
+
+export type FormattedString = Array<{ style: JSX.CSSProperties|null, string: string }>;
 
 type QuoteViewProps = {
     last: boolean,
@@ -460,8 +461,8 @@ function TrainingRunView(
         const type = n % 2 === 0 ? "request" : "response";
         const textCue = textCues[Math.floor(n / 2)];
         const cueData = type === "request" 
-            ? { actors: [{ string: textCue.request?.actors, style: null }], text: textCue.request?.text ?? "Du bist der erste in diesem Abschnitt" }
-            : { actors: [{ string: textCue.response!.actors, style: null }], text: textCue.response!.text! };
+            ? { actors: getActorsInfo(textCue.request?.actors ?? null), text: textCue.request?.text ?? "Du bist der erste in diesem Abschnitt" }
+            : { actors: getActorsInfo(textCue.response!.actors), text: textCue.response!.text! };
         return (
             <QuoteView 
                 last={checkIsLast(n, currentIndex())}
@@ -706,7 +707,7 @@ function App(props: { children: JSX.Element }): JSX.Element {
             <ScriptContextObj.Provider value={scriptContext}>
                 { 
                     isMobile() 
-                        ? <HeaderElement showBackButton={false} title={''}/> 
+                        ? <HeaderElement/> 
                         : ( authenticationContext.isLoggedIn() && <MenuElement/> )
                 }
                 <div class="routing-contents">
@@ -844,7 +845,6 @@ function TrainingRunWrapper(
         commitRun() {
             if (!didCommitNewConfidences) {
                 didCommitNewConfidences = true;
-                console.log(newConfidences);
                 scriptContext.commitNewConfidences(index, newConfidences);
             }
             const newScore = newConfidences.reduce((a, b) => a + b);
@@ -1068,7 +1068,8 @@ function createScriptContext(authenticationContext: AuthenticationContext): Scri
                 name: division.name,
                 textCues: division.textCues.map((textCue, idx) => {
                     return {
-                        ...textCue,
+                        request: textCue.request,
+                        response: textCue.response,
                         previousScores: [...textCue.previousScores, newScores[idx]]
                     };
                 }),
@@ -1086,6 +1087,45 @@ function createScriptContext(authenticationContext: AuthenticationContext): Scri
                 console.error(err);
         },
     };
+}
+
+function generateSunflowerColor(idx: number, saturation = 95, value = 70): string {
+    const PHI = (5 ** 0.5 + 1) * 0.5;
+	return `hsl(${((PHI * idx) % 1) * 360}deg, ${saturation}%, ${value}%)`;
+}
+
+function generateHash(str: string): number {
+    let hash = 0;
+    for (const char of str) {
+        hash = (hash << 5) - hash + char.charCodeAt(0);
+        hash |= 0; // Constrain to 32bit integer
+    }
+    return hash;
+};
+
+function getActorsInfo(actors: string[]|null): FormattedString|null {
+    if (actors === null)
+        return null;
+    if (actors.length === 0)
+        return null;
+
+    const result: FormattedString = actors
+        .map(actor => [generateSunflowerColor(generateHash(actor)), actor])
+        .map(item => ({ style: { color: item[0] }, string: item[1] }));
+
+    if (result.length === 1) {
+        return result;
+    }
+
+    for (let i = 0; i < Math.floor(result.length / 2); i++) {
+        const index = (i*2)+1;
+        result.splice(index, 0, {
+            style: null,
+            string: (index === result.length-1) ? " und " : ", "
+        });
+    }
+
+    return result;
 }
 
 class QuiptFormEvent extends Event {

@@ -690,6 +690,10 @@ div.script-view {
       }
     }
 
+    canvas.chart-js {
+      z-index: 10;
+    }
+
     #confettiCanvas {
       position: absolute;
       top: 0;
