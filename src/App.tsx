@@ -175,9 +175,10 @@ interface DivisionInfo {
     textCues: number
 }
 
-function computeDivisionInfo(division: Division): DivisionInfo {
+function computeDivisionInfo(division: Readonly<Division>): DivisionInfo {
     const actorsCollection: Set<string> = new Set();
-    const addActors = (textCue: TextCue) => textCue.actors.forEach(actorsCollection.add.bind(actorsCollection))
+    const addActors =
+        (textCue: Readonly<TextCue>) => textCue.actors.forEach(actorsCollection.add.bind(actorsCollection))
     for (const textCuePair of division.textCues) {
         if (textCuePair.request !== null)
             addActors(textCuePair.request);
@@ -789,11 +790,11 @@ function calculateStreakFromPoints(points: number): number {
 
 function TrainingRunWrapper(
     props: {
-        script: Script
+        script: Readonly<Script>
     }
 ): JSX.Element {
     const params = useParams();
-    const authentication = useAuthentication()!;
+    const scriptContext = useContext(ScriptContextObj)!;
     const index = Number(params.division) - 1;
     const division = props.script.divisions[index];
     const newConfidences: number[] = Array(division.textCues.length).fill(0);
@@ -844,15 +845,7 @@ function TrainingRunWrapper(
             if (!didCommitNewConfidences) {
                 didCommitNewConfidences = true;
                 console.log(newConfidences);
-                authentication.requests!
-                    .post(
-                        "/commit-scores",
-                        {
-                            scriptId: props.script.uuid,
-                            divisionIdx: index,
-                            newScores: newConfidences
-                        })
-                    .then(console.error);
+                scriptContext.commitNewConfidences(index, newConfidences);
             }
             const newScore = newConfidences.reduce((a, b) => a + b);
             const previousHighScore = Math.max(...division.previousTotals);
@@ -869,7 +862,7 @@ function TrainingRunWrapper(
 
 function ScriptOverview(
     props: {
-        script: Script
+        script: Readonly<Script>
     }
 ): JSX.Element {
     function computeScriptInfo(): DivisionInfo {
@@ -894,7 +887,7 @@ function ScriptOverview(
     
     const { actors, textCues } = computeScriptInfo();
 
-    function renderDivision(division: Division, idx: Accessor<number>) {
+    function renderDivision(division: Readonly<Division>, idx: Accessor<number>) {
         const { actors, textCues } = computeDivisionInfo(division);
         const highScore = Math.max(0, ...division.previousTotals);
         const maxScore = Math.max(division.textCues.length * 4, highScore);
@@ -1019,7 +1012,8 @@ export const ScriptContextObj = createContext<ScriptContext>();
 
 interface ScriptContext {
     readonly currentScript: string|undefined;
-    instantiateDelayed(component: Component<{ script: Script }>): JSX.Element;
+    instantiateDelayed(component: Component<{ script: Readonly<Script> }>): JSX.Element;
+    commitNewConfidences(divisionIdx: number, newScores: number[]): void;
 }
 
 function createScriptContext(authenticationContext: AuthenticationContext): ScriptContext {
@@ -1027,7 +1021,7 @@ function createScriptContext(authenticationContext: AuthenticationContext): Scri
     const [currentScriptId, setCurrentScriptId] = createSignal<string|undefined>(location.uuid);
     const scriptCache: Map<string, Script> = new Map();
 
-    const [currentScript, { refetch }] = createResource(async () => {
+    const [currentScript, { refetch, mutate }] = createResource(async () => {
         const currentId = currentScriptId();
         if (currentId === undefined)
             return undefined;
@@ -1063,6 +1057,33 @@ function createScriptContext(authenticationContext: AuthenticationContext): Scri
                     }
                 </>
             );
+        },
+        async commitNewConfidences(divisionIdx, newScores) {
+            const script = currentScript()!;
+            const division = script.divisions[divisionIdx];
+
+            const totalScore = newScores.reduce((a, b) => a + b);
+
+            const newDivision: Division = {
+                name: division.name,
+                textCues: division.textCues.map((textCue, idx) => {
+                    return {
+                        ...textCue,
+                        previousScores: [...textCue.previousScores, newScores[idx]]
+                    };
+                }),
+                previousTotals: [...division.previousTotals, totalScore],
+            };
+
+            const newScript = { ...script };
+            newScript.divisions[divisionIdx] = newDivision;
+
+            mutate(newScript);
+
+            const err = await authenticationContext.requests!
+                .post("/commit-scores", { scriptId: script.uuid, divisionIdx, newScores });
+            if (err !== undefined)
+                console.error(err);
         },
     };
 }

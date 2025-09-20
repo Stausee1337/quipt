@@ -353,27 +353,27 @@ export function useAuthentication(): AuthenticationContext|undefined {
     return value;
 }
 
-export type Script = Readonly<{
+export type Script = {
     uuid: string,
     name: string,
     divisions: Division[]
-}>;
+};
 
-export type Division = Readonly<{
+export type Division = {
     name: string,
     previousTotals: number[],
     textCues: TextCuePair[]
-}>;
+};
 
-export type TextCuePair = Readonly<{
+export type TextCuePair = {
     request: TextCue|null,
     response: TextCue,
     previousScores: number[]
-}>;
+};
 
-export type TextCue = Readonly<{
+export type TextCue = {
     actors: string[], text: Markdown
-}>;
+};
 
 export { auth } from './protos';
 
