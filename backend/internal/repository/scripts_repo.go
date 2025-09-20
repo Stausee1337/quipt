@@ -21,8 +21,9 @@ type Script struct {
 }
 
 type Division struct {
-	ID 				bson.ObjectID `bson:"_id,omitempty"`
+	ID 				bson.ObjectID 	`bson:"_id,omitempty"`
 	Name			string
+	Description		string
 	PreviousTotals	[]uint32
 	TextCues 		[]TextCuePair
 }

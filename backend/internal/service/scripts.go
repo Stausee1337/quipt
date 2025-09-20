@@ -182,6 +182,7 @@ func transformRepoDivisions(repoDivisions []*repository.Division) []*protos.Divi
 		resultTextCues := transformRepoTextCues(repoDivision.TextCues);
 		resultDivision := protos.Division {
 			Name: repoDivision.Name,
+			Description: repoDivision.Description,
 			PreviousTotals: repoDivision.PreviousTotals,
 			TextCues: resultTextCues,
 		};

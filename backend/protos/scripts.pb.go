@@ -232,8 +232,9 @@ func (x *Script) GetDivisions() []*Division {
 type Division struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	PreviousTotals []uint32               `protobuf:"varint,2,rep,packed,name=previousTotals,proto3" json:"previousTotals,omitempty"`
-	TextCues       []*TextCuePair         `protobuf:"bytes,3,rep,name=textCues,proto3" json:"textCues,omitempty"`
+	Description    string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	PreviousTotals []uint32               `protobuf:"varint,3,rep,packed,name=previousTotals,proto3" json:"previousTotals,omitempty"`
+	TextCues       []*TextCuePair         `protobuf:"bytes,4,rep,name=textCues,proto3" json:"textCues,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -271,6 +272,13 @@ func (*Division) Descriptor() ([]byte, []int) {
 func (x *Division) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *Division) GetDescription() string {
+	if x != nil {
+		return x.Description
 	}
 	return ""
 }
@@ -474,11 +482,12 @@ const file_scripts_proto_rawDesc = "" +
 	"\x06Script\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12/\n" +
-	"\tdivisions\x18\x03 \x03(\v2\x11.scripts.DivisionR\tdivisions\"x\n" +
+	"\tdivisions\x18\x03 \x03(\v2\x11.scripts.DivisionR\tdivisions\"\x9a\x01\n" +
 	"\bDivision\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
-	"\x0epreviousTotals\x18\x02 \x03(\rR\x0epreviousTotals\x120\n" +
-	"\btextCues\x18\x03 \x03(\v2\x14.scripts.TextCuePairR\btextCues\"\xa0\x01\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12&\n" +
+	"\x0epreviousTotals\x18\x03 \x03(\rR\x0epreviousTotals\x120\n" +
+	"\btextCues\x18\x04 \x03(\v2\x14.scripts.TextCuePairR\btextCues\"\xa0\x01\n" +
 	"\vTextCuePair\x12/\n" +
 	"\arequest\x18\x01 \x01(\v2\x10.scripts.TextCueH\x00R\arequest\x88\x01\x01\x12,\n" +
 	"\bresponse\x18\x02 \x01(\v2\x10.scripts.TextCueR\bresponse\x12&\n" +

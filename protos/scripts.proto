@@ -28,8 +28,9 @@ message Script {
 
 message Division {
   string name = 1;
-  repeated uint32 previousTotals = 2;
-  repeated TextCuePair textCues = 3;
+  string description = 2;
+  repeated uint32 previousTotals = 3;
+  repeated TextCuePair textCues = 4;
 }
 
 message TextCuePair {
