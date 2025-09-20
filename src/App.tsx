@@ -1,10 +1,11 @@
 import './App.scss'
 import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createContext, useContext, createMemo, Switch, Match, Component, createResource } from 'solid-js';
 import { HeaderElement, MenuElement } from './std-widgets';
-import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams, useLocation, useIsRouting } from '@solidjs/router';
-import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth, scripts, Division, Script, AuthenticationContext, TextCue } from './backend';
+import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams } from '@solidjs/router';
+import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth, Division, Script, AuthenticationContext, TextCue } from './backend';
 import { FormattedString } from './resources';
 import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
+import confetti from 'canvas-confetti';
 
 type QuoteViewProps = {
     last: boolean,
@@ -102,8 +103,8 @@ function easeOut(x: number) {
 }
 
 function animateScroll(element: HTMLElement, top: number, duration: number): Promise<void> {
-    let resolve;
-    const promise = new Promise(resolve_ => { resolve = resolve_; });
+    let resolve: () => void;
+    const promise: Promise<void> = new Promise(resolve1 => { resolve = resolve1; });
     const from = element.scrollTop;
     const to = top;
 
@@ -128,7 +129,10 @@ const progressBarYellow = '#fad541';
 const progressBarOrange = '#ffa459';
 const progressBarRed = '#fa742c';
 
-function xxx(scoreString: Accessor<string>, progressBarColor: Accessor<string>) {
+function createFlyingScoreAnimation(scoreString: Accessor<string>, progressBarColor: Accessor<string>): Promise<void> {
+    let resolve: () => void;
+    const promise: Promise<void> = new Promise(resolve1 => { resolve = resolve1; });
+
     function calculateTranslationTo(sourceRect: DOMRect, targetRect: DOMRect): string {
         const relY = targetRect.top + (targetRect.height / 2) - (sourceRect.height / 2);
         const relX = targetRect.left  + (targetRect.width / 2) - (sourceRect.width / 2);
@@ -160,7 +164,10 @@ function xxx(scoreString: Accessor<string>, progressBarColor: Accessor<string>) 
     animation.addEventListener('finish', () => {
         scoreBox.classList.remove('hidden');
         flyingScore.remove();
+        resolve();
     });
+
+    return promise;
 }
 
 interface DivisionInfo {
@@ -229,6 +236,7 @@ function TrainingRunView(
     const [scoreString, setScoreString] = createSignal<string>(String(currentScore()));
     const [progressBarColor, setProgressBarColor] = createSignal<string>(progressBarGreen);
     const [reachedEnd, setReachedEnd] = createSignal<boolean>(false);
+    const [scoreboxAnimationPromise, setScoreboxAnimationPromise] = createSignal<Promise<void>>();
 
     const maxScore = textCues.length * 4;
     const highScore = Math.max(maxScore, ...props.division.previousTotals);
@@ -255,7 +263,7 @@ function TrainingRunView(
                 scrollLocked = false;
 
                 if (reachedEnd())
-                    xxx(scoreString, progressBarColor);
+                    setScoreboxAnimationPromise(createFlyingScoreAnimation(scoreString, progressBarColor));
             });
     }
 
@@ -421,7 +429,10 @@ function TrainingRunView(
         return current;
     }, currentScore())
 
-    function createScoreAnimation(start: number, end: number) {
+    function createScoreAnimation(start: number, end: number): Promise<void> {
+        let resolve: () => void;
+        const promise: Promise<void> = new Promise(resolve1 => { resolve = resolve1; });
+
         const effect: string[] = [];
         for (let c = start; c <= end; c++) {
             effect.push(String(c));
@@ -429,8 +440,10 @@ function TrainingRunView(
 
         let currentIndex = 0;
         function advance() {
-            if (currentIndex === effect.length - 1)
+            if (currentIndex === effect.length - 1) {
                 clearInterval(interval);
+                resolve();
+            }
             setScoreString(effect[currentIndex]);
             currentIndex++;
         }
@@ -439,6 +452,7 @@ function TrainingRunView(
         advance();
         if (effect.length > 1)
             interval = setInterval(advance, 75);
+        return promise;
     }
 
     function renderQuote(n: number): JSX.Element {
@@ -484,9 +498,10 @@ function TrainingRunView(
             { !reachedEnd() 
                 ? <div class="scroll-padding"/> 
                 : <TrainingRunCompletedView maxScore={maxScore}
-                    currentScore={currentScore()}
+                    currentScoreString={scoreString()}
                     manager={props.manager}
-                    progressBarColor={progressBarColor()}/>
+                    progressBarColor={progressBarColor()}
+                    scoreboxAnimation={scoreboxAnimationPromise()}/>
             }
             <div class="controls">
                 <div class="horizontal">
@@ -511,16 +526,47 @@ function leftPad(data: number[], length: number): number[] {
     return [...padding, ...data];
 }
 
+function createSubscribablePromise<T>(promise: Promise<T>, then: (x: T) => void): () => void {
+    let canceled = false;
+    promise.then(v => {
+        if (!canceled)
+            then(v);
+    });
+    return () => canceled = true;
+}
+
 function TrainingRunCompletedView(
     props: {
         maxScore: number,
-        currentScore: number,
+        currentScoreString: string,
         progressBarColor: string,
         manager: TrainingRunManager,
+        scoreboxAnimation: Promise<void>|undefined
     }
 ) {
     const { scoreHistory, hasBorkenRecord } = props.manager.commitRun();
     const highScore = Math.max(props.maxScore, ...scoreHistory);
+    const [animationsDone, setAnimationsDone] = createSignal<boolean>(false);
+
+    let unsubscribe: (() => void)|undefined;
+    createEffect(() => {
+        if (unsubscribe !== undefined)
+            unsubscribe();
+        if (props.scoreboxAnimation === undefined)
+            return;
+        unsubscribe = createSubscribablePromise(
+            props.scoreboxAnimation,
+            () => {
+                setAnimationsDone(true);
+            }
+        );
+    })
+
+    createEffect(() => {
+        if (!animationsDone() || !hasBorkenRecord) return;
+        const creater = confetti.create(confettiCanvas, { resize: true });
+        creater();
+    })
 
     function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
         const scores = scoreHistory.slice(-7);
@@ -592,18 +638,21 @@ function TrainingRunCompletedView(
         };
     }
 
+    const confettiCanvas = <canvas id="confettiCanvas"/> as HTMLCanvasElement;
+
     return (
         <div class="division-training-end">
             <div class="scorebox hidden"
                 style={{'--score-color': props.progressBarColor, '--max-score': `"${highScore}"`}}>
-                { props.currentScore }
+                { props.currentScoreString }
             </div>
-            <SimpleChart onConfig={chartConfigFactory}/>
+            { animationsDone() ? <SimpleChart onConfig={chartConfigFactory}/> : null }
             { 
-                hasBorkenRecord
+                animationsDone() && hasBorkenRecord
                     ? <h3><i class="bi bi-trophy-fill" style={{ color: progressBarYellow }}/> Neuer High Score!</h3>
                     : null
             }
+            { confettiCanvas }
         </div>
     );
 }
