@@ -183,7 +183,11 @@ function TrainingRunView(
     const [scoreString, setScoreString] = createSignal<string>(String(currentScore()));
     const [progressBarColor, setProgressBarColor] = createSignal<string>(progressBarGreen);
     const [reachedEnd, setReachedEnd] = createSignal<boolean>(false);
+
     const maxScore = textCues.length * 4;
+    const highScore = Math.max(maxScore, ...props.division.previousTotals);
+    const [currentBarTotal, setCurrentBarTotal] = createSignal<number>(maxScore);
+
     const info = computeDivisionInfo(props.division);
 
     const root = document.getElementById("root")!;
@@ -284,7 +288,13 @@ function TrainingRunView(
         animation.addEventListener('finish', () => {
             flyingIcon.remove();
             setCurrentScore(p => p + diff);
-            const color = calculateBarColor(currentScore());
+
+            const currentScore1 = currentScore();
+            const currentBarTotal1 = currentBarTotal();
+            if (currentScore1 > currentBarTotal1 && currentBarTotal1 < highScore)
+                setCurrentBarTotal(highScore);
+
+            const color = calculateBarColor(currentScore1);
 
             const centerX = targetRect.left + (targetRect.width / 2);
             const centerY = targetRect.top  + (targetRect.height / 2);
@@ -437,7 +447,7 @@ function TrainingRunView(
                     <h2 class="score">{ scoreString() }</h2>
                     <div 
                         class="progress"
-                        style={{'--progress-width': Math.min(currentScore() / maxScore, 1),
+                        style={{'--progress-width': Math.min(currentScore() / currentBarTotal(), 1),
                             '--progress-color': progressBarColor()}}>
                         <div class="inner"/>
                     </div>
@@ -463,6 +473,8 @@ function TrainingRunCompletedView(
         scoreHistory: number[],
     }
 ) {
+    const highScore = Math.max(props.maxScore, ...props.scoreHistory);
+
     function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
         const scores = props.scoreHistory.slice(-6);
         const data = leftPad(scores, 7);
@@ -536,7 +548,7 @@ function TrainingRunCompletedView(
     return (
         <div class="division-training-end">
             <div class="scorebox hidden"
-                style={{'--score-color': props.progressBarColor, '--max-score': `"${props.maxScore}"`}}>
+                style={{'--score-color': props.progressBarColor, '--max-score': `"${highScore}"`}}>
                 { props.currentScore}
             </div>
             <SimpleChart onConfig={chartConfigFactory}/>
