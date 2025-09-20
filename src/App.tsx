@@ -450,6 +450,8 @@ function TrainingRunView(
 }
 
 function leftPad(data: number[], length: number): number[] {
+    if (data.length >= length)
+        return data;
     const padding = Array(length - data.length).fill(0);
     return [...padding, ...data];
 }
@@ -683,8 +685,10 @@ function TrainingRunWrapper(
             let streak = 0;
             let trend: "dd"|"d"|"u"|"uu"|undefined;
             const previousScore = division.textCues[cueIdx].previousScores.at(-1);
-            if (previousScore === undefined)
+            if (previousScore === undefined) {
+                newConfidences[cueIdx] = newScore;
                 return { diff: newScore, streak: 0, trend }
+            }
 
             const delta = newScore - previousScore;
             if (previousScore >= 4 && newScore === 4) {
@@ -706,6 +710,7 @@ function TrainingRunWrapper(
         commitRun() {
             if (!didCommitNewConfidences) {
                 didCommitNewConfidences = true;
+                console.log(newConfidences);
                 authentication.requests!
                     .post(
                         "/commit-scores",
@@ -714,7 +719,7 @@ function TrainingRunWrapper(
                             divisionIdx: index,
                             newScores: newConfidences
                         })
-                    .catch(console.error);
+                    .then(console.error);
             }
             return [...division.previousTotals, newConfidences.reduce((a, b) => a + b)];
         },
@@ -731,8 +736,11 @@ function ScriptOverview(
 
 
     function renderDivision(division: Division, idx: Accessor<number>) {
+        const { actors, textCues } = computeDivisionInfo(division);
+        const maxScore = Math.max(division.textCues.length * 4, ...division.previousTotals);
+
         function chartConfigFactory(): ChartConfiguration {
-            const data = [0, 0, 0, 0, 3, 4, 7];
+            const data = leftPad(division.previousTotals, 3);
             const chartData: ChartData = {
                 labels: data.map((_, idx) => idx),
                 datasets: [
@@ -773,7 +781,8 @@ function ScriptOverview(
                             display: false
                         },
                         y: {
-                            display: false
+                            display: false,
+                            max: maxScore
                         }
                     }
                 },
@@ -784,8 +793,8 @@ function ScriptOverview(
             <A class="division-info" href={`/script/${props.script.uuid}/${idx() + 1}`}>
                 <div class="general-info">
                     <h3>{ division.name }</h3>
-                    <span class="info">4 Spieler</span>
-                    <span class="info">25 Einsätze</span>
+                    <span class="info">{ actors.length } Spieler</span>
+                    <span class="info">{ textCues } Einsätze</span>
                 </div>
                 <SimpleChart onConfig={chartConfigFactory}/>
             </A>
