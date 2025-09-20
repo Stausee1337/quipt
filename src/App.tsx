@@ -30,6 +30,49 @@ function formatString(string: FormattedString): JSX.Element {
     return result;
 }
 
+const confidenceIconMap = [
+    {
+        'low': '\uF31D',
+        'medium': '\uF323',
+        'high': '\uF327',
+    },
+    {
+        'low': '\uF31C',
+        'medium': '\uF322',
+        'high': '\uF324',
+    },
+];
+
+function ConfidenceReportButton(
+    props: {
+        confidence: "low"|"medium"|"high",
+        reporter?: (source: EventTarget & Element, confidence: "low"|"medium"|"high") => void
+    }
+): JSX.Element {
+    const [clicked, setClicked] = createSignal<boolean>(false);
+
+    function onClick(event: MouseEvent & { currentTarget: HTMLSpanElement }) {
+        const reporter = props.reporter;
+        if (reporter === undefined) return;
+        setClicked(true);
+        reporter(event.currentTarget, props.confidence);
+    }
+
+    const confidenceIconColor = {
+        'low': progressBarRed,
+        'medium': progressBarYellow,
+        'high': progressBarGreen,
+    };
+
+    return (
+        <span class="smiley"
+            onClick={onClick}
+            style={{ color: confidenceIconColor[props.confidence] }}>
+            { confidenceIconMap[Number(clicked())][props.confidence] }
+        </span>
+    )
+}
+
 function QuoteView(props: QuoteViewProps) {
     return (
         <div class="quote-wrapper">
@@ -43,9 +86,9 @@ function QuoteView(props: QuoteViewProps) {
             {
                 props.type === "response" ? (
                     <div class="confidence-rating">
-                        <span class="smiley" onClick={event => props.confidenceReport?.(event.target, 'low')}/>
-                        <span class="smiley" onClick={event => props.confidenceReport?.(event.target, 'medium')}/>
-                        <span class="smiley" onClick={event => props.confidenceReport?.(event.target, 'high')}/>
+                        <ConfidenceReportButton confidence="low" reporter={props.confidenceReport}/>
+                        <ConfidenceReportButton confidence="medium" reporter={props.confidenceReport}/>
+                        <ConfidenceReportButton confidence="high" reporter={props.confidenceReport}/>
                     </div>
                 ) : null
             }
@@ -408,7 +451,7 @@ function TrainingRunView(
             <QuoteView 
                 last={checkIsLast(n, currentIndex())}
                 type={type}
-                confidenceReport={n === currentIndex() ? reportConfidence : undefined}
+                confidenceReport={(n === currentIndex() && !reachedEnd()) ? reportConfidence : undefined}
                 text={[{ style: null, string: cueData.text }]}
                 actorsInfo={cueData.actors}/>);
     }
@@ -480,7 +523,7 @@ function TrainingRunCompletedView(
     const highScore = Math.max(props.maxScore, ...scoreHistory);
 
     function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
-        const scores = scoreHistory.slice(-6);
+        const scores = scoreHistory.slice(-7);
         const data = leftPad(scores, 7);
         const hightestRelativeScore = Math.max(props.maxScore, ...data);
 
@@ -786,15 +829,29 @@ function ScriptOverview(
         const { actors, textCues } = computeDivisionInfo(division);
         const maxScore = Math.max(division.textCues.length * 4, ...division.previousTotals);
 
-        function chartConfigFactory(): ChartConfiguration {
+        function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration { 
             const data = leftPad(division.previousTotals, 3);
+            const p1 = data.at(-1)!;
+            const p2 = data.at(-2)!;
+
+            let baseRBG;
+            if (p1 < p2) {
+                baseRBG = '250, 116, 44';
+            } else {
+                baseRBG = '93, 153, 72';
+            }
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+            gradient.addColorStop(0, `rgba(${baseRBG}, 0.5)`);
+            gradient.addColorStop(0.3, `rgba(${baseRBG}, 0)`);
+
             const chartData: ChartData = {
                 labels: data.map((_, idx) => idx),
                 datasets: [
                     {
                         data: data,
-                        borderColor: '#e3e3e3',
-                        backgroundColor: 'rgba(227, 227, 227, 0.5)',
+                        borderColor: `rgb(${baseRBG})`,
+                        backgroundColor: gradient,
                         fill: true, 
                         borderWidth: 1
                     }

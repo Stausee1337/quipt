@@ -213,7 +213,7 @@ div.script-overview {
       justify-content: space-between;
 
       span.info {
-        color: $lighter1;
+        color: $lighter2;
         font-size: 1.4rem;
       }
     }
@@ -727,10 +727,19 @@ div.script-view {
 
         $size: 2.5rem;
         span.smiley {
-          background-color: $lighter1;
+          // background-color: $lighter1;
+          // border-radius: $size;
           width: $size;
           height: $size;
-          border-radius: $size;
+          font-size: $size;
+
+          font-family: bootstrap-icons !important;
+          font-style: normal;
+          font-weight: normal !important;
+          font-variant: normal;
+          text-transform: none;
+          line-height: 1;
+          vertical-align: -.125em;
         }
       }
     }
