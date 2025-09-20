@@ -1575,6 +1575,7 @@ export const scripts = $root.scripts = (() => {
          * @memberof scripts
          * @interface IDivision
          * @property {string|null} [name] Division name
+         * @property {string|null} [description] Division description
          * @property {Array.<number>|null} [previousTotals] Division previousTotals
          * @property {Array.<scripts.ITextCuePair>|null} [textCues] Division textCues
          */
@@ -1603,6 +1604,14 @@ export const scripts = $root.scripts = (() => {
          * @instance
          */
         Division.prototype.name = "";
+
+        /**
+         * Division description.
+         * @member {string} description
+         * @memberof scripts.Division
+         * @instance
+         */
+        Division.prototype.description = "";
 
         /**
          * Division previousTotals.
@@ -1634,15 +1643,17 @@ export const scripts = $root.scripts = (() => {
                 writer = $Writer.create();
             if (message.name != null && Object.hasOwnProperty.call(message, "name"))
                 writer.uint32(/* id 1, wireType 2 =*/10).string(message.name);
+            if (message.description != null && Object.hasOwnProperty.call(message, "description"))
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.description);
             if (message.previousTotals != null && message.previousTotals.length) {
-                writer.uint32(/* id 2, wireType 2 =*/18).fork();
+                writer.uint32(/* id 3, wireType 2 =*/26).fork();
                 for (let i = 0; i < message.previousTotals.length; ++i)
                     writer.uint32(message.previousTotals[i]);
                 writer.ldelim();
             }
             if (message.textCues != null && message.textCues.length)
                 for (let i = 0; i < message.textCues.length; ++i)
-                    $root.scripts.TextCuePair.encode(message.textCues[i], writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                    $root.scripts.TextCuePair.encode(message.textCues[i], writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
             return writer;
         };
 
@@ -1671,6 +1682,10 @@ export const scripts = $root.scripts = (() => {
                         break;
                     }
                 case 2: {
+                        message.description = reader.string();
+                        break;
+                    }
+                case 3: {
                         if (!(message.previousTotals && message.previousTotals.length))
                             message.previousTotals = [];
                         if ((tag & 7) === 2) {
@@ -1681,7 +1696,7 @@ export const scripts = $root.scripts = (() => {
                             message.previousTotals.push(reader.uint32());
                         break;
                     }
-                case 3: {
+                case 4: {
                         if (!(message.textCues && message.textCues.length))
                             message.textCues = [];
                         message.textCues.push($root.scripts.TextCuePair.decode(reader, reader.uint32()));
@@ -1709,6 +1724,8 @@ export const scripts = $root.scripts = (() => {
             let message = new $root.scripts.Division();
             if (object.name != null)
                 message.name = String(object.name);
+            if (object.description != null)
+                message.description = String(object.description);
             if (object.previousTotals) {
                 if (!Array.isArray(object.previousTotals))
                     throw TypeError(".scripts.Division.previousTotals: array expected");
@@ -1746,10 +1763,14 @@ export const scripts = $root.scripts = (() => {
                 object.previousTotals = [];
                 object.textCues = [];
             }
-            if (options.defaults)
+            if (options.defaults) {
                 object.name = "";
+                object.description = "";
+            }
             if (message.name != null && message.hasOwnProperty("name"))
                 object.name = message.name;
+            if (message.description != null && message.hasOwnProperty("description"))
+                object.description = message.description;
             if (message.previousTotals && message.previousTotals.length) {
                 object.previousTotals = [];
                 for (let j = 0; j < message.previousTotals.length; ++j)

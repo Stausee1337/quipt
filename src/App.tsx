@@ -485,7 +485,7 @@ function TrainingRunView(
                     <div class="division-info">
                         <span class="info">{ info.actors.join(', ') } · { info.textCues } Einsätze</span>
                         <span class="content">
-                            { formatString([{ style: null, string: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas lacus nunc, ornare sed felis sit amet, laoreet sagittis enim. Fusce eu felis ultricies, tempor dui sed, elementum diam." }]) }
+                            { formatString(formatMarkdown(props.division.description)) }
                         </span>
                     </div>
                 </div>
@@ -1131,27 +1131,27 @@ function formatActorsArray(actors: string[]|null): FormattedString|null {
 }
 
 function formatMarkdown(markdown: string): FormattedString {
-    function mapToken(token: MarkedToken): FormattedStringElement {
-        switch (token.type) {
-            case 'text':
-                return { style: null, string: token.text };
-            case 'em':
-                return {
-                    style: { 'font-style': 'italic' },
-                    string: token.text
-                };
-            case 'strong':
-                return {
-                    style: { 'font-weight': 'bold' },
-                    string: token.text
-                };
-            default:
-                throw 'unreachable'
+    
+    function* mapToken(tokens: MarkedToken[], style: JSX.CSSProperties|null = null): Generator<FormattedStringElement> {
+        for (const token of tokens) {
+            switch (token.type) {
+                case 'text':
+                    yield { style, string: token.text };
+                    continue;
+                case 'em':
+                    yield* mapToken(token.tokens as MarkedToken[], { ...style, 'font-style': 'italic' });
+                    continue;
+                case 'strong':
+                    yield* mapToken(token.tokens as MarkedToken[], { ...style, 'font-weight': 'bold' });
+                    continue;
+                default:
+                    throw 'unreachable'
+            }
         }
     }
 
     const tokens = Lexer.lexInline(markdown) as MarkedToken[];
-    return tokens.map(mapToken);
+    return Array.from(mapToken(tokens));
 }
 
 class QuiptFormEvent extends Event {

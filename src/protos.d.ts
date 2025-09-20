@@ -625,6 +625,9 @@ export namespace scripts {
         /** Division name */
         name?: (string|null);
 
+        /** Division description */
+        description?: (string|null);
+
         /** Division previousTotals */
         previousTotals?: (number[]|null);
 
@@ -643,6 +646,9 @@ export namespace scripts {
 
         /** Division name. */
         public name: string;
+
+        /** Division description. */
+        public description: string;
 
         /** Division previousTotals. */
         public previousTotals: number[];

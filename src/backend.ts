@@ -361,6 +361,7 @@ export type Script = {
 
 export type Division = {
     name: string,
+    description: string,
     previousTotals: number[],
     textCues: TextCuePair[]
 };
