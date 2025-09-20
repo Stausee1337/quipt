@@ -4,9 +4,11 @@ import { HeaderElement, MenuElement } from './std-widgets';
 import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams } from '@solidjs/router';
 import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth, Division, Script, AuthenticationContext, TextCue } from './backend';
 import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
+import { Lexer, MarkedToken } from 'marked';
 import confetti from 'canvas-confetti';
 
-export type FormattedString = Array<{ style: JSX.CSSProperties|null, string: string }>;
+export type FormattedStringElement = { style: JSX.CSSProperties|null, string: string };
+export type FormattedString = FormattedStringElement[];
 
 type QuoteViewProps = {
     last: boolean,
@@ -461,14 +463,14 @@ function TrainingRunView(
         const type = n % 2 === 0 ? "request" : "response";
         const textCue = textCues[Math.floor(n / 2)];
         const cueData = type === "request" 
-            ? { actors: getActorsInfo(textCue.request?.actors ?? null), text: textCue.request?.text ?? "Du bist der erste in diesem Abschnitt" }
-            : { actors: getActorsInfo(textCue.response!.actors), text: textCue.response!.text! };
+            ? { actors: formatActorsArray(textCue.request?.actors ?? null), text: textCue.request?.text ?? "Du bist der erste in diesem Abschnitt" }
+            : { actors: formatActorsArray(textCue.response!.actors), text: textCue.response!.text! };
         return (
             <QuoteView 
                 last={checkIsLast(n, currentIndex())}
                 type={type}
                 confidenceReport={(n === currentIndex() && !reachedEnd()) ? reportConfidence : undefined}
-                text={[{ style: null, string: cueData.text }]}
+                text={formatMarkdown(cueData.text)}
                 actorsInfo={cueData.actors}/>);
     }
 
@@ -1103,7 +1105,7 @@ function generateHash(str: string): number {
     return hash;
 };
 
-function getActorsInfo(actors: string[]|null): FormattedString|null {
+function formatActorsArray(actors: string[]|null): FormattedString|null {
     if (actors === null)
         return null;
     if (actors.length === 0)
@@ -1126,6 +1128,30 @@ function getActorsInfo(actors: string[]|null): FormattedString|null {
     }
 
     return result;
+}
+
+function formatMarkdown(markdown: string): FormattedString {
+    function mapToken(token: MarkedToken): FormattedStringElement {
+        switch (token.type) {
+            case 'text':
+                return { style: null, string: token.text };
+            case 'em':
+                return {
+                    style: { 'font-style': 'italic' },
+                    string: token.text
+                };
+            case 'strong':
+                return {
+                    style: { 'font-weight': 'bold' },
+                    string: token.text
+                };
+            default:
+                throw 'unreachable'
+        }
+    }
+
+    const tokens = Lexer.lexInline(markdown) as MarkedToken[];
+    return tokens.map(mapToken);
 }
 
 class QuiptFormEvent extends Event {
