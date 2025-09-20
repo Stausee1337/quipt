@@ -872,11 +872,49 @@ function ScriptOverview(
         script: Script
     }
 ): JSX.Element {
+    function computeScriptInfo(): DivisionInfo {
+        let textCues = 0;
+        const actorsSet: Set<string> = new Set();
+        for (const division of props.script.divisions) {
+            const { 
+                actors: divisionActors,
+                textCues: divisionTextCues,
+            } = computeDivisionInfo(division);
+            divisionActors.forEach(actorsSet.add.bind(actorsSet));
+            textCues += divisionTextCues;
+        }
+        const actors = Array.from(actorsSet);
+        actors.sort();
 
+        return {
+            actors,
+            textCues
+        };
+    }
+    
+    const { actors, textCues } = computeScriptInfo();
 
     function renderDivision(division: Division, idx: Accessor<number>) {
         const { actors, textCues } = computeDivisionInfo(division);
-        const maxScore = Math.max(division.textCues.length * 4, ...division.previousTotals);
+        const highScore = Math.max(0, ...division.previousTotals);
+        const maxScore = Math.max(division.textCues.length * 4, highScore);
+        
+        const previousTotals = division.previousTotals;
+        const p1 = previousTotals.at(-1) ?? 0;
+        const p2 = previousTotals.at(-2) ?? 0;
+
+        let trendIcon: string;
+        let trendColor: string|undefined;
+        const delta = p1 - p2;
+        const deltaString = `${Math.abs(delta)} pts`;
+        if (delta < 0) {
+            trendColor = progressBarRed;
+            trendIcon = 'chevron-double-down'
+        } else if (delta > 0) {
+            trendColor = progressBarGreen;
+            trendIcon = 'chevron-double-up'
+        } else
+            trendIcon = 'plus-slash-minus'
 
         function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration { 
             const data = leftPad(division.previousTotals, 3);
@@ -950,13 +988,25 @@ function ScriptOverview(
                     <span class="info">{ textCues } Einsätze</span>
                 </div>
                 <SimpleChart onConfig={chartConfigFactory}/>
+                <div class="score-info">
+                    <span class="row" style={{ color: progressBarYellow }}>
+                        <i class="bi bi-trophy-fill"/> { highScore }
+                    </span>
+                    <span class="row" style={{ color: trendColor }}>
+                        <i class={`bi bi-${trendIcon}`}/> { deltaString }
+                    </span>
+                </div>
             </A>
         );
     }
 
     return (
         <div class="script-overview">
-            <h2>{ props.script.name }</h2>
+            <div class="script-info">
+                <h2>{ props.script.name }</h2>
+                <span class="info">{ textCues } Einsätze</span>
+                <span class="info">{ actors.join(', ') }</span>
+            </div>
             {
                 mapArray(() => props.script.divisions, renderDivision) as any
             }

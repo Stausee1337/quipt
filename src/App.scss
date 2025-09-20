@@ -186,6 +186,18 @@ div.script-overview {
   display: flex;
   flex-direction: column;
 
+  div.script-info {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  span.info {
+    color: $lighter2;
+    font-size: 1.4rem;
+  }
+
   a.division-info {
     color: inherit;
     font-weight: inherit;
@@ -194,7 +206,7 @@ div.script-overview {
     padding: 1rem;
 
     display: grid;
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: 2fr auto 1fr;
 
     &:not(:last-child)::after {
       content: "";
@@ -211,15 +223,28 @@ div.script-overview {
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      gap: 0.5rem;
 
-      span.info {
-        color: $lighter2;
-        font-size: 1.4rem;
+      h3 {
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
 
     canvas.chart-js {
       width: 10rem !important;
+    }
+
+    div.score-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+
+      span.row {
+        @extend .roboto-b800;
+        text-align: center;
+        font-size: 1.4rem;
+      }
     }
   }
 }
