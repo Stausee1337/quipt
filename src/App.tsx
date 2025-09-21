@@ -214,9 +214,10 @@ interface TrainingRunManager {
         scoreHistory: number[],
         hasBorkenRecord: boolean,
     };
+    readonly isLastDivision: boolean;
 
     reset(): void;
-    next(): Promise<void>;
+    next(): Promise<boolean>;
 }
 
 const trendIcons = {
@@ -504,7 +505,9 @@ function TrainingRunView(
 
             props.manager.reset();
         } else {
-            await props.manager.next();
+            const hasNext = await props.manager.next();
+            if (!hasNext)
+                return;
             await animateScroll(root, root.scrollHeight - root.offsetHeight, 350);
             view.remove();
             previousElement = null;
@@ -702,7 +705,11 @@ function TrainingRunCompletedView(
                             <div style={{'flex': 1}}/>
                             <div class="continuation-buttons">
                                 <button class="primary-button" onClick={() => props.visualTransitionTo('next')}>
-                                    Weiter
+                                    {
+                                        !props.manager.isLastDivision
+                                            ? "Weiter"
+                                            : "Zurück zur Übersicht"
+                                    }
                                 </button>
                                 <button class="secondary-button" onClick={() => props.visualTransitionTo('top')}>
                                     Nochmal
@@ -919,8 +926,12 @@ function createTrainingRunManager(
             resetState();
         },
         next() {
-            let resolve: () => void;
-            const promise = new Promise<void>(resolve1 => resolve = resolve1);
+            if (this.isLastDivision) {
+                window.history.back();
+                return Promise.resolve(false);
+            }
+            let resolve: (x: boolean) => void;
+            const promise = new Promise<boolean>(resolve1 => resolve = resolve1);
 
             previousElement = document.querySelector('div.script-view');
             const nextDivision = index + 2;
@@ -930,11 +941,14 @@ function createTrainingRunManager(
                 if (Number(params.division) === nextDivision && !didResetState) {
                     didResetState = true;
                     resetState(); 
-                    resolve();
+                    resolve(true);
                 }
             }));
 
             return promise;
+        },
+        get isLastDivision() {
+            return index === script.divisions.length - 1;
         },
     };
 
