@@ -1,5 +1,5 @@
 import './App.scss'
-import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createContext, useContext, createMemo, Switch, Match, Component, createResource, untrack } from 'solid-js';
+import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createContext, useContext, createMemo, Switch, Match, Component, createResource, untrack, getOwner, runWithOwner } from 'solid-js';
 import { HeaderElement, MenuElement } from './std-widgets';
 import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams, Params } from '@solidjs/router';
 import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth, Division, Script, AuthenticationContext, TextCue } from './backend';
@@ -132,7 +132,11 @@ const progressBarYellow = '#fad541';
 const progressBarOrange = '#ffa459';
 const progressBarRed = '#fa742c';
 
-function createFlyingScoreAnimation(scoreString: Accessor<string>, progressBarColor: Accessor<string>): Promise<void> {
+function createFlyingScoreAnimation(
+    view: HTMLDivElement,
+    scoreString: Accessor<string>,
+    progressBarColor: Accessor<string>
+): Promise<void> {
     let resolve: () => void;
     const promise: Promise<void> = new Promise(resolve1 => { resolve = resolve1; });
 
@@ -142,7 +146,7 @@ function createFlyingScoreAnimation(scoreString: Accessor<string>, progressBarCo
 
         return `translate(${relX}px, ${relY}px)`;
     }
-    const view = document.querySelector("div.script-view")!;
+    // const view = document.querySelector("div.script-view")!;
     const score = view.querySelector('h2.score')! as HTMLElement;
     const scoreBox = view.querySelector('div.scorebox')! as HTMLElement;
     
@@ -212,6 +216,7 @@ interface TrainingRunManager {
     };
 
     reset(): void;
+    next(): Promise<void>;
 }
 
 const trendIcons = {
@@ -251,6 +256,7 @@ function TrainingRunView(
     const info = computeDivisionInfo(props.division);
 
     const root = document.getElementById("root")!;
+    let view: HTMLDivElement;
 
     let scrollLocked = false;
     function append() {
@@ -269,13 +275,13 @@ function TrainingRunView(
                 scrollLocked = false;
 
                 if (reachedEnd())
-                    setScoreboxAnimationPromise(createFlyingScoreAnimation(scoreString, progressBarColor));
+                    setScoreboxAnimationPromise(createFlyingScoreAnimation(view, scoreString, progressBarColor));
             });
     }
 
     function scrollListener() {
         if (scrollLocked) return;
-        const view = document.querySelector("div.script-view")!;
+        // const view = document.querySelector("div.script-view")!;
         if (root.scrollTop !== (root.scrollHeight - root.offsetHeight)) {
             view.classList.add('free-scrolling');
         } else {
@@ -288,13 +294,13 @@ function TrainingRunView(
     }, { root });
 
     onMount(() => {
-        const view = document.querySelector("div.script-view")!;
+        // const view = document.querySelector("div.script-view")!;
         observer.observe(view.querySelector('h2')!);
         root.addEventListener('scroll', scrollListener);
     });
 
     onCleanup(() => {
-        const view = document.querySelector("div.script-view")!;
+        // const view = document.querySelector("div.script-view")!;
         observer.unobserve(view.querySelector('h2')!);
         root.removeEventListener('scroll', scrollListener);
     });
@@ -380,7 +386,7 @@ function TrainingRunView(
             Math.floor(currentIndex() / 2), confidence);
         append();
 
-        const view = document.querySelector("div.script-view")!;
+        // const view = document.querySelector("div.script-view")!;
         const score = view.querySelector('h2.score')!;
         const targetRect = score.getBoundingClientRect();
         const indicatorColor = calculateIndicatorColor(diff);
@@ -484,7 +490,7 @@ function TrainingRunView(
 
     async function visualViewReset(target: "next"|"top") {
         if (target === "top") {
-            const view = document.querySelector("div.script-view")!;
+            // const view = document.querySelector("div.script-view")!;
             const mainContent = view.querySelector("div.main-content")!;
             for (const childElement of mainContent.children) {
                 const child = childElement as HTMLElement;
@@ -498,12 +504,15 @@ function TrainingRunView(
 
             props.manager.reset();
         } else {
-
+            await props.manager.next();
+            await animateScroll(root, root.scrollHeight - root.offsetHeight, 350);
+            view.remove();
+            previousElement = null;
         }
     }
 
     return (
-        <div class="script-view">
+        <div ref={view} class="script-view">
             <span class="sticky-division" classList={{"visible": stickyDivisionVisible()}}>
                 { props.division.name }
             </span>
@@ -837,16 +846,20 @@ function calculateStreakFromPoints(points: number): number {
     return Math.max(x1, x2);
 }
 
+let previousElement: JSX.Element = null;
+
 function createTrainingRunManager(
     params: Params,
     scriptContext: ScriptContext,
     script: Readonly<Script>,
     resetState: () => void
 ): [TrainingRunManager, Readonly<Division>] {
+    const navigate = useNavigate();
     const index = Number(params.division) - 1;
     const division = script.divisions[index];
     const newConfidences: number[] = Array(division.textCues.length).fill(0);
     let didCommitNewConfidences = false;
+    const computationOwner = getOwner()!;
 
     const manager: TrainingRunManager = {
         addConfidenceRating(cueIdx, confidence) {
@@ -905,6 +918,24 @@ function createTrainingRunManager(
         reset() {
             resetState();
         },
+        next() {
+            let resolve: () => void;
+            const promise = new Promise<void>(resolve1 => resolve = resolve1);
+
+            previousElement = document.querySelector('div.script-view');
+            const nextDivision = index + 2;
+            let didResetState = false;
+            navigate(`/script/${script.uuid}/${nextDivision}`, { replace: true });
+            runWithOwner(computationOwner, () => createEffect(() => {
+                if (Number(params.division) === nextDivision && !didResetState) {
+                    didResetState = true;
+                    resetState(); 
+                    resolve();
+                }
+            }));
+
+            return promise;
+        },
     };
 
     return [manager, division];
@@ -936,7 +967,12 @@ function TrainingRunWrapper(
             props.script,
             () => invalidate()
         );
-        return <TrainingRunView division={division} manager={manager} />;
+        return (
+            <>
+                { previousElement }
+                <TrainingRunView division={division} manager={manager} />
+            </>
+        );
     });
 
     return (
