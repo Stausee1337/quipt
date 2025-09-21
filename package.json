@@ -10,6 +10,7 @@
     "generate-defs": "node ./generate-defs.js"
   },
   "dependencies": {
+    "@lexical/rich-text": "^0.35.0",
     "@solidjs/router": "^0.15.3",
     "@types/canvas-confetti": "^1.9.0",
     "bootstrap-icons": "^1.11.1",

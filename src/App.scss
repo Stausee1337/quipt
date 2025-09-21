@@ -250,120 +250,6 @@ div.script-overview {
   }
 }
 
-div.division-overview {
-  background-color: #1f1f1f;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  z-index: 112;
-  animation: 275ms zoom-big ease-out;
-  box-shadow: 0 0 1px 5px rgba(black, 0.3);
-
-  div.content {
-    animation: 75ms fade-in ease-out;
-    animation-delay: 200ms;
-    display: flex;
-    flex-direction: column;
-
-    div.simple-header {
-      position: sticky;
-      top: 0;
-      height: 5rem;
-      padding: 0.3rem 1rem;
-      color: #e3e3e3 !important;
-    }
-    
-    div.grid-view {
-      padding: 1.5rem;
-      display: flex;
-      flex-wrap: wrap;
-      max-height: calc(100svh - 5rem);
-      overflow-x: hidden;
-      overflow-y: auto;
-      justify-content: space-between;
-      gap: 2rem;
-
-      div.item {
-        margin: 0;
-        position: relative;
-        width: calc(50% - 1rem);
-        padding: 1.5rem;
-        position: relative;
-        margin-top: 2.5rem;
-
-        &::before {
-          content: "";
-          position: absolute;
-          top: 0.5rem;
-          left: 0.5rem;
-          right: 0.5rem;
-          bottom: 0.5rem;
-          outline: 0.5rem solid var(--border-color, #0d1117);
-          border-radius: 1.5rem;
-          border-top-left-radius: 0;
-          border-top-right-radius: 0;
-          background-color: rgba(white, 0.03);
-        }
-
-        &.current {
-          --border-color: #06f990;
-          h3 {
-            background-color: #06f990;
-            color: #062e6c;
-          }
-        }
-
-        h3 {
-          margin: 0;
-          font-size: 1.5rem;
-          font-weight: 500;
-          position: absolute;
-          display: block;
-          width: 100%;
-          height: 3rem;
-          border-top-left-radius: 1.5rem;
-          border-top-right-radius: 1.5rem;
-          top: -2.5rem;
-          left: 0rem;
-          background-color: #0d1117;
-          line-height: 3rem;
-          padding: 0 1rem;
-          font-weight: 800;
-
-          &::before, &::after {
-            content: "";
-            position: absolute;
-            top: 3rem;
-            width: 0.5rem;
-            height: 1rem;
-            background-color: var(--border-color, #0d1117);
-          }
-
-          &::before {
-            left: 0;
-          }
-          &::after {
-            right: 0;
-          }
-        }
-
-        div.elements {
-          display: flex;
-          justify-content: space-evenly;
-          gap: 0.5rem;  
-
-          span.icon-element {
-            background-color: transparent;
-            font-size: 1.5rem;
-            // min-width: unset;
-          }
-        }
-      }
-    }
-  }
-}
 $size: 5.5rem;
 span.icon-element {
   height: $size;
@@ -526,8 +412,47 @@ div.vertical-view {
   }
 }
 
-b.yellow { color: #f9f871; }
-b.blue { color: #06f990; }
+$font-family-system: -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Helvetica,Arial,sans-serif;
+
+div.quipt-editor {
+  flex: 1;
+  outline: none;
+  font-family: $font-family-system;
+}
+
+div.desktop-edit {
+  flex: 1;
+  display: grid;
+  grid-template-rows: 6rem auto 1fr;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 
+    "header header"
+    "editor overview"
+    "editor empty";
+  gap: 0 1rem;
+
+  h2 {
+    grid-area: header;
+    line-height: 6rem;
+  }
+
+  div.text-edit {
+    padding: 1rem;
+    grid-area: editor;
+    display: flex;
+    border: 0.1rem solid $lighter1;
+    border-radius: 1rem;
+  }
+
+  div.division-overview {
+    border: 0.1rem solid $lighter1;
+    border-radius: 1rem;
+    grid-area: overview;
+    padding: 1rem;
+    width: 40rem;
+    background-color: $color-accent1;
+  }
+}
 
 @keyframes zoom-big {
   from {
@@ -609,7 +534,7 @@ div.script-view {
     text-align: center;
     padding: 0.5rem 0;
     background-color: $color-accent1;
-    border-bottom: 1px solid $lighter1;
+    border-bottom: 0.1rem solid $lighter1;
     z-index: 1000;
     font-weight: 500;
   }
@@ -728,14 +653,6 @@ div.script-view {
       }
       &:not(:has(div.last)) {
           opacity: 0.3;
-      }
-
-      span.bubble-handle {
-        position: absolute;
-        display: block;
-        width: 8px;
-        height: 13px;
-        z-index: 100;
       }
 
       div.quote {

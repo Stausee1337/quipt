@@ -5,6 +5,8 @@ import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams, 
 import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth, Division, Script, AuthenticationContext, TextCue } from './backend';
 import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 import { Lexer, MarkedToken } from 'marked';
+import { FORMAT_TEXT_COMMAND, createEditor } from 'lexical';
+import { HeadingNode, QuoteNode, registerRichText } from '@lexical/rich-text';
 import confetti from 'canvas-confetti';
 
 export type FormattedStringElement = { style: JSX.CSSProperties|null, string: string };
@@ -791,12 +793,43 @@ function Root(): JSX.Element {
     );
 }
 
+function Editor() {
+    const contentEditableElement = <div class="quipt-editor" spellcheck={false} contenteditable/> as HTMLDivElement;
+    const editor = createEditor({
+        namespace: 'QuiptEditor',
+        nodes: [HeadingNode, QuoteNode],
+        onError: console.error
+    });
+
+    registerRichText(editor);
+
+    onMount(() => {
+        editor.setRootElement(contentEditableElement);
+    })
+
+    return contentEditableElement;
+}
+
+function DesktopScriptEdit(): JSX.Element {
+
+    return (
+        <div class="desktop-edit">
+            <h2>This is the scripts title</h2>
+            <div class="division-overview">
+            </div>
+            <div class="text-edit">
+                <Editor />
+            </div>
+        </div>
+    );
+}
+
 function ScriptRoute(): JSX.Element {
     const isMobile = useContext(IsMobileContext)!;
 
     return (
         <>
-            { isMobile() ? <MobileScriptRedirect/> : null }
+            { isMobile() ? <MobileScriptRedirect/> : <DesktopScriptEdit/> }
         </>
     );
 }
