@@ -1,6 +1,5 @@
-import { Component, JSX, Owner, createRoot, onCleanup, onMount } from "solid-js";
+import { Component, JSX, Owner, createRoot, onMount } from "solid-js";
 import { insert } from "solid-js/web";
-import Hammer from 'hammerjs';
 
 type DialogButton = {
     title: string,
@@ -32,21 +31,6 @@ export class DialogManager {
         return result;
     }
 
-    public static async openBottomSheet(content: Component<{ closer: () => void }>): Promise<void> {
-        const rootElement = <div id="dialog-root"/> as HTMLDivElement;
-        document.body.appendChild(rootElement);
-
-        await createRoot(async dispose => {
-            await new Promise<void>(resolve => {
-                const dialogBox = <BottomSheet onClose={resolve}>{ content }</BottomSheet>;
-                insert(rootElement, () => dialogBox, null);
-            });
-            dispose();
-        });
-
-        rootElement.remove();
-    }
-
     public static async openSideMenu(content: Component<{ closer: () => void }>, detachedOwner?: typeof Owner): Promise<void> {
         const rootElement = <div id="dialog-root"/> as HTMLDivElement;
         document.body.appendChild(rootElement);
@@ -64,110 +48,6 @@ export class DialogManager {
 
         rootElement.remove();
     }
-}
-
-function BottomSheet(props: { onClose: () => void, children: Component<{ closer: () => void }> }) {
-    let top: number;
-    let dialogHeight: number;
-
-    function clickHandler(event: MouseEvent) {
-        const rect = dialog.getBoundingClientRect();
-        if (event.clientY >= rect.top - 5) {
-            return;
-        }
-        deferClose();
-    }
-
-    function deferClose() {
-        dialog.classList.add('removing');
-        dialog.addEventListener('animationend', () => {
-            dialog.close();
-        }, { once: true });
-    }
-
-    const handle: HTMLSpanElement = <span class="sheet-handle"/>;
-    const dialog: HTMLDialogElement = (
-        <dialog id="bottom-sheet" onClose={props.onClose} onClick={clickHandler}>
-            { handle }
-            <div class="sheet-content">
-                {  <props.children closer={deferClose}/> }
-            </div>
-        </dialog>
-    );
-
-    let initialized = false;
-    const observer = new ResizeObserver(() => {
-        if (!initialized) {
-            initialized = true;
-            return;
-        }
-        const rect = dialog.getBoundingClientRect();
-        const animation = dialog.animate([
-            { top: `${top}px` },
-            { top: `${window.innerHeight - rect.height}px` }
-        ], { duration: 250, easing: 'ease-out' });
-        animation.addEventListener("finish", () => {
-            dialogHeight = rect.height;
-            top = window.innerHeight - dialogHeight;
-            dialog.style.top = `${top}px`;
-        });
-    });
-
-    const hammer = new Hammer(handle);
-    hammer.get('pan').set({ direction: Hammer.DIRECTION_VERTICAL });
-
-    hammer.on('pan', e => {
-        if (e.deltaY < 0) {
-            return;
-        }
-        dialog.style.top = `${top + e.deltaY}px`;
-    });
-
-    const DEFAULT_VELOCITY = 1;
-    hammer.on('panend', e => {
-        if (e.deltaY/dialogHeight <= 0.5 && e.velocityY < 1.5) {
-            const animation = dialog.animate([
-                { top: `${top + e.deltaY}px` },
-                { top: `${top}px` },
-            ], { duration: 250, easing: 'ease-out' });
-            animation.addEventListener('finish', () => {
-                dialog.style.top = `${top}px`;
-            })
-            return;
-        }
-        const remainingHeight = dialogHeight - e.deltaY;
-        const velocity = DEFAULT_VELOCITY + e.velocityY;
-        const animationTime = (remainingHeight / velocity);
-        const animation = dialog.animate([
-            { top: `${top + e.deltaY}px` },
-            { top: `${window.innerHeight}px` },
-        ], { duration: animationTime, easing: 'linear' });
-        animation.addEventListener('finish', () => {
-            dialog.style.top = `${window.innerHeight}px`;
-            fadeOut();
-        });
-    });
-
-    function fadeOut() {
-        dialog.classList.add('fading-out');
-        dialog.addEventListener('animationend', () => {
-            dialog.close();
-        }, { once: true })
-    }
-
-    onMount(() => {
-        dialogHeight = dialog.getBoundingClientRect().height;
-        top = window.innerHeight - dialogHeight;
-        dialog.style.top = `${top}px`;
-        dialog.showModal();
-        observer.observe(dialog);
-    });
-
-    onCleanup(() => {
-        observer.unobserve(dialog);
-    })
-
-    return dialog;
 }
 
 function SideMenu(
