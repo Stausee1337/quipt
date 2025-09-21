@@ -1,7 +1,7 @@
 import './App.scss'
-import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createContext, useContext, createMemo, Switch, Match, Component, createResource } from 'solid-js';
+import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, createContext, useContext, createMemo, Switch, Match, Component, createResource, untrack } from 'solid-js';
 import { HeaderElement, MenuElement } from './std-widgets';
-import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams } from '@solidjs/router';
+import { Router, Route, Navigate, useNavigate, RouteSectionProps, A, useParams, Params } from '@solidjs/router';
 import { AuthenticationContextObj, createAuthenticationContext, useAuthentication, defaultRequests, auth, Division, Script, AuthenticationContext, TextCue } from './backend';
 import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 import { Lexer, MarkedToken } from 'marked';
@@ -161,7 +161,7 @@ function createFlyingScoreAnimation(scoreString: Accessor<string>, progressBarCo
 
     const animation = flyingScore.animate([
         { transform: initialTranslation, offset: 0 },
-        { transform: `${finalTranslation} scale(10)`, color: progressBarColor(), offset: 1 },
+        { transform: `${finalTranslation} scale(9)`, color: progressBarColor(), offset: 1 },
     ], { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' });
 
     animation.addEventListener('finish', () => {
@@ -210,6 +210,8 @@ interface TrainingRunManager {
         scoreHistory: number[],
         hasBorkenRecord: boolean,
     };
+
+    reset(): void;
 }
 
 const trendIcons = {
@@ -454,8 +456,14 @@ function TrainingRunView(
 
         let interval = 0;
         advance();
-        if (effect.length > 1)
-            interval = setInterval(advance, 75);
+        if (effect.length == 1)
+            return promise;
+
+        let delta = 75;
+        if (effect.length - 1 > 4)
+            delta = 300 /* ms */ / (effect.length - 1);
+
+        interval = setInterval(advance, delta);
         return promise;
     }
 
@@ -472,6 +480,26 @@ function TrainingRunView(
                 confidenceReport={(n === currentIndex() && !reachedEnd()) ? reportConfidence : undefined}
                 text={formatMarkdown(cueData.text)}
                 actorsInfo={cueData.actors}/>);
+    }
+
+    async function visualViewReset(target: "next"|"top") {
+        if (target === "top") {
+            const view = document.querySelector("div.script-view")!;
+            const mainContent = view.querySelector("div.main-content")!;
+            for (const childElement of mainContent.children) {
+                const child = childElement as HTMLElement;
+                child.style.visibility = 'hidden';
+            }
+
+            await animateScroll(root, 0, 350);
+
+            setReachedEnd(false);
+            setCurrentIndex(0);
+
+            props.manager.reset();
+        } else {
+
+        }
     }
 
     return (
@@ -502,6 +530,7 @@ function TrainingRunView(
             { !reachedEnd() 
                 ? <div class="scroll-padding"/> 
                 : <TrainingRunCompletedView maxScore={maxScore}
+                    visualTransitionTo={visualViewReset}
                     currentScoreString={scoreString()}
                     manager={props.manager}
                     progressBarColor={progressBarColor()}
@@ -545,7 +574,8 @@ function TrainingRunCompletedView(
         currentScoreString: string,
         progressBarColor: string,
         manager: TrainingRunManager,
-        scoreboxAnimation: Promise<void>|undefined
+        scoreboxAnimation: Promise<void>|undefined,
+        visualTransitionTo: (target: "next"|"top") => void
     }
 ) {
     const { scoreHistory, hasBorkenRecord } = props.manager.commitRun();
@@ -655,6 +685,22 @@ function TrainingRunCompletedView(
                 animationsDone() && hasBorkenRecord
                     ? <h3><i class="bi bi-trophy-fill" style={{ color: progressBarYellow }}/> Neuer High Score!</h3>
                     : null
+            }
+            {
+                !animationsDone() ?
+                    null : (
+                        <>
+                            <div style={{'flex': 1}}/>
+                            <div class="continuation-buttons">
+                                <button class="primary-button" onClick={() => props.visualTransitionTo('next')}>
+                                    Weiter
+                                </button>
+                                <button class="secondary-button" onClick={() => props.visualTransitionTo('top')}>
+                                    Nochmal
+                                </button>
+                            </div>
+                        </>
+                    )
             }
             { confettiCanvas }
         </div>
@@ -791,15 +837,14 @@ function calculateStreakFromPoints(points: number): number {
     return Math.max(x1, x2);
 }
 
-function TrainingRunWrapper(
-    props: {
-        script: Readonly<Script>
-    }
-): JSX.Element {
-    const params = useParams();
-    const scriptContext = useContext(ScriptContextObj)!;
+function createTrainingRunManager(
+    params: Params,
+    scriptContext: ScriptContext,
+    script: Readonly<Script>,
+    resetState: () => void
+): [TrainingRunManager, Readonly<Division>] {
     const index = Number(params.division) - 1;
-    const division = props.script.divisions[index];
+    const division = script.divisions[index];
     const newConfidences: number[] = Array(division.textCues.length).fill(0);
     let didCommitNewConfidences = false;
 
@@ -857,9 +902,48 @@ function TrainingRunWrapper(
                 hasBorkenRecord: newScore > previousHighScore
             };
         },
+        reset() {
+            resetState();
+        },
     };
 
-    return <TrainingRunView division={division} manager={manager} />
+    return [manager, division];
+}
+
+function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => void] {
+    const [pullSignal, setSignal] = createSignal({});
+
+    const read = createMemo(() => {
+        pullSignal();
+        return untrack(fn);
+    });
+
+    return [read, () => setSignal({})];
+}
+
+function TrainingRunWrapper(
+    props: {
+        script: Readonly<Script>
+    }
+): JSX.Element {
+    const params = useParams();
+    const scriptContext = useContext(ScriptContextObj)!;
+
+    const [element, invalidate] = createInvalidatable(() => {
+        const [manager, division] = createTrainingRunManager(
+            params,
+            scriptContext,
+            props.script,
+            () => invalidate()
+        );
+        return <TrainingRunView division={division} manager={manager} />;
+    });
+
+    return (
+        <>
+            { element() }
+        </>
+    );
 }
 
 function ScriptOverview(
@@ -1068,6 +1152,7 @@ function createScriptContext(authenticationContext: AuthenticationContext): Scri
 
             const newDivision: Division = {
                 name: division.name,
+                description: division.description,
                 textCues: division.textCues.map((textCue, idx) => {
                     return {
                         request: textCue.request,

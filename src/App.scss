@@ -672,7 +672,7 @@ div.script-view {
     div.scorebox {
       @extend .roboto-b900;
       // text-align: center;
-      font-size: 16rem;
+      font-size: calc($text-body-font-size * 9);
       letter-spacing: 0rem;
       color: var(--score-color);
       position: relative;
@@ -692,6 +692,14 @@ div.script-view {
 
     canvas.chart-js {
       z-index: 10;
+    }
+
+    div.continuation-buttons {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 10rem;
+      width: 100%;
+      gap: 1rem;
     }
 
     #confettiCanvas {
@@ -763,7 +771,7 @@ div.script-view {
         gap: 1rem;
         font-size: 1.4rem;
 
-        $size: 2.5rem;
+        $size: 3rem;
         span.smiley {
           // background-color: $lighter1;
           // border-radius: $size;
