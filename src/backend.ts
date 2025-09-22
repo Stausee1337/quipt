@@ -1,7 +1,5 @@
-import { JSX, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
+import { JSX, createContext, createEffect, createResource, createSignal, useContext, ResourceReturn, Resource } from "solid-js";
 import { auth, scripts } from './protos';
-import { ResourceReturn } from "solid-js";
-import { Resource } from "solid-js";
 
 type ResultPromise<T, E> = Promise<[T, undefined] | [undefined, E]>;
 
@@ -48,7 +46,7 @@ const defaultPostRequests = {
         }
 };
 
-const apiURL = "localhost:8000";
+const apiURL = import.meta.env.VITE_API_HOST;
 
 export class APIError extends Error {}
 export class UnexpectedLogout extends Error {}
@@ -122,7 +120,7 @@ export class DefaultRequestsProvider extends BaseRequestProvider<{}, {}, typeof 
 
     executorFactory(method: string, endpoint: string): Executor {
         return async (b: BodyInit | null): Promise<{ status: number, data: Uint8Array }> => {
-            const response = await fetch(`http://${apiURL}${endpoint}`, { method, body: b });
+            const response = await fetch(`${apiURL}${endpoint}`, { method, body: b });
             if (response.ok)
                 return { status: response.status, data: new Uint8Array(await response.arrayBuffer()) }
             if (response.status >= 500) {
@@ -218,7 +216,7 @@ export class AuthenticatedRequestsProvider extends CachableRequestsProvider<
             let didRefresh = false;
             endpoint = endpointOverride ?? endpoint;
             do {
-                const response = await fetch(`http://${apiURL}${endpoint}`, { method, body: b, headers });
+                const response = await fetch(`${apiURL}${endpoint}`, { method, body: b, headers });
                 if (response.ok)
                     return { status: response.status, data: new Uint8Array(await response.arrayBuffer()) }
                 if (response.status === 401 && !didRefresh) {
