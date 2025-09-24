@@ -259,179 +259,16 @@ div.script-overview {
   }
 }
 
-$size: 5.5rem;
-span.icon-element {
-  height: $size;
-  min-width: $size;
-  background-color: #44474e;
-  border-radius: $size;
-  position: relative;
-  text-align: center;
-  font-size: 1.4rem;
-  font-weight: 800;
-  z-index: 1;
-  color: #44474e;
-
-  &.stylish-text {
-    color: #f9f871;
-    // color: #37EDF9;
-    line-height: calc($size*(5/6));
-    text-shadow: rgba(black, 0.8) 0 0 5px;
-  }
-// #37EDF9
-  div.select-container {
-    display: flex;
-    align-items: center;
-    padding: 0 1rem;
-    gap: 0.5rem;
-    height: 100%;
-    position: relative;
-
-    & > svg:first-child, & > svg:last-child {
-      z-index: 0;
-    }
-    & > svg:nth-child(2), & > svg:nth-last-child(2) {
-      z-index: 1;
-    }
-    & > svg:nth-child(3) {
-      z-index: 2;
-    }
-  }
-
-  &::before {
-    position: absolute;
-    top: 0rem;
-    left: 0rem;
-    right: 0;
-    bottom: 0;
-    font-family: bootstrap-icons !important;
-    font-style: normal;
-    font-weight: normal !important;
-    font-variant: normal;
-    text-transform: none;
-    font-size: calc($size * (2/3));
-    text-align: center;
-    // vertical-align: -0.125em;
-    z-index: -1;
-    line-height: $size;
-  }
-
-  &.bulb {
-    &::before {
-      content: "\F468";
-      color: #f9f871;
-    }
-    line-height: calc($size*(5/6));
-  }
-
-  &.chat {
-    &::before {
-      content: "\F24B";
-      color: #5df9d0;
-    }
-    line-height: $size;
-  }
-
-  canvas {
-    position: absolute;
-  }
-
-  svg {
-    &.circle { 
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: -1;
-      height: $size * 1.1;
-      width: $size * 1.1;
-      scale: 1 -1;
-      translate: -100% -100%;
-      rotate: -90deg;
-      circle {
-        transition: stroke-dashoffset 250ms linear;
-      }
-    }
-    width: calc($size * (2/3));
-    height: calc($size * (2/3));
-  }
-}
-
-
-div.vertical-view {
-  background-color: #1f1f1f;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  z-index: 112;
-  animation: 275ms slide-from-right ease-out;
-
-  div.content {
-    display: grid;
-    grid-template-rows: 5rem 1fr;
-    grid-template-columns: 6rem 1fr;
-    grid-template-areas: "header header"
-      "balls quote";
-
-    div.simple-header {
-      height: 5rem;
-      padding: 0.3rem 1rem;
-      color: #e3e3e3 !important;
-      grid-area: header;
-    }
-
-    div.balls {
-      display: flex;
-      flex-direction: column;
-      padding: 1rem;
-      height: calc(100svh - 5rem);
-      justify-content: space-between;
-      grid-area: balls;
-
-      touch-action: none;
-      user-select: none;
-      -webkit-user-drag: none;
-      -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-
-      span.ball {
-        height: calc(7px * var(--ball-scale-factor, 1));
-        width: calc(7px * var(--ball-scale-factor, 1));
-        background-color: rgba(white, 0.5);
-        border-radius: 50%;
-        $cccalc: calc((var(--ball-scale-factor, 1) - 1) / 3);
-        margin: calc(0.75px * (var(--ball-scale-factor, 1) - 1)) calc(15px * $cccalc*$cccalc*$cccalc);
-        position: relative;
-
-        &.highlighted {
-          background-color: #06f990;
-        }
-      }
-    }
-
-    div.current-quote-container {
-      grid-area: quote;
-
-      div.current-quote {
-        opacity: 1;
-        pointer-events: unset;
-      }
-    }
-  }
-}
-
 $font-family-system: -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Helvetica,Arial,sans-serif;
 
 div.desktop-edit {
   flex: 1;
   display: grid;
-  grid-template-rows: 6rem auto 1fr;
+  grid-template-rows: 6rem 1fr;
   grid-template-columns: 1fr auto;
   grid-template-areas: 
     "header header"
-    "editor overview"
-    "editor empty";
+    "cues overview";
   gap: 0 1rem;
 
   h2 {
@@ -439,52 +276,12 @@ div.desktop-edit {
     line-height: 6rem;
   }
 
-  div.abcdef {
-    grid-area: editor;
-  }
-
-  div.text-edit {
-    display: flex;
-    border: 0.1rem solid $lighter1;
-    border-radius: 1rem;
-    flex-direction: column;
-    overflow: hidden;
-
-    div.division-head {
-      border-bottom: 0.1rem solid $lighter1;
-      padding: 1rem;
-      background-color: $color-accent1;
+  div.grid-layout-filler {
+    &.overview {
+      grid-area: overview;
     }
-
-    div.division-content {
-      display: grid;
-      grid-template-columns: auto 1fr;
-    }
-
-    div.row {
-      display: grid;
-      grid-template-columns: auto 1fr;
-
-      div.actors-segment {
-        width: var(--actors-width, 8rem); 
-        background-color: $color-accent1;
-        border-right: 0.1rem solid $lighter1;
-        position: relative;
-
-        span[contenteditable] {
-          position: absolute;
-          top: 50%;
-          left: 1rem;
-          min-width: calc(8rem - 2rem);
-          outline: none;
-          text-wrap: nowrap;
-          transform: translateY(-50%);
-        }
-      }
-
-      div.script-container {
-        flex: 1;
-      }
+    &.cues {
+      grid-area: cues;
     }
   }
 
@@ -509,21 +306,6 @@ div.row div.cm-scroller {
   }
   to {
     height: 100%;
-  }
-}
-
-@property --ball-scale-factor {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 1;
-}
-
-div.confidence-selector {
-  display: flex;
-  justify-content: center;
-
-  span.icon-element {
-    box-shadow: 0 0 1px rgba(black, 0.3);
   }
 }
 
@@ -560,7 +342,7 @@ div.script-view {
   // grid-template-rows: 3.5rem 1fr 2rem 2rem 5.5rem 1rem;
 
   &.free-scrolling {
-    div.quote-wrapper {
+    div.cue-wrapper {
       opacity: 1 !important;
     }
   }
@@ -689,72 +471,6 @@ div.script-view {
     // padding: 0 1.5rem;
     display: flex;
     flex-direction: column;
-
-    div.quote-wrapper {
-      display: flex;
-      position: relative;
-      flex-direction: column;
-      gap: 1rem;
-
-      &:has(div.response) {
-        align-items: flex-end;
-      }
-      &:not(:has(div.last)) {
-          opacity: 0.3;
-      }
-
-      div.quote {
-        font-size: 1.6rem;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-
-        padding: 1rem;
-        max-width: 85%;
-        background-color: $color-accent1;
-        border-radius: 1rem;
-
-        &.request {
-          border-top-left-radius: 0;
-        }
-
-        &.response {
-          border-top-right-radius: 0;
-        }
-
-        h3 {
-          margin: 0;
-          font-size: 1.4rem;
-          font-weight: 800;
-        }
-
-      }
-      
-      div.confidence-rating {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 1rem;
-        font-size: 1.4rem;
-
-        $size: 3rem;
-        span.smiley {
-          // background-color: $lighter1;
-          // border-radius: $size;
-          width: $size;
-          height: $size;
-          font-size: $size;
-
-          font-family: bootstrap-icons !important;
-          font-style: normal;
-          font-weight: normal !important;
-          font-variant: normal;
-          text-transform: none;
-          line-height: 1;
-          vertical-align: -.125em;
-        }
-      }
-    }
   }
 
   div.main-content {
@@ -818,6 +534,72 @@ div.script-view {
         background-color: $progress-bar-color;
         width: calc(var(--progress-width) * 100%);
       }
+    }
+  }
+}
+
+div.cue-wrapper {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  gap: 1rem;
+
+  &:has(div.response) {
+    align-items: flex-end;
+  }
+  &:not(:has(div.last)) {
+    opacity: 0.3;
+  }
+
+  div.cue {
+    font-size: 1.6rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    padding: 1rem;
+    max-width: 85%;
+    background-color: $color-accent1;
+    border-radius: 1rem;
+
+    &.request {
+      border-top-left-radius: 0;
+    }
+
+    &.response {
+      border-top-right-radius: 0;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: 800;
+    }
+
+  }
+
+  div.confidence-rating {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+    font-size: 1.4rem;
+
+    $size: 3rem;
+    span.smiley {
+      // background-color: $lighter1;
+      // border-radius: $size;
+      width: $size;
+      height: $size;
+      font-size: $size;
+
+      font-family: bootstrap-icons !important;
+      font-style: normal;
+      font-weight: normal !important;
+      font-variant: normal;
+      text-transform: none;
+      line-height: 1;
+      vertical-align: -.125em;
     }
   }
 }

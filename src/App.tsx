@@ -1,6 +1,7 @@
 import './App.scss'
 import { createSignal, onCleanup, JSX, createEffect, createContext } from 'solid-js';
-import { HeaderElement, MenuElement } from './components/HeaderElement';
+import { HeaderElement } from './components/HeaderElement';
+import { MenuElement } from './components/MenuElement';
 import { Router, Route, Navigate, useNavigate } from '@solidjs/router';
 import { AuthenticationContextObj, createAuthenticationContext, useAuthentication } from './backend';
 import { ScriptContextObj, createScriptContext } from './script';

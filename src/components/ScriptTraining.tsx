@@ -1,104 +1,11 @@
 import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, useContext, createMemo, Switch, Match, untrack, getOwner, runWithOwner } from 'solid-js';
 import { useNavigate, A, useParams, Params } from '@solidjs/router';
 import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
-import { Lexer, MarkedToken } from 'marked';
 import confetti from 'canvas-confetti';
 import { useAuthentication, Division, Script, TextCue } from '../backend';
 import { ScriptContextObj, ScriptContext } from '../script';
-
-
-export type FormattedStringElement = { style: JSX.CSSProperties|null, string: string };
-export type FormattedString = FormattedStringElement[];
-
-function formatString(string: FormattedString): JSX.Element {
-    const result: JSX.ArrayElement = [];
-
-    for (let item of string) {
-        if (item.style === null) {
-            result.push(item.string);
-        } else {
-            result.push(<span style={item.style}>{item.string}</span>);
-        }
-    }
-
-    return result;
-}
-
-const confidenceIconMap = [
-    {
-        'low': '\uF31D',
-        'medium': '\uF323',
-        'high': '\uF327',
-    },
-    {
-        'low': '\uF31C',
-        'medium': '\uF322',
-        'high': '\uF324',
-    },
-];
-
-function ConfidenceReportButton(
-    props: {
-        confidence: "low"|"medium"|"high",
-        reporter?: (source: EventTarget & Element, confidence: "low"|"medium"|"high") => void
-    }
-): JSX.Element {
-    const [clicked, setClicked] = createSignal<boolean>(false);
-
-    function onClick(event: MouseEvent & { currentTarget: HTMLSpanElement }) {
-        const reporter = props.reporter;
-        if (reporter === undefined) return;
-        setClicked(true);
-        reporter(event.currentTarget, props.confidence);
-    }
-
-    const confidenceIconColor = {
-        'low': progressBarRed,
-        'medium': progressBarYellow,
-        'high': progressBarGreen,
-    };
-
-    return (
-        <span class="smiley"
-            onClick={onClick}
-            style={{ color: confidenceIconColor[props.confidence] }}>
-            { confidenceIconMap[Number(clicked())][props.confidence] }
-        </span>
-    )
-}
-
-type QuoteViewProps = {
-    last: boolean,
-    text: FormattedString,
-    actorsInfo: FormattedString|null,
-    type: "request"|"response",
-    isTextShown?: boolean,
-    onShowText?: () => void,
-    confidenceReport?: (source: EventTarget & Element, confidence: "low"|"medium"|"high") => void
-};
-
-function QuoteView(props: QuoteViewProps) {
-    return (
-        <div class="quote-wrapper">
-            <div class={`quote ${props.type}`} 
-                classList={{'last': props.last}}>
-                { props.actorsInfo !== null ? <h3>{ formatString(props.actorsInfo) }</h3> : null }
-                <span class="content">
-                    { formatString(props.text) }
-                </span>
-            </div>
-            {
-                props.type === "response" ? (
-                    <div class="confidence-rating">
-                        <ConfidenceReportButton confidence="low" reporter={props.confidenceReport}/>
-                        <ConfidenceReportButton confidence="medium" reporter={props.confidenceReport}/>
-                        <ConfidenceReportButton confidence="high" reporter={props.confidenceReport}/>
-                    </div>
-                ) : null
-            }
-        </div>
-    );
-}
+import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, formatActorsArray, formatMarkdown } from './common';
+import { TextCueView } from './TextCueView';
 
 function easeOut(x: number) {
     return Math.sin((x * Math.PI) / 2);
@@ -125,12 +32,6 @@ function animateScroll(element: HTMLElement, top: number, duration: number): Pro
     });
     return promise;
 }
-
-
-const progressBarGreen = '#5d9948';
-const progressBarYellow = '#fad541';
-const progressBarOrange = '#ffa459';
-const progressBarRed = '#fa742c';
 
 function createFlyingScoreAnimation(
     view: HTMLDivElement,
@@ -481,7 +382,7 @@ function TrainingRunView(
             ? { actors: formatActorsArray(textCue.request?.actors ?? null), text: textCue.request?.text ?? "Du bist der erste in diesem Abschnitt" }
             : { actors: formatActorsArray(textCue.response!.actors), text: textCue.response!.text! };
         return (
-            <QuoteView 
+            <TextCueView
                 last={checkIsLast(n, currentIndex())}
                 type={type}
                 confidenceReport={(n === currentIndex() && !reachedEnd()) ? reportConfidence : undefined}
@@ -1081,65 +982,4 @@ function TrainingRunWrapper(
         </>
     );
 }
-function generateSunflowerColor(idx: number, saturation = 95, value = 70): string {
-    const PHI = (5 ** 0.5 + 1) * 0.5;
-	return `hsl(${((PHI * idx) % 1) * 360}deg, ${saturation}%, ${value}%)`;
-}
 
-function generateHash(str: string): number {
-    let hash = 0;
-    for (const char of str) {
-        hash = (hash << 5) - hash + char.charCodeAt(0);
-        hash |= 0; // Constrain to 32bit integer
-    }
-    return hash;
-};
-
-function formatActorsArray(actors: string[]|null): FormattedString|null {
-    if (actors === null)
-        return null;
-    if (actors.length === 0)
-        return null;
-
-    const result: FormattedString = actors
-        .map(actor => [generateSunflowerColor(generateHash(actor)), actor])
-        .map(item => ({ style: { color: item[0] }, string: item[1] }));
-
-    if (result.length === 1) {
-        return result;
-    }
-
-    for (let i = 0; i < Math.floor(result.length / 2); i++) {
-        const index = (i*2)+1;
-        result.splice(index, 0, {
-            style: null,
-            string: (index === result.length-1) ? " und " : ", "
-        });
-    }
-
-    return result;
-}
-
-function formatMarkdown(markdown: string): FormattedString {
-    
-    function* mapToken(tokens: MarkedToken[], style: JSX.CSSProperties|null = null): Generator<FormattedStringElement> {
-        for (const token of tokens) {
-            switch (token.type) {
-                case 'text':
-                    yield { style, string: token.text };
-                    continue;
-                case 'em':
-                    yield* mapToken(token.tokens as MarkedToken[], { ...style, 'font-style': 'italic' });
-                    continue;
-                case 'strong':
-                    yield* mapToken(token.tokens as MarkedToken[], { ...style, 'font-weight': 'bold' });
-                    continue;
-                default:
-                    throw 'unreachable'
-            }
-        }
-    }
-
-    const tokens = Lexer.lexInline(markdown) as MarkedToken[];
-    return Array.from(mapToken(tokens));
-}
