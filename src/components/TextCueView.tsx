@@ -45,15 +45,24 @@ function ConfidenceReportButton(
     )
 }
 
+
+export enum TextCueViewFlags {
+    Editable = 1,
+    Ratable = 2,
+}
+
 type TextCueViewProps = {
     last: boolean,
     text: FormattedString,
     actorsInfo: FormattedString|null,
     type: "request"|"response",
+    flags?: TextCueViewFlags,
     confidenceReport?: (source: EventTarget & Element, confidence: "low"|"medium"|"high") => void
 };
 
 export function TextCueView(props: TextCueViewProps) {
+    const isRatable = () => (props.flags ?? 0) & TextCueViewFlags.Ratable;
+
     return (
         <div class="cue-wrapper">
             <div class={`cue ${props.type}`} 
@@ -64,7 +73,7 @@ export function TextCueView(props: TextCueViewProps) {
                 </span>
             </div>
             {
-                props.type === "response" ? (
+                (props.type === "response" && isRatable()) ? (
                     <div class="confidence-rating">
                         <ConfidenceReportButton confidence="low" reporter={props.confidenceReport}/>
                         <ConfidenceReportButton confidence="medium" reporter={props.confidenceReport}/>

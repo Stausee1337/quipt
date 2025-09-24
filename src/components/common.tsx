@@ -1,5 +1,6 @@
 import { JSX } from "solid-js";
 import { Lexer, MarkedToken } from 'marked';
+import { Division, TextCue } from "../backend";
 
 export const progressBarGreen = '#5d9948';
 export const progressBarYellow = '#fad541';
@@ -82,4 +83,27 @@ export function formatMarkdown(markdown: string): FormattedString {
 
     const tokens = Lexer.lexInline(markdown) as MarkedToken[];
     return Array.from(mapToken(tokens));
+}
+
+export interface DivisionInfo {
+    actors: string[],
+    textCues: number
+}
+
+export function computeDivisionInfo(division: Readonly<Division>): DivisionInfo {
+    const actorsCollection: Set<string> = new Set();
+    const addActors =
+        (textCue: Readonly<TextCue>) => textCue.actors.forEach(actorsCollection.add.bind(actorsCollection))
+    for (const textCuePair of division.textCues) {
+        if (textCuePair.request !== null)
+            addActors(textCuePair.request);
+        addActors(textCuePair.response);
+    }
+
+    const actors = Array.from(actorsCollection);
+    actors.sort();
+    return {
+        actors,
+        textCues: division.textCues.length
+    };
 }

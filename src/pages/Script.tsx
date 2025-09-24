@@ -1,5 +1,5 @@
 import { JSX, useContext } from "solid-js";
-import { DesktopScriptEdit } from "../components/ScriptEdit";
+import { ScriptViewer } from "../components/ScriptEdit";
 import { MobileScriptRedirect } from "../components/ScriptTraining";
 import { IsMobileContext } from "../App";
 
@@ -8,7 +8,7 @@ export function ScriptRoute(): JSX.Element {
 
     return (
         <>
-            { isMobile() ? <MobileScriptRedirect/> : <DesktopScriptEdit/> }
+            { isMobile() ? <MobileScriptRedirect/> : <ScriptViewer/> }
         </>
     );
 }

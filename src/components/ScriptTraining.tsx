@@ -2,10 +2,11 @@ import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor
 import { useNavigate, A, useParams, Params } from '@solidjs/router';
 import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
-import { useAuthentication, Division, Script, TextCue } from '../backend';
+import { useAuthentication, Division, Script } from '../backend';
 import { ScriptContextObj, ScriptContext } from '../script';
-import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, formatActorsArray, formatMarkdown } from './common';
-import { TextCueView } from './TextCueView';
+import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, formatActorsArray, formatMarkdown, computeDivisionInfo, DivisionInfo } from './common';
+import { TextCueView, TextCueViewFlags } from './TextCueView';
+import { DivisionInfoView } from './DivisionInfoView';
 
 function easeOut(x: number) {
     return Math.sin((x * Math.PI) / 2);
@@ -78,29 +79,6 @@ function createFlyingScoreAnimation(
     return promise;
 }
 
-interface DivisionInfo {
-    actors: string[],
-    textCues: number
-}
-
-function computeDivisionInfo(division: Readonly<Division>): DivisionInfo {
-    const actorsCollection: Set<string> = new Set();
-    const addActors =
-        (textCue: Readonly<TextCue>) => textCue.actors.forEach(actorsCollection.add.bind(actorsCollection))
-    for (const textCuePair of division.textCues) {
-        if (textCuePair.request !== null)
-            addActors(textCuePair.request);
-        addActors(textCuePair.response);
-    }
-
-    const actors = Array.from(actorsCollection);
-    actors.sort();
-    return {
-        actors,
-        textCues: division.textCues.length
-    };
-}
-
 interface TrainingRunManager {
     addConfidenceRating(
         cueIdx: number,
@@ -154,8 +132,6 @@ function TrainingRunView(
     const maxScore = textCues.length * 4;
     const highScore = Math.max(maxScore, ...props.division.previousTotals);
     const [currentBarTotal, setCurrentBarTotal] = createSignal<number>(maxScore);
-
-    const info = computeDivisionInfo(props.division);
 
     const root = document.getElementById("root")!;
     let view: HTMLDivElement;
@@ -387,6 +363,7 @@ function TrainingRunView(
                 type={type}
                 confidenceReport={(n === currentIndex() && !reachedEnd()) ? reportConfidence : undefined}
                 text={formatMarkdown(cueData.text)}
+                flags={TextCueViewFlags.Ratable}
                 actorsInfo={cueData.actors}/>);
     }
 
@@ -422,14 +399,7 @@ function TrainingRunView(
             </span>
             <div class="division-preamble">
                 <h2>{ props.division.name }</h2>
-                <div class="division-info-wrapper">
-                    <div class="division-info">
-                        <span class="info">{ info.actors.join(', ') } · { info.textCues } Einsätze</span>
-                        <span class="content">
-                            { formatString(formatMarkdown(props.division.description)) }
-                        </span>
-                    </div>
-                </div>
+                <DivisionInfoView division={props.division}/>
                 <div style={{flex: 1}}/>
                 { renderQuote(0) }
             </div>
