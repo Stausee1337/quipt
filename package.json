@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && ./copy.py",
+    "build": "vite build",
     "preview": "vite preview",
     "generate-defs": "node ./generate-defs.js"
   },
