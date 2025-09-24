@@ -1,9 +1,11 @@
 import { JSX, onCleanup, useContext, getOwner } from "solid-js";
 import { Dynamic } from "solid-js/web";
+import { A, useBeforeLeave } from "@solidjs/router";
 import { DialogManager } from "../dialog";
 import { useAuthentication } from "../backend";
 import { ScriptContextObj } from "../script";
-import { A, useBeforeLeave } from "@solidjs/router";
+import Logo from '../Quipt-Logo';
+import QuiptLogo from "../Quipt-Logo";
 
 function ListElement(
     props: {
@@ -53,16 +55,19 @@ export function MenuElement(
         })
     }
 
+    function closeButton(): JSX.Element {
+        return (
+            <button class="close" onClick={props.closer}>
+                <i class="bi bi-x"/>
+            </button>
+        )
+    }
 
     return (
         <nav class="side-menu">
             <div class="header">
                 <div class="top-line">
-                    { closer !== undefined ? (
-                        <button class="close" onClick={props.closer}>
-                            <i class="bi bi-x"/>
-                        </button> ) : null
-                    }
+                    { closer !== undefined ? closeButton() : <QuiptLogo/> }
                 </div>
 
                 <ListElement icon="pencil-square">Neues Skript</ListElement>
@@ -115,7 +120,7 @@ export function HeaderElement() {
                     ? <button onClick={openMenu}><i class="bi bi-list"/></button>
                     : null
             }
-            <h1>Quipt</h1>
+            <QuiptLogo/>
         </div>
     );
 }

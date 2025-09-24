@@ -29,6 +29,10 @@
   }
 }
 
+svg#quiptLogo {
+  height: 3rem;
+}
+
 .secondary-text {
   opacity: .75;
 }
@@ -127,8 +131,13 @@ nav.side-menu {
     div.top-line {
       height: 6rem;
       display: flex;
-      justify-content: flex-end;
       padding: 1rem 0;
+      justify-content: center;
+      align-items: center;
+
+      &:has(button.close) {
+        justify-content: flex-end;
+      }
 
       button.close {
         background-color: inherit;
@@ -414,16 +423,6 @@ div.vertical-view {
 
 $font-family-system: -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Helvetica,Arial,sans-serif;
 
-div.quipt-editor {
-  flex: 1;
-  outline: none;
-  font-family: $font-family-system;
-}
-
-*.hashtag {
-  color: #1d9bf0;
-}
-
 div.desktop-edit {
   flex: 1;
   display: grid;
@@ -440,12 +439,53 @@ div.desktop-edit {
     line-height: 6rem;
   }
 
-  div.text-edit {
-    padding: 1rem;
+  div.abcdef {
     grid-area: editor;
+  }
+
+  div.text-edit {
     display: flex;
     border: 0.1rem solid $lighter1;
     border-radius: 1rem;
+    flex-direction: column;
+    overflow: hidden;
+
+    div.division-head {
+      border-bottom: 0.1rem solid $lighter1;
+      padding: 1rem;
+      background-color: $color-accent1;
+    }
+
+    div.division-content {
+      display: grid;
+      grid-template-columns: auto 1fr;
+    }
+
+    div.row {
+      display: grid;
+      grid-template-columns: auto 1fr;
+
+      div.actors-segment {
+        width: var(--actors-width, 8rem); 
+        background-color: $color-accent1;
+        border-right: 0.1rem solid $lighter1;
+        position: relative;
+
+        span[contenteditable] {
+          position: absolute;
+          top: 50%;
+          left: 1rem;
+          min-width: calc(8rem - 2rem);
+          outline: none;
+          text-wrap: nowrap;
+          transform: translateY(-50%);
+        }
+      }
+
+      div.script-container {
+        flex: 1;
+      }
+    }
   }
 
   div.division-overview {
@@ -456,6 +496,10 @@ div.desktop-edit {
     width: 40rem;
     background-color: $color-accent1;
   }
+}
+
+div.row div.cm-scroller {
+  font-family: inherit;
 }
 
 @keyframes zoom-big {
@@ -846,6 +890,14 @@ div.routing-contents:has(form.auth-box) {
     flex-direction: column;
     text-align: center;
 
+    svg#quiptLogo {
+      position: absolute;
+      left: 50%;
+      top: 4.5rem;
+      height: 4.8rem;
+      transform: translate(-50%, -50%);
+    }
+
     &:not(.interactable)::before {
       content: "";
       position: absolute;
@@ -901,6 +953,10 @@ div.routing-contents:has(form.auth-box) {
     padding: 2rem 2rem 2rem 2rem;
     border-radius: 2rem;
     gap: 2rem;
+
+    svg#quiptLogo {
+      display: none;
+    }
   }
 
 }

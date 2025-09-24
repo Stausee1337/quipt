@@ -2,6 +2,7 @@ import { JSX, createSignal, createMemo } from 'solid-js';
 import { RouteSectionProps, A, useNavigate } from '@solidjs/router';
 import { useAuthentication, defaultRequests, auth } from '../backend';
 import { QuiptFormEvent, quiptForm, quiptValidator, validators, createReactiveFormData } from '../forms';
+import Logo from '../Quipt-Logo'
 
 function convertErrorToMessage(error: auth.AuthError): string {
     switch (error.code) {
@@ -143,6 +144,7 @@ export function UserAuthenticate(
             classList={{'interactable': !loading()}}
             use:quiptForm={formData()}
             onQuiptSubmit={onSubmit}>
+            <Logo/>
             <h2>{ keys[props.location.pathname] }</h2>
             { content() }
         </form>
