@@ -17,6 +17,6 @@ func main() {
 	defer db.RedisDisconnect(redisClient);
 
 	srv := server.New(cfg, dbClient, redisClient);
-	srv.Run("localhost", 8000);
+	srv.Run(cfg.ServerHost, cfg.ServerPort);
 }
 
