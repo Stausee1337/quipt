@@ -7,7 +7,7 @@ import { AuthenticationContextObj, createAuthenticationContext, useAuthenticatio
 import { ScriptContextObj, createScriptContext } from './script';
 import { UserAuthenticate } from './pages/UserAuthenticate';
 import { Root } from './pages/Root';
-import { ScriptRoute } from './pages/Script';
+import { NoScriptRoute, ScriptRoute } from './pages/Script';
 
 
 export const IsMobileContext = createContext<() => boolean>();
@@ -61,7 +61,12 @@ export default function() {
                 {
                     !authenticationContext.isLoggedIn()
                         ? <Route path={["/signin", "/signup"]} component={UserAuthenticate}/>
-                        : <Route path={["/script", "/script/:uuid", "/script/:uuid/:division"]} component={ScriptRoute} />
+                        : (
+                            <>
+                                <Route path="/no-script" component={NoScriptRoute} />
+                                <Route path={["/script", "/script/:uuid", "/script/:uuid/:division"]} component={ScriptRoute} />
+                            </>
+                        )
                 }
                 <Route 
                     path="*paramName"

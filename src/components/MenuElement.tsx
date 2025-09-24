@@ -3,7 +3,7 @@ import { Dynamic } from "solid-js/web";
 import { A, useBeforeLeave } from "@solidjs/router";
 import { useAuthentication } from "../backend";
 import { ScriptContextObj } from "../script";
-import QuiptLogo from "../Quipt-Logo";
+import QuiptLogo from "./Quipt-Logo";
 
 function ListElement(
     props: {

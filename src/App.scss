@@ -652,6 +652,25 @@ a {
   }
 }
 
+div.no-script {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+
+  svg#personConfused {
+    width: 25rem;
+    color: $lighter1;
+  }
+
+  div.text {
+    padding: 0 1rem;
+    max-width: 768px;
+  }
+}
+
 div.overflow-wrapper {
   font-size: 1.6rem;
   

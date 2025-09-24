@@ -2,7 +2,7 @@ import { JSX, createSignal, createMemo } from 'solid-js';
 import { RouteSectionProps, A, useNavigate } from '@solidjs/router';
 import { useAuthentication, defaultRequests, auth } from '../backend';
 import { QuiptFormEvent, quiptForm, quiptValidator, validators, createReactiveFormData } from '../forms';
-import Logo from '../Quipt-Logo'
+import Logo from '../components/Quipt-Logo'
 
 function convertErrorToMessage(error: auth.AuthError): string {
     switch (error.code) {

@@ -33,7 +33,7 @@ services:
     image: ghcr.io/microsoft/documentdb/documentdb-local:latest
     command: --username user --password password123
     volumes:
-      - ~/documentdb:/var/lib/documentdb
+      - ~/documentdb:/home/documentdb/postgresql/data
   redis:
     image: redis
     volumes:

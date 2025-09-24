@@ -769,9 +769,14 @@ export function MobileScriptRedirect(): JSX.Element {
             return "training-run";
         else if (params.uuid !== undefined)
             return "script-overview";
-        const [scripts] = authentication.requests!.getCached("/list-scripts");
-        if (!scripts.loading && !scripts.error) {
-            const script = params.uuid ?? scripts()![0].uuid!;
+        const [getScripts] = authentication.requests!.getCached("/list-scripts");
+        if (!getScripts.loading && !getScripts.error) {
+            const scripts = getScripts();
+            if (scripts === undefined || scripts.length === 0) {
+                navigate(`/no-script`);
+                return;
+            }
+            const script = params.uuid ?? scripts[0].uuid!;
             navigate(`/script/${script}`);
         }
         return "loading-redirect";
