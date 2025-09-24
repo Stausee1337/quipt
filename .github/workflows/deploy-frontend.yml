@@ -1,0 +1,40 @@
+name: Create and Publish Nginx Docker Image
+
+on:
+  push:
+    branches:
+      - trunk
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      # Install deps and build app
+      - name: Build app
+        run: |
+          npm ci
+          npm run build
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Build & push Docker image
+      - name: Build and push image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/stausee1337/quipt-app-nginx:latest
