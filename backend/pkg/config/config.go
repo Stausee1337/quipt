@@ -3,6 +3,8 @@ package config
 import "github.com/kelseyhightower/envconfig"
 
 type Config struct {
+	ServerHost 			string `required:"true" split_words:"true"`
+	ServerPort 			uint16 `required:"true" split_words:"true"`
 	CorsHost 			string `required:"true" split_words:"true"`
 	DocumentDBUser 		string `required:"true" split_words:"true"`
 	DocumentDBPassword 	string `required:"true" split_words:"true"`
