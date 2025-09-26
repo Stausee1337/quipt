@@ -1,4 +1,4 @@
-import { JSX, mapArray } from "solid-js";
+import { JSX, mapArray, onCleanup, onMount } from "solid-js";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
 
 type MupdfLib = typeof import("mupdf");
@@ -265,6 +265,30 @@ function isTextCue(fmt: TextWithFormat): boolean {
     return styleLength >= match.length && (styleSpan.styles & FontStyles.Bold) !== 0;
 }
 
+type PageInfo = {
+    page: PDFPage,
+    viewBlocks: ViewBlock[],
+    divisions: string[]
+};
+
+function computePageInfo(page: PDFPage): PageInfo {
+    const [pageWidth] = toDimensions(page.getBounds());
+
+    const structuredText = page.toStructuredText();
+    const viewLines = buildViewLines(structuredText, pageWidth);
+    const viewBlocks = buildViewBlocks(viewLines);
+
+    const divisions = viewBlocks
+        .filter(block => block.kind === "division")
+        .map(block => block.text)
+
+    return {
+        page,
+        viewBlocks,
+        divisions
+    };
+}
+
 
 const markdownChar = ['_', '', '`', '**'];
 
@@ -361,11 +385,7 @@ function PageView(
     const { mupdf, page, viewBlocks, index } = props;
 
     const scaleFactor = 1.5;
-
     const pixelRatio = window.devicePixelRatio;
-    const pixmapScale = mupdf.Matrix.scale(scaleFactor * pixelRatio, scaleFactor * pixelRatio);
-
-    const pixmap = page.toPixmap(pixmapScale, mupdf.ColorSpace.DeviceRGB, false, true)
 
     const [pageWidth, pageHeight] = toDimensions(page.getBounds());
 
@@ -373,9 +393,25 @@ function PageView(
         width={pageWidth * scaleFactor}
         height={pageHeight * scaleFactor}/> as HTMLImageElement;
 
-    const pngImage = pixmap.asPNG() as Uint8Array;
-    const src = URL.createObjectURL(new Blob([pngImage], { type: 'image/png' }));
-    canvas.src = src;
+    const observer = new IntersectionObserver(entries => {
+        if (canvas.naturalWidth > 0) return;
+        if (!entries[0].isIntersecting) return;
+
+        const pixmapScale = mupdf.Matrix.scale(scaleFactor * pixelRatio, scaleFactor * pixelRatio);
+        const pixmap = page.toPixmap(pixmapScale, mupdf.ColorSpace.DeviceRGB, false, true)
+        const pngImage = pixmap.asPNG() as Uint8Array;
+        const src = URL.createObjectURL(new Blob([pngImage], { type: 'image/png' }));
+        canvas.src = src;
+
+    });
+
+    onMount(() => {
+        observer.observe(canvas);
+    })
+
+    onCleanup(() => {
+        observer.unobserve(canvas);
+    })
 
     const linesLayer = <div class="lines-layer" 
         style={{
@@ -435,25 +471,34 @@ export function DocumentView(
         pdfDoc: PDFDocument
     }
 ): JSX.Element {
-    // const textLayerContainer = <div id="textLayer"/> as HTMLDivElement;
     const { mupdf, pdfDoc } = props;
+    const scrollingElement = document.querySelector('.routing-contents')!;
 
-    function renderQuote(index: number): JSX.Element {
-        const page = pdfDoc.loadPage(index);
+    const allPageInfo = Array.from({ length: pdfDoc.countPages() })
+        .map((_, idx) => pdfDoc.loadPage(idx))
+        .map(computePageInfo)
 
-        const [pageWidth, pageHeight] = toDimensions(page.getBounds());
-
-        const structuredText = page.toStructuredText();
-        const viewLines = buildViewLines(structuredText, pageWidth);
-        const viewBlocks = buildViewBlocks(viewLines);
+    function renderPage(index: number): JSX.Element {
+        const { viewBlocks, page } = allPageInfo[index];
 
         return (
-            <PageView 
+            <PageView
                 mupdf={mupdf}
-                index={4}
+                index={index}
                 page={page}
                 viewBlocks={viewBlocks}/>
         );
+    }
+
+    function gotoDivision(e: MouseEvent) {
+        const source = e.target;
+        if (!(source instanceof HTMLLIElement)) return;
+        const page = Number(source.dataset.page);
+
+        const element = document.getElementById(`page${page}`);
+        if (element === null) return;
+
+        scrollingElement.scrollTo({ top: element.offsetTop });
     }
 
     return (
@@ -461,12 +506,22 @@ export function DocumentView(
             <div class="pages">
                 { 
                     mapArray<number, JSX.Element>(
-                        () => Array.from({ length: 10 }, (_, index) => index),
-                        renderQuote) as any
+                        () => Array.from({ length: pdfDoc.countPages() }, (_, index) => index),
+                        renderPage) as any
                 }
             </div>
             <div>
                 <div class="messages">
+                    <h4>Abschnitte</h4>
+                    <section class="divisions">
+                        <ul onClick={gotoDivision}>
+                            {
+                                allPageInfo
+                                    .flatMap((info, page) => info.divisions.map(d => [page, d]))
+                                    .map(([page, division]) => <li data-page={page}>{ division }</li>)
+                            }
+                        </ul>
+                    </section>
                 </div>
             </div>
         </div>

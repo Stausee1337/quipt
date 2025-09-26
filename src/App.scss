@@ -849,7 +849,6 @@ div.document-view {
           }
 
           &::before {
-            content: "X";
             position: absolute;
             top: 0;
             left: -2rem;
@@ -868,6 +867,34 @@ div.document-view {
             // line-height: 1;
             vertical-align: -.125em;
           }
+
+          &:hover {
+            box-shadow: 0 0 5px #808080;
+          }
+
+          &:hover::after {
+            content: "\F5D3";
+          }
+
+          &::after {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            right: 2rem;
+            width: 2rem;
+            height: 2rem;
+            font-size: 2rem;
+            text-align: center;
+            color: #808080;
+
+            font-family: bootstrap-icons !important;
+            font-style: normal;
+            font-weight: normal !important;
+            font-variant: normal;
+            text-transform: none;
+            line-height: 1;
+            vertical-align: -.125em;
+          }
         }
       }
     }
@@ -876,11 +903,45 @@ div.document-view {
   div.messages {
     border: 0.1rem solid $lighter1;
     border-radius: 1rem;
-    padding: 1rem;
     width: 40rem;
-    background-color: $color-accent1;
     position: sticky;
     top: 0;
+    overflow: hidden;
+
+    h4 {
+      padding: .5rem 1rem;
+      &:not(:first-child) {
+        border-top: 0.1rem solid $lighter1;
+      }
+      &:not(:last-child) {
+        border-bottom: 0.1rem solid $lighter1;
+      }
+      background-color: $color-accent1;
+      font-weight: 400;
+    }
+
+    section {
+      padding: .5rem 1rem;
+    }
+
+    section.divisions {
+      :is(ul) {
+        padding: 0;
+        margin: 0;
+        list-style-type: none;
+        user-select: none;
+        cursor: pointer;
+
+        li {
+          padding: 0.5rem 1rem;
+          border-radius: 0.5rem;
+
+          &:hover {
+            background-color: $color-accent1;
+          }
+        }
+      }
+    }
   }
 }
 
