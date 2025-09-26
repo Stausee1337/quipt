@@ -487,6 +487,12 @@ function* unpackViewBlocks(allPageInfo: PageInfo[]): Generator<ViewBlock, any, u
     }
 }
 
+function getCue(block: ViewBlock): ViewBlock {
+    if (block.kind === "cue" || block.backwardLink === undefined)
+        return block;
+    return getCue(block.backwardLink);
+}
+
 export function DocumentView(
     props: {
         mupdf: MupdfLib,
@@ -514,6 +520,15 @@ export function DocumentView(
         if (block.kind === "info") {
             block.backwardLink = prevBlock;
             prevBlock.forwardLink = block;
+        }
+        if (block.kind === "cue" && (prevBlock.kind === "cue" || prevBlock.kind === "info")) {
+            const actor1 = block.text.match(actorsRegex)![0];
+            const actor2 = getCue(prevBlock).text.match(actorsRegex)?.[0] ?? "";
+            if (actor1 === actor2) {
+                console.log(actor1, actor2);
+                block.backwardLink = prevBlock;
+                prevBlock.forwardLink = block;
+            }
         }
         prevBlock = block;
     }
