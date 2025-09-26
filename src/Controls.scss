@@ -1,4 +1,9 @@
-@import './colors.scss';
+@use "sass:color";
+@use "colors" as *;
+
+.secondary-text {
+  opacity: .75;
+}
 
 div.header-element {
   padding: 1rem;
@@ -84,7 +89,7 @@ button.primary-button {
   @extend .roboto-b800;
   padding: 0 2rem;
   background-color: $primary;
-  border: 0.1rem solid lighten($primary, 3%);
+  border: 0.1rem solid color.adjust($primary, $lightness: 3%);
   height: $button-size;
   // line-height: $button-size;
   border-radius: $button-size;
@@ -95,12 +100,12 @@ button.primary-button {
   outline: none;
 
   &:active {
-    background-color: lighten($primary, 5%);
+    background-color: color.adjust($primary, $lightness: 5%);
   }
 
   &:disabled {
     background-color: $inactive1;
-    border: 0.1rem solid darken($inactive1, 3%);
+    border: 0.1rem solid color.adjust($inactive1, $lightness: -3%);
   }
 }
 

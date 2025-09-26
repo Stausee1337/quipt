@@ -1,6 +1,6 @@
-@import './Loading-Spinner.scss';
-@import './Controls.scss';
-@import './colors.scss';
+
+@use "colors" as *;
+@forward "Controls.scss";
 
 // #9499ff
 // sed -i 's/#06f990/#06f990/g' *
@@ -8,7 +8,7 @@
 #root {
   height: 100%;
   width: 100%;
-  user-select: none;
+  // user-select: none;
   font-size: $text-body-font-size;
   background-color: $background;
   flex: 1;
@@ -31,10 +31,6 @@
 
 svg#quiptLogo {
   height: 3rem;
-}
-
-.secondary-text {
-  opacity: .75;
 }
 
 div.routing-contents {
@@ -789,102 +785,40 @@ div.routing-contents:has(form.auth-box) {
 
 }
 
-div.clients-manager {
-  div.top-card {
-    @extend .card-class;
+div.document-view {
+  --scale-factor: 1;
+  --user-unit: 1;
+  --total-scale-factor: calc(var(--scale-factor) * var(--user-unit));
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
 
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    padding: 1rem;
+  position: relative;
+  flex: 1;
 
-    img {
-      aspect-ratio: 12/5;
+  div#textLayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+
+    :is(span, br) {
+      color: transparent;
+      position: absolute;
+      white-space: pre;
+      cursor: text;
+      transform-origin: 0% 0%;
     }
+  }
 
-    span {
-      display: block;
-      text-align: center;
-      padding: 0 2rem;
-      font-size: 1.4rem;
-    }
+  div.lines-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
 
-    button {
-      font-size: 1.4rem;
+    :is(span, br) {
+      position: absolute;
     }
   }
 
-  div.bottom-card {
-    @extend .card-class;
-    background-color: transparent;
-
-    div.header {
-      @extend .card-item;
-
-      h3 {
-        font-size: 1.2rem;
-        font-weight: 600;
-        margin: 0.5rem 0;
-      }
-
-      span {
-        display: block;
-      }
-    }
-
-    div.list-item {
-      @extend .card-item;
-    }
-  }
-}
-
-div#qr-code-scan-success {
-  div.loading {
-    height: 5rem;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-  }
-
-  div.client-info {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    h1 {
-      gap: 0.5rem;
-      font-size: 2rem;
-      margin: 0;
-      font-weight: 500;
-    }
-
-    div.content {
-      flex-direction: column;
-      display: flex;
-      gap: 1rem;
-
-      h3 {
-        i {
-          font-size: 3rem;
-        }
-        display: flex;
-        gap: 0.5rem;
-        font-size: 1.6rem;
-        margin: 0;
-        font-weight: 600;
-        align-items: center;
-      }
-
-      p {
-        margin: 0;
-      }
-    }
-
-    div.button-bar {
-      display: flex;
-      justify-content: flex-end;
-      gap: 1rem;
-    }
-  }
 }
 
 @keyframes fade-in {

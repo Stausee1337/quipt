@@ -1,17 +1,20 @@
+@use "sass:color";
 
 // $background: #111115;
 $primary: #039d5b;
 
 $background: #181818;
-$color-accent1: lighten($background, 5%);
-$color-accent2: darken($background, 3%);
-$lighter1: lighten($background, 25%);
-$lighter2: lighten($background, 56.25%);
-$lighter3: lighten($background, 75%);
+$color-accent1: color.adjust($background, $lightness: 5%);
+$color-accent2: color.adjust($background, $lightness: -3%);
+$lighter1: color.adjust($background, $lightness: 25%);
+$lighter2: color.adjust($background, $lightness: 56.25%);
+$lighter3: color.adjust($background, $lightness: 75%);
 
 $inactive1: #9e9e9e; // color-mix(in hsl, $primary, #808080 80%);
 
 $font-weights: 400, 800, 900;
+
+$text-body-font-size: 1.6rem;
 
 @each $weight in $font-weights {
   .roboto-b#{$weight} {

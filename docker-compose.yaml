@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   server:
     image: ghcr.io/stausee1337/quipt-frontend:latest
@@ -13,6 +12,8 @@ services:
       - /etc/letsencrypt/live/api.quipt.app/privkey.pem:/etc/ssl/api.quipt.app-letsencrypt.key:ro
 
       - ~/nginx/:/var/log/nginx/
+    depends_on:
+      - backend
   backend:
     image: ghcr.io/stausee1337/quipt-backend:latest
     environment:
