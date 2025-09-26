@@ -22,7 +22,9 @@ type ViewBlock = {
     height: number,
     kind: ViewBlockKind,
     text: string,
-    fontStyleSpans: FontStyleSpan[]
+    fontStyleSpans: FontStyleSpan[],
+    backwardLink?: ViewBlock,
+    forwardLink?: ViewBlock,
 };
 
 type FontStyleSpan = {
@@ -441,7 +443,7 @@ function PageView(
 
         const [sx, sy] = [pageMarginLeft * dist, block.y + (fontSize / 2)];
 
-        const dot = <circle r="4"
+        const dot = <circle r={5 / scaleFactor}
             cx={sx} cy={sy}
             fill="#808080"/> as Element;
         indentationInfo.appendChild(dot);
@@ -449,12 +451,26 @@ function PageView(
         if (block.kind === "division")
             continue;
 
-        if (block.height >= (2 * fontSize)) {
-            const path = <path d={`M${sx},${sy} v${block.height - (fontSize / 2)}`}
+        if (block.backwardLink !== undefined && !viewBlocks.includes(block.backwardLink)) {
+            const path = <path d={`M${sx},${sy} V0`}
                 stroke="#808080"
-                stroke-width={1/scaleFactor} /> as Element;
+                stroke-width={1} /> as Element;
             indentationInfo.appendChild(path);
         }
+
+        const connection = block.forwardLink === undefined
+            ? block.height - (fontSize / 2)
+            : (viewBlocks.includes(block.forwardLink)
+               ? block.forwardLink.y - block.y
+               : pageHeight - sy);
+
+        if (connection < fontSize)
+            continue;
+
+        const path = <path d={`M${sx},${sy} v${connection}`}
+            stroke="#808080"
+            stroke-width={1} /> as Element;
+        indentationInfo.appendChild(path);
     }
 
     return (
@@ -463,6 +479,12 @@ function PageView(
             { linesLayer }
         </div>
     );
+}
+
+function* unpackViewBlocks(allPageInfo: PageInfo[]): Generator<ViewBlock, any, undefined> {
+    for (const pageInfo of allPageInfo) {
+        yield* pageInfo.viewBlocks;
+    }
 }
 
 export function DocumentView(
@@ -476,7 +498,25 @@ export function DocumentView(
 
     const allPageInfo = Array.from({ length: pdfDoc.countPages() })
         .map((_, idx) => pdfDoc.loadPage(idx))
-        .map(computePageInfo)
+        .map(computePageInfo);
+
+    let prevBlock: ViewBlock|undefined;
+    for (const block of unpackViewBlocks(allPageInfo)) {
+        if (block.kind === "unknown") continue;
+        if (prevBlock === undefined) {
+            prevBlock = block;
+            continue
+        }
+        if (prevBlock.kind === "division") {
+            prevBlock = block;
+            continue;
+        }
+        if (block.kind === "info") {
+            block.backwardLink = prevBlock;
+            prevBlock.forwardLink = block;
+        }
+        prevBlock = block;
+    }
 
     function renderPage(index: number): JSX.Element {
         const { viewBlocks, page } = allPageInfo[index];
