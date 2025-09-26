@@ -1,10 +1,12 @@
-import { JSX, createMemo, useContext } from "solid-js";
+import { JSX, createMemo, createSignal, useContext } from "solid-js";
 import { ScriptViewer } from "../components/ScriptEdit";
 import { MobileScriptRedirect } from "../components/ScriptTraining";
 import PersonConfused from "../components/Person-Confused";
 import { IsMobileContext } from "../App";
 import { useAuthentication } from "../backend";
 import { useNavigate } from "@solidjs/router";
+import { DocumentView } from "../components/DocumentView";
+import type { PDFDocument } from "mupdf"
 
 export function ScriptRoute(): JSX.Element {
     const isMobile = useContext(IsMobileContext)!;
@@ -12,6 +14,47 @@ export function ScriptRoute(): JSX.Element {
     return (
         <>
             { isMobile() ? <MobileScriptRedirect/> : <ScriptViewer/> }
+        </>
+    );
+}
+
+export function NewScriptRoute(): JSX.Element {
+    const mupdfImport = import("mupdf");
+    const [pdfDocument, setPdfDocument] = createSignal<PDFDocument>();
+    const [mupdfLib, setMupdfLib] = createSignal<typeof import("mupdf")>();
+
+    async function fileSelected(input: HTMLInputElement) {
+        if (input.files === null || input.files.length === 0)
+            return;
+        const file = input.files[0];
+        const [mupdf, data] = await Promise.all([mupdfImport, file.arrayBuffer()]);
+        const doc = mupdf.Document.openDocument(data);
+        if (!doc.isPDF())
+            return;
+
+        setMupdfLib(mupdf);
+        setPdfDocument(doc as PDFDocument);
+    }
+
+    const pageContents = createMemo(() => {
+        const doc = pdfDocument();
+        if (doc === undefined) {
+            return (
+                <form>
+                    <input type="file"
+                        accept="application/pdf"
+                        onChange={e => fileSelected(e.target)}/>
+                </form>
+            );
+        }
+        return (
+            <DocumentView mupdf={mupdfLib()!} pdfDoc={doc}/>
+        );
+    });
+
+    return (
+        <>
+            { pageContents() }
         </>
     );
 }
@@ -52,3 +95,4 @@ export function NoScriptRoute(): JSX.Element {
         </>
     );
 }
+

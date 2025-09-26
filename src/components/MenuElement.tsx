@@ -68,7 +68,11 @@ export function MenuElement(
                     { closer !== undefined ? closeButton() : <QuiptLogo/> }
                 </div>
 
-                <ListElement icon="pencil-square">Neues Skript</ListElement>
+                <ListElement 
+                    href="/new-script"
+                    icon="pencil-square">
+                    Neues Skript
+                </ListElement>
 
                 <ListElement static>
                     <h3>Skripte</h3>
