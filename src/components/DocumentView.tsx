@@ -1,5 +1,5 @@
-import { JSX } from "solid-js";
-import type { Font, PDFDocument, StructuredText } from "mupdf"
+import { JSX, mapArray } from "solid-js";
+import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
 
 type MupdfLib = typeof import("mupdf");
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0]
@@ -240,7 +240,7 @@ function convertBlock(currentBlock: ViewLine[]): ViewBlock {
         const span = getLongestSpan(fontStyleSpans);
         if (span.styles & FontStyles.Italic)
             return "info";
-        if (span.styles & FontStyles.Bold)
+        if (span.styles & FontStyles.Bold && text.match(/akt|szene/i))
             return "division";
         return "unknown";
     }
@@ -337,110 +337,138 @@ function buildMarkdown(
     return output.join('').trim();
 }
 
+function toDimensions(rect: Rect): [number, number] {
+    const [ulx, uly, lrx, lry] = rect;
+    const width = lrx - ulx;
+    const height = lry - uly;
+    return [width, height];
+}
+
+const pageMarginLeft = 45;
+const fontSize = 13;
+
+const ONE_THIRD = 1/3;
+const TWO_THIRDS = 2/3;
+
+function PageView(
+    props: {
+        mupdf: MupdfLib,
+        index: number,
+        page: PDFPage,
+        viewBlocks: ViewBlock[],
+    }
+): JSX.Element {
+    const { mupdf, page, viewBlocks, index } = props;
+
+    const scaleFactor = 1.5;
+
+    const pixelRatio = window.devicePixelRatio;
+    const pixmapScale = mupdf.Matrix.scale(scaleFactor * pixelRatio, scaleFactor * pixelRatio);
+
+    const pixmap = page.toPixmap(pixmapScale, mupdf.ColorSpace.DeviceRGB, false, true)
+
+    const [pageWidth, pageHeight] = toDimensions(page.getBounds());
+
+    const canvas = <img class="page-canvas"
+        width={pageWidth * scaleFactor}
+        height={pageHeight * scaleFactor}/> as HTMLImageElement;
+
+    const pngImage = pixmap.asPNG() as Uint8Array;
+    const src = URL.createObjectURL(new Blob([pngImage], { type: 'image/png' }));
+    canvas.src = src;
+
+    const linesLayer = <div class="lines-layer" 
+        style={{
+            width: `${pageWidth * scaleFactor}px`,
+            height: `${pageHeight * scaleFactor}px`,
+        }}/> as HTMLDivElement;
+
+    const indentationInfo = <svg viewBox={`0 0 ${pageMarginLeft} ${pageHeight}`}
+        width={`${(pageMarginLeft / pageWidth) * 100}%`}
+        height="100%"/> as SVGSVGElement;
+
+    linesLayer.appendChild(indentationInfo);
+
+    for (const block of viewBlocks) {
+        const x = <span style={{
+                top: `${(block.y / pageHeight) * 100}%`,
+                height: `${(block.height / pageHeight) * 100}%`,
+                width: `${(block.width / pageWidth) * 100}%`,
+            }} 
+            classList={{[block.kind]: true}}
+            data-text-content={block.text}/> as HTMLSpanElement;
+        linesLayer.appendChild(x);
+
+        if (block.kind === "unknown")
+            continue;
+        const dist = block.kind === "division" ? ONE_THIRD : TWO_THIRDS ;
+
+        const [sx, sy] = [pageMarginLeft * dist, block.y + (fontSize / 2)];
+
+        const dot = <circle r="4"
+            cx={sx} cy={sy}
+            fill="#808080"/> as Element;
+        indentationInfo.appendChild(dot);
+
+        if (block.kind === "division")
+            continue;
+
+        if (block.height >= (2 * fontSize)) {
+            const path = <path d={`M${sx},${sy} v${block.height - (fontSize / 2)}`}
+                stroke="#808080"
+                stroke-width={1/scaleFactor} /> as Element;
+            indentationInfo.appendChild(path);
+        }
+    }
+
+    return (
+        <div class="full-page" id={`page${index}`}>
+            { canvas }
+            { linesLayer }
+        </div>
+    );
+}
+
 export function DocumentView(
     props: {
         mupdf: MupdfLib,
         pdfDoc: PDFDocument
     }
 ): JSX.Element {
-    const canvas = <img id="pageCanvas"/> as HTMLImageElement;
     // const textLayerContainer = <div id="textLayer"/> as HTMLDivElement;
-    const linesLayer = <div class="lines-layer"/> as HTMLDivElement;
     const { mupdf, pdfDoc } = props;
 
-    const page = pdfDoc.loadPage(4);
-    const pixmap = page.toPixmap(mupdf.Matrix.identity, mupdf.ColorSpace.DeviceRGB, false, true)
-    const pngImage = pixmap.asPNG() as Uint8Array;
-    const src = URL.createObjectURL(new Blob([pngImage], { type: 'image/png' }));
-    canvas.src = src;
+    function renderQuote(index: number): JSX.Element {
+        const page = pdfDoc.loadPage(index);
 
-    const [ulx, _, lrx] = page.getBounds();
-    const pageWidth = lrx - ulx;
+        const [pageWidth, pageHeight] = toDimensions(page.getBounds());
 
-    const structuredText = page.toStructuredText();
-    const viewLines = buildViewLines(structuredText, pageWidth);
+        const structuredText = page.toStructuredText();
+        const viewLines = buildViewLines(structuredText, pageWidth);
+        const viewBlocks = buildViewBlocks(viewLines);
 
-    for (const line of viewLines) {
+        return (
+            <PageView 
+                mupdf={mupdf}
+                index={4}
+                page={page}
+                viewBlocks={viewBlocks}/>
+        );
     }
-
-    const viewBlocks = buildViewBlocks(viewLines);
-
-    for (const block of viewBlocks) {
-        console.log(buildMarkdown(block))
-        const x = <span style={{
-                top: `${block.y}px`,
-                height: `${block.height}px`,
-                width: `${block.width}px`,
-            }} 
-            data-block-kind={block.kind}
-            data-text-content={block.text}/> as HTMLSpanElement;
-        linesLayer.appendChild(x);
-    }
-
-    // pdfDoc.getPage(5).then(async page => {
-    //     const viewport = page.getViewport({ scale: 1 });
-    //     const outputScale = window.devicePixelRatio;
-
-    //     canvas.width = Math.floor(viewport.width * outputScale);
-    //     canvas.height = Math.floor(viewport.height * outputScale);
-    //     canvas.style.width = `${viewport.width}px`;
-    //     canvas.style.height = `${viewport.height}px`;
-
-    //     page.render({
-    //         canvas,
-    //         canvasContext: canvas.getContext('2d')!,
-    //         transform: outputScale !== 1
-    //             ? [outputScale, 0, 0, outputScale, 0, 0]
-    //             : undefined,
-    //         viewport
-    //     })
-
-
-    //     const textContent = await page.getTextContent();
-    //     const viewLines = buildViewLines.call(pdfjs, viewport, textContent);
-
-    //     const blocks: ViewBlock[] = [];
-    //     let currentBlock = [viewLines[0]];
-
-    //     for (let i = 1; i < viewLines.length; i++) {
-    //         const prev = viewLines[i - 1];
-    //         const curr = viewLines[i];
-    //         // const verticalGap = prev.y - curr.y;
-    //         const verticalGap = curr.y - prev.y;
-
-    //         if (verticalGap < prev.height * 1.2 &&
-    //             curr.text.match(actorsRegex) === null) {
-    //             currentBlock.push(curr);
-    //             continue;
-    //         }
-    //         blocks.push(convertBlock(currentBlock));
-    //         currentBlock.length = 0;
-    //         currentBlock.push(curr);
-    //     }
-    //     blocks.push(convertBlock(currentBlock));
-
-    //     for (const block of blocks) {
-    //         const x = <span style={{
-    //             top: `${block.y}px`,
-    //             height: `${block.height}px`,
-    //             width: `${block.width}px`,
-    //         }} data-text-content={block.text}/> as HTMLSpanElement;
-    //         linesLayer.appendChild(x);
-    //     }
-
-
-    //     // const textLayer = new pdfjs.TextLayer({
-    //     //     textContentSource: textContent,
-    //     //     container: textLayerContainer,
-    //     //     viewport
-    //     // });
-    //     // textLayer.render();
-    // });
 
     return (
         <div class="document-view">
-            { canvas }
-            { linesLayer }
+            <div class="pages">
+                { 
+                    mapArray<number, JSX.Element>(
+                        () => Array.from({ length: 10 }, (_, index) => index),
+                        renderQuote) as any
+                }
+            </div>
+            <div>
+                <div class="messages">
+                </div>
+            </div>
         </div>
     );
 }

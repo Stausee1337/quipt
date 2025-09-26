@@ -257,57 +257,59 @@ div.script-overview {
 
 $font-family-system: -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Helvetica,Arial,sans-serif;
 
-div.routing-contents:has(div.desktop-view) {
+div.routing-contents:has(div.desktop-view),
+div.routing-contents:has(div.document-view) {
   overflow-y: auto;
+}
 
-  div.desktop-view {
-    flex: 1;
-    display: grid;
-    grid-template-rows: 6rem 1fr;
-    grid-template-columns: 1fr auto;
-    grid-template-areas: 
+
+div.desktop-view {
+  flex: 1;
+  display: grid;
+  grid-template-rows: 6rem 1fr;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 
     "header header"
     "cues overview";
-    gap: 0 1rem;
+  gap: 0 1rem;
 
-    h2.script-title {
-      grid-area: header;
-      line-height: 6rem;
-    }
+  h2.script-title {
+    grid-area: header;
+    line-height: 6rem;
+  }
 
-    div.grid-layout-filler {
-      &.overview {
-        grid-area: overview;
-      }
-      &.cues {
-        grid-area: cues;
-      }
-    }
-
-    div.script-divsion {
-      display: flex;
-      flex-direction: column;
-      gap: 2.5rem;
-
-
-      h2 {
-        margin: 0;
-        text-align: center;
-        padding: 1rem 0;
-        background-color: inherit;
-      }
-    }
-
-    div.division-overview {
-      border: 0.1rem solid $lighter1;
-      border-radius: 1rem;
+  div.grid-layout-filler {
+    &.overview {
       grid-area: overview;
-      padding: 1rem;
-      width: 40rem;
-      background-color: $color-accent1;
-      position: sticky;
-      top: 0;
     }
+    &.cues {
+      grid-area: cues;
+    }
+  }
+
+  div.script-divsion {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+
+
+    h2 {
+      margin: 0;
+      text-align: center;
+      padding: 1rem 0;
+      background-color: inherit;
+    }
+  }
+
+  div.division-overview {
+    border: 0.1rem solid $lighter1;
+    border-radius: 1rem;
+    grid-area: overview;
+    padding: 1rem;
+    width: 40rem;
+    background-color: $color-accent1;
+    position: sticky;
+    top: 0;
   }
 }
 
@@ -795,30 +797,91 @@ div.document-view {
   position: relative;
   flex: 1;
 
-  div#textLayer {
-    position: absolute;
-    top: 0;
-    left: 0;
+  display: grid;
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 
+    "cues messages";
+  gap: 0 1rem;
 
-    :is(span, br) {
-      color: transparent;
-      position: absolute;
-      white-space: pre;
-      cursor: text;
-      transform-origin: 0% 0%;
+  div.pages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    div.full-page {
+      position: relative;
+
+      img.page-canvas {
+        touch-action: none;
+      }
+
+      div.lines-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+
+        :is(svg) {
+          position: absolute;
+        }
+
+        :is(span) {
+          position: absolute;
+
+          &.unknown::before {
+            content: "\F33A";
+            color: orange;
+          }
+
+          &.cue::before {
+            content: "\F468";
+            color: lightblue;
+          }
+
+          &.info::before {
+            content: "\F430";
+            color: green;
+          }
+
+          &.division::before {
+            content: "\F199";
+            color: black;
+          }
+
+          &::before {
+            content: "X";
+            position: absolute;
+            top: 0;
+            left: -2rem;
+            width: 2rem;
+            height: 2rem;
+            line-height: 2rem;
+            text-align: center;
+
+            background-color: white;
+
+            font-family: bootstrap-icons !important;
+            font-style: normal;
+            font-weight: normal !important;
+            font-variant: normal;
+            text-transform: none;
+            // line-height: 1;
+            vertical-align: -.125em;
+          }
+        }
+      }
     }
   }
 
-  div.lines-layer {
-    position: absolute;
+  div.messages {
+    border: 0.1rem solid $lighter1;
+    border-radius: 1rem;
+    padding: 1rem;
+    width: 40rem;
+    background-color: $color-accent1;
+    position: sticky;
     top: 0;
-    left: 0;
-
-    :is(span, br) {
-      position: absolute;
-    }
   }
-
 }
 
 @keyframes fade-in {
