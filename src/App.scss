@@ -812,7 +812,7 @@ div.document-view {
     div.full-page {
       position: relative;
 
-      img.page-canvas {
+      canvas.page-canvas {
         touch-action: none;
       }
 
@@ -921,6 +921,20 @@ div.document-view {
 
     section {
       padding: .5rem 1rem;
+    }
+
+    section.settings {
+      display: flex;
+      gap: 1rem;
+
+      input.counter {
+        padding: 0.5rem;
+        font-size: 1.6rem;
+        border: 0.1rem solid $lighter1;
+        border-radius: 0.5rem;
+        background-color: inherit;
+        outline: none;
+      }
     }
 
     section.divisions {

@@ -1,4 +1,4 @@
-import { JSX, mapArray, onCleanup, onMount } from "solid-js";
+import { JSX, Setter, createEffect, createMemo, createSignal, mapArray, onCleanup, onMount } from "solid-js";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
 
 type MupdfLib = typeof import("mupdf");
@@ -256,7 +256,7 @@ function convertBlock(currentBlock: ViewLine[]): ViewBlock {
     };
 }
 
-const actorsRegex = /^(?:\p{L}| |,)+(?=:)/u;
+const actorsRegex = /^(?:\p{L}| |,|\.)+(?=:)/u;
 
 function isTextCue(fmt: TextWithFormat): boolean {
     const match = fmt.text.match(actorsRegex);
@@ -376,35 +376,46 @@ const fontSize = 13;
 const ONE_THIRD = 1/3;
 const TWO_THIRDS = 2/3;
 
+interface PageRenderer {
+    render(page: PDFPage): ImageData;
+    readonly scaleFactor: number;
+}
+
 function PageView(
     props: {
-        mupdf: MupdfLib,
         index: number,
         page: PDFPage,
         viewBlocks: ViewBlock[],
+        renderer: PageRenderer
     }
 ): JSX.Element {
-    const { mupdf, page, viewBlocks, index } = props;
-
-    const scaleFactor = 1.5;
-    const pixelRatio = window.devicePixelRatio;
+    const { page, viewBlocks, index, renderer } = props;
+    const scaleFactor = renderer.scaleFactor;
 
     const [pageWidth, pageHeight] = toDimensions(page.getBounds());
 
-    const canvas = <img class="page-canvas"
+    const canvas = <canvas class="page-canvas"
         width={pageWidth * scaleFactor}
-        height={pageHeight * scaleFactor}/> as HTMLImageElement;
+        height={pageHeight * scaleFactor}/> as HTMLCanvasElement;
+    let imageLoaded = false;
 
     const observer = new IntersectionObserver(entries => {
-        if (canvas.naturalWidth > 0) return;
+        if (imageLoaded) return;
         if (!entries[0].isIntersecting) return;
 
-        const pixmapScale = mupdf.Matrix.scale(scaleFactor * pixelRatio, scaleFactor * pixelRatio);
-        const pixmap = page.toPixmap(pixmapScale, mupdf.ColorSpace.DeviceRGB, false, true)
-        const pngImage = pixmap.asPNG() as Uint8Array;
-        const src = URL.createObjectURL(new Blob([pngImage], { type: 'image/png' }));
-        canvas.src = src;
+        const ctx = canvas.getContext("2d")!;
 
+        const imageData = renderer.render(page);
+        const imageCanvas = new OffscreenCanvas(imageData.width, imageData.height);
+        imageCanvas
+            .getContext("2d")!
+            .putImageData(imageData, 0, 0);
+
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(imageCanvas, 0, 0);
+
+        imageLoaded = true;
     });
 
     onMount(() => {
@@ -493,22 +504,73 @@ function getCue(block: ViewBlock): ViewBlock {
     return getCue(block.backwardLink);
 }
 
-export function DocumentView(
-    props: {
-        mupdf: MupdfLib,
-        pdfDoc: PDFDocument
-    }
-): JSX.Element {
-    const { mupdf, pdfDoc } = props;
-    const scrollingElement = document.querySelector('.routing-contents')!;
+function createPageRenderer(mupdf: MupdfLib): PageRenderer {
+    const renderedPageCache = new Map<PDFPage, ImageData>();
 
-    const allPageInfo = Array.from({ length: pdfDoc.countPages() })
-        .map((_, idx) => pdfDoc.loadPage(idx))
-        .map(computePageInfo);
+    const pixelRatio = window.devicePixelRatio;
+    const scaleFactor = 1.5;
+
+    return {
+        render(page) {
+            let renderedPage = renderedPageCache.get(page);
+            if (renderedPage !== undefined) {
+                return renderedPage;
+            }
+
+            const pixmapScale = mupdf.Matrix.scale(scaleFactor * pixelRatio, scaleFactor * pixelRatio);
+            const pixmap = page.toPixmap(pixmapScale, mupdf.ColorSpace.DeviceRGB, true, true)
+            //  const pngImage = pixmap.asPNG() as Uint8Array;
+            const pixels = pixmap.getPixels() as Uint8ClampedArray;
+
+            //  renderedPage = URL.createObjectURL(new Blob([pngImage], { type: 'image/png' }));
+            const width = pixmap.getWidth();
+            const height = pixmap.getHeight();
+            renderedPage = new ImageData(pixels, width, height);
+            renderedPageCache.set(page, renderedPage);
+
+            return renderedPage;
+        },
+        scaleFactor,
+    };
+
+}
+
+const allowedNumberKeys = new Set<string>([
+    "Backspace", "Delete", "ArrowLeft", "ArrowRight",
+    "ArrowUp", "ArrowDown", "Home", "End", "Tab", "Enter",
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+    "Numpad0", "Numpad1", "Numpad2", "Numpad3", "Numpad4",
+    "Numpad5", "Numpad6", "Numpad7", "Numpad8", "Numpad9",
+]);
+
+function betterParseInt(input: string): number|undefined {
+    const num = Number(input);
+    return Number.isInteger(num) ? num : undefined;
+}
+
+function computeDocumentInfo(
+    rawPageInfoCache: Map<PDFPage, PageInfo>,
+    allPages: PDFPage[],
+    options: { header: number, footer: number }
+): PageInfo[] {
+    const allPageInfo =  allPages
+        .map(page => {
+            let info = rawPageInfoCache.get(page);
+            if (info === undefined) {
+                info = computePageInfo(page);
+                rawPageInfoCache.set(page, info);
+            }
+            info = window.structuredClone(info);
+            return {
+                ...info,
+                viewBlocks: info.viewBlocks
+                    .slice(0, info.viewBlocks.length - options.footer)
+                    .slice(options.header)
+            };
+        });
 
     let prevBlock: ViewBlock|undefined;
     for (const block of unpackViewBlocks(allPageInfo)) {
-        if (block.kind === "unknown") continue;
         if (prevBlock === undefined) {
             prevBlock = block;
             continue
@@ -517,15 +579,14 @@ export function DocumentView(
             prevBlock = block;
             continue;
         }
-        if (block.kind === "info") {
+        if (block.kind === "info" && prevBlock.kind !== "unknown") {
             block.backwardLink = prevBlock;
             prevBlock.forwardLink = block;
         }
-        if (block.kind === "cue" && (prevBlock.kind === "cue" || prevBlock.kind === "info")) {
+        if (block.kind === "cue" && prevBlock.kind !== "unknown") {
             const actor1 = block.text.match(actorsRegex)![0];
             const actor2 = getCue(prevBlock).text.match(actorsRegex)?.[0] ?? "";
             if (actor1 === actor2) {
-                console.log(actor1, actor2);
                 block.backwardLink = prevBlock;
                 prevBlock.forwardLink = block;
             }
@@ -533,17 +594,57 @@ export function DocumentView(
         prevBlock = block;
     }
 
-    function renderPage(index: number): JSX.Element {
-        const { viewBlocks, page } = allPageInfo[index];
+    return allPageInfo;
+}
+
+export function DocumentView(
+    props: {
+        mupdf: MupdfLib,
+        pdfDoc: PDFDocument
+    }
+): JSX.Element {
+    const [footer, setFooter] = createSignal(0);
+    const [header, setHeader] = createSignal(0);
+
+    const [signal, setSignal] = createSignal({});
+
+    const { mupdf, pdfDoc } = props;
+    const scrollingElement = document.querySelector('.routing-contents')!;
+
+    const renderer = createPageRenderer(mupdf);
+
+    const allPages = Array.from({ length: pdfDoc.countPages() })
+        .map((_, idx) => pdfDoc.loadPage(idx))
+        .slice(10);
+    const rawPageInfoCache = new Map<PDFPage, PageInfo>();
+
+    let allPageInfo = computeDocumentInfo(
+        rawPageInfoCache,
+        allPages, { header: header(), footer: footer() });
+
+    createEffect(() => {
+        allPageInfo  = computeDocumentInfo(
+            rawPageInfoCache,
+            allPages, { header: header(), footer: footer() });
+        setSignal({});
+    })
+
+    function renderPage(page: PDFPage, index: number): JSX.Element {
+        const { viewBlocks } = allPageInfo[index];
 
         return (
             <PageView
-                mupdf={mupdf}
+                renderer={renderer}
                 index={index}
                 page={page}
                 viewBlocks={viewBlocks}/>
         );
     }
+
+    const pages = createMemo(() => {
+        signal();
+        return allPages.map(renderPage);
+    });
 
     function gotoDivision(e: MouseEvent) {
         const source = e.target;
@@ -556,17 +657,49 @@ export function DocumentView(
         scrollingElement.scrollTo({ top: element.offsetTop });
     }
 
+    function ensureNumberInput(event: KeyboardEvent) {
+        if (!allowedNumberKeys.has(event.key))
+            event.preventDefault();
+    }
+
+    function validateUpdateInputChange(setter: Setter<number>): (e: InputEvent) => void {
+        return event => {
+            const input = event.target as HTMLInputElement;
+            const newV = betterParseInt(input.value);
+            setter(prevV => newV ?? prevV); 
+        };
+    }
+
     return (
         <div class="document-view">
             <div class="pages">
-                { 
-                    mapArray<number, JSX.Element>(
-                        () => Array.from({ length: pdfDoc.countPages() }, (_, index) => index),
-                        renderPage) as any
-                }
+                { pages() }
             </div>
             <div>
                 <div class="messages">
+                    <h4>Einstellungen</h4>
+                    <section class="settings">
+                        <label>
+                            Kopfzeile: 
+                            <input class="counter"
+                                type="text"
+                                inputmode="numeric"
+                                value="0"
+                                size="3"
+                                onKeyDown={ensureNumberInput}
+                                onInput={validateUpdateInputChange(setHeader)}/>
+                        </label>
+                        <label>
+                            Fußzeile: 
+                            <input class="counter"
+                                type="text"
+                                inputmode="numeric"
+                                value="0"
+                                size="3"
+                                onKeyDown={ensureNumberInput}
+                                onInput={validateUpdateInputChange(setFooter)}/>
+                        </label>
+                    </section>
                     <h4>Abschnitte</h4>
                     <section class="divisions">
                         <ul onClick={gotoDivision}>
