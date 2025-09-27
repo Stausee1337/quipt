@@ -1,5 +1,6 @@
 import { JSX, Setter, createEffect, createMemo, createSignal, mapArray, onCleanup, onMount } from "solid-js";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
+import { pluralize } from "./common";
 
 type MupdfLib = typeof import("mupdf");
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0]
@@ -20,8 +21,10 @@ type ViewBlock = {
     y: number,
     width: number,
     height: number,
-    kind: ViewBlockKind,
+
+    page: number,
     text: string,
+    kind: ViewBlockKind,
     fontStyleSpans: FontStyleSpan[],
     backwardLink?: ViewBlock,
     forwardLink?: ViewBlock,
@@ -171,7 +174,7 @@ function makeGaplessStyleSpans(spans: FontStyleSpan[]): FontStyleSpan[] {
     return output;
 }
 
-function buildViewBlocks(viewLines: ViewLine[]): ViewBlock[] {
+function buildViewBlocks(viewLines: ViewLine[], page: number): ViewBlock[] {
     const blocks: ViewBlock[] = [];
     let currentBlock = [viewLines[0]];
 
@@ -187,16 +190,16 @@ function buildViewBlocks(viewLines: ViewLine[]): ViewBlock[] {
             currentBlock.push(curr);
             continue;
         }
-        blocks.push(convertBlock(currentBlock));
+        blocks.push(convertBlock(currentBlock, page));
         currentBlock.length = 0;
         currentBlock.push(curr);
     }
-    blocks.push(convertBlock(currentBlock));
+    blocks.push(convertBlock(currentBlock, page));
 
     return blocks;
 }
 
-function convertBlock(currentBlock: ViewLine[]): ViewBlock {
+function convertBlock(currentBlock: ViewLine[], page: number): ViewBlock {
     const first = currentBlock[0];
     const last = currentBlock.at(-1)!;
 
@@ -248,6 +251,7 @@ function convertBlock(currentBlock: ViewLine[]): ViewBlock {
     }
 
     return {
+        page,
         x: first.x, y: first.y,
         width: first.width,
         height: (last.y - first.y) + last.height,
@@ -268,24 +272,22 @@ function isTextCue(fmt: TextWithFormat): boolean {
 }
 
 type PageInfo = {
-    page: PDFPage,
+    index: number,
     viewBlocks: ViewBlock[],
-    divisions: string[]
+    divisions: ViewBlock[]
 };
 
-function computePageInfo(page: PDFPage): PageInfo {
+function computePageInfo(page: PDFPage, index: number): PageInfo {
     const [pageWidth] = toDimensions(page.getBounds());
 
     const structuredText = page.toStructuredText();
     const viewLines = buildViewLines(structuredText, pageWidth);
-    const viewBlocks = buildViewBlocks(viewLines);
+    const viewBlocks = buildViewBlocks(viewLines, index);
 
-    const divisions = viewBlocks
-        .filter(block => block.kind === "division")
-        .map(block => block.text)
+    const divisions = viewBlocks.filter(block => block.kind === "division")
 
     return {
-        page,
+        index,
         viewBlocks,
         divisions
     };
@@ -377,7 +379,7 @@ const ONE_THIRD = 1/3;
 const TWO_THIRDS = 2/3;
 
 interface PageRenderer {
-    render(page: PDFPage): ImageData;
+    render(page: PDFPage): OffscreenCanvas;
     readonly scaleFactor: number;
 }
 
@@ -404,12 +406,7 @@ function PageView(
         if (!entries[0].isIntersecting) return;
 
         const ctx = canvas.getContext("2d")!;
-
-        const imageData = renderer.render(page);
-        const imageCanvas = new OffscreenCanvas(imageData.width, imageData.height);
-        imageCanvas
-            .getContext("2d")!
-            .putImageData(imageData, 0, 0);
+        const imageCanvas = renderer.render(page);
 
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -492,20 +489,8 @@ function PageView(
     );
 }
 
-function* unpackViewBlocks(allPageInfo: PageInfo[]): Generator<ViewBlock, any, undefined> {
-    for (const pageInfo of allPageInfo) {
-        yield* pageInfo.viewBlocks;
-    }
-}
-
-function getCue(block: ViewBlock): ViewBlock {
-    if (block.kind === "cue" || block.backwardLink === undefined)
-        return block;
-    return getCue(block.backwardLink);
-}
-
 function createPageRenderer(mupdf: MupdfLib): PageRenderer {
-    const renderedPageCache = new Map<PDFPage, ImageData>();
+    const renderedPageCache = new Map<PDFPage, OffscreenCanvas>();
 
     const pixelRatio = window.devicePixelRatio;
     const scaleFactor = 1.5;
@@ -525,7 +510,12 @@ function createPageRenderer(mupdf: MupdfLib): PageRenderer {
             //  renderedPage = URL.createObjectURL(new Blob([pngImage], { type: 'image/png' }));
             const width = pixmap.getWidth();
             const height = pixmap.getHeight();
-            renderedPage = new ImageData(pixels, width, height);
+            const imageData = new ImageData(pixels, width, height);
+
+            renderedPage = new OffscreenCanvas(imageData.width, imageData.height);
+            renderedPage 
+                .getContext("2d")!
+                .putImageData(imageData, 0, 0);
             renderedPageCache.set(page, renderedPage);
 
             return renderedPage;
@@ -535,29 +525,34 @@ function createPageRenderer(mupdf: MupdfLib): PageRenderer {
 
 }
 
-const allowedNumberKeys = new Set<string>([
-    "Backspace", "Delete", "ArrowLeft", "ArrowRight",
-    "ArrowUp", "ArrowDown", "Home", "End", "Tab", "Enter",
-    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-    "Numpad0", "Numpad1", "Numpad2", "Numpad3", "Numpad4",
-    "Numpad5", "Numpad6", "Numpad7", "Numpad8", "Numpad9",
-]);
-
-function betterParseInt(input: string): number|undefined {
-    const num = Number(input);
-    return Number.isInteger(num) ? num : undefined;
+function* unpackViewBlocks(allPageInfo: PageInfo[]): Generator<ViewBlock, any, undefined> {
+    for (const pageInfo of allPageInfo) {
+        yield* pageInfo.viewBlocks;
+    }
 }
+
+function getCue(block: ViewBlock): ViewBlock {
+    if (block.kind === "cue" || block.backwardLink === undefined)
+        return block;
+    return getCue(block.backwardLink);
+}
+
+type DocumentInfo = {
+    unknowns: ViewBlock[],
+    divisions: ViewBlock[],
+    allPageInfo: PageInfo[],
+};
 
 function computeDocumentInfo(
     rawPageInfoCache: Map<PDFPage, PageInfo>,
     allPages: PDFPage[],
     options: { header: number, footer: number }
-): PageInfo[] {
+): DocumentInfo {
     const allPageInfo =  allPages
-        .map(page => {
+        .map((page, idx) => {
             let info = rawPageInfoCache.get(page);
             if (info === undefined) {
-                info = computePageInfo(page);
+                info = computePageInfo(page, idx);
                 rawPageInfoCache.set(page, info);
             }
             info = window.structuredClone(info);
@@ -569,8 +564,16 @@ function computeDocumentInfo(
             };
         });
 
+    const divisions: ViewBlock[] = [];
+    const unknowns: ViewBlock[] = [];
+
     let prevBlock: ViewBlock|undefined;
     for (const block of unpackViewBlocks(allPageInfo)) {
+        if (block.kind === "division")
+            divisions.push(block);
+        if (block.kind === "unknown")
+            unknowns.push(block);
+
         if (prevBlock === undefined) {
             prevBlock = block;
             continue
@@ -594,7 +597,24 @@ function computeDocumentInfo(
         prevBlock = block;
     }
 
-    return allPageInfo;
+    return {
+        unknowns,
+        divisions,
+        allPageInfo
+    };
+}
+
+const allowedNumberKeys = new Set<string>([
+    "Backspace", "Delete", "ArrowLeft", "ArrowRight",
+    "ArrowUp", "ArrowDown", "Home", "End", "Tab", "Enter",
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+    "Numpad0", "Numpad1", "Numpad2", "Numpad3", "Numpad4",
+    "Numpad5", "Numpad6", "Numpad7", "Numpad8", "Numpad9",
+]);
+
+function betterParseInt(input: string): number|undefined {
+    const num = Number(input);
+    return Number.isInteger(num) ? num : undefined;
 }
 
 export function DocumentView(
@@ -615,17 +635,21 @@ export function DocumentView(
 
     const allPages = Array.from({ length: pdfDoc.countPages() })
         .map((_, idx) => pdfDoc.loadPage(idx))
-        .slice(10);
+        .slice(2);
     const rawPageInfoCache = new Map<PDFPage, PageInfo>();
 
-    let allPageInfo = computeDocumentInfo(
+    let divisions: ViewBlock[],
+        unknowns: ViewBlock[],
+        allPageInfo: PageInfo[];
+
+    ({ divisions, unknowns, allPageInfo } = computeDocumentInfo(
         rawPageInfoCache,
-        allPages, { header: header(), footer: footer() });
+        allPages, { header: header(), footer: footer() }));
 
     createEffect(() => {
-        allPageInfo  = computeDocumentInfo(
+        ({ divisions, unknowns, allPageInfo } = computeDocumentInfo(
             rawPageInfoCache,
-            allPages, { header: header(), footer: footer() });
+            allPages, { header: header(), footer: footer() }));
         setSignal({});
     })
 
@@ -645,6 +669,23 @@ export function DocumentView(
         signal();
         return allPages.map(renderPage);
     });
+
+    const renderedWarnings = createMemo(() => {
+        signal();
+        const pageMap = new Map<number, number>();
+        for (const unknown of unknowns) {
+            let count = pageMap.get(unknown.page) ?? 0;
+            count += 1;
+            pageMap.set(unknown.page, count);
+        }
+        return Array.from(pageMap.entries())
+            .map(
+               ([page, count]) => 
+                    <li data-page={page}>
+                        <i class="bi bi-exclamation-triangle-fill" style={{color: 'orange'}}/> Seite {page + 1}: {pluralize(count, 'Warnung', 'Warnungen')}
+                    </li>
+            )
+    })
 
     function gotoDivision(e: MouseEvent) {
         const source = e.target;
@@ -704,10 +745,15 @@ export function DocumentView(
                     <section class="divisions">
                         <ul onClick={gotoDivision}>
                             {
-                                allPageInfo
-                                    .flatMap((info, page) => info.divisions.map(d => [page, d]))
-                                    .map(([page, division]) => <li data-page={page}>{ division }</li>)
+                                signal() && divisions
+                                    .map(division => <li data-page={division.page}>{ division.text }</li>)
                             }
+                        </ul>
+                    </section>
+                    <h4>Warnungen</h4>
+                    <section class="warnings">
+                        <ul onClick={gotoDivision}>
+                            { renderedWarnings() }
                         </ul>
                     </section>
                 </div>

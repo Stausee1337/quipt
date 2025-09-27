@@ -937,7 +937,7 @@ div.document-view {
       }
     }
 
-    section.divisions {
+    section.divisions, section.warnings {
       :is(ul) {
         padding: 0;
         margin: 0;
