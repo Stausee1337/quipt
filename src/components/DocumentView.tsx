@@ -1,4 +1,4 @@
-import { JSX, Setter, createEffect, createMemo, createSignal, mapArray, onCleanup, onMount } from "solid-js";
+import { Accessor, JSX, Setter, batch, createEffect, createMemo, createSignal, mapArray, onCleanup, onMount, untrack } from "solid-js";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
 import { pluralize } from "./common";
 
@@ -372,6 +372,20 @@ function toDimensions(rect: Rect): [number, number] {
     return [width, height];
 }
 
+function handlePopover(
+    block: ViewBlock,
+    position: { x: number, y: number },
+    pageContext: PageContext
+) {
+    console.log(block, position.x, position.y);
+    if (block.forwardLink === undefined)
+        return;
+    const next = block.forwardLink;
+    delete block.forwardLink;
+    delete next.backwardLink;
+    pageContext.invalidatePage(block.page);
+}
+
 const pageMarginLeft = 45;
 const fontSize = 13;
 
@@ -385,6 +399,7 @@ interface PageRenderer {
 
 function PageView(
     props: {
+        context: PageContext,
         index: number,
         page: PDFPage,
         viewBlocks: ViewBlock[],
@@ -423,11 +438,34 @@ function PageView(
         observer.unobserve(canvas);
     })
 
+    let currentSpan: HTMLSpanElement|undefined;
+    function trackMenuIcon(event: MouseEvent) {
+        const target = event.target;
+        if (!(target instanceof HTMLSpanElement))
+            return;
+        currentSpan = target;
+        const top = target.offsetTop;
+        const height = target.offsetHeight;
+        linesLayer.style.setProperty('--icon-offset', `${top + height/2}px`);
+    }
+
+    function onOpenMenu(event: MouseEvent) {
+        if (currentSpan === undefined)
+            return;
+        const openContextMenu = new Event('еееContextMenu') as Event & { x: number, y: number };
+        openContextMenu.x = event.clientX;
+        openContextMenu.y = event.clientY;
+        currentSpan.dispatchEvent(openContextMenu);
+    }
+
     const linesLayer = <div class="lines-layer" 
+        onMouseMove={trackMenuIcon}
         style={{
             width: `${pageWidth * scaleFactor}px`,
             height: `${pageHeight * scaleFactor}px`,
-        }}/> as HTMLDivElement;
+        }}>
+            <i class="menu-icon" onClick={onOpenMenu}>&#xF5D3;</i>
+        </div> as HTMLDivElement;
 
     const indentationInfo = <svg viewBox={`0 0 ${pageMarginLeft} ${pageHeight}`}
         width={`${(pageMarginLeft / pageWidth) * 100}%`}
@@ -436,14 +474,15 @@ function PageView(
     linesLayer.appendChild(indentationInfo);
 
     for (const block of viewBlocks) {
-        const x = <span style={{
+        const visualBlock = <span style={{
                 top: `${(block.y / pageHeight) * 100}%`,
                 height: `${(block.height / pageHeight) * 100}%`,
                 width: `${(block.width / pageWidth) * 100}%`,
             }} 
             classList={{[block.kind]: true}}
             data-text-content={block.text}/> as HTMLSpanElement;
-        linesLayer.appendChild(x);
+        visualBlock.addEventListener('еееContextMenu', event => handlePopover(block, event, props.context));
+        linesLayer.appendChild(visualBlock);
 
         if (block.kind === "unknown")
             continue;
@@ -487,6 +526,12 @@ function PageView(
             { linesLayer }
         </div>
     );
+}
+
+declare global {
+interface HTMLElementEventMap {
+    'еееContextMenu': Event & { x: number, y: number },
+}
 }
 
 function createPageRenderer(mupdf: MupdfLib): PageRenderer {
@@ -617,6 +662,21 @@ function betterParseInt(input: string): number|undefined {
     return Number.isInteger(num) ? num : undefined;
 }
 
+function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => void] {
+    const [pullSignal, setSignal] = createSignal({});
+
+    const read = createMemo(() => {
+        pullSignal();
+        return untrack(fn);
+    });
+
+    return [read, () => setSignal({})];
+}
+
+interface PageContext {
+    invalidatePage(index: number): void;
+}
+
 export function DocumentView(
     props: {
         mupdf: MupdfLib,
@@ -650,7 +710,10 @@ export function DocumentView(
         ({ divisions, unknowns, allPageInfo } = computeDocumentInfo(
             rawPageInfoCache,
             allPages, { header: header(), footer: footer() }));
-        setSignal({});
+        batch(() => {
+            for (let i = 0; i < allPages.length; i++)
+                pageContext.invalidatePage(i); 
+        })
     })
 
     function renderPage(page: PDFPage, index: number): JSX.Element {
@@ -658,6 +721,7 @@ export function DocumentView(
 
         return (
             <PageView
+                context={pageContext}
                 renderer={renderer}
                 index={index}
                 page={page}
@@ -665,9 +729,19 @@ export function DocumentView(
         );
     }
 
+    const pageContext: PageContext = {
+        invalidatePage(index) {
+            const [_, invalidate] = pageInvalidatables[index];
+            invalidate();
+        },
+    };
+
+    const pageInvalidatables =
+            allPages.map((page, index) => createInvalidatable(() => renderPage(page, index)));
+
     const pages = createMemo(() => {
-        signal();
-        return allPages.map(renderPage);
+        return pageInvalidatables
+            .map(([page]) => page())
     });
 
     const renderedWarnings = createMemo(() => {

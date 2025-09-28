@@ -821,6 +821,38 @@ div.document-view {
         top: 0;
         left: 0;
 
+        i.menu-icon {
+          position: absolute;
+          transform: translateY(-50%);
+          top: var(--icon-offset, 0);
+          right: 2rem;
+          width: 2rem;
+          height: 2rem;
+          font-size: 2rem;
+          text-align: center;
+          color: #808080;
+
+          font-family: bootstrap-icons !important;
+          font-style: normal;
+          font-weight: normal !important;
+          font-variant: normal;
+          text-transform: none;
+          line-height: 1;
+          vertical-align: -.125em;
+          display: none;
+          z-index: 1000;
+          cursor: pointer;
+          user-select: none;
+        }
+
+        i.menu-icon:hover {
+          display: inline;
+        }
+
+        &:has(span:hover) i.menu-icon {
+          display: inline;
+        }
+
         :is(svg) {
           position: absolute;
         }
@@ -870,30 +902,6 @@ div.document-view {
 
           &:hover {
             box-shadow: 0 0 5px #808080;
-          }
-
-          &:hover::after {
-            content: "\F5D3";
-          }
-
-          &::after {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            right: 2rem;
-            width: 2rem;
-            height: 2rem;
-            font-size: 2rem;
-            text-align: center;
-            color: #808080;
-
-            font-family: bootstrap-icons !important;
-            font-style: normal;
-            font-weight: normal !important;
-            font-variant: normal;
-            text-transform: none;
-            line-height: 1;
-            vertical-align: -.125em;
           }
         }
       }
