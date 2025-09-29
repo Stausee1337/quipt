@@ -1,6 +1,8 @@
-import { Accessor, JSX, Setter, batch, createEffect, createMemo, createSignal, mapArray, onCleanup, onMount, untrack } from "solid-js";
+import { Accessor, JSX, Setter, batch, createDeferred, createEffect, createMemo, createRoot, createSignal, onCleanup, onMount, untrack } from "solid-js";
+import { insert } from "solid-js/web";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
 import { pluralize } from "./common";
+import Popper, { createPopper } from "@popperjs/core"
 
 type MupdfLib = typeof import("mupdf");
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0]
@@ -14,7 +16,7 @@ type ViewLine = {
     fontStyleSpans: FontStyleSpan[]
 };
 
-type ViewBlockKind = "cue"|"division"|"info"|"unknown";
+type ViewBlockKind = "cue"|"division"|"info"|"connected"|"unknown";
 
 type ViewBlock = {
     x: number,
@@ -372,18 +374,182 @@ function toDimensions(rect: Rect): [number, number] {
     return [width, height];
 }
 
+function ViewBlockMenu(
+    { viewBlock, pageContext }: {
+        viewBlock: ViewBlock,
+        pageContext: PageContext
+    }
+): JSX.Element {
+    function ignore(what: "this"|"all" = "this") {
+        if (what === "this") {
+            const allBlocks = pageContext.getViewBlocks(viewBlock.page);
+            const index = allBlocks.indexOf(viewBlock);
+            allBlocks.splice(index, 1);
+            pageContext.invalidatePage(viewBlock.page);
+        } else {
+            for (let i = 0; i < pageContext.numPages; i++) {
+                const blocks = pageContext.getViewBlocks(i);
+                const ignoredBlocks = blocks.filter(block => block.text.trim() === viewBlock.text.trim())
+                for (const ignoredBlock of ignoredBlocks) {
+                    const index = blocks.indexOf(ignoredBlock);
+                    blocks.splice(index, 1);
+                }
+            }
+            pageContext.invalidatePage();
+        }
+    }
+
+    function connect(where: "upward"|"downward") {
+        const blocks = pageContext.getViewBlocks(viewBlock.page);
+        const index = blocks.indexOf(viewBlock);
+
+        if (where === "upward" && viewBlock.backwardLink === undefined && viewBlock.page >= 1) {
+            const previousBlock = index > 0
+                ? blocks[index - 1]
+                : pageContext.getViewBlocks(viewBlock.page - 1).at(-1)!;
+            previousBlock.forwardLink = viewBlock;
+            viewBlock.backwardLink = previousBlock;
+            if (viewBlock.kind === "unknown")
+                viewBlock.kind = "connected";
+            if (previousBlock.kind === "unknown")
+                previousBlock.kind = "connected";
+            pageContext.invalidatePage(viewBlock.page - 1);
+        } else if (where === "downward" && viewBlock.forwardLink === undefined && viewBlock.page < pageContext.numPages - 1) {
+            const nextBlock = index < blocks.length - 1 
+                ?  blocks[index + 1]
+                : pageContext.getViewBlocks(viewBlock.page + 1)[0];
+            nextBlock.backwardLink = viewBlock;
+            viewBlock.forwardLink = nextBlock;
+            if (viewBlock.kind === "unknown")
+                viewBlock.kind = "connected";
+            if (nextBlock.kind === "unknown")
+                nextBlock.kind = "connected";
+            pageContext.invalidatePage(viewBlock.page + 1);
+        }
+        pageContext.invalidatePage(viewBlock.page);
+    }
+
+    function disconnect(where: "upward"|"downward") {
+        if (where === "upward" && viewBlock.backwardLink !== undefined) {
+            const previousBlock = viewBlock.backwardLink;
+            previousBlock.forwardLink = undefined;
+            viewBlock.backwardLink = undefined;
+            if (viewBlock.kind === "connected")
+                viewBlock.kind = "unknown"
+            if (previousBlock.kind === "connected")
+                previousBlock.kind = "unknown"
+            pageContext.invalidatePage(viewBlock.page - 1);
+        } else if (where === "downward" && viewBlock.forwardLink !== undefined) {
+            const nextBlock = viewBlock.forwardLink;
+            nextBlock.backwardLink = undefined;
+            viewBlock.forwardLink = undefined;
+            if (viewBlock.kind === "connected")
+                viewBlock.kind = "unknown"
+            if (nextBlock.kind === "connected")
+                nextBlock.kind = "unknown"
+            pageContext.invalidatePage(viewBlock.page + 1);
+        }
+        pageContext.invalidatePage(viewBlock.page);
+    }
+
+    const renderedOptions = createMemo(() => {
+        if (viewBlock.kind === "unknown") {
+            return (
+                <>
+                    <li onClick={() => ignore()}>Ignorieren</li>
+                    <li onClick={() => ignore('all')}>Alle ignorieren</li>
+                    
+                </>
+            );
+        }
+        return <></>
+    })
+
+    return (
+        <ul class="menu-options">
+            { renderedOptions() }
+            {
+                viewBlock.kind === "division" ? null :
+                    <>
+                    {
+                        viewBlock.backwardLink === undefined
+                            ? <li onClick={() => connect('upward')}>Mit oberem verbinden</li>
+                            : <li onClick={() => disconnect('upward')}>Von oberem lösen</li>
+                    }
+                    {
+                        viewBlock.forwardLink === undefined
+                            ? <li onClick={() => connect('downward')}>Mit unterem verbinden</li>
+                            : <li onClick={() => disconnect('downward')}>Von unterem lösen</li>
+                    }
+                    </>
+            }
+        </ul>
+    );
+}
+
 function handlePopover(
+    event: OpenContextMenuEvent,
     block: ViewBlock,
-    position: { x: number, y: number },
     pageContext: PageContext
 ) {
-    console.log(block, position.x, position.y);
-    if (block.forwardLink === undefined)
+    const reference = event.reference;
+
+    const target = event.target as HTMLSpanElement;
+    if (target.classList.contains('menu-open'))
         return;
-    const next = block.forwardLink;
-    delete block.forwardLink;
-    delete next.backwardLink;
-    pageContext.invalidatePage(block.page);
+    target.classList.add('menu-open');
+
+    createRoot(dispose => {
+        const popoverMenu =
+            <div class="popover-menu" onClick={transactionClick}>
+                <ViewBlockMenu
+                    viewBlock={block}
+                    pageContext={pageContext}/>
+            </div> as HTMLDivElement;
+
+        function transactionClick(event: MouseEvent) {
+            if (event.target instanceof HTMLLIElement)
+                dispose();
+        }
+
+        function captureClick(event: MouseEvent) {
+            const path = event.composedPath();
+            if (!(path.includes(reference) || path.includes(popoverMenu)))
+                dispose();
+        }
+
+        let popper: Popper.Instance|undefined;
+        onMount(() => {
+            popper = createPopper(
+                reference,
+                popoverMenu,
+                { placement: 'bottom-start' }
+            )
+            document.documentElement.addEventListener('click', captureClick);
+            target.addEventListener('еееContextMenu', dispose);
+        })
+
+        onCleanup(() => {
+            if (popper === undefined) return;
+            document.documentElement.removeEventListener('click', captureClick);
+
+            target.classList.remove('menu-open');
+            target.removeEventListener('еееContextMenu', dispose);
+            popper.destroy();
+            popoverMenu.remove();
+        })
+
+        insert(document.body, popoverMenu);
+        
+        return popoverMenu;
+    });
+
+
+    // const next = block.forwardLink;
+    // delete block.forwardLink;
+    // delete next.backwardLink;
+    // pageContext.invalidatePage(block.page);
+    //
 }
 
 const pageMarginLeft = 45;
@@ -395,6 +561,12 @@ const TWO_THIRDS = 2/3;
 interface PageRenderer {
     render(page: PDFPage): OffscreenCanvas;
     readonly scaleFactor: number;
+}
+
+class OpenContextMenuEvent extends Event  {
+    constructor(public reference: HTMLElement) {
+        super('еееContextMenu');
+    } 
 }
 
 function PageView(
@@ -438,38 +610,36 @@ function PageView(
         observer.unobserve(canvas);
     })
 
-    let currentSpan: HTMLSpanElement|undefined;
-    function trackMenuIcon(event: MouseEvent) {
-        const target = event.target;
-        if (!(target instanceof HTMLSpanElement))
-            return;
-        currentSpan = target;
-        const top = target.offsetTop;
-        const height = target.offsetHeight;
-        linesLayer.style.setProperty('--icon-offset', `${top + height/2}px`);
-    }
+    // let currentSpan: HTMLSpanElement|undefined;
+    // function trackMenuIcon(event: MouseEvent) {
+    //     const target = event.target;
+    //     if (!(target instanceof HTMLSpanElement))
+    //         return;
+    //     currentSpan = target;
+    //     const top = target.offsetTop;
+    //     const height = target.offsetHeight;
+    //     linesLayer.style.setProperty('--icon-offset', `${top + height/2}px`);
+    // }
 
     function onOpenMenu(event: MouseEvent) {
-        if (currentSpan === undefined)
-            return;
-        const openContextMenu = new Event('еееContextMenu') as Event & { x: number, y: number };
-        openContextMenu.x = event.clientX;
-        openContextMenu.y = event.clientY;
-        currentSpan.dispatchEvent(openContextMenu);
+        const target = event.target as HTMLElement;
+        const parent = target.parentElement!;
+        const openContextMenu = new OpenContextMenuEvent(target);
+        parent.dispatchEvent(openContextMenu);
     }
 
     const linesLayer = <div class="lines-layer" 
-        onMouseMove={trackMenuIcon}
         style={{
             width: `${pageWidth * scaleFactor}px`,
             height: `${pageHeight * scaleFactor}px`,
         }}>
-            <i class="menu-icon" onClick={onOpenMenu}>&#xF5D3;</i>
         </div> as HTMLDivElement;
 
-    const indentationInfo = <svg viewBox={`0 0 ${pageMarginLeft} ${pageHeight}`}
+    const indentationInfo = <svg xmlns="http://www.w3.org/2000/svg"
+        height="100%"
         width={`${(pageMarginLeft / pageWidth) * 100}%`}
-        height="100%"/> as SVGSVGElement;
+        viewBox={`0 0 ${pageMarginLeft} ${pageHeight}`}
+        fill="none"/> as SVGSVGElement;
 
     linesLayer.appendChild(indentationInfo);
 
@@ -480,8 +650,10 @@ function PageView(
                 width: `${(block.width / pageWidth) * 100}%`,
             }} 
             classList={{[block.kind]: true}}
-            data-text-content={block.text}/> as HTMLSpanElement;
-        visualBlock.addEventListener('еееContextMenu', event => handlePopover(block, event, props.context));
+            data-text-content={block.text}>
+                <i class="menu-icon" onClick={onOpenMenu}>&#xF5D3;</i>
+            </span> as HTMLSpanElement;
+        visualBlock.addEventListener('еееContextMenu', event => handlePopover(event, block, props.context));
         linesLayer.appendChild(visualBlock);
 
         if (block.kind === "unknown")
@@ -490,8 +662,9 @@ function PageView(
 
         const [sx, sy] = [pageMarginLeft * dist, block.y + (fontSize / 2)];
 
-        const dot = <circle r={5 / scaleFactor}
-            cx={sx} cy={sy}
+        const dot = <circle r={2.5}
+            vector-effect="non-scaling-size"
+            cx={Math.ceil(sx)} cy={sy}
             fill="#808080"/> as Element;
         indentationInfo.appendChild(dot);
 
@@ -501,7 +674,9 @@ function PageView(
         if (block.backwardLink !== undefined && !viewBlocks.includes(block.backwardLink)) {
             const path = <path d={`M${sx},${sy} V0`}
                 stroke="#808080"
-                stroke-width={1} /> as Element;
+                stroke-width={1}
+                shape-rendering="crispEdges"
+                vector-effect="non-scaling-stroke"/> as Element;
             indentationInfo.appendChild(path);
         }
 
@@ -515,8 +690,10 @@ function PageView(
             continue;
 
         const path = <path d={`M${sx},${sy} v${connection}`}
+            stroke-width="1"
             stroke="#808080"
-            stroke-width={1} /> as Element;
+            shape-rendering="crispEdges"
+            vector-effect="non-scaling-stroke"/> as Element;
         indentationInfo.appendChild(path);
     }
 
@@ -530,7 +707,7 @@ function PageView(
 
 declare global {
 interface HTMLElementEventMap {
-    'еееContextMenu': Event & { x: number, y: number },
+    'еееContextMenu': OpenContextMenuEvent
 }
 }
 
@@ -582,18 +759,12 @@ function getCue(block: ViewBlock): ViewBlock {
     return getCue(block.backwardLink);
 }
 
-type DocumentInfo = {
-    unknowns: ViewBlock[],
-    divisions: ViewBlock[],
-    allPageInfo: PageInfo[],
-};
-
-function computeDocumentInfo(
+function analyzePagesWithOptions(
     rawPageInfoCache: Map<PDFPage, PageInfo>,
     allPages: PDFPage[],
     options: { header: number, footer: number }
-): DocumentInfo {
-    const allPageInfo =  allPages
+): PageInfo[] {
+    return allPages
         .map((page, idx) => {
             let info = rawPageInfoCache.get(page);
             if (info === undefined) {
@@ -608,9 +779,11 @@ function computeDocumentInfo(
                     .slice(options.header)
             };
         });
+}
 
-    const divisions: ViewBlock[] = [];
-    const unknowns: ViewBlock[] = [];
+function populateDocumentInfo(allPageInfo: PageInfo[], divisions: ViewBlock[], unknowns: ViewBlock[]) {
+    divisions.length = 0;
+    unknowns.length = 0;
 
     let prevBlock: ViewBlock|undefined;
     for (const block of unpackViewBlocks(allPageInfo)) {
@@ -641,12 +814,6 @@ function computeDocumentInfo(
         }
         prevBlock = block;
     }
-
-    return {
-        unknowns,
-        divisions,
-        allPageInfo
-    };
 }
 
 const allowedNumberKeys = new Set<string>([
@@ -674,7 +841,9 @@ function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => void] {
 }
 
 interface PageContext {
-    invalidatePage(index: number): void;
+    readonly numPages: number;
+    invalidatePage(index?: number): void;
+    getViewBlocks(page: number): ViewBlock[];
 }
 
 export function DocumentView(
@@ -686,7 +855,7 @@ export function DocumentView(
     const [footer, setFooter] = createSignal(0);
     const [header, setHeader] = createSignal(0);
 
-    const [signal, setSignal] = createSignal({});
+    const [signal, setSignal] = createSignal<any>({});
 
     const { mupdf, pdfDoc } = props;
     const scrollingElement = document.querySelector('.routing-contents')!;
@@ -698,26 +867,55 @@ export function DocumentView(
         .slice(2);
     const rawPageInfoCache = new Map<PDFPage, PageInfo>();
 
-    let divisions: ViewBlock[],
-        unknowns: ViewBlock[],
-        allPageInfo: PageInfo[];
+    const pageContext: PageContext = {
+        numPages: allPages.length,
+        invalidatePage(index) {
+            if (index === undefined) {
+                batch(() => {
+                    for (let i = 0; i < allPages.length; i++)
+                        pageContext.invalidatePage(i); 
+                })
+            } else {
+                const [_, invalidate] = pageInvalidatables[index];
+                invalidate();
+            }
+            rebuildDocumentInfo();
+        },
+        getViewBlocks(page) {
+            return pageInfos()[page].viewBlocks;
+        },
+    };
 
-    ({ divisions, unknowns, allPageInfo } = computeDocumentInfo(
-        rawPageInfoCache,
-        allPages, { header: header(), footer: footer() }));
+    const pageInfos = createMemo(() => {
+        const pageInfos = analyzePagesWithOptions(
+            rawPageInfoCache,
+            allPages,
+            { header: header(), footer: footer() });
+
+        return pageInfos;
+    });
+
+    let divisions: ViewBlock[] = [],
+        unknowns: ViewBlock[] = [];
 
     createEffect(() => {
-        ({ divisions, unknowns, allPageInfo } = computeDocumentInfo(
-            rawPageInfoCache,
-            allPages, { header: header(), footer: footer() }));
-        batch(() => {
-            for (let i = 0; i < allPages.length; i++)
-                pageContext.invalidatePage(i); 
-        })
+        pageInfos();
+        rebuildDocumentInfo();
+        pageContext.invalidatePage();
     })
 
+    function rebuildDocumentInfo(firstTime: boolean = false) {
+        populateDocumentInfo(pageInfos(), divisions, unknowns);
+        if (firstTime) return;
+        setSignal({});
+    }
+    rebuildDocumentInfo(true);
+
+    const pageInvalidatables =
+            allPages.map((page, index) => createInvalidatable(() => renderPage(page, index)));
+
     function renderPage(page: PDFPage, index: number): JSX.Element {
-        const { viewBlocks } = allPageInfo[index];
+        const { viewBlocks } = pageInfos()[index];
 
         return (
             <PageView
@@ -728,16 +926,6 @@ export function DocumentView(
                 viewBlocks={viewBlocks}/>
         );
     }
-
-    const pageContext: PageContext = {
-        invalidatePage(index) {
-            const [_, invalidate] = pageInvalidatables[index];
-            invalidate();
-        },
-    };
-
-    const pageInvalidatables =
-            allPages.map((page, index) => createInvalidatable(() => renderPage(page, index)));
 
     const pages = createMemo(() => {
         return pageInvalidatables
@@ -824,7 +1012,7 @@ export function DocumentView(
                             }
                         </ul>
                     </section>
-                    <h4>Warnungen</h4>
+                    <h4>Warnungen ({ signal().x ?? unknowns.length })</h4>
                     <section class="warnings">
                         <ul onClick={gotoDivision}>
                             { renderedWarnings() }

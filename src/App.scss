@@ -824,7 +824,7 @@ div.document-view {
         i.menu-icon {
           position: absolute;
           transform: translateY(-50%);
-          top: var(--icon-offset, 0);
+          top: 50%;
           right: 2rem;
           width: 2rem;
           height: 2rem;
@@ -840,17 +840,8 @@ div.document-view {
           line-height: 1;
           vertical-align: -.125em;
           display: none;
-          z-index: 1000;
           cursor: pointer;
           user-select: none;
-        }
-
-        i.menu-icon:hover {
-          display: inline;
-        }
-
-        &:has(span:hover) i.menu-icon {
-          display: inline;
         }
 
         :is(svg) {
@@ -900,8 +891,12 @@ div.document-view {
             vertical-align: -.125em;
           }
 
-          &:hover {
+          &:hover, &.menu-open {
             box-shadow: 0 0 5px #808080;
+
+            i.menu-icon {
+              display: inline;
+            }
           }
         }
       }
@@ -951,16 +946,44 @@ div.document-view {
         margin: 0;
         list-style-type: none;
         user-select: none;
-        cursor: pointer;
 
         li {
           padding: 0.5rem 1rem;
           border-radius: 0.5rem;
+          cursor: pointer;
 
           &:hover {
             background-color: $color-accent1;
           }
         }
+      }
+    }
+  }
+}
+
+div.popover-menu {
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 0.1rem solid $color-accent1;
+  background-color: $background;
+  box-shadow: 0 8px 16px rgba(black, 0.3);
+  overflow: hidden;
+  font-size: 1.6rem;
+
+  ul.menu-options {
+    display: flex;
+    flex-direction: column;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+
+      &:hover {
+        background-color: $color-accent1;
       }
     }
   }
