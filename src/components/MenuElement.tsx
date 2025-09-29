@@ -65,12 +65,16 @@ export function MenuElement(
         <nav class="side-menu">
             <div class="header">
                 <div class="top-line">
-                    { closer !== undefined ? closeButton() : <QuiptLogo/> }
+                    {
+                        closer !== undefined 
+                            ? closeButton()
+                            : <A href="/" style={{color: 'inherit'}}>
+                                <QuiptLogo/>
+                            </A>
+                    }
                 </div>
 
-                <ListElement 
-                    href="/new-script"
-                    icon="pencil-square">
+                <ListElement icon="pencil-square">
                     Neues Skript
                 </ListElement>
 

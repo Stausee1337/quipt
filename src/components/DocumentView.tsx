@@ -668,7 +668,6 @@ function PageView(
                     currentDivision.children.length > 0) {
 
                 const lastChild = currentDivision.children.at(-1)!;
-                console.log(currentDivision.text, lastChild.text);
                 const connection = viewBlocks.includes(lastChild)
                     ? lastChild.y + (Math.max(0, Math.sign(lastChild.height - (fontSize / 2))) * lastChild.height)
                     : pageHeight;

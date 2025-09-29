@@ -156,6 +156,10 @@ nav.side-menu {
     font-weight: inherit;
     text-decoration: none;
 
+    &:not(.static) {
+      cursor: pointer;
+    }
+
     &:not(.static):hover {
       background-color: $color-accent1;
     }
@@ -285,6 +289,11 @@ div.desktop-view {
     &.cues {
       grid-area: cues;
     }
+  }
+
+  div.readable-content-view {
+    margin: 0 auto;
+    max-width: 94.8rem;
   }
 
   div.script-divsion {
@@ -770,6 +779,19 @@ div.routing-contents:has(form.auth-box) {
     &.error > span.error-message {
         display: inline;
     }
+  }
+}
+
+div.landing-page {
+  flex: 1;
+  color: $color-accent2;
+  position: relative;
+
+  svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
   }
 }
 

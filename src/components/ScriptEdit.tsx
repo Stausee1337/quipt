@@ -7,6 +7,7 @@ import { formatActorsArray, formatMarkdown } from './common';
 import { TextCueView } from './TextCueView';
 import { ScriptContextObj } from '../script';
 import { DivisionInfoView } from './DivisionInfoView';
+import { useNavigate, useParams } from '@solidjs/router';
 
 const myTheme = EditorView.theme({
   // ".cm-content": {
@@ -68,6 +69,7 @@ function ScriptCueView(
                 </div>
             </div>
             <div class="grid-layout-filler cues">
+                <div class="readable-content-view">
                 {
                     props.script.divisions.map(division => {
                         return (
@@ -79,6 +81,7 @@ function ScriptCueView(
                         );
                     })
                 } 
+                </div>
             </div>
         </div>
     );
@@ -86,6 +89,13 @@ function ScriptCueView(
 
 export function ScriptViewer(): JSX.Element {
     const scriptContext = useContext(ScriptContextObj)!;
+
+    const params = useParams();
+    const navigate = useNavigate();
+    if (params.uuid === undefined) {
+        navigate('/');
+        return;
+    }
 
     return (
         <>
