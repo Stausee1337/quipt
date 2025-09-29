@@ -28,6 +28,8 @@ type ViewBlock = {
     text: string,
     kind: ViewBlockKind,
     fontStyleSpans: FontStyleSpan[],
+    children?: ViewBlock[],
+    knownDivision?: ViewBlock|null,
     backwardLink?: ViewBlock,
     forwardLink?: ViewBlock,
 };
@@ -374,6 +376,10 @@ function toDimensions(rect: Rect): [number, number] {
     return [width, height];
 }
 
+function connected(block: ViewBlock): boolean {
+    return block.forwardLink !== undefined || block.backwardLink !== undefined;
+}
+
 function ViewBlockMenu(
     { viewBlock, pageContext }: {
         viewBlock: ViewBlock,
@@ -434,18 +440,18 @@ function ViewBlockMenu(
             const previousBlock = viewBlock.backwardLink;
             previousBlock.forwardLink = undefined;
             viewBlock.backwardLink = undefined;
-            if (viewBlock.kind === "connected")
+            if (viewBlock.kind === "connected" && !connected(viewBlock))
                 viewBlock.kind = "unknown"
-            if (previousBlock.kind === "connected")
+            if (previousBlock.kind === "connected" && !connected(previousBlock))
                 previousBlock.kind = "unknown"
             pageContext.invalidatePage(viewBlock.page - 1);
         } else if (where === "downward" && viewBlock.forwardLink !== undefined) {
             const nextBlock = viewBlock.forwardLink;
             nextBlock.backwardLink = undefined;
             viewBlock.forwardLink = undefined;
-            if (viewBlock.kind === "connected")
+            if (viewBlock.kind === "connected" && !connected(viewBlock))
                 viewBlock.kind = "unknown"
-            if (nextBlock.kind === "connected")
+            if (nextBlock.kind === "connected" && !connected(nextBlock))
                 nextBlock.kind = "unknown"
             pageContext.invalidatePage(viewBlock.page + 1);
         }
@@ -461,6 +467,10 @@ function ViewBlockMenu(
                     
                 </>
             );
+        } else if (viewBlock.kind === "division") {
+            return (
+                <li onClick={() => ignore()}>Kein Abschnitt</li>
+            )
         }
         return <></>
     })
@@ -544,12 +554,6 @@ function handlePopover(
         return popoverMenu;
     });
 
-
-    // const next = block.forwardLink;
-    // delete block.forwardLink;
-    // delete next.backwardLink;
-    // pageContext.invalidatePage(block.page);
-    //
 }
 
 const pageMarginLeft = 45;
@@ -643,6 +647,7 @@ function PageView(
 
     linesLayer.appendChild(indentationInfo);
 
+    let currentDivision: ViewBlock|null|undefined;
     for (const block of viewBlocks) {
         const visualBlock = <span style={{
                 top: `${(block.y / pageHeight) * 100}%`,
@@ -655,6 +660,28 @@ function PageView(
             </span> as HTMLSpanElement;
         visualBlock.addEventListener('еееContextMenu', event => handlePopover(event, block, props.context));
         linesLayer.appendChild(visualBlock);
+        if (currentDivision === undefined && block.knownDivision !== undefined) {
+            currentDivision = block.knownDivision;
+            if (currentDivision !== null &&
+                    !viewBlocks.includes(currentDivision) &&
+                    currentDivision.children !== undefined &&
+                    currentDivision.children.length > 0) {
+
+                const lastChild = currentDivision.children.at(-1)!;
+                console.log(currentDivision.text, lastChild.text);
+                const connection = viewBlocks.includes(lastChild)
+                    ? lastChild.y + (Math.max(0, Math.sign(lastChild.height - (fontSize / 2))) * lastChild.height)
+                    : pageHeight;
+
+                const path = <path d={`M${pageMarginLeft * ONE_THIRD},${0} v${connection}`}
+                    stroke-width="1"
+                    stroke="#808080"
+                    shape-rendering="crispEdges"
+                    vector-effect="non-scaling-stroke"/> as Element;
+                indentationInfo.appendChild(path);
+
+            }
+        }
 
         if (block.kind === "unknown")
             continue;
@@ -668,8 +695,24 @@ function PageView(
             fill="#808080"/> as Element;
         indentationInfo.appendChild(dot);
 
-        if (block.kind === "division")
+        if (block.kind === "division") {
+            currentDivision = block;
+            const children = block.children;
+            if (children === undefined || children.length === 0)
+                continue;
+            const lastChild = children.at(-1)!;
+            const connection = viewBlocks.includes(lastChild)
+                ? (lastChild.y - sy) + (Math.max(0, Math.sign(lastChild.height - (fontSize / 2))) * lastChild.height - (fontSize / 2))
+                : pageHeight - sy;
+
+            const path = <path d={`M${sx},${sy} v${connection}`}
+                stroke-width="1"
+                stroke="#808080"
+                shape-rendering="crispEdges"
+                vector-effect="non-scaling-stroke"/> as Element;
+            indentationInfo.appendChild(path);
             continue;
+        }
 
         if (block.backwardLink !== undefined && !viewBlocks.includes(block.backwardLink)) {
             const path = <path d={`M${sx},${sy} V0`}
@@ -786,11 +829,18 @@ function populateDocumentInfo(allPageInfo: PageInfo[], divisions: ViewBlock[], u
     unknowns.length = 0;
 
     let prevBlock: ViewBlock|undefined;
+    let currentDivision: ViewBlock|null = null;
     for (const block of unpackViewBlocks(allPageInfo)) {
-        if (block.kind === "division")
-            divisions.push(block);
         if (block.kind === "unknown")
             unknowns.push(block);
+        else if (block.kind === "division") {
+            divisions.push(block);
+            currentDivision = block;
+            block.children = [];
+        } else {
+            block.knownDivision = currentDivision;
+            currentDivision?.children!.push(block);
+        }
 
         if (prevBlock === undefined) {
             prevBlock = block;
@@ -870,16 +920,18 @@ export function DocumentView(
     const pageContext: PageContext = {
         numPages: allPages.length,
         invalidatePage(index) {
+            rebuildDocumentInfo();
             if (index === undefined) {
                 batch(() => {
-                    for (let i = 0; i < allPages.length; i++)
-                        pageContext.invalidatePage(i); 
+                    for (let i = 0; i < allPages.length; i++) {
+                        const [_, invalidate] = pageInvalidatables[i];
+                        invalidate();
+                    }
                 })
             } else {
                 const [_, invalidate] = pageInvalidatables[index];
                 invalidate();
             }
-            rebuildDocumentInfo();
         },
         getViewBlocks(page) {
             return pageInfos()[page].viewBlocks;
@@ -900,7 +952,6 @@ export function DocumentView(
 
     createEffect(() => {
         pageInfos();
-        rebuildDocumentInfo();
         pageContext.invalidatePage();
     })
 
@@ -1007,7 +1058,7 @@ export function DocumentView(
                     <section class="divisions">
                         <ul onClick={gotoDivision}>
                             {
-                                signal() && divisions
+                                signal().x ?? divisions
                                     .map(division => <li data-page={division.page}>{ division.text }</li>)
                             }
                         </ul>
