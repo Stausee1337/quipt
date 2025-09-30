@@ -6,6 +6,7 @@ import { ScriptContextObj } from "../script";
 import QuiptLogo from "./Quipt-Logo";
 import { DialogManager } from "../dialog";
 import { NewScriptFileChooser } from "./NewScriptFileChooser";
+import { IsMobileContext } from "../App";
 
 function ListElement(
     props: {
@@ -40,6 +41,7 @@ export function MenuElement(
     }
 ): JSX.Element {
     const owner = getOwner()!;
+    const isMobile = useContext(IsMobileContext)!;
     const authentication = useAuthentication()!;
     const closer = props.closer;
     const [user, {}] = authentication.requests!.getCached("/get-user");
@@ -83,7 +85,8 @@ export function MenuElement(
                     }
                 </div>
 
-                <ListElement icon="pencil-square" onClick={createNewScript}>
+                <ListElement icon="pencil-square"
+                    {...(isMobile() ? { href: '/new-script' } : { onClick: createNewScript })}>
                     Neues Skript
                 </ListElement>
 

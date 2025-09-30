@@ -1,12 +1,12 @@
-import { JSX, createMemo, createSignal, useContext } from "solid-js";
+import { JSX, createMemo, useContext } from "solid-js";
+import { useNavigate, useLocation, Navigate } from "@solidjs/router";
 import { ScriptViewer } from "../components/ScriptEdit";
 import { MobileScriptRedirect } from "../components/ScriptTraining";
 import PersonConfused from "../components/Person-Confused";
 import { IsMobileContext } from "../App";
 import { useAuthentication } from "../backend";
-import { useNavigate } from "@solidjs/router";
+import { StateScriptTransferObject } from "../components/NewScriptFileChooser";
 import { DocumentView } from "../components/DocumentView";
-import type { PDFDocument } from "mupdf"
 
 export function ScriptRoute(): JSX.Element {
     const isMobile = useContext(IsMobileContext)!;
@@ -18,45 +18,48 @@ export function ScriptRoute(): JSX.Element {
     );
 }
 
+function Computer(): JSX.Element {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" fill="currentColor" class="bi bi-laptop" viewBox="0 0 16 16">
+            <path d="M13.5 3a.5.5 0 0 1 .5.5V11H2V3.5a.5.5 0 0 1 .5-.5zm-11-1A1.5 1.5 0 0 0 1 3.5V12h14V3.5A1.5 1.5 0 0 0 13.5 2zM0 12.5h16a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5"/>
+        </svg>
+    );
+}
+
 export function NewScriptRoute(): JSX.Element {
-    const mupdfImport = import("mupdf");
-    const [pdfDocument, setPdfDocument] = createSignal<PDFDocument>();
-    const [mupdfLib, setMupdfLib] = createSignal<typeof import("mupdf")>();
+    const isMobile = useContext(IsMobileContext)!;
+    const location = useLocation();
 
-    async function fileSelected(input: HTMLInputElement) {
-        if (input.files === null || input.files.length === 0)
-            return;
-        const file = input.files[0];
-        const [mupdf, data] = await Promise.all([mupdfImport, file.arrayBuffer()]);
-        const doc = mupdf.Document.openDocument(data);
-        if (!doc.isPDF())
-            return;
-
-        setMupdfLib(mupdf);
-        setPdfDocument(doc as PDFDocument);
-    }
-
-    const pageContents = createMemo(() => {
-        const doc = pdfDocument();
-        if (doc === undefined) {
+    const reneredElement = createMemo(() => {
+        if (isMobile()) {
             return (
-                <form>
-                    <input type="file"
-                        accept="application/pdf"
-                        onChange={e => fileSelected(e.target)}/>
-                </form>
+                <div class="use-desktop">
+                    <Computer/>
+                    <h2>Nutze deinen Computer!</h2>
+                    <div class="text">
+                        Sktipte am Smartphone zu erstellen ist leider nicht mölich
+                        <ul>
+                            <li>Melde dich auf einem Desktop PC mit deinem Quipt Konto an</li>
+                            <li>Lande ein PDF in unseren interaktiven Editor hoch</li>
+                        </ul>
+                    </div>
+                </div>
             );
         }
-        return (
-            <DocumentView mupdf={mupdfLib()!} pdfDoc={doc}/>
-        );
+
+        const transferObject = StateScriptTransferObject.retreive(location.state);
+        if (transferObject === undefined)
+            return <Navigate href="/"/>
+
+        const { mupdf, document: pdfDoc, name, deletedPages } = transferObject;
+        return <DocumentView
+            mupdf={mupdf}
+            pdfDoc={pdfDoc}
+            name={name}
+            deletedPages={deletedPages}/>
     });
 
-    return (
-        <>
-            { pageContents() }
-        </>
-    );
+    return reneredElement();
 }
 
 export function NoScriptRoute(): JSX.Element {

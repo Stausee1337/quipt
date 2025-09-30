@@ -1,10 +1,34 @@
 import { Component, JSX, Owner, createContext, createEffect, createMemo, createRoot, createSignal, getOwner, onCleanup, onMount, useContext } from "solid-js";
 import Popper, { createPopper } from "@popperjs/core"
-import type { Document as MupdfDocument, PDFDocument, Rect } from "mupdf";
+import { Document as MupdfDocument, PDFDocument, Rect } from "mupdf";
 import { insert } from "solid-js/web";
 import { useNavigate } from "@solidjs/router";
 
 type MupdfLib = typeof import("mupdf");
+
+export class StateScriptTransferObject {
+    private static objectMap = new Map<PDFDocument, StateScriptTransferObject>();
+
+    constructor(
+        public mupdf: MupdfLib,
+        public document: PDFDocument,
+        public name: string,
+        public deletedPages: Set<number>
+    ) {}
+
+    static create(
+        mupdf: MupdfLib, document: PDFDocument,
+        name: string, deletedPages: Set<number>
+    ): StateScriptTransferObject { 
+        const transferObject = new StateScriptTransferObject(mupdf, document, name, deletedPages);
+        StateScriptTransferObject.objectMap.set(document, transferObject);
+        return transferObject;
+    }
+
+    static retreive(key: unknown): StateScriptTransferObject|undefined { 
+        return StateScriptTransferObject.objectMap.get(key as any);
+    }
+}
 
 function UploadIcon(): JSX.Element {
     return (
@@ -118,13 +142,24 @@ function mouseEnter(this: Owner, event: MouseEvent & { currentTarget: HTMLSpanEl
     }, this);
 }
 
+function filenameToName(filename: string): string {
+  return filename
+    .replace(/\.[^/.]+$/, "")
+    // 2. Replace underscores and hyphens with spaces
+    .replace(/[-_]+/g, " ")
+    // 3. Remove extra spaces
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 const thumbnailMaxDimension = 128;
 function PDFPageSelector(
     props: {
         filename: string,
         mupdf: MupdfLib,
         doc: PDFDocument
-        routeTo: (comp: CBRComponent) => void
+        routeTo: (comp: CBRComponent) => void,
+        closer: () => void
     }
 ): JSX.Element {
     const { filename, doc, mupdf } = props;
@@ -174,6 +209,7 @@ function PDFPageSelector(
     renderOneThumbnail(0);
 
     let horizontalThumbnails: HTMLDivElement;
+    let filenameInput: HTMLInputElement;
 
     function updateScrollable() {
         setIsScrollable(horizontalThumbnails.scrollWidth > horizontalThumbnails.offsetWidth);
@@ -208,9 +244,19 @@ function PDFPageSelector(
         horizontalThumbnails.scrollBy({ left: dx, behavior: 'smooth' });
     }
 
+    function continueToEditor() {
+        const deletedPagesSet = new Set(deletedPages.map(idx => doc.loadPage(idx).pointer));
+        StateScriptTransferObject.create(mupdf, doc, filenameInput.value, deletedPagesSet);
+        navigate("/new-script", { state: doc });
+        props.closer();
+    }
+
     return (
         <>
-            <input class="small-input" value={filename} type="text"/>
+            <input ref={filenameInput} 
+                value={filenameToName(filename)}
+                type="text"
+                class="small-input"/>
             <p>
                 Entferne Seiten, die nicht teil des Seiten die nicht teil des
                 Skripts sind. Achte insbesondere auf Seiten am Ende des Dokuments
@@ -229,7 +275,7 @@ function PDFPageSelector(
                 <button class="secondary-button" onClick={() => props.routeTo(FileUpload)}>
                     Zurück
                 </button>
-                <button class="primary-button">
+                <button class="primary-button" onClick={continueToEditor}>
                     Hochladen
                 </button>
             </div>

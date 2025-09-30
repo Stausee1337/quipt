@@ -18,11 +18,11 @@ export function Root(): JSX.Element {
     return (
         <>
             {
-                !isMobile()
-                    ? <LandingPage/>
-                    : (authentication.isLoggedIn() 
+                !authentication.isLoggedIn() 
+                    ? <Navigate href="/signin"/>
+                    : (isMobile()
                         ? <Navigate href="/script"/>
-                        : <Navigate href="/signin"/>)
+                        : <LandingPage/>)
             }
         </>
     );

@@ -63,6 +63,7 @@ export default function() {
                         ? <Route path={["/signin", "/signup"]} component={UserAuthenticate}/>
                         : (
                             <>
+                                <Route path="/new-script" component={NewScriptRoute} />
                                 <Route path="/no-script" component={NoScriptRoute} />
                                 <Route path={["/script", "/script/:uuid", "/script/:uuid/:division"]} component={ScriptRoute} />
                             </>

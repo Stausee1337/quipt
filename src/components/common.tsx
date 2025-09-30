@@ -28,14 +28,18 @@ function generateSunflowerColor(idx: number, saturation = 95, value = 70): strin
 	return `hsl(${((PHI * idx) % 1) * 360}deg, ${saturation}%, ${value}%)`;
 }
 
-function generateHash(str: string): number {
-    let hash = 0;
-    for (const char of str) {
-        hash = (hash << 5) - hash + char.charCodeAt(0);
-        hash |= 0; // Constrain to 32bit integer
+function fnv1aHash(str: string): number {
+    let hash = 0x811c9dc5; // FNV offset basis
+    for (let i = 0; i < str.length; i++) {
+        hash ^= str.charCodeAt(i);
+        hash = (hash * 0x01000193) >>> 0; // FNV prime
     }
-    return hash;
-};
+    return hash >>> 0;
+}
+
+export function getActorColor(actor: string): string {
+    return generateSunflowerColor((fnv1aHash(actor) / 4294967296) * 2 * Math.PI);
+}
 
 export function formatActorsArray(actors: string[]|null): FormattedString|null {
     if (actors === null)
@@ -44,7 +48,7 @@ export function formatActorsArray(actors: string[]|null): FormattedString|null {
         return null;
 
     const result: FormattedString = actors
-        .map(actor => [generateSunflowerColor(generateHash(actor)), actor])
+        .map(actor => [getActorColor(actor), actor])
         .map(item => ({ style: { color: item[0] }, string: item[1] }));
 
     if (result.length === 1) {

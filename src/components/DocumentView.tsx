@@ -1,7 +1,7 @@
 import { Accessor, JSX, Setter, batch, createDeferred, createEffect, createMemo, createRoot, createSignal, onCleanup, onMount, untrack } from "solid-js";
 import { insert } from "solid-js/web";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
-import { pluralize } from "./common";
+import { getActorColor, pluralize } from "./common";
 import Popper, { createPopper } from "@popperjs/core"
 
 type MupdfLib = typeof import("mupdf");
@@ -821,9 +821,15 @@ function analyzePagesWithOptions(
         });
 }
 
-function populateDocumentInfo(allPageInfo: PageInfo[], divisions: ViewBlock[], unknowns: ViewBlock[]) {
+function populateDocumentInfo(
+    allPageInfo: PageInfo[],
+    divisions: ViewBlock[],
+    unknowns: ViewBlock[],
+    actors: Map<string, number>
+) {
     divisions.length = 0;
     unknowns.length = 0;
+    actors.clear();
 
     let prevBlock: ViewBlock|undefined;
     let currentDivision: ViewBlock|null = null;
@@ -846,6 +852,11 @@ function populateDocumentInfo(allPageInfo: PageInfo[], divisions: ViewBlock[], u
         if (prevBlock.kind === "division") {
             prevBlock = block;
             continue;
+        }
+        if (block.kind === "cue") {
+            const actor = block.text.match(actorsRegex)![0].trim();
+            const cues = actors.get(actor) ?? 0;
+            actors.set(actor, cues + 1);
         }
         if (block.kind === "info" && prevBlock.kind !== "unknown") {
             block.backwardLink = prevBlock;
@@ -896,7 +907,9 @@ interface PageContext {
 export function DocumentView(
     props: {
         mupdf: MupdfLib,
-        pdfDoc: PDFDocument
+        pdfDoc: PDFDocument,
+        name: string,
+        deletedPages: Set<number>
     }
 ): JSX.Element {
     const [footer, setFooter] = createSignal(0);
@@ -904,14 +917,14 @@ export function DocumentView(
 
     const [signal, setSignal] = createSignal<any>({});
 
-    const { mupdf, pdfDoc } = props;
+    const { mupdf, pdfDoc, deletedPages } = props;
     const scrollingElement = document.querySelector('.routing-contents')!;
 
     const renderer = createPageRenderer(mupdf);
 
     const allPages = Array.from({ length: pdfDoc.countPages() })
         .map((_, idx) => pdfDoc.loadPage(idx))
-        .slice(2);
+        .filter(page => !deletedPages.has(page.pointer));
     const rawPageInfoCache = new Map<PDFPage, PageInfo>();
 
     const pageContext: PageContext = {
@@ -945,7 +958,8 @@ export function DocumentView(
     });
 
     let divisions: ViewBlock[] = [],
-        unknowns: ViewBlock[] = [];
+        unknowns: ViewBlock[] = [],
+        actors = new Map<string, number>();
 
     createEffect(() => {
         pageInfos();
@@ -953,7 +967,7 @@ export function DocumentView(
     })
 
     function rebuildDocumentInfo(firstTime: boolean = false) {
-        populateDocumentInfo(pageInfos(), divisions, unknowns);
+        populateDocumentInfo(pageInfos(), divisions, unknowns, actors);
         if (firstTime) return;
         setSignal({});
     }
@@ -1042,7 +1056,7 @@ export function DocumentView(
                         </label>
                         <label>
                             Fußzeile: 
-                            <input class="counter"
+                            <input class="small-input"
                                 type="text"
                                 inputmode="numeric"
                                 value="0"
@@ -1050,6 +1064,18 @@ export function DocumentView(
                                 onKeyDown={ensureNumberInput}
                                 onInput={validateUpdateInputChange(setFooter)}/>
                         </label>
+                    </section>
+                    <h4>Charaktere</h4>
+                    <section class="actors">
+                        {
+                            signal().x ?? Array.from(actors)
+                                .map(([actor, count]) => <span 
+                                         style={{'--actor-color': getActorColor(actor)}}
+                                         class="actor">
+                                         { actor } ({count})
+                                     </span>)
+                        }
+                        
                     </section>
                     <h4>Abschnitte</h4>
                     <section class="divisions">
@@ -1060,12 +1086,17 @@ export function DocumentView(
                             }
                         </ul>
                     </section>
-                    <h4>Warnungen ({ signal().x ?? unknowns.length })</h4>
-                    <section class="warnings">
-                        <ul onClick={gotoDivision}>
-                            { renderedWarnings() }
-                        </ul>
-                    </section>
+                    {
+                        (signal().x ?? unknowns.length) === 0 ? null
+                            :<>
+                                <h4>Warnungen ({ signal().x ?? unknowns.length })</h4>
+                                <section class="warnings">
+                                    <ul onClick={gotoDivision}>
+                                        { renderedWarnings() }
+                                    </ul>
+                                </section>
+                            </>
+                    }
                 </div>
             </div>
         </div>
