@@ -90,8 +90,8 @@ button.primary-button {
   padding: 0 2rem;
   background-color: $primary;
   border: 0.1rem solid color.adjust($primary, $lightness: 3%);
-  height: $button-size;
-  border-radius: $button-size;
+  min-height: $button-size;
+  border-radius: 3.40282e+38px;
   font-size: inherit;
   overflow: hidden;
   position: relative;
@@ -115,7 +115,7 @@ button.secondary-button {
   padding: 0 2rem;
   border: 0.1rem solid $lighter1;
   height: $button-size;
-  border-radius: $button-size;
+  border-radius: 3.40282e+38px;
   font-size: inherit;
   overflow: hidden;
   position: relative;
@@ -130,6 +130,19 @@ button.secondary-button {
 
   &:active {
     background-color: $color-accent1;
+  }
+}
+
+input.small-input {
+  padding: 0.5rem;
+  font-size: 1.6rem;
+  border: 0.1rem solid $lighter1;
+  border-radius: 0.5rem;
+  background-color: inherit;
+  outline: none;
+
+  &:focus {
+    border: 0.1rem solid $primary;
   }
 }
 
@@ -224,41 +237,41 @@ div.list-item {
   user-select: none;
 }
 
-dialog#dialog-box { 
-  padding: 1.5rem;
-  gap: 1rem;
-  border: none;
+div#dialog-box { 
+  position: absolute;
   @extend .common-dialog;
-  background-color: $color-accent1;
-  border-radius: 1rem;
+  padding: 2rem;
+  gap: 1rem;
   flex-direction: column;
-  width: 80%;
-  animation: move-in-fade 250ms ease-out;
-  top: 50%;
+  background-color: $color-accent1;
+  border-radius: 2rem;
+  top: 40%;
   left: 50%;
   transform: translate(-50%, -50%);
+  width: 60rem;
+  border: none;
+  box-shadow: 0 0 16px rgba(black, 0.3);
+  overflow: hidden;
+  z-index: 2001;
+}
 
-  &::backdrop {
-    background-color: rgba(black, 0.3);
+@media (max-width: 768px) {
+  dialog#dialog-box {
+    width: 80%;
   }
+}
 
-  &.removing {
-    animation: fade-out 200ms ease-out forwards;
-  }
+div#modal-dialog-backdrop {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 2000;
 
-  span.description {
-    line-height: 1.7;
-  }
-
-  div.button-line {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-
-    button.result-button {
-      @extend .secondary-button;
-    }
-  }
+  background-color: rgba(black, 0.5);
+  backdrop-filter: blur(1px);
 }
 
 div#floating-menu {

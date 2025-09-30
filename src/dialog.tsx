@@ -1,34 +1,25 @@
 import { Component, JSX, Owner, createRoot, onMount } from "solid-js";
 import { insert } from "solid-js/web";
 
-type DialogButton = {
-    title: string,
-    dialogResult: string
-};
-
-type DialogDescriptor = {
-    heading: string,
-    description?: string|undefined,
-    content?: Component,
-    dialogButtons: Array<DialogButton>
-};
 
 export class DialogManager {
-    public static async openDialog(dialog: DialogDescriptor): Promise<string> {
+    public static async openDialog(content: Component<{ closer: () => void }>, detachedOwner?: typeof Owner): Promise<void> {
         const rootElement = <div id="dialog-root"/> as HTMLDivElement;
         document.body.appendChild(rootElement);
 
-        const result = await createRoot(async dispose => {
-            const result = await new Promise<string>(resolve => {
-                const dialogBox = <DialogBox {...dialog} onClose={resolve}/>;
-                insert(rootElement, () => dialogBox, null);
-            });
-            dispose();
-            return result;
-        });
+        await createRoot(
+            async dispose => {
+                const result = await new Promise<void>(resolve => {
+                    const dialogBox = <DialogBox onClose={resolve}>{ content }</DialogBox>;
+                    insert(rootElement, () => dialogBox, null);
+                });
+                dispose();
+                return result;
+            },
+            detachedOwner
+        );
 
         rootElement.remove();
-        return result;
     }
 
     public static async openSideMenu(content: Component<{ closer: () => void }>, detachedOwner?: typeof Owner): Promise<void> {
@@ -77,43 +68,23 @@ function SideMenu(
     );
 }
 
-function DialogBox(descriptor: DialogDescriptor & { onClose: (reason: string) => void }) {
-    function deferClose(dialogResult: string) {
-        dialog.classList.add('removing');
-        dialog.addEventListener('animationend', () => {
-            dialog.close(dialogResult);
-        }, { once: true });
+function DialogBox(
+    { children: Children, onClose }: {
+        children: Component<{ closer: () => void }>,
+        onClose: () => void
     }
-    const chf = (dr: string) => () => { // click handler factory
-        deferClose(dr);
-    };
-    function clickHandler(event: MouseEvent) {
-        const rect = dialog.getBoundingClientRect();
-        if (event.clientX >= rect.left && event.clientX <= rect.right &&
-            event.clientY >= rect.top && event.clientY <= rect.bottom) {
-            return;
-        }
-        deferClose("cancel");
-    }
+): JSX.Element {
     const dialog = (
-        <dialog id="dialog-box" onClose={() => descriptor.onClose(dialog.returnValue)} onClick={clickHandler}>
-            <h3 class="heading">{descriptor.heading}</h3> 
-            { descriptor.description != undefined ? 
-                <span class="description secondary-text">{descriptor.description}</span> : null }
-            { descriptor.content != undefined ? <descriptor.content/>: null }
-            <div class="button-line">
-                { descriptor.dialogButtons.map(desc => 
-                    <button class="result-button" onClick={chf(desc.dialogResult)}>
-                        { desc.title }
-                    </button>
-                ) }
-            </div>
-        </dialog>
-    ) as HTMLDialogElement;
+        <div id="dialog-box">
+            <Children closer={onClose}/>
+        </div>
+    ) as HTMLDivElement;
 
-    onMount(() => {
-        dialog.showModal();
-    });
-    return dialog;
+    return (
+        <>
+            <div id="modal-dialog-backdrop" onClick={onClose}/>
+            {dialog}
+        </>
+    );
 }
 

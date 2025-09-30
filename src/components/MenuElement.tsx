@@ -1,9 +1,11 @@
-import { JSX, onCleanup, useContext } from "solid-js";
+import { JSX, getOwner, onCleanup, useContext } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { A, useBeforeLeave } from "@solidjs/router";
 import { useAuthentication } from "../backend";
 import { ScriptContextObj } from "../script";
 import QuiptLogo from "./Quipt-Logo";
+import { DialogManager } from "../dialog";
+import { NewScriptFileChooser } from "./NewScriptFileChooser";
 
 function ListElement(
     props: {
@@ -12,11 +14,13 @@ function ListElement(
         static?: boolean,
         current?: boolean,
         href?: string
+        onClick?: (e: MouseEvent) => void;
     }
 ): JSX.Element {
     
     return (
         <Dynamic component={props.href === undefined ? 'span' : A}
+            onClick={props.onClick}
             href={props.href}
             class="list-element"
             classList={{ static: props.static, current: props.current }}>
@@ -35,6 +39,7 @@ export function MenuElement(
         closer?: () => void
     }
 ): JSX.Element {
+    const owner = getOwner()!;
     const authentication = useAuthentication()!;
     const closer = props.closer;
     const [user, {}] = authentication.requests!.getCached("/get-user");
@@ -51,6 +56,10 @@ export function MenuElement(
         onCleanup(() => {
             unsubscribe();
         })
+    }
+
+    function createNewScript() {
+        DialogManager.openDialog(NewScriptFileChooser, owner);
     }
 
     function closeButton(): JSX.Element {
@@ -74,7 +83,7 @@ export function MenuElement(
                     }
                 </div>
 
-                <ListElement icon="pencil-square">
+                <ListElement icon="pencil-square" onClick={createNewScript}>
                     Neues Skript
                 </ListElement>
 

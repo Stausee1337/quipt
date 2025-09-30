@@ -550,8 +550,6 @@ function handlePopover(
         })
 
         insert(document.body, popoverMenu);
-        
-        return popoverMenu;
     });
 
 }
@@ -1034,7 +1032,7 @@ export function DocumentView(
                     <section class="settings">
                         <label>
                             Kopfzeile: 
-                            <input class="counter"
+                            <input class="small-input"
                                 type="text"
                                 inputmode="numeric"
                                 value="0"
