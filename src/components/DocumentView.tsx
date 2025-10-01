@@ -1,9 +1,12 @@
 import { Accessor, Component, JSX, Setter, batch, createEffect, createMemo, createRoot, createSignal, onCleanup, onMount, untrack } from "solid-js";
 import { insert } from "solid-js/web";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
-import { getActorColor, pluralize } from "./common";
+import { formatActorsArray, formatMarkdown, getActorColor, pluralize } from "./common";
 import Popper, { createPopper } from "@popperjs/core"
+import * as b from "../backend";
 import { DialogManager } from "../dialog";
+import { TextCueView } from "./TextCueView";
+import { DivisionInfoView } from "./DivisionInfoView";
 
 type MupdfLib = typeof import("mupdf");
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0]
@@ -534,7 +537,7 @@ function DistributionDialog(
                 Auflösen und Verteilen von
                 <span 
                     style={{'--actor-color': getActorColor(props.target)}}
-                    class="actor-pill">
+                    class="actor-pill static">
                     { props.target }
                  </span>
             </h2>
@@ -690,8 +693,9 @@ function PageView(
     const [pageWidth, pageHeight] = toDimensions(page.getBounds());
 
     const canvas = <canvas class="page-canvas"
-        width={pageWidth * scaleFactor}
-        height={pageHeight * scaleFactor}/> as HTMLCanvasElement;
+        style={{
+            width: `${Math.floor(pageWidth * scaleFactor)}px`,
+            height: `${Math.floor(pageHeight * scaleFactor)}px`}}/> as HTMLCanvasElement;
     let imageLoaded = false;
 
     const observer = new IntersectionObserver(entries => {
@@ -700,6 +704,10 @@ function PageView(
 
         const ctx = canvas.getContext("2d")!;
         const imageCanvas = renderer.render(page);
+        const dpr = window.devicePixelRatio;
+
+        canvas.width = pageWidth * scaleFactor * dpr;
+        canvas.height = pageHeight * scaleFactor * dpr;
 
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -851,7 +859,7 @@ function PageView(
     }
 
     return (
-        <div class="full-page" id={`page${index}`}>
+        <div class="full-page" id={`page${index}`} data-page={index}>
             { canvas }
             { linesLayer }
         </div>
@@ -987,6 +995,108 @@ function populateDocumentInfo(
     }
 }
 
+function buildConnectedMarkdown(block: ViewBlock): string {
+    let start: ViewBlock = block;
+    while (start.backwardLink !== undefined)
+        start = start.backwardLink;
+
+    let current: ViewBlock|undefined = start;
+    const markdownContent: string[] = [];
+    while (current !== undefined) {
+        let content; 
+        if (current.kind === "cue" && block.text.match(actorsRegex) !== null) {
+            content = buildMarkdown({
+                text: current.text,
+                fontStyleSpans: current.fontStyleSpans.slice(1) 
+            });
+        } else {
+            content = buildMarkdown(current)
+        }
+        markdownContent.push(content);
+        current = current.forwardLink;
+    }
+
+    return markdownContent.join('\n');
+}
+
+type Division = {
+    name?: string,
+    description?: string,
+    textCues: b.TextCue[]
+};
+
+function buildSemiQuiptCueData(
+    allPageInfo: PageInfo[],
+    actorsMap: Map<string, number>,
+    actorsMapping: Map<string, string[]>,
+): Division[] {
+    const divisions: Division[] = [];
+
+    let prevBlock: ViewBlock|undefined;
+    let currentDivision: Division = {
+        textCues: []
+    };
+
+    for (const block of unpackViewBlocks(allPageInfo)) {
+        switch (block.kind) {
+            case "division":
+            {
+                if (currentDivision.textCues.length > 0)
+                    divisions.push(currentDivision);
+                currentDivision = {
+                    name: block.text,
+                    textCues: []
+                };
+            }
+            break;
+            case "info":
+            {
+                if (prevBlock?.kind === "division")
+                    currentDivision.description = buildConnectedMarkdown(block);
+            }
+            break;
+            case "cue":
+            {
+                const actor = block.text.match(actorsRegex)![0].trim();
+
+                if (block.backwardLink !== undefined) {
+                    const actor2 = getCue(block.backwardLink).text.match(actorsRegex)?.[0].trim() ?? "";
+                    if (actor === actor2)
+                        continue
+                }
+
+                let actors: string[];
+                if (actorsMap.has(actor))
+                    actors = [actor];
+                else {
+                    const mappedActors = actorsMapping.get(actor);
+                    if (mappedActors === undefined)
+                        throw 'unexpected undefined actors mapping';
+                    if (mappedActors.length === 0) {
+                        // this is not a cue since its actor was deleted
+                        prevBlock = block;
+                        continue;
+                    }
+                    actors = mappedActors; 
+                }
+
+                currentDivision.textCues.push({
+                    actors,
+                    text: buildConnectedMarkdown(block)
+                })
+            }
+            break;
+            default:
+                continue;
+        }
+        prevBlock = block;
+    }
+
+    if (currentDivision.textCues.length > 0)
+        divisions.push(currentDivision);
+    return divisions;
+}
+
 const allowedNumberKeys = new Set<string>([
     "Backspace", "Delete", "ArrowLeft", "ArrowRight",
     "ArrowUp", "ArrowDown", "Home", "End", "Tab", "Enter",
@@ -1031,9 +1141,9 @@ interface ActorsContext {
 
 function createActorsContext(
     actors: Map<string, number>,
+    actorsMapping: Map<string, string[]>,
     invalidateRender: () => void
 ): [ActorsContext, (hard?: boolean) => void] {
-    const actorsMapping = new Map<string, string[]>();
     updateMapping();
 
     function updateMapping(hard: boolean = false) {
@@ -1077,6 +1187,161 @@ function createActorsContext(
     return [ctx, updateMapping];
 }
 
+function FinalizeScriptView(
+    props: {
+        actorsMap: Map<string, number>,
+        semiDivisions: Division[]
+    }
+) {
+    const actors = Array.from(props.actorsMap.keys());
+    const [currentActor, setCurrentActor] = createSignal<string>(actors[0]);
+    const [currentIdx, setCurrentIdx] = createSignal(0);
+
+    let headerElement: HTMLDivElement;
+    let divisionsElement: HTMLUListElement;
+    let scrollingElement: HTMLElement;
+    let contentElement: HTMLDivElement;
+
+    onMount(() => {
+        scrollingElement = document.getElementById('dialog-box')!
+        divisionsElement.style.top = `${divisionsElement.offsetTop}px`;
+    })
+
+    function onScroll() {
+        const rect = scrollingElement.getBoundingClientRect();
+        const element = document.elementFromPoint(
+            rect.left + contentElement.offsetWidth / 2,
+            rect.top + headerElement.offsetHeight + 10
+        );
+
+        let currentElement: Element|null = element;
+        while (currentElement !== null) {
+            if (currentElement.classList.contains('script-divsion')
+                    && (currentElement instanceof HTMLElement)) {
+                const divisionIdx = Number(currentElement.dataset.division)
+                setCurrentIdx(divisionIdx);
+                break;
+            }
+
+            currentElement = currentElement.parentElement;
+        }
+    }
+
+    onMount(() => {
+        scrollingElement.addEventListener('scroll', onScroll);
+    })
+
+    onCleanup(() => {
+        scrollingElement.removeEventListener('scroll', onScroll);
+    })
+
+    function renderCue(textCue: Readonly<b.TextCue> | null, type: "request"|"response"): JSX.Element {
+        const cueData = type === "request" 
+            ? { actors: formatActorsArray(textCue?.actors ?? null), text: textCue?.text ?? "Du bist der erste in diesem Abschnitt" }
+            : { actors: formatActorsArray(textCue!.actors.length === 1 ? null : textCue!.actors), text: textCue!.text! };
+        return (
+            <TextCueView
+                last={false}
+                type={type}
+                text={formatMarkdown(cueData.text)}
+                actorsInfo={cueData.actors}/>);
+    }
+
+    function renderCuePair(textCuePair: Readonly<b.TextCuePair>): JSX.Element {
+        return (
+            <>
+                { renderCue(textCuePair.request, "request") }
+                { renderCue(textCuePair.response, "response") }
+            </>
+        );
+    }
+
+    const activeDivisions = createMemo(() => {
+        const selfActor = currentActor();
+        const result: b.Division[] = []
+        for (const semiDivision of props.semiDivisions) {
+            const division: b.Division = {
+                name: semiDivision.name ?? "",
+                description: semiDivision.description ?? "",
+                previousTotals: [],
+                textCues: []
+            };
+
+            let lastCue: b.TextCue|null = null;
+            for (const textCue of semiDivision.textCues) {
+                if (!textCue.actors.includes(selfActor)) {
+                    lastCue = textCue;
+                    continue;
+                }
+                division.textCues.push({
+                    request: lastCue,
+                    response: textCue,
+                    previousScores: []
+                });
+            }
+            if (division.textCues.length > 0)
+                result.push(division);
+        }
+        return result;
+    })
+
+    function jumpToDivision(event: MouseEvent & { currentTarget: HTMLSpanElement }) {
+        const target = event.currentTarget;
+        const divisionIdx = Number(target.dataset.idx);
+        const element = document.getElementById(`division${divisionIdx}`)!;
+        scrollingElement.scrollTo({ top: element.offsetTop - headerElement.offsetHeight });
+    }
+
+    return (
+        <div class="script-finalization-view">
+            <div ref={headerElement} class="actors-selection">
+                {
+                    actors.map((actor) =>
+                        <span class="actor-pill" 
+                            onClick={() => setCurrentActor(actor)}
+                            classList={{ selected: currentActor() === actor }}
+                            style={{'--actor-color': getActorColor(actor)}}>
+                            { actor } ({props.actorsMap.get(actor)})
+                        </span> as HTMLSpanElement
+                    )
+                }
+            </div>
+            <div ref={contentElement} class="script-content">
+                {
+                    activeDivisions()
+                        .map((division, idx) => {
+                            return (
+                                <div class="script-divsion" id={`division${idx}`} data-division={idx}>
+                                    <h2>{ division.name }</h2>
+                                    <DivisionInfoView division={division}/>
+                                    { division.textCues.map(renderCuePair) }
+                                </div>
+                            );
+                        })
+                }
+            </div>
+            <div class="aux-info">
+                <ul ref={divisionsElement} class="divisions">
+                    {
+                        activeDivisions()
+                            .map((division, idx) =>
+                                <li 
+                                    classList={{ current: currentIdx() === idx }}
+                                    onClick={jumpToDivision}
+                                    data-idx={idx}>
+                                    { division.name }
+                                </li>)
+                    }
+                </ul>
+            </div>
+            <div class="bottom-line">
+                <button class="secondary-button">Abbrechen</button>
+                <button class="primary-button">Speichern</button>
+            </div>
+        </div>
+    );
+}
+
 export function DocumentView(
     props: {
         mupdf: MupdfLib,
@@ -1087,11 +1352,12 @@ export function DocumentView(
 ): JSX.Element {
     const [footer, setFooter] = createSignal(0);
     const [header, setHeader] = createSignal(0);
+    const [currentPage, setCurrentPage] = createSignal(1);
 
     const [signal, setSignal] = createSignal<any>({});
 
     const { mupdf, pdfDoc, deletedPages } = props;
-    const scrollingElement = document.querySelector('.routing-contents')!;
+    const scrollingElement = document.querySelector('.routing-contents')! as HTMLDivElement;
 
     const renderer = createPageRenderer(mupdf);
 
@@ -1121,8 +1387,36 @@ export function DocumentView(
         },
     };
 
+    function onScroll() {
+        const rect = scrollingElement.getBoundingClientRect();
+        const element = document.elementFromPoint(
+            rect.left + rect.width / 2,
+            rect.top + rect.height - 10
+        );
+
+        let currentElement: Element|null = element;
+        while (currentElement !== null) {
+            if (currentElement.classList.contains('full-page')
+                    && (currentElement instanceof HTMLElement)) {
+                setCurrentPage(Number(currentElement.dataset.page) + 1);
+                break;
+            }
+
+            currentElement = currentElement.parentElement;
+        }
+    }
+
+    onMount(() => {
+        scrollingElement.addEventListener('scroll', onScroll);
+    })
+
+    onCleanup(() => {
+        scrollingElement.removeEventListener('scroll', onScroll);
+    })
+
     const actors = new Map<string, number>()
-    const [actorsContext, updateActorsMapping] = createActorsContext(actors, () => setSignal({}));
+    const actorsMapping = new Map<string, string[]>();
+    const [actorsContext, updateActorsMapping] = createActorsContext(actors, actorsMapping, () => setSignal({}));
 
     const pageInfos = createMemo(() => {
         const pageInfos = analyzePagesWithOptions(
@@ -1229,12 +1523,29 @@ export function DocumentView(
         return actorPill;
     }
 
+    function commmitScript() {
+        const semiDivisions = buildSemiQuiptCueData(pageInfos(), actors, actorsMapping);
+        DialogManager.openDialog(
+            () => <FinalizeScriptView
+                actorsMap={actors}
+                semiDivisions={semiDivisions}/>
+        );
+    }
+
     return (
         <div class="document-view">
+            <div class="header-info">
+                <div class="content">
+                    <span>{ currentPage() } / { allPages.length }</span>
+                    <span class="seperator"/>
+                    <i class="bi bi-database-fill-up" onClick={commmitScript}/>
+                </div>
+                <div style={{ width: '40rem' }}/>
+            </div>
             <div class="pages">
                 { pages() }
             </div>
-            <div>
+            <div style={{'margin-right': '1rem'}}>
                 <div class="messages">
                     <h4>Einstellungen</h4>
                     <section class="settings">

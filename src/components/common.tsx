@@ -1,6 +1,7 @@
 import { JSX } from "solid-js";
 import { Lexer, MarkedToken } from 'marked';
 import { Division, TextCue } from "../backend";
+import MurmurHash3 from "imurmurhash"
 
 export const progressBarGreen = '#5d9948';
 export const progressBarYellow = '#fad541';
@@ -23,9 +24,15 @@ export function formatString(string: FormattedString): JSX.Element {
 
     return result;
 }
-function generateSunflowerColor(idx: number, saturation = 95, value = 70): string {
+
+// function generateSunflowerColor(idx: number, saturation = 95, value = 70): string {
+//     const PHI = (5 ** 0.5 + 1) * 0.5;
+// 	return `hsl(${((PHI * idx) % 1) * 360}deg, ${saturation}%, ${value}%)`;
+// }
+
+function generateColor(idx: number, saturation = 85, value = 90): string {
     const PHI = (5 ** 0.5 + 1) * 0.5;
-	return `hsl(${((PHI * idx) % 1) * 360}deg, ${saturation}%, ${value}%)`;
+	return `lch(${value}% ${saturation}% ${((PHI * idx) % 1) * 360}deg)`;
 }
 
 function fnv1aHash(str: string): number {
@@ -38,7 +45,7 @@ function fnv1aHash(str: string): number {
 }
 
 export function getActorColor(actor: string): string {
-    return generateSunflowerColor((fnv1aHash(actor) / 4294967296) * 2 * Math.PI);
+    return generateColor((fnv1aHash(actor) / 4294967296) * 2 * Math.PI);
 }
 
 export function formatActorsArray(actors: string[]|null): FormattedString|null {
