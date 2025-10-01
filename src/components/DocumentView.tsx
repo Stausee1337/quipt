@@ -1,8 +1,9 @@
-import { Accessor, JSX, Setter, batch, createDeferred, createEffect, createMemo, createRoot, createSignal, onCleanup, onMount, untrack } from "solid-js";
+import { Accessor, Component, JSX, Setter, batch, createEffect, createMemo, createRoot, createSignal, onCleanup, onMount, untrack } from "solid-js";
 import { insert } from "solid-js/web";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
 import { getActorColor, pluralize } from "./common";
 import Popper, { createPopper } from "@popperjs/core"
+import { DialogManager } from "../dialog";
 
 type MupdfLib = typeof import("mupdf");
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0]
@@ -497,14 +498,106 @@ function ViewBlockMenu(
     );
 }
 
-function handlePopover(
-    event: OpenContextMenuEvent,
-    block: ViewBlock,
-    pageContext: PageContext
+function DistributionDialog(
+    props: {
+        closer: (res: string[]|undefined) => void,
+        actors: Map<string, number>,
+        target: string,
+    }
+): JSX.Element {
+    const [selected, setSelected] = createSignal<string[]>([]);
+
+    function toggleSelection(event: MouseEvent & { currentTarget: HTMLSpanElement }) {
+        const target = event.currentTarget;
+        const isSelected = target.classList.toggle('selected');
+        const currentActor = target.dataset.actor!;
+        setSelected(prev => [
+            ...(isSelected ? prev : prev.filter(x => x !== currentActor)),
+            ...(isSelected ? [currentActor] : [])
+        ])
+    }
+
+    function commit() {
+        const result = selected();
+        if (result.length === 0)
+            props.closer(undefined);
+        else
+            props.closer(result);
+    }
+
+    return (
+        <>
+            <button class="close" onClick={() => props.closer(undefined)}>
+                <i class="bi bi-x"/>
+            </button>
+            <h2 class="disolve-and-distribute">
+                Auflösen und Verteilen von
+                <span 
+                    style={{'--actor-color': getActorColor(props.target)}}
+                    class="actor-pill">
+                    { props.target }
+                 </span>
+            </h2>
+            <div class="actors-selection">
+                {
+                    Array.from(props.actors.keys())
+                        .filter(actor => actor !== props.target)
+                        .map(actor => 
+                             <span class="actor-pill"
+                                onClick={toggleSelection} 
+                                data-actor={actor}
+                                style={{'--actor-color': getActorColor(actor)}}>
+                                { actor }
+                             </span>)
+                }
+            </div>
+            <div class="bottom-line">
+                <button class="primary-button"
+                    onClick={commit}
+                    disabled={selected().length === 0}>
+                    Bestätigen
+                </button>
+            </div>
+        </>
+    );
+}
+
+function ActorMenu(
+    { actor, actorsContext }: {
+        actor: string,
+        actorsContext: ActorsContext
+    }
+): JSX.Element {
+
+    async function openDistributionDialog() {
+        const distributeTo = await DialogManager.openDialog<string[]>(
+            ({ closer }) => <DistributionDialog 
+                closer={closer}
+                actors={actorsContext.actors}
+                target={actor}/>
+        );
+        if (distributeTo === undefined)
+            return;
+        actorsContext.replace(actor, distributeTo);
+    }
+
+    return (
+        <ul class="menu-options">
+            <li onClick={() => actorsContext.delete(actor)}>Löschen</li>
+            <li onClick={openDistributionDialog}>Auflösen und Verteilen</li>
+        </ul>
+    );
+}
+
+function handleContextMenu<P extends Record<string, any>>(
+    event: ContextMenuEvent,
+    placement: Popper.Placement,
+    Component: Component<P>,
+    props: P
 ) {
     const reference = event.reference;
 
-    const target = event.target as HTMLSpanElement;
+    const target = event.target as HTMLElement;
     if (target.classList.contains('menu-open'))
         return;
     target.classList.add('menu-open');
@@ -512,9 +605,7 @@ function handlePopover(
     createRoot(dispose => {
         const popoverMenu =
             <div class="popover-menu" onClick={transactionClick}>
-                <ViewBlockMenu
-                    viewBlock={block}
-                    pageContext={pageContext}/>
+                <Component {...props}/>
             </div> as HTMLDivElement;
 
         function transactionClick(event: MouseEvent) {
@@ -533,7 +624,7 @@ function handlePopover(
             popper = createPopper(
                 reference,
                 popoverMenu,
-                { placement: 'bottom-start' }
+                { placement }
             )
             document.documentElement.addEventListener('click', captureClick);
             target.addEventListener('еееContextMenu', dispose);
@@ -554,6 +645,19 @@ function handlePopover(
 
 }
 
+function installContextMenuHandler<P extends Record<string, any>>(
+    target: HTMLElement,
+    placement: Popper.Placement,
+    Component: Component<P>,
+    props: P
+) {
+    target.addEventListener(
+        'еееContextMenu',
+        event => handleContextMenu(event, placement, Component, props)
+    );
+
+}
+
 const pageMarginLeft = 45;
 const fontSize = 13;
 
@@ -565,7 +669,7 @@ interface PageRenderer {
     readonly scaleFactor: number;
 }
 
-class OpenContextMenuEvent extends Event  {
+class ContextMenuEvent extends Event  {
     constructor(public reference: HTMLElement) {
         super('еееContextMenu');
     } 
@@ -626,8 +730,8 @@ function PageView(
     function onOpenMenu(event: MouseEvent) {
         const target = event.target as HTMLElement;
         const parent = target.parentElement!;
-        const openContextMenu = new OpenContextMenuEvent(target);
-        parent.dispatchEvent(openContextMenu);
+        const toggleMenu = new ContextMenuEvent(target);
+        parent.dispatchEvent(toggleMenu);
     }
 
     const linesLayer = <div class="lines-layer" 
@@ -656,7 +760,16 @@ function PageView(
             data-text-content={block.text}>
                 <i class="menu-icon" onClick={onOpenMenu}>&#xF5D3;</i>
             </span> as HTMLSpanElement;
-        visualBlock.addEventListener('еееContextMenu', event => handlePopover(event, block, props.context));
+
+        installContextMenuHandler(
+            visualBlock,
+            'bottom-start',
+            ViewBlockMenu,
+            {
+                viewBlock: block,
+                pageContext: props.context
+            }
+        );
         linesLayer.appendChild(visualBlock);
         if (currentDivision === undefined && block.knownDivision !== undefined) {
             currentDivision = block.knownDivision;
@@ -747,7 +860,7 @@ function PageView(
 
 declare global {
 interface HTMLElementEventMap {
-    'еееContextMenu': OpenContextMenuEvent
+    'еееContextMenu': ContextMenuEvent
 }
 }
 
@@ -904,6 +1017,66 @@ interface PageContext {
     getViewBlocks(page: number): ViewBlock[];
 }
 
+function toggleMenu(event: MouseEvent & { currentTarget: HTMLElement }) {
+    const target = event.currentTarget;
+    const toggleMenu = new ContextMenuEvent(/* reference */ target);
+    target.dispatchEvent(toggleMenu);
+}
+
+interface ActorsContext {
+    delete(actor: string): void;
+    replace(actor: string, replacee: string[]): void;
+    readonly actors: Map<string, number>;
+}
+
+function createActorsContext(
+    actors: Map<string, number>,
+    invalidateRender: () => void
+): [ActorsContext, (hard?: boolean) => void] {
+    const actorsMapping = new Map<string, string[]>();
+    updateMapping();
+
+    function updateMapping(hard: boolean = false) {
+        if (hard) {
+            actorsMapping.clear();
+            return;
+        }
+        for (const [fromActor, toMapping] of actorsMapping) {
+            const count = actors.get(fromActor);
+            if (count === undefined) {
+                continue;
+            }
+            for (const toActor of toMapping) {
+                const origCount = actors.get(toActor) ?? 0;
+                actors.set(toActor, origCount + count);
+            }
+            actors.delete(fromActor);
+        }
+    }
+
+    const ctx: ActorsContext = {
+        delete(actor) {
+            actors.delete(actor);
+            actorsMapping.set(actor, []);
+            invalidateRender();
+        },
+        replace(actor, replacee) {
+            const count = actors.get(actor) ?? 0;
+            actorsMapping.set(actor, replacee);
+            for (const toActor of replacee) {
+                const origCount = actors.get(toActor) ?? 0;
+                actors.set(toActor, origCount + count);
+            } 
+            actors.delete(actor);
+            invalidateRender();
+        },
+        get actors() {
+            return actors;
+        }
+    };
+    return [ctx, updateMapping];
+}
+
 export function DocumentView(
     props: {
         mupdf: MupdfLib,
@@ -948,18 +1121,21 @@ export function DocumentView(
         },
     };
 
+    const actors = new Map<string, number>()
+    const [actorsContext, updateActorsMapping] = createActorsContext(actors, () => setSignal({}));
+
     const pageInfos = createMemo(() => {
         const pageInfos = analyzePagesWithOptions(
             rawPageInfoCache,
             allPages,
             { header: header(), footer: footer() });
+        updateActorsMapping(/* hard */ true);
 
         return pageInfos;
     });
 
-    let divisions: ViewBlock[] = [],
-        unknowns: ViewBlock[] = [],
-        actors = new Map<string, number>();
+    const divisions: ViewBlock[] = [],
+        unknowns: ViewBlock[] = [];
 
     createEffect(() => {
         pageInfos();
@@ -968,6 +1144,7 @@ export function DocumentView(
 
     function rebuildDocumentInfo(firstTime: boolean = false) {
         populateDocumentInfo(pageInfos(), divisions, unknowns, actors);
+        updateActorsMapping();
         if (firstTime) return;
         setSignal({});
     }
@@ -1035,6 +1212,23 @@ export function DocumentView(
         };
     }
 
+    function renderActor([actor, count]: [string, number]) {
+        let actorPill =
+            <span 
+                onClick={toggleMenu}
+                style={{'--actor-color': getActorColor(actor)}}
+                class="actor-pill">
+                { actor } ({count})
+            </span> as HTMLSpanElement;
+        installContextMenuHandler(
+            actorPill,
+            'top',
+            ActorMenu,
+            { actor, actorsContext }
+        );
+        return actorPill;
+    }
+
     return (
         <div class="document-view">
             <div class="pages">
@@ -1068,12 +1262,7 @@ export function DocumentView(
                     <h4>Charaktere</h4>
                     <section class="actors">
                         {
-                            signal().x ?? Array.from(actors)
-                                .map(([actor, count]) => <span 
-                                         style={{'--actor-color': getActorColor(actor)}}
-                                         class="actor">
-                                         { actor } ({count})
-                                     </span>)
+                            signal().x ?? Array.from(actors).map(renderActor)
                         }
                         
                     </section>

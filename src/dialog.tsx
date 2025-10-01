@@ -3,14 +3,14 @@ import { insert } from "solid-js/web";
 
 
 export class DialogManager {
-    public static async openDialog(content: Component<{ closer: () => void }>, detachedOwner?: typeof Owner): Promise<void> {
+    public static async openDialog<T>(content: Component<{ closer: (x: T|undefined) => void }>, detachedOwner?: typeof Owner): Promise<T|undefined> {
         const rootElement = <div id="dialog-root"/> as HTMLDivElement;
         document.body.appendChild(rootElement);
 
-        await createRoot(
+        const result = await createRoot(
             async dispose => {
-                const result = await new Promise<void>(resolve => {
-                    const dialogBox = <DialogBox onClose={resolve}>{ content }</DialogBox>;
+                const result = await new Promise<T|undefined>(resolve => {
+                    const dialogBox = <DialogBox<T> onClose={resolve}>{ content }</DialogBox>;
                     insert(rootElement, () => dialogBox, null);
                 });
                 dispose();
@@ -20,6 +20,7 @@ export class DialogManager {
         );
 
         rootElement.remove();
+        return result;
     }
 
     public static async openSideMenu(content: Component<{ closer: () => void }>, detachedOwner?: typeof Owner): Promise<void> {
@@ -68,10 +69,10 @@ function SideMenu(
     );
 }
 
-function DialogBox(
+function DialogBox<T>(
     { children: Children, onClose }: {
-        children: Component<{ closer: () => void }>,
-        onClose: () => void
+        children: Component<{ closer: (res: T|PromiseLike<T>|undefined) => void }>,
+        onClose: (res: T|PromiseLike<T>|undefined) => void
     }
 ): JSX.Element {
     const dialog = (
@@ -82,7 +83,7 @@ function DialogBox(
 
     return (
         <>
-            <div id="modal-dialog-backdrop" onClick={onClose}/>
+            <div id="modal-dialog-backdrop" onClick={() => onClose(undefined)}/>
             {dialog}
         </>
     );

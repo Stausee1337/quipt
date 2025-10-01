@@ -98,6 +98,15 @@ div.script-list-container {
   }
 }
 
+button.close {
+  background-color: inherit;
+  outline: none;
+  border: none;
+  font-size: 2.5rem;
+  padding: 0;
+  cursor: pointer;
+}
+
 nav.side-menu {
   width: 30rem;
   background-color: $color-accent2;
@@ -133,14 +142,6 @@ nav.side-menu {
 
       &:has(button.close) {
         justify-content: flex-end;
-      }
-
-      button.close {
-        background-color: inherit;
-        outline: none;
-        border: none;
-        font-size: 2.5rem;
-        padding: 0;
       }
     }
   }
@@ -954,12 +955,12 @@ div.file-chooser {
       }
     }
   }
+}
 
-  div.bottom-line {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-  }
+div.bottom-line {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
 }
 
 div.zoomed-in-page {
@@ -1144,23 +1145,6 @@ div.document-view {
       gap: 1rem;
     }
 
-    section.actors {
-      display: flex;
-      gap: 1rem;
-      user-select: none;
-      font-weight: 600;
-      flex-wrap: wrap;     /* 🔑 allow wrapping onto new lines */
-      align-items: flex-start; /* optional, so rows align at the top */
-
-      span.actor {
-        flex: 0 0 auto;
-        padding: 1rem;
-        color: var(--actor-color);
-        border-radius: 0.5rem;
-        background-color: rgb(from var(--actor-color) r g b / 0.1);
-      }
-    }
-
     section.divisions, section.warnings {
       flex: 1 1 auto;      /* take remaining space */
       min-height: 0;       /* 🔑 allow shrinking */
@@ -1184,6 +1168,40 @@ div.document-view {
       }
     }
   }
+}
+
+section.actors, div.actors-selection {
+  display: flex;
+  gap: 1rem;
+  user-select: none;
+  font-weight: 600;
+  flex-wrap: wrap;     /* 🔑 allow wrapping onto new lines */
+  align-items: flex-start; /* optional, so rows align at the top */
+}
+
+span.actor-pill {
+  flex: 0 0 auto;
+  padding: 1rem;
+  color: var(--actor-color);
+  border-radius: 0.5rem;
+  background-color: rgb(from var(--actor-color) r g b / 0.1);
+  cursor: pointer;
+  font-size: 1.6rem;
+
+  &:hover, &.menu-open {
+    background-color: rgb(from var(--actor-color) r g b / 0.2);
+  }
+
+  &.selected {
+    background-color: rgb(from var(--actor-color) r g b / 0.3);
+  }
+}
+
+h2.disolve-and-distribute {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 div.popover-menu {

@@ -253,6 +253,12 @@ div#dialog-box {
   box-shadow: 0 0 16px rgba(black, 0.3);
   overflow: hidden;
   z-index: 2001;
+
+  button.close {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+  }
 }
 
 @media (max-width: 768px) {

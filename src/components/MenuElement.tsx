@@ -61,7 +61,7 @@ export function MenuElement(
     }
 
     function createNewScript() {
-        DialogManager.openDialog(NewScriptFileChooser, owner);
+        DialogManager.openDialog<void>(NewScriptFileChooser, owner);
     }
 
     function closeButton(): JSX.Element {
