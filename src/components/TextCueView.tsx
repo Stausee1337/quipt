@@ -1,6 +1,6 @@
 import { JSX, createSignal } from "solid-js";
-import { formatString, progressBarGreen, progressBarRed, progressBarYellow } from "./common";
-import { FormattedString } from "../backend";
+import { formatActorsArray, formatMarkdown, formatString, progressBarGreen, progressBarRed, progressBarYellow } from "./common";
+import { FormattedString, TextCue, TextCuePair } from "../backend";
 
 const confidenceIconMap = [
     {
@@ -51,13 +51,13 @@ export enum TextCueViewFlags {
     Ratable = 2,
 }
 
-type TextCueViewProps = {
+export type TextCueViewProps = {
     last: boolean,
     text: FormattedString,
     actorsInfo: FormattedString|null,
     type: "request"|"response",
     flags?: TextCueViewFlags,
-    confidenceReport?: (source: EventTarget & Element, confidence: "low"|"medium"|"high") => void
+    confidenceReport?: (source: EventTarget & Element, confidence: "low"|"medium"|"high") => unknown
 };
 
 export function TextCueView(props: TextCueViewProps) {
@@ -82,5 +82,32 @@ export function TextCueView(props: TextCueViewProps) {
                 ) : null
             }
         </div>
+    );
+}
+
+export function renderCue(
+    textCue: Readonly<TextCue> | null,
+    type: "request"|"response",
+    extraProps?: Partial<TextCueViewProps>
+): JSX.Element {
+    const cueData = type === "request" 
+        ? { actors: formatActorsArray(textCue?.actors ?? null), text: textCue?.text ?? "Du bist der erste in diesem Abschnitt" }
+        : { actors: formatActorsArray(textCue!.actors.length === 1 ? null : textCue!.actors), text: textCue!.text! };
+    return (
+        <TextCueView
+            last={false}
+            type={type}
+            text={formatMarkdown(cueData.text)}
+            actorsInfo={cueData.actors}
+            {...extraProps}/>
+    );
+}
+
+export function renderCuePair(textCuePair: Readonly<TextCuePair>): JSX.Element {
+    return (
+        <>
+            { renderCue(textCuePair.request, "request") }
+            { renderCue(textCuePair.response, "response") }
+        </>
     );
 }

@@ -1,12 +1,14 @@
-import { Accessor, Component, JSX, Setter, batch, createEffect, createMemo, createRoot, createSignal, onCleanup, onMount, untrack } from "solid-js";
+import { Accessor, Component, JSX, Setter, batch, createEffect, createMemo, createRoot, createSignal, onCleanup, onMount, untrack, useContext } from "solid-js";
 import { insert } from "solid-js/web";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
-import { formatActorsArray, formatMarkdown, getActorColor, pluralize } from "./common";
+import { getActorColor, pluralize } from "./common";
 import Popper, { createPopper } from "@popperjs/core"
 import * as b from "../backend";
 import { DialogManager } from "../dialog";
-import { TextCueView } from "./TextCueView";
+import { renderCuePair } from "./TextCueView";
 import { DivisionInfoView } from "./DivisionInfoView";
+import { ScriptContextObj } from "../script";
+import { useNavigate } from "@solidjs/router";
 
 type MupdfLib = typeof import("mupdf");
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0]
@@ -1195,6 +1197,7 @@ function createActorsContext(
 
 function FinalizeScriptView(
     props: {
+        closer: (res: b.Division[]|undefined) => void,
         actorsMap: Map<string, number>,
         semiDivisions: Division[]
     }
@@ -1237,27 +1240,6 @@ function FinalizeScriptView(
     onCleanup(() => {
         scrollingElement.removeEventListener('scroll', onScroll);
     })
-
-    function renderCue(textCue: Readonly<b.TextCue> | null, type: "request"|"response"): JSX.Element {
-        const cueData = type === "request" 
-            ? { actors: formatActorsArray(textCue?.actors ?? null), text: textCue?.text ?? "Du bist der erste in diesem Abschnitt" }
-            : { actors: formatActorsArray(textCue!.actors.length === 1 ? null : textCue!.actors), text: textCue!.text! };
-        return (
-            <TextCueView
-                last={false}
-                type={type}
-                text={formatMarkdown(cueData.text)}
-                actorsInfo={cueData.actors}/>);
-    }
-
-    function renderCuePair(textCuePair: Readonly<b.TextCuePair>): JSX.Element {
-        return (
-            <>
-                { renderCue(textCuePair.request, "request") }
-                { renderCue(textCuePair.response, "response") }
-            </>
-        );
-    }
 
     const activeDivisions = createMemo(() => {
         const selfActor = currentActor();
@@ -1338,8 +1320,12 @@ function FinalizeScriptView(
                 </ul>
             </div>
             <div class="bottom-line">
-                <button class="secondary-button">Abbrechen</button>
-                <button class="primary-button">Speichern</button>
+                <button class="secondary-button" onClick={() => props.closer(undefined)}>
+                    Abbrechen
+                </button>
+                <button class="primary-button" onClick={() => props.closer(activeDivisions())}>
+                    Speichern
+                </button>
             </div>
         </div>
     );
@@ -1358,6 +1344,9 @@ export function DocumentView(
     const [currentPage, setCurrentPage] = createSignal(1);
 
     const [signal, setSignal] = createSignal<any>({});
+
+    const navigate = useNavigate();
+    const scriptContext = useContext(ScriptContextObj)!;
 
     const { mupdf, pdfDoc, deletedPages } = props;
     const scrollingElement = document.querySelector('.routing-contents')! as HTMLDivElement;
@@ -1526,13 +1515,22 @@ export function DocumentView(
         return actorPill;
     }
 
-    function commmitScript() {
+    async function commmitScript() {
         const semiDivisions = buildSemiQuiptCueData(pageInfos(), actors, actorsMapping);
-        DialogManager.openDialog(
-            () => <FinalizeScriptView
+        const divisions = await DialogManager.openDialog<b.Division[]>(
+            ({ closer }) => <FinalizeScriptView
+                closer={closer}
                 actorsMap={actors}
                 semiDivisions={semiDivisions}/>
         );
+        if (divisions === undefined) return;
+        const script: b.Script = {
+            divisions,
+            name: props.name,
+            uuid: ""
+        };
+        const uuid = scriptContext.createNewScript(script).uuid;
+        navigate(`/script/${uuid}`);
     }
 
     return (

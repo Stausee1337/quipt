@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti';
 import { useAuthentication, Division, Script } from '../backend';
 import { ScriptContextObj, ScriptContext } from '../script';
 import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, formatActorsArray, formatMarkdown, computeDivisionInfo, DivisionInfo } from './common';
-import { TextCueView, TextCueViewFlags } from './TextCueView';
+import { TextCueView, TextCueViewFlags, renderCue } from './TextCueView';
 import { DivisionInfoView } from './DivisionInfoView';
 
 function easeOut(x: number) {
@@ -259,7 +259,7 @@ function TrainingRunView(
         return animation;
     }
 
-    async function reportConfidence(source: HTMLElement, confidence: "low"|"medium"|"high") {
+    async function reportConfidence(source: Element, confidence: "low"|"medium"|"high") {
         const { diff, streak, trend } = props.manager.addConfidenceRating(
             Math.floor(currentIndex() / 2), confidence);
         append();
@@ -354,17 +354,21 @@ function TrainingRunView(
     function renderQuote(n: number): JSX.Element {
         const type = n % 2 === 0 ? "request" : "response";
         const textCue = textCues[Math.floor(n / 2)];
-        const cueData = type === "request" 
-            ? { actors: formatActorsArray(textCue.request?.actors ?? null), text: textCue.request?.text ?? "Du bist der erste in diesem Abschnitt" }
-            : { actors: formatActorsArray(textCue.response!.actors), text: textCue.response!.text! };
-        return (
-            <TextCueView
-                last={checkIsLast(n, currentIndex())}
-                type={type}
-                confidenceReport={(n === currentIndex() && !reachedEnd()) ? reportConfidence : undefined}
-                text={formatMarkdown(cueData.text)}
-                flags={TextCueViewFlags.Ratable}
-                actorsInfo={cueData.actors}/>);
+        return renderCue(
+            textCue[type],
+            type,
+            {
+                get last() {
+                    return checkIsLast(n, currentIndex());
+                },
+                get confidenceReport() {
+                    return (n === currentIndex() && !reachedEnd()) 
+                        ? reportConfidence
+                        : undefined;
+                },
+                flags: TextCueViewFlags.Ratable
+            }
+        );
     }
 
     async function visualViewReset(target: "next"|"top") {
