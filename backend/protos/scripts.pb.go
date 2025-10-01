@@ -173,7 +173,8 @@ type Script struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Uuid          string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Divisions     []*Division            `protobuf:"bytes,3,rep,name=divisions,proto3" json:"divisions,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,3,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
+	Divisions     []*Division            `protobuf:"bytes,4,rep,name=divisions,proto3" json:"divisions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -220,6 +221,13 @@ func (x *Script) GetName() string {
 		return x.Name
 	}
 	return ""
+}
+
+func (x *Script) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
 }
 
 func (x *Script) GetDivisions() []*Division {
@@ -478,11 +486,12 @@ const file_scripts_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\x0e2\x18.scripts.ScriptErrorCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"4\n" +
 	"\aScripts\x12)\n" +
-	"\ascripts\x18\x01 \x03(\v2\x0f.scripts.ScriptR\ascripts\"a\n" +
+	"\ascripts\x18\x01 \x03(\v2\x0f.scripts.ScriptR\ascripts\"\x7f\n" +
 	"\x06Script\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12/\n" +
-	"\tdivisions\x18\x03 \x03(\v2\x11.scripts.DivisionR\tdivisions\"\x9a\x01\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1c\n" +
+	"\tcreatedAt\x18\x03 \x01(\x03R\tcreatedAt\x12/\n" +
+	"\tdivisions\x18\x04 \x03(\v2\x11.scripts.DivisionR\tdivisions\"\x9a\x01\n" +
 	"\bDivision\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12&\n" +

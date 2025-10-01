@@ -98,11 +98,12 @@ export function MenuElement(
             <div>
                  { 
                      (scripts.loading || scripts.error) ? null :
-                         scripts()!.map(
-                             v => (
+                         scripts()!
+                            .toSorted((a, b) => b.createdAt - a.createdAt)
+                            .map(v => (
                                  <ListElement href={`/script/${v.uuid}`}
                                     current={v.uuid === scriptContext.currentScript}>
-                                 { v.name }
+                                    { v.name }
                                  </ListElement>))
                  }
             </div>

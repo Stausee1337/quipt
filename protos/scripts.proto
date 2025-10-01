@@ -23,7 +23,8 @@ message Scripts {
 message Script {
   string uuid = 1;
   string name = 2;
-  repeated Division divisions = 3;
+  int64 createdAt = 3;
+  repeated Division divisions = 4;
 }
 
 message Division {

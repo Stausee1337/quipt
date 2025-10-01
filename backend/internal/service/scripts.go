@@ -51,6 +51,7 @@ func (s *ScriptsService) GetAllScripts(
 			Uuid: uuid.UUID(rawScript.Uuid).String(),
 			Name: rawScript.Name,
 			Divisions: nil,
+			CreatedAt: rawScript.CreatedAt,
 		});
 	}
 

@@ -1372,6 +1372,7 @@ export const scripts = $root.scripts = (() => {
          * @interface IScript
          * @property {string|null} [uuid] Script uuid
          * @property {string|null} [name] Script name
+         * @property {Long|null} [createdAt] Script createdAt
          * @property {Array.<scripts.IDivision>|null} [divisions] Script divisions
          */
 
@@ -1408,6 +1409,14 @@ export const scripts = $root.scripts = (() => {
         Script.prototype.name = "";
 
         /**
+         * Script createdAt.
+         * @member {Long} createdAt
+         * @memberof scripts.Script
+         * @instance
+         */
+        Script.prototype.createdAt = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
+
+        /**
          * Script divisions.
          * @member {Array.<scripts.IDivision>} divisions
          * @memberof scripts.Script
@@ -1431,9 +1440,11 @@ export const scripts = $root.scripts = (() => {
                 writer.uint32(/* id 1, wireType 2 =*/10).string(message.uuid);
             if (message.name != null && Object.hasOwnProperty.call(message, "name"))
                 writer.uint32(/* id 2, wireType 2 =*/18).string(message.name);
+            if (message.createdAt != null && Object.hasOwnProperty.call(message, "createdAt"))
+                writer.uint32(/* id 3, wireType 0 =*/24).int64(message.createdAt);
             if (message.divisions != null && message.divisions.length)
                 for (let i = 0; i < message.divisions.length; ++i)
-                    $root.scripts.Division.encode(message.divisions[i], writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                    $root.scripts.Division.encode(message.divisions[i], writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
             return writer;
         };
 
@@ -1466,6 +1477,10 @@ export const scripts = $root.scripts = (() => {
                         break;
                     }
                 case 3: {
+                        message.createdAt = reader.int64();
+                        break;
+                    }
+                case 4: {
                         if (!(message.divisions && message.divisions.length))
                             message.divisions = [];
                         message.divisions.push($root.scripts.Division.decode(reader, reader.uint32()));
@@ -1495,6 +1510,15 @@ export const scripts = $root.scripts = (() => {
                 message.uuid = String(object.uuid);
             if (object.name != null)
                 message.name = String(object.name);
+            if (object.createdAt != null)
+                if ($util.Long)
+                    (message.createdAt = $util.Long.fromValue(object.createdAt)).unsigned = false;
+                else if (typeof object.createdAt === "string")
+                    message.createdAt = parseInt(object.createdAt, 10);
+                else if (typeof object.createdAt === "number")
+                    message.createdAt = object.createdAt;
+                else if (typeof object.createdAt === "object")
+                    message.createdAt = new $util.LongBits(object.createdAt.low >>> 0, object.createdAt.high >>> 0).toNumber();
             if (object.divisions) {
                 if (!Array.isArray(object.divisions))
                     throw TypeError(".scripts.Script.divisions: array expected");
@@ -1526,11 +1550,21 @@ export const scripts = $root.scripts = (() => {
             if (options.defaults) {
                 object.uuid = "";
                 object.name = "";
+                if ($util.Long) {
+                    let long = new $util.Long(0, 0, false);
+                    object.createdAt = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                } else
+                    object.createdAt = options.longs === String ? "0" : 0;
             }
             if (message.uuid != null && message.hasOwnProperty("uuid"))
                 object.uuid = message.uuid;
             if (message.name != null && message.hasOwnProperty("name"))
                 object.name = message.name;
+            if (message.createdAt != null && message.hasOwnProperty("createdAt"))
+                if (typeof message.createdAt === "number")
+                    object.createdAt = options.longs === String ? String(message.createdAt) : message.createdAt;
+                else
+                    object.createdAt = options.longs === String ? $util.Long.prototype.toString.call(message.createdAt) : options.longs === Number ? new $util.LongBits(message.createdAt.low >>> 0, message.createdAt.high >>> 0).toNumber() : message.createdAt;
             if (message.divisions && message.divisions.length) {
                 object.divisions = [];
                 for (let j = 0; j < message.divisions.length; ++j)

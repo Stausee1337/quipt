@@ -18,6 +18,7 @@ type Script struct {
 	Owner		[16]byte
 	Name		string
 	Divisions	[]bson.ObjectID
+	CreatedAt	int64
 }
 
 type Division struct {

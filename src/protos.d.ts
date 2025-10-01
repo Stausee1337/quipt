@@ -550,6 +550,9 @@ export namespace scripts {
         /** Script name */
         name?: (string|null);
 
+        /** Script createdAt */
+        createdAt?: (Long|null);
+
         /** Script divisions */
         divisions?: (scripts.IDivision[]|null);
     }
@@ -568,6 +571,9 @@ export namespace scripts {
 
         /** Script name. */
         public name: string;
+
+        /** Script createdAt. */
+        public createdAt: Long;
 
         /** Script divisions. */
         public divisions: scripts.IDivision[];
