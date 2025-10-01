@@ -47,7 +47,6 @@ type FontStyleSpan = {
 enum FontStyles {
     None = 0,
     Italic = 1,
-    SerifFont = 2,
     MonsopacedFont = 4,
     Bold = 8
 }
@@ -76,13 +75,20 @@ function getFontStyle(font: Font): FontStyles {
     let style: FontStyles = FontStyles.None;
     if (font.isItalic())
         style |= FontStyles.Italic;
-    if (font.isSerif())
-        style |= FontStyles.SerifFont;
     if (font.isMono())
         style |= FontStyles.MonsopacedFont;
     if (font.isBold())
         style |= FontStyles.Bold;
     return style;
+}
+
+const markdownEscapeMap: Record<string, string> = {
+    '*': '&ast;',
+    '_': '&lowbar;',
+    '`': '&#96;',   // or &grave; (less common, &#96; is safer)
+};
+function escapeMarkdown(str: string): string {
+    return str.replace(/[*_`{}[\]()#+\-.!]/g, ch => markdownEscapeMap[ch] || ch);
 }
 
 function buildViewLines(structuredText: StructuredText, pageWidth: number): ViewLine[] {
@@ -97,7 +103,7 @@ function buildViewLines(structuredText: StructuredText, pageWidth: number): View
                     currentFontStyle = newFontStyle;
                     pushFontStyle();
                 }
-                stringBuilder += c;
+                stringBuilder += escapeMarkdown(c);
             },
         };
     }
@@ -302,7 +308,7 @@ function computePageInfo(page: PDFPage, index: number): PageInfo {
 }
 
 
-const markdownChar = ['_', '', '`', '**'];
+const markdownChar = ['_', '`', '**'];
 
 function getDelta(prev: FontStyles, next: FontStyles): [number[], number[]] {
     const turnedOn = (~prev) & next
@@ -1202,11 +1208,6 @@ function FinalizeScriptView(
     let scrollingElement: HTMLElement;
     let contentElement: HTMLDivElement;
 
-    onMount(() => {
-        scrollingElement = document.getElementById('dialog-box')!
-        divisionsElement.style.top = `${divisionsElement.offsetTop}px`;
-    })
-
     function onScroll() {
         const rect = scrollingElement.getBoundingClientRect();
         const element = document.elementFromPoint(
@@ -1228,6 +1229,8 @@ function FinalizeScriptView(
     }
 
     onMount(() => {
+        scrollingElement = document.getElementById('dialog-box')!
+        divisionsElement.style.top = `${divisionsElement.offsetTop}px`;
         scrollingElement.addEventListener('scroll', onScroll);
     })
 

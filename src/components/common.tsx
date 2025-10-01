@@ -1,7 +1,7 @@
 import { JSX } from "solid-js";
 import { Lexer, MarkedToken } from 'marked';
 import { Division, TextCue } from "../backend";
-import MurmurHash3 from "imurmurhash"
+import { decode } from 'html-entities';
 
 export const progressBarGreen = '#5d9948';
 export const progressBarYellow = '#fad541';
@@ -16,9 +16,9 @@ export function formatString(string: FormattedString): JSX.Element {
 
     for (let item of string) {
         if (item.style === null) {
-            result.push(item.string);
+            result.push(decode(item.string));
         } else {
-            result.push(<span style={item.style}>{item.string}</span>);
+            result.push(<span style={item.style}>{ decode(item.string) }</span>);
         }
     }
 
@@ -79,15 +79,17 @@ export function formatMarkdown(markdown: string): FormattedString {
             switch (token.type) {
                 case 'text':
                     yield { style, string: token.text };
-                    continue;
+                    break;
                 case 'em':
                     yield* mapToken(token.tokens as MarkedToken[], { ...style, 'font-style': 'italic' });
-                    continue;
+                    break;
                 case 'strong':
                     yield* mapToken(token.tokens as MarkedToken[], { ...style, 'font-weight': 'bold' });
-                    continue;
+                    break;
                 default:
-                    throw 'unreachable'
+                    console.error('default markdown', token);
+                    yield { style, string: token.raw };
+                    break;
             }
         }
     }
