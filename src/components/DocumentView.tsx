@@ -1527,10 +1527,11 @@ export function DocumentView(
         const script: b.Script = {
             divisions,
             name: props.name,
-            uuid: ""
+            uuid: "",
+            createdAt: 0
         };
-        const uuid = scriptContext.createNewScript(script).uuid;
-        navigate(`/script/${uuid}`);
+        const newScript = await scriptContext.createNewScript(script);
+        navigate(`/script/${newScript.uuid}`);
     }
 
     return (

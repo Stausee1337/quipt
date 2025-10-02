@@ -6,7 +6,7 @@ export const ScriptContextObj = createContext<ScriptContext>();
 
 export interface ScriptContext {
     readonly currentScript: string|undefined;
-    createNewScript(script: Script): Script;
+    createNewScript(script: Script): Promise<Script>;
     instantiateDelayed(component: Component<{ script: Readonly<Script> }>): JSX.Element;
     commitNewConfidences(divisionIdx: number, newScores: number[]): void;
 }
@@ -82,21 +82,17 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             if (err !== undefined)
                 console.error(err);
         },
-        createNewScript(script) {
+        async createNewScript(script) {
             const newScript = window.structuredClone(script);
-            newScript.uuid = "abba-uuid-lol";
+            const uuid = await authenticationContext.requests!.post("/create-script", script);
+            const createdAt = Date.now();
+
+            newScript.uuid = uuid;
+            newScript.createdAt = createdAt;
             scriptCache.set(newScript.uuid, newScript);
 
-            const [scripts, { mutate }] = authenticationContext.requests!.getCached("/list-scripts");
-            mutate([
-                ...(scripts() ?? []),
-                {
-                    name: script.name,
-                    uuid: "abba-uuid-lol",
-                    divisions: []
-                }
-            ]);
-
+            const [_, { refetch }] = authenticationContext.requests!.getCached("/list-scripts");
+            refetch();
 
             return newScript;
         },

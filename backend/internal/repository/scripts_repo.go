@@ -18,7 +18,7 @@ type Script struct {
 	Owner		[16]byte
 	Name		string
 	Divisions	[]bson.ObjectID
-	CreatedAt	int64
+	CreatedAt	int64 				`bson:"createdAt"`
 }
 
 type Division struct {
@@ -128,6 +128,34 @@ func (r *ScriptsRepo) LoadDivision(
 		return nil, fmt.Errorf("query script %q: %w", divisionId, err);
 	}
 	return &division, nil
+}
+
+func (r *ScriptsRepo) InsertNewDivisions(ctx context.Context, divisions []Division) ([]bson.ObjectID, error) {
+	res, err := r.divisions.InsertMany(ctx, divisions)
+	if err != nil {
+		return nil, fmt.Errorf("could not insert new divisions: %w", err);
+	}
+	return getObjectIDs(res)
+}
+
+func getObjectIDs(res *mongo.InsertManyResult) ([]bson.ObjectID, error) {
+    ids := make([]bson.ObjectID, 0, len(res.InsertedIDs))
+    for _, id := range res.InsertedIDs {
+        oid, ok := id.(bson.ObjectID)
+        if !ok {
+            return nil, fmt.Errorf("expected ObjectID but got %T", id)
+        }
+        ids = append(ids, oid)
+    }
+    return ids, nil
+}
+
+func (r *ScriptsRepo) InsertNewScript(ctx context.Context, script Script) error {
+	_, err := r.scripts.InsertOne(ctx, script)
+	if err != nil {
+		return fmt.Errorf("could not insert new divisions: %w", err);
+	}
+	return nil;
 }
 
 func (r *ScriptsRepo) UpdateTextCueScores(ctx context.Context, division bson.ObjectID, newScores []uint32) error {

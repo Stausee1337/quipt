@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stausee1337/quipt/internal/repository"
 	"github.com/stausee1337/quipt/protos"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
@@ -174,6 +176,82 @@ func (s *ScriptsService) UpdateScriptDivisionScores(
 
 	err = s.repo.UpdateTextCueScores(ctx, divisionId, request.NewScores)
 	return err
+}
+
+func (s *ScriptsService) AddNewScript(
+	ctx context.Context,
+	userUuid string,
+	script *protos.Script,
+) (string, error) {
+	parsedUserId, err := uuid.Parse(userUuid)
+	if err != nil {
+		return "", fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
+	}
+
+	repoScript, repoDivisions := transformProtoScript(parsedUserId, script);
+
+	divisionIds, err := s.repo.InsertNewDivisions(ctx, repoDivisions)
+	if err != nil {
+		return "", err
+	}
+	repoScript.Divisions = divisionIds;
+
+	err = s.repo.InsertNewScript(ctx, repoScript)
+	if err != nil {
+		return "", err
+	}
+
+	return uuid.UUID(repoScript.Uuid).String(), nil
+}
+
+func transformProtoScript(owner uuid.UUID, script *protos.Script) (repository.Script, []repository.Division) {
+	var resultDivisions []repository.Division
+
+	for _, division := range script.Divisions {
+		resultTextCues := transformProtoTextCues(division.TextCues);
+		resultDivision := repository.Division{
+			Name: division.Name,
+			Description: division.Description,
+			PreviousTotals: []uint32{},
+			TextCues: resultTextCues,
+		}
+		resultDivisions = append(resultDivisions, resultDivision);
+	}
+
+	return repository.Script {
+		Uuid: uuid.New(),
+		Name: script.Name,
+		Divisions: []bson.ObjectID{},
+		Owner: owner,
+		CreatedAt: time.Now().UnixMilli(),
+	}, resultDivisions
+}
+
+func transformProtoTextCues(textCues []*protos.TextCuePair) []repository.TextCuePair {
+	var resultTextCues []repository.TextCuePair
+
+	for _, textCue := range textCues {
+		var resultRequest *repository.TextCue = nil
+		if textCue.Request != nil {
+			stackCue := transformProtoTextCue(textCue.Request)
+			resultRequest = &stackCue;
+		}
+		resultTextCue := repository.TextCuePair {
+			Request: resultRequest,
+			Response: transformProtoTextCue(textCue.Response),
+			PreviousScores: []uint32{},
+		};
+		resultTextCues = append(resultTextCues, resultTextCue)
+	}
+
+	return resultTextCues
+}
+
+func transformProtoTextCue(textCue *protos.TextCue) repository.TextCue {
+	return repository.TextCue {
+		Actors: textCue.Actors,
+		Text: textCue.Text,
+	}
 }
 
 func transformRepoDivisions(repoDivisions []*repository.Division) []*protos.Division {

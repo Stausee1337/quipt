@@ -174,6 +174,15 @@ const authenticatedPostRequests = {
             else
                 throw 'unreachable';
         },
+    "/create-script":
+        async (body: scripts.IScript, executor: Executor): Promise<string> => {
+            const writer = scripts.Script.encode(body);
+            const { status, data } = await executor(writer.finish().slice(0, writer.len));
+            if (status === 200)
+                return new TextDecoder().decode(data)
+            else
+                throw 'unreachable';
+        },
 };
 
 export class AuthenticatedRequestsProvider extends CachableRequestsProvider<
@@ -354,7 +363,8 @@ export function useAuthentication(): AuthenticationContext|undefined {
 export type Script = {
     uuid: string,
     name: string,
-    divisions: Division[]
+    createdAt: number,
+    divisions: Division[],
 };
 
 export type Division = {

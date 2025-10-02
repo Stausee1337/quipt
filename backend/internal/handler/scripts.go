@@ -133,3 +133,34 @@ func (h *ScriptsHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
+func (h *ScriptsHandler) HandleNew(w http.ResponseWriter, r *http.Request) {
+	claims := h.auth.GetLoggedInUser(r)
+	if claims == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body);
+	if err != nil {
+		logFatalAndReport(w, err)
+		return
+	}
+	defer r.Body.Close()
+
+	var req protos.Script
+	if err = proto.Unmarshal(body, &req); err != nil {
+		slog.Error(err.Error());
+		w.WriteHeader(http.StatusBadRequest);
+		return;
+	}
+
+	ctx := r.Context()
+
+	newUuid, err := h.scripts.AddNewScript(ctx, claims.Uuid, &req)
+	if err != nil {
+		logFatalAndReport(w, err)
+		return
+	}
+
+	w.Write([]byte(newUuid))
+}

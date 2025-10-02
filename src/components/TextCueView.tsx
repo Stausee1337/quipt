@@ -57,7 +57,7 @@ export type TextCueViewProps = {
     actorsInfo: FormattedString|null,
     type: "request"|"response",
     flags?: TextCueViewFlags,
-    confidenceReport?: (source: EventTarget & Element, confidence: "low"|"medium"|"high") => unknown
+    confidenceReport?: (source: EventTarget & Element, confidence: "low"|"medium"|"high") => void
 };
 
 export function TextCueView(props: TextCueViewProps) {
