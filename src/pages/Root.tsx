@@ -1,4 +1,4 @@
-import { JSX, useContext } from "solid-js";
+import { JSX, onMount, useContext } from "solid-js";
 import { useAuthentication } from "../backend";
 import { Navigate } from "@solidjs/router";
 import { IsMobileContext } from "../App";
@@ -15,6 +15,9 @@ function LandingPage(): JSX.Element {
 export function Root(): JSX.Element {
     const authentication = useAuthentication()!;
     const isMobile = useContext(IsMobileContext)!;
+    onMount(() => {
+        document.title = "Quipt";
+    })
     return (
         <>
             {

@@ -45,7 +45,7 @@ function fnv1aHash(str: string): number {
 }
 
 export function getActorColor(actor: string): string {
-    return generateColor((fnv1aHash(actor) / 4294967296) * 2 * Math.PI);
+    return generateColor(fnv1aHash(actor) & 0x7f);
 }
 
 export function formatActorsArray(actors: string[]|null): FormattedString|null {

@@ -4,8 +4,8 @@ import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
 import { useAuthentication, Division, Script } from '../backend';
 import { ScriptContextObj, ScriptContext } from '../script';
-import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, formatActorsArray, formatMarkdown, computeDivisionInfo, DivisionInfo } from './common';
-import { TextCueView, TextCueViewFlags, renderCue } from './TextCueView';
+import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, DivisionInfo } from './common';
+import { TextCueViewFlags, renderCue } from './TextCueView';
 import { DivisionInfoView } from './DivisionInfoView';
 
 function easeOut(x: number) {
@@ -731,6 +731,14 @@ function ScriptOverview(
         );
     }
 
+    onMount(() => {
+        document.title = `${props.script.name} - Quipt`
+    })
+
+    createEffect(() => {
+        document.title = `${props.script.name} - Quipt`
+    })
+
     return (
         <div class="script-overview">
             <div class="script-info">
@@ -780,7 +788,9 @@ export function MobileScriptRedirect(): JSX.Element {
                 navigate(`/no-script`);
                 return;
             }
-            const script = params.uuid ?? scripts[0].uuid!;
+            const script = params.uuid ?? scripts
+                .reduce((a, b) => a.createdAt > b.createdAt ? a : b)
+                .uuid!;
             navigate(`/script/${script}`);
         }
         return "loading-redirect";
@@ -789,10 +799,10 @@ export function MobileScriptRedirect(): JSX.Element {
     return (
         <Switch fallback={null}>
             <Match when={x() === "training-run"}>
-                { scriptContext.instantiateDelayed(TrainingRunWrapper) }
+                { scriptContext.instantiateDelayed(TrainingRunWrapper, () => navigate('/script')) }
             </Match>
             <Match when={x() === "script-overview"}>
-                { scriptContext.instantiateDelayed(ScriptOverview) }
+                { scriptContext.instantiateDelayed(ScriptOverview, () => navigate('/script')) }
             </Match>
         </Switch>
     );
@@ -954,6 +964,14 @@ function TrainingRunWrapper(
             </>
         );
     });
+
+    onMount(() => {
+        document.title = `${props.script.name} - Quipt`
+    })
+
+    createEffect(() => {
+        document.title = `${props.script.name} - Quipt`
+    })
 
     return (
         <>

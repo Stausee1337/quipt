@@ -542,7 +542,7 @@ function DistributionDialog(
                 <i class="bi bi-x"/>
             </button>
             <h2 class="disolve-and-distribute">
-                Auflösen und Verteilen von
+                Auflösen und verteilen von
                 <span 
                     style={{'--actor-color': getActorColor(props.target)}}
                     class="actor-pill static">
@@ -595,7 +595,7 @@ function ActorMenu(
     return (
         <ul class="menu-options">
             <li onClick={() => actorsContext.delete(actor)}>Löschen</li>
-            <li onClick={openDistributionDialog}>Auflösen und Verteilen</li>
+            <li onClick={openDistributionDialog}>Auflösen und verteilen</li>
         </ul>
     );
 }

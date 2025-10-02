@@ -1,4 +1,4 @@
-import { JSX, useContext } from 'solid-js';
+import { JSX, createEffect, createMemo, onMount, untrack, useContext } from 'solid-js';
 import { EditorView, minimalSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
@@ -39,6 +39,14 @@ function ScriptCueView(
         script: Readonly<Script>
     }
 ): JSX.Element {
+    onMount(() => {
+        document.title = `${props.script.name} - Quipt`
+    })
+    
+    createEffect(() => {
+        document.title = `${props.script.name} - Quipt`
+    })
+
     return (
         <div class="desktop-view">
             <h2 class="script-title">{ props.script.name }</h2>
@@ -66,18 +74,22 @@ function ScriptCueView(
 }
 
 export function ScriptViewer(): JSX.Element {
-    const scriptContext = useContext(ScriptContextObj)!;
-
     const params = useParams();
     const navigate = useNavigate();
-    if (params.uuid === undefined) {
-        navigate('/');
-        return;
-    }
+
+    const scriptContext = useContext(ScriptContextObj)!;
+
+    onMount(() => {
+        if (params.uuid === undefined) {
+            navigate('/');
+        }
+    })
 
     return (
         <>
-            { scriptContext.instantiateDelayed(ScriptCueView) }
+            {
+                scriptContext.instantiateDelayed(ScriptCueView, () => navigate('/'))
+            }
         </>
     );
 }

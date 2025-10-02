@@ -1,4 +1,4 @@
-import { JSX, createSignal, createMemo } from 'solid-js';
+import { JSX, createSignal, createMemo, onMount, createEffect } from 'solid-js';
 import { RouteSectionProps, A, useNavigate } from '@solidjs/router';
 import { useAuthentication, defaultRequests, auth } from '../backend';
 import { QuiptFormEvent, quiptForm, quiptValidator, validators, createReactiveFormData } from '../forms';
@@ -28,10 +28,20 @@ export function UserAuthenticate(
     const authentication = useAuthentication()!;
     const [loading, setLoading] = createSignal(false);
 
+
     const keys: Record<string, string> = {
         '/signin': 'Anmelden',
         '/signup': 'Quipt Konto erstellen'
     };
+
+    onMount(() => {
+        document.title = keys[props.location.pathname] + ' - Quipt';
+    })
+
+    createEffect(() => {
+        document.title = keys[props.location.pathname] + ' - Quipt';
+    })
+
     async function onSubmit(e: QuiptFormEvent) {
         if (!e.valid) {
             return;

@@ -1,4 +1,4 @@
-import { createSignal, JSX, createEffect, createContext, Component, createResource } from 'solid-js';
+import { createSignal, JSX, createEffect, createContext, Component, createResource, createMemo } from 'solid-js';
 import { useParams } from '@solidjs/router';
 import { AuthenticationContext, Division, Script } from './backend';
 
@@ -7,34 +7,42 @@ export const ScriptContextObj = createContext<ScriptContext>();
 export interface ScriptContext {
     readonly currentScript: string|undefined;
     createNewScript(script: Script): Promise<Script>;
-    instantiateDelayed(component: Component<{ script: Readonly<Script> }>): JSX.Element;
+    instantiateDelayed(
+        component: Component<{ script: Readonly<Script> }>,
+        onError: () => void
+    ): JSX.Element;
     commitNewConfidences(divisionIdx: number, newScores: number[]): void;
 }
 
 export function createScriptContext(authenticationContext: AuthenticationContext): ScriptContext {
     const location = useParams();
-    const [currentScriptId, setCurrentScriptId] = createSignal<string|undefined>(location.uuid);
+    let notValidatedScriptId: string|undefined = location.uuid;
+    const [currentScriptId, setCurrentScriptId] = createSignal<string|undefined>(undefined);
     const scriptCache: Map<string, Script> = new Map();
 
     const [currentScript, { refetch, mutate }] = createResource(async () => {
-        const currentId = currentScriptId();
+        const currentId = notValidatedScriptId;
         if (currentId === undefined)
             return undefined;
         let currentScript = scriptCache.get(currentId);
-        if (currentScript !== undefined)
+        if (currentScript !== undefined) {
+            setCurrentScriptId(currentScript.uuid);
             return currentScript;
+        }
         const [script, error] = await authenticationContext.requests!.getParametrized("/script", currentId)
         if (error !== undefined) {
+            notValidatedScriptId = undefined;
             setCurrentScriptId(undefined);
             throw `could not get script: ${error}`;
         }
+        setCurrentScriptId(script.uuid);
         currentScript = script as Script;
         scriptCache.set(currentId, currentScript);
         return currentScript;
     });
 
     createEffect(() => {
-        setCurrentScriptId(location.uuid); 
+        notValidatedScriptId = location.uuid; 
         refetch();
     });
 
@@ -42,14 +50,18 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         get currentScript() {
             return currentScriptId();
         },
-        instantiateDelayed(Component) {
+        instantiateDelayed(Component, onError) {
+            const renderedElement = createMemo(() => {
+                const state = currentScript.state;
+                if (state === "ready" && currentScript() !== undefined)
+                    return <Component script={currentScript()!}/>;
+                else if (state === "errored")
+                    onError();
+                return null;
+            })
             return (
                 <>
-                    {
-                        currentScript.state === "ready" && currentScript() !== undefined
-                            ? <Component script={currentScript()!}/>
-                            : null
-                    }
+                    { renderedElement() }
                 </>
             );
         },

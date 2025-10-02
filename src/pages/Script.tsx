@@ -1,4 +1,4 @@
-import { JSX, createMemo, useContext } from "solid-js";
+import { JSX, createMemo, onMount, useContext } from "solid-js";
 import { useNavigate, useLocation, Navigate } from "@solidjs/router";
 import { ScriptViewer } from "../components/ScriptEdit";
 import { MobileScriptRedirect } from "../components/ScriptTraining";
@@ -29,6 +29,10 @@ function Computer(): JSX.Element {
 export function NewScriptRoute(): JSX.Element {
     const isMobile = useContext(IsMobileContext)!;
     const location = useLocation();
+
+    onMount(() => {
+        document.title = "Neues Skript - Quipt"
+    })
 
     const reneredElement = createMemo(() => {
         if (isMobile()) {
@@ -67,6 +71,9 @@ export function NoScriptRoute(): JSX.Element {
     const authentication = useAuthentication()!;
     const [getScripts] = authentication.requests!.getCached("/list-scripts");
 
+    onMount(() => {
+        document.title = "Kein Skript - Quipt"
+    })
     
     const x = createMemo(() => {
         if (getScripts.loading || getScripts.error)
