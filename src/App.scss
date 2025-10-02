@@ -16,6 +16,7 @@
   overflow: auto;
   display: grid;
   grid-template-columns: 1fr;
+  position: relative;
 
   &.sidebar-visible {
     grid-template-columns: auto 1fr;
@@ -350,6 +351,16 @@ h2.flying-score {
   font-size: 1.6rem;
 }
 
+div.routing-contents:has(div.script-view) {
+  padding-top: 7rem;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  overflow-y: auto;
+  width: 100svw;
+  height: 100svh;
+}
+
 div.script-view {
   flex: 1;
   user-select: none;
@@ -392,7 +403,7 @@ div.script-view {
 
   $scroll-padding: 25rem;
   div.division-preamble {
-    height: calc(100svh - (8rem + $scroll-padding));
+    min-height: calc(100svh - (8rem + $scroll-padding));
     padding-bottom: 2.5rem;
 
     &::before {

@@ -133,7 +133,7 @@ function TrainingRunView(
     const highScore = Math.max(maxScore, ...props.division.previousTotals);
     const [currentBarTotal, setCurrentBarTotal] = createSignal<number>(maxScore);
 
-    const root = document.getElementById("root")!;
+    const root = document.querySelector("div.routing-contents")! as HTMLElement;
     let view: HTMLDivElement;
 
     let scrollLocked = false;
@@ -404,7 +404,7 @@ function TrainingRunView(
             <div class="division-preamble">
                 <h2>{ props.division.name }</h2>
                 <DivisionInfoView division={props.division}/>
-                <div style={{flex: 1}}/>
+                <div style={{flex: 1, "min-height": "2.5rem"}}/>
                 { renderQuote(0) }
             </div>
             <div class="main-content">
