@@ -1,4 +1,5 @@
 import { createSignal, JSX, createEffect, createContext, Component, createResource, createMemo } from 'solid-js';
+import { createComponent } from 'solid-js/web';
 import { useParams } from '@solidjs/router';
 import { AuthenticationContext, Division, Script } from './backend';
 
@@ -52,18 +53,25 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         },
         instantiateDelayed(Component, onError) {
             const renderedElement = createMemo(() => {
-                const state = currentScript.state;
-                if (state === "ready" && currentScript() !== undefined)
-                    return <Component script={currentScript()!}/>;
-                else if (state === "errored")
-                    onError();
+                console.log('instantiateDelayed again');
+                console.trace();
+
+                const condition = createMemo(() => currentScript.state === "ready" && currentScript() !== undefined);
+                if (condition())
+                    return createComponent(
+                        Component,
+                        {
+                            get script() {
+                                return currentScript()!;
+                            }
+                        }
+                    );
+                const isError = createMemo(() => currentScript.state === "errored");
+                if (isError()) onError();
                 return null;
-            })
-            return (
-                <>
-                    { renderedElement() }
-                </>
-            );
+            });
+
+            return renderedElement as any;
         },
         async commitNewConfidences(divisionIdx, newScores) {
             const script = currentScript()!;

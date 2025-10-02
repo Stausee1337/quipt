@@ -25,14 +25,14 @@ type Division struct {
 	ID 				bson.ObjectID 	`bson:"_id,omitempty"`
 	Name			string
 	Description		string
-	PreviousTotals	[]uint32
-	TextCues 		[]TextCuePair
+	PreviousTotals	[]uint32		`bson:"previousTotals"`
+	TextCues 		[]TextCuePair	`bson:"textCues"`
 }
 
 type TextCuePair struct {
 	Request			*TextCue
 	Response		TextCue
-	PreviousScores	[]uint32
+	PreviousScores	[]uint32		`bson:"previousScores"`
 }
 
 type TextCue struct {

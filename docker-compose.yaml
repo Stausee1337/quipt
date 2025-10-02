@@ -17,16 +17,16 @@ services:
   backend:
     image: ghcr.io/stausee1337/quipt-backend:latest
     environment:
-      - QUIPT_SERVER_HOST="0.0.0.0"
+      - QUIPT_SERVER_HOST=0.0.0.0
       - QUIPT_SERVER_PORT=8000
-      - QUIPT_CORS_HOST="https://quipt.app"
-      - QUIPT_DOCUMENT_DB_USER="user"
-      - QUIPT_DOCUMENT_DB_PASSWORD="password123"
-      - QUIPT_DOCUMENT_DB_HOST="document_db"
-      - QUIPT_DOCUMENT_DB_PORT="10260"
-      - QUIPT_REDIS_HOST="redis"
-      - QUIPT_REDIS_PORT="6379"
-      - QUIPT_AUTH_SECRET="<supply production auth secret>"
+      - QUIPT_CORS_HOST=https://quipt.app
+      - QUIPT_DOCUMENT_DB_USER=user
+      - QUIPT_DOCUMENT_DB_PASSWORD=password123
+      - QUIPT_DOCUMENT_DB_HOST=document_db
+      - QUIPT_DOCUMENT_DB_PORT=10260
+      - QUIPT_REDIS_HOST=redis
+      - QUIPT_REDIS_PORT=6379
+      - QUIPT_AUTH_SECRET=<supply production auth secret>
     depends_on:
       - document_db
       - redis
