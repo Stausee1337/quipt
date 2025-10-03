@@ -400,7 +400,8 @@ export namespace scripts {
         ID_MALFORMED = 0,
         UNKNOWN_SCRIPT = 1,
         DIVISION_OUT_OF_BOUNDS = 2,
-        INVALID_SCORE_DATA = 3
+        INVALID_SCORE_DATA = 3,
+        INVALID_SCRIPT_NAME = 4
     }
 
     /** Properties of a ScriptError. */
@@ -934,6 +935,78 @@ export namespace scripts {
 
         /**
          * Gets the default type url for DivisionScoreUpdate
+         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns The default type url
+         */
+        public static getTypeUrl(typeUrlPrefix?: string): string;
+    }
+
+    /** Properties of a ScriptNameUpdate. */
+    interface IScriptNameUpdate {
+
+        /** ScriptNameUpdate scriptId */
+        scriptId?: (string|null);
+
+        /** ScriptNameUpdate newName */
+        newName?: (string|null);
+    }
+
+    /** Represents a ScriptNameUpdate. */
+    class ScriptNameUpdate implements IScriptNameUpdate {
+
+        /**
+         * Constructs a new ScriptNameUpdate.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: scripts.IScriptNameUpdate);
+
+        /** ScriptNameUpdate scriptId. */
+        public scriptId: string;
+
+        /** ScriptNameUpdate newName. */
+        public newName: string;
+
+        /**
+         * Encodes the specified ScriptNameUpdate message. Does not implicitly {@link scripts.ScriptNameUpdate.verify|verify} messages.
+         * @param message ScriptNameUpdate message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encode(message: scripts.IScriptNameUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a ScriptNameUpdate message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns ScriptNameUpdate
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): scripts.ScriptNameUpdate;
+
+        /**
+         * Creates a ScriptNameUpdate message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns ScriptNameUpdate
+         */
+        public static fromObject(object: { [k: string]: any }): scripts.ScriptNameUpdate;
+
+        /**
+         * Creates a plain object from a ScriptNameUpdate message. Also converts values to other types if specified.
+         * @param message ScriptNameUpdate
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        public static toObject(message: scripts.ScriptNameUpdate, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this ScriptNameUpdate to JSON.
+         * @returns JSON object
+         */
+        public toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the default type url for ScriptNameUpdate
          * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
          * @returns The default type url
          */

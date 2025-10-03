@@ -14,6 +14,7 @@ export interface ScriptContext {
     ): JSX.Element;
     commitNewConfidences(divisionIdx: number, newScores: number[]): void;
     deleteScript(uuid: string): void;
+    renameScript(uuid: string, name: string): void;
 }
 
 export function createScriptContext(authenticationContext: AuthenticationContext): ScriptContext {
@@ -104,7 +105,9 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         },
         async createNewScript(script) {
             const newScript = window.structuredClone(script);
-            const uuid = await authenticationContext.requests!.post("/create-script", script);
+            const [uuid, error] = await authenticationContext.requests!.post("/create-script", script);
+            if (error !== undefined)
+                throw `could not create new script: ${error}`;
             const createdAt = Date.now();
 
             newScript.uuid = uuid;
@@ -117,7 +120,26 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             return newScript;
         },
         async deleteScript(uuid) {  
-            console.log(`deleteScript(${uuid})`);
+            const [scripts, { mutate }] = authenticationContext.requests!.getCached("/list-scripts");
+            mutate(
+                (scripts() ?? [])
+                    .filter(s => s.uuid !== uuid)
+            )
+        },
+        async renameScript(uuid, name) {
+            console.log(`renameScript(${uuid}, ${name})`);
+            const error = await authenticationContext.requests!.post(
+                "/rename-script", { scriptId: uuid, newName: name });
+            if (error !== undefined)
+                throw `could not rename script: ${error}`;
+            const [_, { refetch }] = authenticationContext.requests!.getCached("/list-scripts");
+            refetch();
+            const script = scriptCache.get(uuid);
+            if (script === undefined)
+                return;
+            const newScript = window.structuredClone(script);
+            newScript.name = name;
+            scriptCache.set(uuid, newScript);
         },
     };
 }

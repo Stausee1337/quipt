@@ -9,6 +9,7 @@ enum ScriptErrorCode {
   UNKNOWN_SCRIPT = 1;
   DIVISION_OUT_OF_BOUNDS = 2;
   INVALID_SCORE_DATA = 3;
+  INVALID_SCRIPT_NAME = 4;
 }
 
 message ScriptError {
@@ -49,5 +50,10 @@ message DivisionScoreUpdate {
   string scriptId = 1;
   uint32 divisionIdx = 2;
   repeated uint32 newScores = 3;
+}
+
+message ScriptNameUpdate {
+  string scriptId = 1;
+  string newName = 2;
 }
 

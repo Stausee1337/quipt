@@ -1002,6 +1002,7 @@ export const scripts = $root.scripts = (() => {
      * @property {number} UNKNOWN_SCRIPT=1 UNKNOWN_SCRIPT value
      * @property {number} DIVISION_OUT_OF_BOUNDS=2 DIVISION_OUT_OF_BOUNDS value
      * @property {number} INVALID_SCORE_DATA=3 INVALID_SCORE_DATA value
+     * @property {number} INVALID_SCRIPT_NAME=4 INVALID_SCRIPT_NAME value
      */
     scripts.ScriptErrorCode = (function() {
         const valuesById = {}, values = Object.create(valuesById);
@@ -1009,6 +1010,7 @@ export const scripts = $root.scripts = (() => {
         values[valuesById[1] = "UNKNOWN_SCRIPT"] = 1;
         values[valuesById[2] = "DIVISION_OUT_OF_BOUNDS"] = 2;
         values[valuesById[3] = "INVALID_SCORE_DATA"] = 3;
+        values[valuesById[4] = "INVALID_SCRIPT_NAME"] = 4;
         return values;
     })();
 
@@ -1142,6 +1144,10 @@ export const scripts = $root.scripts = (() => {
             case "INVALID_SCORE_DATA":
             case 3:
                 message.code = 3;
+                break;
+            case "INVALID_SCRIPT_NAME":
+            case 4:
+                message.code = 4;
                 break;
             }
             if (object.message != null)
@@ -2464,6 +2470,174 @@ export const scripts = $root.scripts = (() => {
         };
 
         return DivisionScoreUpdate;
+    })();
+
+    scripts.ScriptNameUpdate = (function() {
+
+        /**
+         * Properties of a ScriptNameUpdate.
+         * @memberof scripts
+         * @interface IScriptNameUpdate
+         * @property {string|null} [scriptId] ScriptNameUpdate scriptId
+         * @property {string|null} [newName] ScriptNameUpdate newName
+         */
+
+        /**
+         * Constructs a new ScriptNameUpdate.
+         * @memberof scripts
+         * @classdesc Represents a ScriptNameUpdate.
+         * @implements IScriptNameUpdate
+         * @constructor
+         * @param {scripts.IScriptNameUpdate=} [properties] Properties to set
+         */
+        function ScriptNameUpdate(properties) {
+            if (properties)
+                for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * ScriptNameUpdate scriptId.
+         * @member {string} scriptId
+         * @memberof scripts.ScriptNameUpdate
+         * @instance
+         */
+        ScriptNameUpdate.prototype.scriptId = "";
+
+        /**
+         * ScriptNameUpdate newName.
+         * @member {string} newName
+         * @memberof scripts.ScriptNameUpdate
+         * @instance
+         */
+        ScriptNameUpdate.prototype.newName = "";
+
+        /**
+         * Encodes the specified ScriptNameUpdate message. Does not implicitly {@link scripts.ScriptNameUpdate.verify|verify} messages.
+         * @function encode
+         * @memberof scripts.ScriptNameUpdate
+         * @static
+         * @param {scripts.IScriptNameUpdate} message ScriptNameUpdate message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        ScriptNameUpdate.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.scriptId != null && Object.hasOwnProperty.call(message, "scriptId"))
+                writer.uint32(/* id 1, wireType 2 =*/10).string(message.scriptId);
+            if (message.newName != null && Object.hasOwnProperty.call(message, "newName"))
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.newName);
+            return writer;
+        };
+
+        /**
+         * Decodes a ScriptNameUpdate message from the specified reader or buffer.
+         * @function decode
+         * @memberof scripts.ScriptNameUpdate
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {scripts.ScriptNameUpdate} ScriptNameUpdate
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        ScriptNameUpdate.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            let end = length === undefined ? reader.len : reader.pos + length, message = new $root.scripts.ScriptNameUpdate();
+            while (reader.pos < end) {
+                let tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.scriptId = reader.string();
+                        break;
+                    }
+                case 2: {
+                        message.newName = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Creates a ScriptNameUpdate message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof scripts.ScriptNameUpdate
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {scripts.ScriptNameUpdate} ScriptNameUpdate
+         */
+        ScriptNameUpdate.fromObject = function fromObject(object) {
+            if (object instanceof $root.scripts.ScriptNameUpdate)
+                return object;
+            let message = new $root.scripts.ScriptNameUpdate();
+            if (object.scriptId != null)
+                message.scriptId = String(object.scriptId);
+            if (object.newName != null)
+                message.newName = String(object.newName);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a ScriptNameUpdate message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof scripts.ScriptNameUpdate
+         * @static
+         * @param {scripts.ScriptNameUpdate} message ScriptNameUpdate
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        ScriptNameUpdate.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            let object = {};
+            if (options.defaults) {
+                object.scriptId = "";
+                object.newName = "";
+            }
+            if (message.scriptId != null && message.hasOwnProperty("scriptId"))
+                object.scriptId = message.scriptId;
+            if (message.newName != null && message.hasOwnProperty("newName"))
+                object.newName = message.newName;
+            return object;
+        };
+
+        /**
+         * Converts this ScriptNameUpdate to JSON.
+         * @function toJSON
+         * @memberof scripts.ScriptNameUpdate
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        ScriptNameUpdate.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for ScriptNameUpdate
+         * @function getTypeUrl
+         * @memberof scripts.ScriptNameUpdate
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        ScriptNameUpdate.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/scripts.ScriptNameUpdate";
+        };
+
+        return ScriptNameUpdate;
     })();
 
     return scripts;

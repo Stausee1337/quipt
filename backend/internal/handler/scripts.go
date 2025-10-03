@@ -157,10 +157,73 @@ func (h *ScriptsHandler) HandleNew(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	newUuid, err := h.scripts.AddNewScript(ctx, claims.Uuid, &req)
+	if err == nil {
+		w.Write([]byte(newUuid))
+		return;
+	}
+
+	scriptErr, ok := err.(*service.ScriptError);
+	if !ok {
+		logFatalAndReport(w, err)
+		return
+	}
+	response, err := proto.Marshal(&protos.ScriptError {
+		Code: scriptErr.Code,
+		Message: scriptErr.Message,
+	});
 	if err != nil {
 		logFatalAndReport(w, err)
 		return
 	}
 
-	w.Write([]byte(newUuid))
+	w.WriteHeader(http.StatusBadRequest);
+	w.Write(response);
+}
+
+func (h *ScriptsHandler) HandleRename(w http.ResponseWriter, r *http.Request) {
+	claims := h.auth.GetLoggedInUser(r)
+	if claims == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body);
+	if err != nil {
+		logFatalAndReport(w, err)
+		return
+	}
+	defer r.Body.Close()
+
+	var req protos.ScriptNameUpdate
+	if err = proto.Unmarshal(body, &req); err != nil {
+		slog.Error(err.Error());
+		w.WriteHeader(http.StatusBadRequest);
+		return;
+	}
+
+	ctx := r.Context()
+
+	err = h.scripts.RenameScript(ctx, claims.Uuid, req.ScriptId, req.NewName)
+
+	if err == nil {
+		w.WriteHeader(http.StatusNoContent);
+		return;
+	}
+
+	scriptErr, ok := err.(*service.ScriptError);
+	if !ok {
+		logFatalAndReport(w, err)
+		return
+	}
+	response, err := proto.Marshal(&protos.ScriptError {
+		Code: scriptErr.Code,
+		Message: scriptErr.Message,
+	});
+	if err != nil {
+		logFatalAndReport(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusBadRequest);
+	w.Write(response);
 }

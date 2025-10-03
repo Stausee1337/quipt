@@ -175,11 +175,24 @@ const authenticatedPostRequests = {
                 throw 'unreachable';
         },
     "/create-script":
-        async (body: scripts.IScript, executor: Executor): Promise<string> => {
+        async (body: scripts.IScript, executor: Executor): ResultPromise<string, scripts.ScriptError> => {
             const writer = scripts.Script.encode(body);
             const { status, data } = await executor(writer.finish().slice(0, writer.len));
             if (status === 200)
-                return new TextDecoder().decode(data)
+                return [new TextDecoder().decode(data), undefined]
+            else if (status === 400)
+                return [undefined, scripts.ScriptError.decode(data)]
+            else
+                throw 'unreachable';
+        },
+    "/rename-script":
+        async (body: scripts.IScriptNameUpdate, executor: Executor): Promise<scripts.ScriptError|undefined> => {
+            const writer = scripts.ScriptNameUpdate.encode(body);
+            const { status, data } = await executor(writer.finish().slice(0, writer.len));
+            if (status === 204)
+                return undefined;
+            else if (status === 400)
+                return scripts.ScriptError.decode(data);
             else
                 throw 'unreachable';
         },

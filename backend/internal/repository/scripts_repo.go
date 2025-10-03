@@ -218,3 +218,17 @@ func (r *ScriptsRepo) UpdateTextCueScores(ctx context.Context, division bson.Obj
 	return nil;
 }
 
+func (r *ScriptsRepo) UpdateScriptName(ctx context.Context, uuid [16]byte, name string) error {
+	_, err := r.scripts.UpdateOne(
+		ctx,
+		bson.M{"uuid": uuid},
+		bson.M{"$set": bson.M{"name": name}},
+	)
+
+	if err != nil {
+		return fmt.Errorf("could not rename script %q: %w", uuid, err);
+	}
+
+	return nil;
+}
+

@@ -178,11 +178,70 @@ func (s *ScriptsService) UpdateScriptDivisionScores(
 	return err
 }
 
+func (s *ScriptsService) RenameScript(
+	ctx context.Context,
+	userUuid string,
+	scriptUuid string,
+	newName string,
+) error {
+	if len(newName) == 0 {
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_INVALID_SCRIPT_NAME,
+			Message: "invalid script name",
+		}
+	}
+
+	parsedUserId, err := uuid.Parse(userUuid)
+	if err != nil {
+		return fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
+	}
+
+	parsedUuid, err := uuid.Parse(scriptUuid)
+	if err != nil {
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_ID_MALFORMED,
+			Message: "malformed id",
+		}
+	}
+
+	script, err := s.repo.FindScriptById(ctx, parsedUuid)
+	if errors.Is(err, repository.ErrUnknownScript) {
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
+			Message: "unknown script",
+		}
+	} else if err != nil {
+		return err
+	}
+
+	if script.Owner != parsedUserId {
+		// the user doesn't own the script
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
+			Message: "unknown script",
+		}
+	}
+
+	err = s.repo.UpdateScriptName(ctx, parsedUuid, newName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *ScriptsService) AddNewScript(
 	ctx context.Context,
 	userUuid string,
 	script *protos.Script,
 ) (string, error) {
+	if len(script.Name) == 0 {
+		return "", &ScriptError {
+			Code: protos.ScriptErrorCode_INVALID_SCRIPT_NAME,
+			Message: "invalid script name",
+		}
+	}
+
 	parsedUserId, err := uuid.Parse(userUuid)
 	if err != nil {
 		return "", fmt.Errorf("could not parse uuid %q: %w", userUuid, err)

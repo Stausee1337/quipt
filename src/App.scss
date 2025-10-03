@@ -177,9 +177,6 @@ nav.side-menu {
     :is(span), :is(input) {
       grid-area: content;
       display: block;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
 
       &:not(:first-child) {
         margin-left: 1rem;
@@ -190,9 +187,20 @@ nav.side-menu {
       }
     }
 
+    :is(span) {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
     :is(input) {
       border: 0;
       background-color: inherit;
+      font-size: $text-body-font-size;
+      outline: none;
+      margin: 0;
+      padding: 0;
+      color: #e3e3e3;
     }
 
     :is(button) {

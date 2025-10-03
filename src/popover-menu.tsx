@@ -1,4 +1,4 @@
-import { Component, createRoot, onCleanup, onMount, } from "solid-js";
+import { Component, Owner, createRoot, getOwner, onCleanup, onMount, } from "solid-js";
 import { insert } from "solid-js/web";
 import Popper, { createPopper } from "@popperjs/core"
 
@@ -12,7 +12,8 @@ function handleContextMenu<P extends Record<string, any>>(
     event: ContextMenuEvent,
     placement: Popper.Placement,
     Component: Component<P>,
-    props: P
+    props: P,
+    detatchedOwner?: typeof Owner
 ) {
     const reference = event.reference;
 
@@ -60,8 +61,7 @@ function handleContextMenu<P extends Record<string, any>>(
         })
 
         insert(document.body, popoverMenu);
-    });
-
+    }, detatchedOwner);
 }
 
 export function installContextMenuHandler<P extends Record<string, any>>(
@@ -70,9 +70,10 @@ export function installContextMenuHandler<P extends Record<string, any>>(
     Component: Component<P>,
     props: P
 ) {
+    const owner = getOwner() ?? undefined;
     target.addEventListener(
         'еееContextMenu',
-        event => handleContextMenu(event, placement, Component, props)
+        event => handleContextMenu(event, placement, Component, props, owner)
     );
 }
 
