@@ -48,8 +48,8 @@ type FontStyleSpan = {
 enum FontStyles {
     None = 0,
     Italic = 1,
-    MonsopacedFont = 4,
-    Bold = 8
+    MonsopacedFont = 2,
+    Bold = 4
 }
 
 type TextWithFormat = { text: string, fontStyleSpans: FontStyleSpan[] };
