@@ -110,6 +110,26 @@ button.primary-button {
   }
 }
 
+$button-size: 3.2rem;
+button.red-button {
+  @extend .roboto-b800;
+  padding: 0 2rem;
+  background-color: $red;
+  border: 0.1rem solid color.adjust($red, $lightness: 3%);
+  min-height: $button-size;
+  border-radius: 3.40282e+38px;
+  font-size: inherit;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  outline: none;
+  cursor: pointer;
+
+  &:active {
+    background-color: color.adjust($red, $lightness: 5%);
+  }
+}
+
 button.secondary-button {
   @extend .roboto-b800;
   padding: 0 2rem;
@@ -252,7 +272,7 @@ div#dialog-box {
   border: none;
   box-shadow: 0 0 16px rgba(black, 0.3);
   overflow: hidden;
-  z-index: 2001;
+  z-index: 3001;
 
   button.close {
     position: absolute;
@@ -262,8 +282,8 @@ div#dialog-box {
 }
 
 @media (max-width: 768px) {
-  dialog#dialog-box {
-    width: 80%;
+  div#dialog-box {
+    width: calc(100svw - 2rem);
   }
 }
 
@@ -274,7 +294,7 @@ div#modal-dialog-backdrop {
   left: 0;
   bottom: 0;
   right: 0;
-  z-index: 2000;
+  z-index: 3000;
 
   background-color: rgba(black, 0.5);
   backdrop-filter: blur(1px);

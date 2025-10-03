@@ -13,6 +13,7 @@ export interface ScriptContext {
         onError: () => void
     ): JSX.Element;
     commitNewConfidences(divisionIdx: number, newScores: number[]): void;
+    deleteScript(uuid: string): void;
 }
 
 export function createScriptContext(authenticationContext: AuthenticationContext): ScriptContext {
@@ -23,8 +24,10 @@ export function createScriptContext(authenticationContext: AuthenticationContext
 
     const [currentScript, { refetch, mutate }] = createResource(async () => {
         const currentId = notValidatedScriptId;
-        if (currentId === undefined)
+        if (currentId === undefined) {
+            setCurrentScriptId(undefined);
             return undefined;
+        }
         let currentScript = scriptCache.get(currentId);
         if (currentScript !== undefined) {
             setCurrentScriptId(currentScript.uuid);
@@ -53,9 +56,6 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         },
         instantiateDelayed(Component, onError) {
             const renderedElement = createMemo(() => {
-                console.log('instantiateDelayed again');
-                console.trace();
-
                 const condition = createMemo(() => currentScript.state === "ready" && currentScript() !== undefined);
                 if (condition())
                     return createComponent(
@@ -115,6 +115,9 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             refetch();
 
             return newScript;
+        },
+        async deleteScript(uuid) {  
+            console.log(`deleteScript(${uuid})`);
         },
     };
 }

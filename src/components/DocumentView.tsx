@@ -1,14 +1,13 @@
-import { Accessor, Component, JSX, Setter, batch, createEffect, createMemo, createRoot, createSignal, onCleanup, onMount, untrack, useContext } from "solid-js";
-import { insert } from "solid-js/web";
+import { Accessor, JSX, Setter, batch, createEffect, createMemo, createSignal, onCleanup, onMount, untrack, useContext } from "solid-js";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
 import { getActorColor, pluralize } from "./common";
-import Popper, { createPopper } from "@popperjs/core"
 import * as b from "../backend";
 import { DialogManager } from "../dialog";
 import { renderCuePair } from "./TextCueView";
 import { DivisionInfoView } from "./DivisionInfoView";
 import { ScriptContextObj } from "../script";
 import { useNavigate } from "@solidjs/router";
+import { ContextMenuEvent, installContextMenuHandler, toggleMenu } from "../popover-menu";
 
 type MupdfLib = typeof import("mupdf");
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0]
@@ -600,74 +599,6 @@ function ActorMenu(
     );
 }
 
-function handleContextMenu<P extends Record<string, any>>(
-    event: ContextMenuEvent,
-    placement: Popper.Placement,
-    Component: Component<P>,
-    props: P
-) {
-    const reference = event.reference;
-
-    const target = event.target as HTMLElement;
-    if (target.classList.contains('menu-open'))
-        return;
-    target.classList.add('menu-open');
-
-    createRoot(dispose => {
-        const popoverMenu =
-            <div class="popover-menu" onClick={transactionClick}>
-                <Component {...props}/>
-            </div> as HTMLDivElement;
-
-        function transactionClick(event: MouseEvent) {
-            if (event.target instanceof HTMLLIElement)
-                dispose();
-        }
-
-        function captureClick(event: MouseEvent) {
-            const path = event.composedPath();
-            if (!(path.includes(reference) || path.includes(popoverMenu)))
-                dispose();
-        }
-
-        let popper: Popper.Instance|undefined;
-        onMount(() => {
-            popper = createPopper(
-                reference,
-                popoverMenu,
-                { placement }
-            )
-            document.documentElement.addEventListener('click', captureClick);
-            target.addEventListener('еееContextMenu', dispose);
-        })
-
-        onCleanup(() => {
-            if (popper === undefined) return;
-            document.documentElement.removeEventListener('click', captureClick);
-
-            target.classList.remove('menu-open');
-            target.removeEventListener('еееContextMenu', dispose);
-            popper.destroy();
-            popoverMenu.remove();
-        })
-
-        insert(document.body, popoverMenu);
-    });
-
-}
-
-function installContextMenuHandler<P extends Record<string, any>>(
-    target: HTMLElement,
-    placement: Popper.Placement,
-    Component: Component<P>,
-    props: P
-) {
-    target.addEventListener(
-        'еееContextMenu',
-        event => handleContextMenu(event, placement, Component, props)
-    );
-
-}
 
 const pageMarginLeft = 45;
 const fontSize = 13;
@@ -678,12 +609,6 @@ const TWO_THIRDS = 2/3;
 interface PageRenderer {
     render(page: PDFPage): OffscreenCanvas;
     readonly scaleFactor: number;
-}
-
-class ContextMenuEvent extends Event  {
-    constructor(public reference: HTMLElement) {
-        super('еееContextMenu');
-    } 
 }
 
 function PageView(
@@ -872,12 +797,6 @@ function PageView(
             { linesLayer }
         </div>
     );
-}
-
-declare global {
-interface HTMLElementEventMap {
-    'еееContextMenu': ContextMenuEvent
-}
 }
 
 function createPageRenderer(mupdf: MupdfLib): PageRenderer {
@@ -1135,11 +1054,6 @@ interface PageContext {
     getViewBlocks(page: number): ViewBlock[];
 }
 
-function toggleMenu(event: MouseEvent & { currentTarget: HTMLElement }) {
-    const target = event.currentTarget;
-    const toggleMenu = new ContextMenuEvent(/* reference */ target);
-    target.dispatchEvent(toggleMenu);
-}
 
 interface ActorsContext {
     delete(actor: string): void;

@@ -384,5 +384,5 @@ export type TextCue = {
     actors: string[], text: Markdown
 };
 
-export { auth } from './protos';
+export { auth, scripts } from './protos';
 

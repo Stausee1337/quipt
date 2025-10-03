@@ -159,8 +159,7 @@ function TrainingRunView(
 
     function scrollListener() {
         if (scrollLocked) return;
-        // const view = document.querySelector("div.script-view")!;
-        if (root.scrollTop !== (root.scrollHeight - root.offsetHeight)) {
+        if (root.scrollTop < (root.scrollHeight - root.offsetHeight)) {
             view.classList.add('free-scrolling');
         } else {
             view.classList.remove('free-scrolling');
