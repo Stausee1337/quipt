@@ -227,3 +227,46 @@ func (h *ScriptsHandler) HandleRename(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusBadRequest);
 	w.Write(response);
 }
+
+func (h *ScriptsHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
+	claims := h.auth.GetLoggedInUser(r)
+	if claims == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body);
+	if err != nil {
+		logFatalAndReport(w, err)
+		return
+	}
+	defer r.Body.Close()
+
+	scriptUuid := string(body)
+
+	ctx := r.Context()
+
+	err = h.scripts.DeleteScript(ctx, claims.Uuid, scriptUuid)
+
+	if err == nil {
+		w.WriteHeader(http.StatusNoContent);
+		return;
+	}
+
+	scriptErr, ok := err.(*service.ScriptError);
+	if !ok {
+		logFatalAndReport(w, err)
+		return
+	}
+	response, err := proto.Marshal(&protos.ScriptError {
+		Code: scriptErr.Code,
+		Message: scriptErr.Message,
+	});
+	if err != nil {
+		logFatalAndReport(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusBadRequest);
+	w.Write(response);
+}

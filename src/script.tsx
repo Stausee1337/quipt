@@ -120,14 +120,14 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             return newScript;
         },
         async deleteScript(uuid) {  
-            const [scripts, { mutate }] = authenticationContext.requests!.getCached("/list-scripts");
-            mutate(
-                (scripts() ?? [])
-                    .filter(s => s.uuid !== uuid)
-            )
+            const error = await authenticationContext.requests!.post("/delete-script", uuid);
+            if (error !== undefined)
+                throw `could not rename script: ${error}`;
+            const [_, { refetch }] = authenticationContext.requests!.getCached("/list-scripts");
+            refetch();
+            scriptCache.delete(uuid);
         },
         async renameScript(uuid, name) {
-            console.log(`renameScript(${uuid}, ${name})`);
             const error = await authenticationContext.requests!.post(
                 "/rename-script", { scriptId: uuid, newName: name });
             if (error !== undefined)

@@ -263,6 +263,55 @@ func (s *ScriptsService) AddNewScript(
 	return uuid.UUID(repoScript.Uuid).String(), nil
 }
 
+func (s *ScriptsService) DeleteScript(
+	ctx context.Context,
+	userUuid string,
+	scriptUuid string,
+) error {
+	parsedUserId, err := uuid.Parse(userUuid)
+	if err != nil {
+		return fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
+	}
+
+	parsedUuid, err := uuid.Parse(scriptUuid)
+	if err != nil {
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_ID_MALFORMED,
+			Message: "malformed id",
+		}
+	}
+
+	script, err := s.repo.FindScriptById(ctx, parsedUuid)
+	if errors.Is(err, repository.ErrUnknownScript) {
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
+			Message: "unknown script",
+		}
+	} else if err != nil {
+		return err
+	}
+
+	if script.Owner != parsedUserId {
+		// the user doesn't own the script
+		return &ScriptError {
+			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
+			Message: "unknown script",
+		}
+	}
+
+	err = s.repo.DeleteDivisions(ctx, script.Divisions)
+	if err != nil {
+		return err
+	}
+
+	err = s.repo.DeleteScript(ctx, parsedUuid);
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func transformProtoScript(owner uuid.UUID, script *protos.Script) (repository.Script, []repository.Division) {
 	var resultDivisions []repository.Division
 

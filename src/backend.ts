@@ -196,6 +196,16 @@ const authenticatedPostRequests = {
             else
                 throw 'unreachable';
         },
+    "/delete-script":
+        async (body: string, executor: Executor): Promise<scripts.ScriptError|undefined> => {
+            const { status, data } = await executor(body);
+            if (status === 204)
+                return undefined;
+            else if (status === 400)
+                return scripts.ScriptError.decode(data);
+            else
+                throw 'unreachable';
+        },
 };
 
 export class AuthenticatedRequestsProvider extends CachableRequestsProvider<

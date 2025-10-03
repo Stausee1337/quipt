@@ -125,7 +125,7 @@ func (r *ScriptsRepo) LoadDivision(
 	result := r.divisions.FindOne(ctx, bson.M{"_id": divisionId});
 	var division Division
 	if err := result.Decode(&division); err != nil {	
-		return nil, fmt.Errorf("query script %q: %w", divisionId, err);
+		return nil, fmt.Errorf("query division %q: %w", divisionId, err);
 	}
 	return &division, nil
 }
@@ -227,6 +227,32 @@ func (r *ScriptsRepo) UpdateScriptName(ctx context.Context, uuid [16]byte, name 
 
 	if err != nil {
 		return fmt.Errorf("could not rename script %q: %w", uuid, err);
+	}
+
+	return nil;
+}
+
+func (r *ScriptsRepo) DeleteScript(ctx context.Context, uuid [16]byte) error {
+	_, err := r.scripts.DeleteOne(
+		ctx,
+		bson.M{"uuid": uuid},
+	)
+
+	if err != nil {
+		return fmt.Errorf("could not delete script %q: %w", uuid, err);
+	}
+
+	return nil;
+}
+
+func (r *ScriptsRepo) DeleteDivisions(ctx context.Context, divisionIds []bson.ObjectID) error {
+	_, err := r.divisions.DeleteMany(
+		ctx,
+		bson.M{"_id": bson.M{"$in": divisionIds}},
+	)
+
+	if err != nil {
+		return fmt.Errorf("could not delete divisions %q: %w", divisionIds, err);
 	}
 
 	return nil;
