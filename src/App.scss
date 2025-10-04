@@ -374,6 +374,7 @@ div.desktop-view {
   div.readable-content-view {
     margin: 0 auto;
     max-width: 94.8rem;
+    user-select: none;
   }
 
   div.division-overview {
@@ -388,8 +389,83 @@ div.desktop-view {
   }
 }
 
-div.row div.cm-scroller {
+div.cue div.cm-scroller {
   font-family: inherit;
+
+  div.cm-content {
+    padding: 0;
+    
+    div.cm-line { padding: 0; }
+  } 
+}
+
+div.cue:has(div.edit-commit-container) {
+  position: relative;
+
+  &.editing {
+    box-shadow: 0 0 0 0.2rem $primary inset;
+  }
+}
+
+div.readable-content-view div.script-divsion {
+  gap: calc(2.5rem / 2);
+
+  div.gap-inject-handle {
+    height: 0;
+    position: relative;
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: calc(-2.5rem / 2);
+      left: 0;
+      right: 0;
+      height: 2.5rem;
+    }
+
+    &::before {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      border-bottom: 0.1rem solid $lighter2;
+    }
+    
+    i.bi {
+      position: absolute;
+      font-size: 2rem;
+      height: 2rem;
+      line-height: 2rem;
+      color: transparent;
+      background-color: $background;
+      box-shadow: 0 0 0 0.5rem $background;
+      border-radius: 3.40282e+38px;
+
+      top: -1rem;
+
+      &:last-child {
+        left: 50%;
+        transform: translateX(-50%);
+      }
+    }
+
+    &.static {
+      pointer-events: none;
+    }
+
+    &:not(.static) {
+      cursor: pointer;
+
+      &:hover::before {
+        content: "";
+      }
+
+      &:hover > i.bi {
+        color: $lighter2;
+      }
+    }
+  }
 }
 
 @keyframes zoom-big {
