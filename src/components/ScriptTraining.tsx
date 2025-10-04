@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti';
 import { useAuthentication, Division, Script } from '../backend';
 import { ScriptContextObj, ScriptContext } from '../script';
 import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, DivisionInfo } from './common';
-import { TextCueViewFlags, renderCue } from './TextCueView';
+import { renderCue } from './TextCueView';
 import { DivisionInfoView } from './DivisionInfoView';
 
 function easeOut(x: number) {
@@ -365,7 +365,7 @@ function TrainingRunView(
                         ? reportConfidence
                         : undefined;
                 },
-                flags: TextCueViewFlags.Ratable
+                isRatable: type === "response"
             }
         );
     }

@@ -1,6 +1,8 @@
+/* @refresh reload */
 import { JSX, createSignal } from "solid-js";
 import { formatActorsArray, formatMarkdown, formatString, progressBarGreen, progressBarRed, progressBarYellow } from "./common";
 import { FormattedString, TextCue, TextCuePair } from "../backend";
+import { ExposedComponent, bindComponent } from "../exposed-component";
 
 const confidenceIconMap = [
     {
@@ -45,53 +47,69 @@ function ConfidenceReportButton(
     )
 }
 
-
-export enum TextCueViewFlags {
-    Editable = 1,
-    Ratable = 2,
-}
-
 export type TextCueViewProps = {
     last: boolean,
     text: FormattedString,
     actorsInfo: FormattedString|null,
     type: "request"|"response",
-    flags?: TextCueViewFlags,
+    isRatable?: boolean,
     confidenceReport?: (source: EventTarget & Element, confidence: "low"|"medium"|"high") => void
 };
 
-export function TextCueView(props: TextCueViewProps) {
-    const isRatable = () => (props.flags ?? 0) & TextCueViewFlags.Ratable;
+interface TextCueComponent {
+    readonly cueElement: HTMLDivElement;
+    injectContent(content: JSX.Element): () => void;
+}
 
-    return (
-        <div class="cue-wrapper">
-            <div class={`cue ${props.type}`} 
-                classList={{'last': props.last}}>
-                { props.actorsInfo !== null ? <h3>{ formatString(props.actorsInfo) }</h3> : null }
-                <span class="content">
-                    { formatString(props.text) }
-                </span>
+type ExposedComponentType = ExposedComponent<TextCueComponent>;
+
+export function TextCueView(props: TextCueViewProps): ExposedComponentType {
+    let cueElement: HTMLDivElement;
+    const [externalContent, setExternalContent] = createSignal<JSX.Element>();
+
+    return bindComponent<TextCueComponent>({
+        get cueElement() {
+            console.log('get cueElement()');
+            return cueElement;
+        },
+        injectContent(content) {
+            setExternalContent(content); 
+            return () => setExternalContent(undefined);
+        },
+        template: (
+            <div class="cue-wrapper">
+                <div ref={cueElement} class={`cue ${props.type}`} 
+                    classList={{'last': props.last}}>
+                    { props.actorsInfo !== null ? <h3>{ formatString(props.actorsInfo) }</h3> : null }
+                    {
+                        externalContent() ?? (
+                            <span class="content">
+                                { formatString(props.text) }
+                            </span>
+                        )
+                    }
+                </div>
+                {
+                    (props.type === "response" && props.isRatable) ? (
+                        <div class="confidence-rating">
+                            <ConfidenceReportButton confidence="low" reporter={props.confidenceReport}/>
+                            <ConfidenceReportButton confidence="medium" reporter={props.confidenceReport}/>
+                            <ConfidenceReportButton confidence="high" reporter={props.confidenceReport}/>
+                        </div>
+                    ) : null
+                }
             </div>
-            {
-                (props.type === "response" && isRatable()) ? (
-                    <div class="confidence-rating">
-                        <ConfidenceReportButton confidence="low" reporter={props.confidenceReport}/>
-                        <ConfidenceReportButton confidence="medium" reporter={props.confidenceReport}/>
-                        <ConfidenceReportButton confidence="high" reporter={props.confidenceReport}/>
-                    </div>
-                ) : null
-            }
-        </div>
-    );
+        )
+    })
 }
 
 export function renderCue(
     textCue: Readonly<TextCue> | null,
     type: "request"|"response",
     extraProps?: Partial<TextCueViewProps>
-): JSX.Element {
+): ExposedComponentType {
     const cueData = type === "request" 
-        ? { actors: formatActorsArray(textCue?.actors ?? null), text: textCue?.text ?? "Du bist der erste in diesem Abschnitt" }
+        ? { actors: formatActorsArray(textCue?.actors ?? null), text: textCue?.text ?? "_Du bist der erste in diesem Abschnitt_" }
         : { actors: formatActorsArray(textCue!.actors.length === 1 ? null : textCue!.actors), text: textCue!.text! };
     return (
         <TextCueView
@@ -100,7 +118,7 @@ export function renderCue(
             text={formatMarkdown(cueData.text)}
             actorsInfo={cueData.actors}
             {...extraProps}/>
-    );
+    ) as ExposedComponentType;
 }
 
 export function renderCuePair(textCuePair: Readonly<TextCuePair>): JSX.Element {
@@ -109,5 +127,5 @@ export function renderCuePair(textCuePair: Readonly<TextCuePair>): JSX.Element {
             { renderCue(textCuePair.request, "request") }
             { renderCue(textCuePair.response, "response") }
         </>
-    );
+    )
 }
