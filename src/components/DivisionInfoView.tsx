@@ -1,6 +1,6 @@
 import { JSX, createMemo } from "solid-js";
 import { Division } from '../backend';
-import { computeDivisionInfo, formatMarkdown, formatString } from './common';
+import { computeDivisionInfo, formatMarkdown, formatString, pluralize } from './common';
 
 export function DivisionInfoView(
     props: {
@@ -13,7 +13,7 @@ export function DivisionInfoView(
         <div class="division-info-wrapper">
             <div class="division-info">
                 <span class="info">
-                    { info().actors.join(', ') } · { info().textCues } Einsätze
+                    { info().actors.join(', ') } · { pluralize(info().textCues, 'Einsatz', 'Einsätze') }
                 </span>
                 <span class="content">
                     { formatString(formatMarkdown(props.division.description)) }

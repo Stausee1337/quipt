@@ -4,7 +4,7 @@ import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
 import { useAuthentication, Division, Script } from '../backend';
 import { ScriptContextObj, ScriptContext } from '../script';
-import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, DivisionInfo } from './common';
+import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, DivisionInfo, pluralize } from './common';
 import { renderCue } from './TextCueView';
 import { DivisionInfoView } from './DivisionInfoView';
 
@@ -715,7 +715,7 @@ function ScriptOverview(
                 <div class="general-info">
                     <h3>{ division.name }</h3>
                     <span class="info">{ actors.length } Spieler</span>
-                    <span class="info">{ textCues } Einsätze</span>
+                    <span class="info">{ pluralize(textCues, 'Einsatz', 'Einsätze') }</span>
                 </div>
                 <SimpleChart onConfig={chartConfigFactory}/>
                 <div class="score-info">
@@ -742,7 +742,7 @@ function ScriptOverview(
         <div class="script-overview">
             <div class="script-info">
                 <h2>{ props.script.name }</h2>
-                <span class="info">{ textCues } Einsätze</span>
+                <span class="info">{ pluralize(textCues, 'Einsatz', 'Einsätze') }</span>
                 <span class="info">{ actors.join(', ') }</span>
             </div>
             {
