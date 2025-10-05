@@ -14,26 +14,35 @@ export type TextCueViewProps = {
 interface TextCueComponent {
     readonly cueElement: HTMLDivElement;
     injectContent(content: JSX.Element): (() => void)|undefined;
-    addExtension(component: Component): void;
+    addExtension(component: Component, where?: "before"|"after"): void;
     removeExtension(component: Component): void;
 }
 
-type ExposedComponentType = ExposedComponent<TextCueComponent>;
+export type ExposedComponentType = ExposedComponent<TextCueComponent>;
 
 export function TextCueView(props: TextCueViewProps): ExposedComponentType {
     let cueElement: HTMLDivElement;
     const [externalContent, setExternalContent] = createSignal<JSX.Element>();
     const [signal, setSignal] = createSignal({});
-    const extensions = new Map<Component, JSX.Element>();
+    const extensions = new Map<Component, [JSX.Element, "before"|"after"]>();
     const owner = getOwner()!;
 
     function instantiateComponent(Component: Component): JSX.Element {
         return runWithOwner(owner, () => createMemo(() => <Component/>)());
     }
 
-    const extensionElements = createMemo(() => {
+    const beforeExtensionElements = createMemo(() => {
         signal();
-        return Array.from(extensions.values());
+        return Array.from(extensions.values())
+            .filter(x => x[1] === "before")
+            .map(x => x[0]);
+    });
+
+    const afterExtensionElements = createMemo(() => {
+        signal();
+        return Array.from(extensions.values())
+            .filter(x => x[1] === "after")
+            .map(x => x[0]);
     });
 
     return bindComponent<TextCueComponent>({
@@ -46,8 +55,8 @@ export function TextCueView(props: TextCueViewProps): ExposedComponentType {
             setExternalContent(content); 
             return () => setExternalContent(undefined);
         },
-        addExtension(component) {
-            extensions.set(component, instantiateComponent(component));
+        addExtension(component, where: "before"|"after" = "after") {
+            extensions.set(component, [instantiateComponent(component), where]);
             setSignal({});
         },
         removeExtension(component) {
@@ -56,6 +65,7 @@ export function TextCueView(props: TextCueViewProps): ExposedComponentType {
         },
         template: (
             <div class="cue-wrapper">
+                { beforeExtensionElements() }
                 <div ref={cueElement} class={`cue ${props.type}`}>
                     { props.actorsInfo !== null ? <h3>{ formatString(props.actorsInfo) }</h3> : null }
                     {
@@ -66,7 +76,7 @@ export function TextCueView(props: TextCueViewProps): ExposedComponentType {
                         )
                     }
                 </div>
-                { extensionElements() }
+                { afterExtensionElements() }
             </div>
         )
     })
