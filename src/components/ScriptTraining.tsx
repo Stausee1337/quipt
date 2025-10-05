@@ -4,7 +4,6 @@ import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
 import { useAuthentication, Division, Script, TextCue } from '../backend';
 import { ScriptContextObj, ScriptContext } from '../script';
-import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, DivisionInfo, pluralize } from './common';
 import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, pluralize, computeScriptInfo, createInvalidatable } from './common';
 import { renderCue as renderCueImpl } from './TextCueView';
 import { DivisionInfoView } from './DivisionInfoView';
@@ -620,28 +619,8 @@ function ScriptOverview(
     props: {
         script: Readonly<Script>
     }
-): JSX.Element {
-    function computeScriptInfo(): DivisionInfo {
-        let textCues = 0;
-        const actorsSet: Set<string> = new Set();
-        for (const division of props.script.divisions) {
-            const { 
-                actors: divisionActors,
-                textCues: divisionTextCues,
-            } = computeDivisionInfo(division);
-            divisionActors.forEach(actorsSet.add.bind(actorsSet));
-            textCues += divisionTextCues;
-        }
-        const actors = Array.from(actorsSet);
-        actors.sort();
-
-        return {
-            actors,
-            textCues
-        };
-    }
-    
-    const { actors, textCues } = computeScriptInfo();
+): JSX.Element { 
+    const { actors, textCues } = computeScriptInfo(props.script);
 
     function renderDivision(division: Readonly<Division>, idx: Accessor<number>) {
         const { actors, textCues } = computeDivisionInfo(division);

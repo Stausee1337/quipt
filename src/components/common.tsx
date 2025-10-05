@@ -1,6 +1,6 @@
 import { Accessor, JSX, createMemo, createSignal, untrack } from "solid-js";
 import { Lexer, MarkedToken } from 'marked';
-import { Division, TextCue } from "../backend";
+import { Division, Script, TextCue } from "../backend";
 import { decode } from 'html-entities';
 
 export const progressBarGreen = '#5d9948';
@@ -100,27 +100,72 @@ export function formatMarkdown(markdown: string): FormattedString {
     return Array.from(mapToken(tokens));
 }
 
-export interface DivisionInfo {
-    actors: string[],
-    textCues: number
+export interface CueContainerInfo {
+    actors: string[];
+    textCues: number;
 }
 
-export function computeDivisionInfo(division: Readonly<Division>): DivisionInfo {
+function commonElements<T>(arrays: T[][]): T[] {
+    let currentSet = new Set(arrays[0]);
+
+    for (let i = 1; i < arrays.length; i++) {
+       currentSet = currentSet.intersection(new Set(arrays[i]));
+    }
+
+    return Array.from(currentSet) as T[];
+}
+
+function computeDivisionInfoImpl(division: Readonly<Division>): CueContainerInfo;
+function computeDivisionInfoImpl(division: Readonly<Division>, responseActorCollection: string[][]): CueContainerInfo;
+function computeDivisionInfoImpl(division: Readonly<Division>, responseActorCollection?: string[][]): CueContainerInfo {
     const actorsCollection: Set<string> = new Set();
     const addActors =
         (textCue: Readonly<TextCue>) => textCue.actors.forEach(actorsCollection.add.bind(actorsCollection))
     for (const textCuePair of division.textCues) {
-        if (textCuePair.request !== null)
+        if (textCuePair.request)
             addActors(textCuePair.request);
         addActors(textCuePair.response);
+        responseActorCollection?.push(textCuePair.response.actors);
     }
 
     const actors = Array.from(actorsCollection);
     actors.sort();
+
     return {
         actors,
-        textCues: division.textCues.length
+        textCues: division.textCues.length,
     };
+}
+
+export function computeDivisionInfo(division: Readonly<Division>): CueContainerInfo {
+    return computeDivisionInfoImpl(division);
+}
+
+export interface ScriptInfo extends CueContainerInfo {
+    self: string|undefined
+}
+
+export function computeScriptInfo(script: Readonly<Script>): ScriptInfo {
+    let textCues = 0;
+    const actorsSet: Set<string> = new Set();
+
+    const responseActors: string[][] = [];
+    for (const division of script.divisions) {
+        const { 
+            actors: divisionActors,
+            textCues: divisionTextCues,
+        } = computeDivisionInfoImpl(division, responseActors);
+        divisionActors.forEach(actorsSet.add.bind(actorsSet));
+        textCues += divisionTextCues;
+    }
+
+    const actors = Array.from(actorsSet);
+    actors.sort();
+
+    let commonActors = commonElements(responseActors);
+    let self = commonActors.length === 1 ? commonActors[0] : undefined;
+
+    return { actors, textCues, self };
 }
 
 export function pluralize(count: number, singular: string, plural: string): string {
