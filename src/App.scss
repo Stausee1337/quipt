@@ -398,6 +398,7 @@ div.cue div.cm-scroller {
     div.cm-line {
       padding: 0;
       padding-left: 1px;
+      padding-right: 1px;
     }
   } 
 }
@@ -431,8 +432,65 @@ div.cue-wrapper:has(div.edit-commit-container) {
   }
 }
 
+
+div.cue-wrapper:has(div.actors-selector) {
+  div.actors-selector {
+    max-width: 85%;
+
+    span.actor-pill {
+      position: relative;
+
+      &.static {
+        margin-right: 2rem;
+      }
+
+      &.static::before {
+        content: "\F4FE";
+        right: -2.5rem;
+        color: #e3e3e3;
+
+        position: absolute;
+        font-size: 2rem;
+
+        font-family: bootstrap-icons !important;
+        font-style: normal;
+        font-weight: normal !important;
+        font-variant: normal;
+        text-transform: none;
+        line-height: 1;
+        vertical-align: -.125em;
+      }
+    }
+  }
+
+  &:has(div.response) div.actors-selector {
+    justify-content: flex-end;
+  }
+}
+
+div.cue:has(div.cm-editor) {
+  min-width: 13.8rem;
+}
+
 div.readable-content-view div.script-divsion {
   gap: calc(2.5rem / 2);
+  margin: 0 1rem;
+  position: relative;
+
+  div.cue-insert-container {
+    position: relative;
+    left: -1rem; 
+    width: calc(100% + 2rem);
+    padding: 1rem;
+    border-radius: 1rem;
+    background-color: $color-accent2;
+    border: 0.1rem solid $lighter1;
+    margin: calc(2.5rem / 2) 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    z-index: 2;
+  }
 
   div.cue {
     z-index: 2;
@@ -1430,13 +1488,12 @@ div.document-view {
   }
 }
 
-section.actors, div.actors-selection {
+section.actors, div.actors-selection, div.actors-selector {
   display: flex;
   gap: 1rem;
   user-select: none;
-  font-weight: 600;
-  flex-wrap: wrap;     /* 🔑 allow wrapping onto new lines */
-  align-items: flex-start; /* optional, so rows align at the top */
+  flex-wrap: wrap;
+  justify-content: flex-start;
 }
 
 span.actor-pill {
@@ -1445,7 +1502,9 @@ span.actor-pill {
   color: var(--actor-color);
   border-radius: 0.5rem;
   background-color: rgb(from var(--actor-color) r g b / 0.1);
+  font-weight: 600;
   font-size: 1.6rem;
+
   &:not(.static) {
     cursor: pointer;
   }
