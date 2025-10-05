@@ -1,6 +1,6 @@
 import { Accessor, JSX, Setter, batch, createEffect, createMemo, createSignal, onCleanup, onMount, untrack, useContext } from "solid-js";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
-import { getActorColor, pluralize } from "./common";
+import { pluralize } from "./common";
 import * as b from "../backend";
 import { DialogManager } from "../dialog";
 import { renderCuePair } from "./TextCueView";
@@ -8,6 +8,7 @@ import { DivisionInfoView } from "./DivisionInfoView";
 import { ScriptContextObj } from "../script";
 import { useNavigate } from "@solidjs/router";
 import { ContextMenuEvent, installContextMenuHandler, toggleMenu } from "../popover-menu";
+import { ActorPill } from "./ActorPill";
 
 type MupdfLib = typeof import("mupdf");
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0]
@@ -542,23 +543,17 @@ function DistributionDialog(
             </button>
             <h2 class="disolve-and-distribute">
                 Auflösen und verteilen von
-                <span 
-                    style={{'--actor-color': getActorColor(props.target)}}
-                    class="actor-pill static">
-                    { props.target }
-                 </span>
+                <ActorPill actor={props.target} static/>
             </h2>
             <div class="actors-selection">
                 {
                     Array.from(props.actors.keys())
                         .filter(actor => actor !== props.target)
                         .map(actor => 
-                             <span class="actor-pill"
+                             <ActorPill
                                 onClick={toggleSelection} 
                                 data-actor={actor}
-                                style={{'--actor-color': getActorColor(actor)}}>
-                                { actor }
-                             </span>)
+                                actor={actor}/>)
                 }
             </div>
             <div class="bottom-line">
@@ -1196,12 +1191,12 @@ function FinalizeScriptView(
             <div ref={headerElement} class="actors-selection">
                 {
                     actors.map((actor) =>
-                        <span class="actor-pill" 
+                        <ActorPill
                             onClick={() => setCurrentActor(actor)}
                             classList={{ selected: currentActor() === actor }}
-                            style={{'--actor-color': getActorColor(actor)}}>
-                            { actor } ({props.actorsMap.get(actor)})
-                        </span> as HTMLSpanElement
+                            actor={actor}
+                            count={props.actorsMap.get(actor)}
+                        /> as HTMLSpanElement
                     )
                 }
             </div>
@@ -1414,12 +1409,10 @@ export function DocumentView(
 
     function renderActor([actor, count]: [string, number]) {
         let actorPill =
-            <span 
+            <ActorPill
                 onClick={toggleMenu}
-                style={{'--actor-color': getActorColor(actor)}}
-                class="actor-pill">
-                { actor } ({count})
-            </span> as HTMLSpanElement;
+                actor={actor}
+                count={count}/> as HTMLSpanElement;
         installContextMenuHandler(
             actorPill,
             'top',
