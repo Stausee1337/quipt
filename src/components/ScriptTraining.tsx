@@ -2,11 +2,36 @@ import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor
 import { useNavigate, A, useParams, Params } from '@solidjs/router';
 import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
-import { useAuthentication, Division, Script } from '../backend';
+import { useAuthentication, Division, Script, TextCue } from '../backend';
 import { ScriptContextObj, ScriptContext } from '../script';
 import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, DivisionInfo, pluralize } from './common';
-import { renderCue } from './TextCueView';
+import { renderCue as renderCueImpl } from './TextCueView';
 import { DivisionInfoView } from './DivisionInfoView';
+import { ConfidenceReportView, ConfidenceReporter } from './ConfidenceReportView';
+
+function renderCue(
+    textCue: Readonly<TextCue> | null,
+    type: "request"|"response",
+    last: Accessor<boolean>,
+    confidenceReport: Accessor<ConfidenceReporter|undefined>,
+): JSX.Element {
+    const textCueComponent = renderCueImpl(textCue, type);
+    if (type === "response")
+        textCueComponent.addExtension(
+            () => <ConfidenceReportView confidenceReport={confidenceReport()}/>);
+
+    function updateLastClass() {
+        if (last())
+            textCueComponent.cueElement.classList.add('last');
+        else
+            textCueComponent.cueElement.classList.remove('last');
+    }
+
+    createEffect(updateLastClass);
+    updateLastClass();
+
+    return textCueComponent;
+}
 
 function easeOut(x: number) {
     return Math.sin((x * Math.PI) / 2);
@@ -356,17 +381,10 @@ function TrainingRunView(
         return renderCue(
             textCue[type],
             type,
-            {
-                get last() {
-                    return checkIsLast(n, currentIndex());
-                },
-                get confidenceReport() {
-                    return (n === currentIndex() && !reachedEnd()) 
-                        ? reportConfidence
-                        : undefined;
-                },
-                isRatable: type === "response"
-            }
+            () => checkIsLast(n, currentIndex()),
+            () => (n === currentIndex() && !reachedEnd()) 
+                    ? reportConfidence
+                    : undefined
         );
     }
 
