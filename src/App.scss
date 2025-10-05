@@ -395,20 +395,48 @@ div.cue div.cm-scroller {
   div.cm-content {
     padding: 0;
     
-    div.cm-line { padding: 0; }
+    div.cm-line {
+      padding: 0;
+      padding-left: 1px;
+    }
   } 
 }
 
-div.cue:has(div.edit-commit-container) {
-  position: relative;
-
-  &.editing {
+div.cue-wrapper:has(div.edit-commit-container) {
+  div.cue.editing {
     box-shadow: 0 0 0 0.2rem $primary inset;
+  }
+
+  div.edit-commit-container {
+    display: flex;
+    gap: 1rem;
+
+    button.icon-button {
+      width: 3rem;
+      aspect-ratio: 1;
+      border: none;
+      border-radius: 0.5rem;
+      background-color: inherit;
+      font-size: 2.5rem;
+      line-height: 3rem;
+      text-align: center;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+
+      &:hover {
+        background-color: $lighter1;
+      }
+    }
   }
 }
 
 div.readable-content-view div.script-divsion {
   gap: calc(2.5rem / 2);
+
+  div.cue {
+    z-index: 2;
+  }
 
   div.gap-inject-handle {
     height: 0;
@@ -437,10 +465,12 @@ div.readable-content-view div.script-divsion {
       font-size: 2rem;
       height: 2rem;
       line-height: 2rem;
-      color: transparent;
+      color: $lighter2;
       background-color: $background;
       box-shadow: 0 0 0 0.5rem $background;
       border-radius: 3.40282e+38px;
+      visibility: hidden;
+      z-index: 1;
 
       top: -1rem;
 
@@ -462,7 +492,7 @@ div.readable-content-view div.script-divsion {
       }
 
       &:hover > i.bi {
-        color: $lighter2;
+        visibility: visible;
       }
     }
   }

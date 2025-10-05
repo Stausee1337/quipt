@@ -1,4 +1,4 @@
-import { JSX, createEffect, getOwner, onCleanup, onMount, runWithOwner, useContext } from 'solid-js';
+import { JSX, createContext, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, runWithOwner, useContext } from 'solid-js';
 import { EditorView, minimalSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { placeholder } from "@codemirror/view";
@@ -15,7 +15,7 @@ const myTheme = EditorView.theme({}, {dark: true})
 
 const customMarkdownStyle = HighlightStyle.define([
     // Color for the Markdown formatting markers (e.g., **, _, #)
-    { tag: tags.processingInstruction, color: "#e3e3e3" },
+    { tag: tags.processingInstruction, color: "rgb(167.4375, 167.4375, 167.4375)" },
     { tag: tags.meta, color: "#ff6b81" },
     { tag: tags.strong, fontWeight: "bold" },
     { tag: tags.emphasis, fontStyle: "italic" },
@@ -41,7 +41,37 @@ function Editor(props: {
             })
         ],
     });
+
+    function focusView() {
+        const end = view.state.doc.length;
+        view.dispatch({
+            selection: { anchor: end, head: end },
+            scrollIntoView: true,
+        });
+        view.focus();
+    }
+
+    onMount(() => {
+        setTimeout(focusView)
+    })
+
     return view.dom;
+}
+
+const EditableCueContextObj = createContext<(res: "dismiss"|"accept") => void>();
+
+function EditCommitView(): JSX.Element {
+    const close = useContext(EditableCueContextObj);
+    return (
+        <div class="edit-commit-container">
+            <button class="icon-button" onClick={() => close?.("dismiss")}>
+                <i class="bi bi-x"/>
+            </button>
+            <button class="icon-button" onClick={() => close?.("accept")}>
+                <i class="bi bi-check2"/>
+            </button>
+        </div>
+    );
 }
 
 function EditableTextCue(
@@ -50,33 +80,60 @@ function EditableTextCue(
         type: "request"|"response"
     }
 ): JSX.Element {
-    const cueComponent = renderCue(props.textCue, props.type);
+    const owner = getOwner()!;
+    owner.context = { ...owner.context, [EditableCueContextObj.id]: closeEditor };
+
+    const [textCue, setTextCue] = createSignal<TextCue>(
+        window.structuredClone(props.textCue) ?? { text: null, actors: [] });
+
     let revoker: (() => void)|undefined;
-    let owner = getOwner()!;
+    const [content, setContent] = createSignal<string>(textCue().text ?? '');
+
+    const cueComponent = createMemo(() => {
+        const cue = renderCue(textCue(), props.type);
+
+        onMount(() => {
+            cue.cueElement.addEventListener('click', onClick);
+        });
+
+        onCleanup(() => {
+            cue.cueElement.removeEventListener('click', onClick);
+        });
+
+        return cue;
+    });
 
     function onClick() {
         if (revoker === undefined) {
-            cueComponent.cueElement.classList.add('editing');
-            revoker = cueComponent.injectContent(
+            const comp = cueComponent();
+            comp.cueElement.classList.add('editing');
+            revoker = comp.injectContent(
                 runWithOwner(owner, () =>
-                    <>
-                        <Editor content={props.textCue?.text ?? ''} onChange={console.log}/>
-                        <div class="edit-commit-container"></div>
-                    </>
+                    <Editor content={content()} onChange={setContent}/>
                 )
             );
+            comp.addExtension(EditCommitView);
         }
     }
 
-    onMount(() => {
-        cueComponent.cueElement.addEventListener('click', onClick);
-    });
+    function closeEditor(res: "dismiss"|"accept") {
+        if (revoker !== undefined) {
+            const comp = cueComponent();
 
-    onCleanup(() => {
-        cueComponent.cueElement.removeEventListener('click', onClick);
-    });
+            revoker();
+            comp.cueElement.classList.remove('editing');
+            comp.removeExtension(EditCommitView);
 
-    return cueComponent;
+            if (res === "accept")
+                setTextCue(p => ({ actors: p.actors, text: content() }));
+            else
+                setContent(textCue().text ?? '');
+
+            revoker = undefined;
+        }
+    }
+
+    return <>{ cueComponent() }</>;
 }
 
 function GapInjectHandle(
@@ -84,9 +141,7 @@ function GapInjectHandle(
 ): JSX.Element {
     return (
         <div class="gap-inject-handle" classList={{ static: props.static }}>
-            {
-                props.static ? null : <i class="bi bi-plus-circle"/>
-            }
+            { props.static ? null : <i class="bi bi-plus-circle"/> }
         </div>
     );
 }
