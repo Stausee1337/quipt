@@ -5,6 +5,7 @@ import confetti from 'canvas-confetti';
 import { useAuthentication, Division, Script, TextCue } from '../backend';
 import { ScriptContextObj, ScriptContext } from '../script';
 import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, DivisionInfo, pluralize } from './common';
+import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, pluralize, computeScriptInfo, createInvalidatable } from './common';
 import { renderCue as renderCueImpl } from './TextCueView';
 import { DivisionInfoView } from './DivisionInfoView';
 import { ConfidenceReportView, ConfidenceReporter } from './ConfidenceReportView';
@@ -946,17 +947,6 @@ function createTrainingRunManager(
     };
 
     return [manager, division];
-}
-
-function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => void] {
-    const [pullSignal, setSignal] = createSignal({});
-
-    const read = createMemo(() => {
-        pullSignal();
-        return untrack(fn);
-    });
-
-    return [read, () => setSignal({})];
 }
 
 function TrainingRunWrapper(

@@ -1,6 +1,6 @@
 import { Accessor, JSX, Setter, batch, createEffect, createMemo, createSignal, onCleanup, onMount, untrack, useContext } from "solid-js";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
-import { pluralize } from "./common";
+import { createInvalidatable, pluralize } from "./common";
 import * as b from "../backend";
 import { DialogManager } from "../dialog";
 import { renderCuePair } from "./TextCueView";
@@ -1030,17 +1030,6 @@ const allowedNumberKeys = new Set<string>([
 function betterParseInt(input: string): number|undefined {
     const num = Number(input);
     return Number.isInteger(num) ? num : undefined;
-}
-
-function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => void] {
-    const [pullSignal, setSignal] = createSignal({});
-
-    const read = createMemo(() => {
-        pullSignal();
-        return untrack(fn);
-    });
-
-    return [read, () => setSignal({})];
 }
 
 interface PageContext {

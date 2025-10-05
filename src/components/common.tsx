@@ -1,4 +1,4 @@
-import { JSX } from "solid-js";
+import { Accessor, JSX, createMemo, createSignal, untrack } from "solid-js";
 import { Lexer, MarkedToken } from 'marked';
 import { Division, TextCue } from "../backend";
 import { decode } from 'html-entities';
@@ -127,4 +127,15 @@ export function pluralize(count: number, singular: string, plural: string): stri
     if (count === 1)
         return `1 ${singular}`
     return `${count} ${plural}`
+}
+
+export function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => void] {
+    const [pullSignal, setSignal] = createSignal({});
+
+    const read = createMemo(() => {
+        pullSignal();
+        return untrack(fn);
+    });
+
+    return [read, () => setSignal({})];
 }
