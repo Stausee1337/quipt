@@ -73,6 +73,8 @@ export function formatActorsArray(actors: string[]|null): FormattedString|null {
     return result;
 }
 
+const lighter2 = "rgb(167.4375, 167.4375, 167.4375)" ;
+
 export function formatMarkdown(markdown: string): FormattedString { 
     function* mapToken(tokens: MarkedToken[], style: JSX.CSSProperties|null = null): Generator<FormattedStringElement> {
         for (const token of tokens) {
@@ -81,7 +83,7 @@ export function formatMarkdown(markdown: string): FormattedString {
                     yield { style, string: token.text };
                     break;
                 case 'em':
-                    yield* mapToken(token.tokens as MarkedToken[], { ...style, 'font-style': 'italic' });
+                    yield* mapToken(token.tokens as MarkedToken[], { ...style, 'font-style': 'italic', 'color': lighter2 });
                     break;
                 case 'strong':
                     yield* mapToken(token.tokens as MarkedToken[], { ...style, 'font-weight': 'bold' });
