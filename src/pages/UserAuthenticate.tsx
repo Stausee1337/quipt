@@ -1,6 +1,6 @@
 import { JSX, createSignal, createMemo, onMount, createEffect } from 'solid-js';
 import { RouteSectionProps, A, useNavigate } from '@solidjs/router';
-import { useAuthentication, defaultRequests, auth } from '../backend';
+import { useAuthentication, defaultRequests, auth } from '../client';
 import { QuiptFormEvent, quiptForm, quiptValidator, validators, createReactiveFormData } from '../forms';
 import Logo from '../components/Quipt-Logo'
 

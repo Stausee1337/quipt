@@ -2,7 +2,7 @@ import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor
 import { useNavigate, A, useParams, Params } from '@solidjs/router';
 import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
-import { useAuthentication, Division, Script, TextCue } from '../backend';
+import { useAuthentication, Division, Script, TextCue } from '../client';
 import { ScriptContextObj, ScriptContext } from '../script';
 import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, pluralize, computeScriptInfo, createInvalidatable } from './common';
 import { renderCue as renderCueImpl } from './TextCueView';

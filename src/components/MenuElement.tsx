@@ -1,7 +1,7 @@
 import { Accessor, JSX, Setter, createContext, createDeferred, createEffect, createMemo, createRenderEffect, createSignal, getOwner, onCleanup, runWithOwner, untrack, useContext } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { A, useBeforeLeave } from "@solidjs/router";
-import { scripts, useAuthentication } from "../backend";
+import { scripts, useAuthentication } from "../client";
 import { ScriptContextObj } from "../script";
 import QuiptLogo from "./Quipt-Logo";
 import { DialogManager } from "../dialog";

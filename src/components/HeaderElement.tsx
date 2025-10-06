@@ -1,6 +1,6 @@
 import { getOwner } from "solid-js";
 import { DialogManager } from "../dialog";
-import { useAuthentication } from "../backend";
+import { useAuthentication } from "../client";
 import QuiptLogo from "./Quipt-Logo";
 import { MenuElement } from "./MenuElement";
 

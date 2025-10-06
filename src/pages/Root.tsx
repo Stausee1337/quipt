@@ -1,5 +1,5 @@
 import { JSX, onMount, useContext } from "solid-js";
-import { useAuthentication } from "../backend";
+import { useAuthentication } from "../client";
 import { Navigate } from "@solidjs/router";
 import { IsMobileContext } from "../App";
 import QuiptQ from "../components/Quipt-Q";

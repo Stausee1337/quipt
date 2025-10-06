@@ -3,7 +3,7 @@ import { createSignal, onCleanup, JSX, createEffect, createContext } from 'solid
 import { HeaderElement } from './components/HeaderElement';
 import { MenuElement } from './components/MenuElement';
 import { Router, Route, Navigate, useNavigate } from '@solidjs/router';
-import { AuthenticationContextObj, createAuthenticationContext, useAuthentication } from './backend';
+import { AuthenticationContextObj, createAuthenticationContext, useAuthentication } from './client';
 import { ScriptContextObj, createScriptContext } from './script';
 import { UserAuthenticate } from './pages/UserAuthenticate';
 import { Root } from './pages/Root';

@@ -1,6 +1,6 @@
 import { Accessor, JSX, createMemo, createSignal, untrack } from "solid-js";
 import { Lexer, MarkedToken } from 'marked';
-import { Division, Script, TextCue } from "../backend";
+import { Division, Script, TextCue } from "../client";
 import { decode } from 'html-entities';
 
 export const progressBarGreen = '#5d9948';

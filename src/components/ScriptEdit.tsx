@@ -4,7 +4,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { placeholder } from "@codemirror/view";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import { Division, Script, TextCue, TextCuePair } from '../backend';
+import { Division, Script, TextCue, TextCuePair } from '../client';
 import { ExposedComponentType, TextCueView, renderCue, renderCuePair as renderCuePairSimple } from './TextCueView';
 import { ScriptContextObj } from '../script';
 import { DivisionInfoComponent, DivisionInfoView } from './DivisionInfoView';
@@ -551,6 +551,8 @@ function ScriptCueView(
         script: Readonly<Script>
     }
 ): JSX.Element {
+    const scriptContext = useContext(ScriptContextObj)!;
+
     onMount(() => {
         document.title = `${props.script.name} - Quipt`
     })

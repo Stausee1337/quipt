@@ -1,7 +1,7 @@
 import { createSignal, JSX, createEffect, createContext, Component, createResource, createMemo } from 'solid-js';
 import { createComponent } from 'solid-js/web';
 import { useParams } from '@solidjs/router';
-import { AuthenticationContext, Division, Script } from './backend';
+import { AuthenticationContext, Division, Script } from './client';
 
 export const ScriptContextObj = createContext<ScriptContext>();
 

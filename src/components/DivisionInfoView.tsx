@@ -1,6 +1,6 @@
 /* @refresh reload */
 import { JSX, createMemo, createSignal, untrack } from "solid-js";
-import { Division } from '../backend';
+import { Division } from '../client';
 import { computeDivisionInfo, formatMarkdown, formatString, pluralize } from './common';
 import { ExposedComponent, bindComponent } from "../exposed-component";
 

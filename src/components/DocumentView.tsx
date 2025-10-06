@@ -1,7 +1,7 @@
 import { Accessor, JSX, Setter, batch, createEffect, createMemo, createSignal, onCleanup, onMount, untrack, useContext } from "solid-js";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
 import { createInvalidatable, pluralize } from "./common";
-import * as b from "../backend";
+import * as b from "../client";
 import { DialogManager } from "../dialog";
 import { renderCuePair } from "./TextCueView";
 import { DivisionInfoView } from "./DivisionInfoView";

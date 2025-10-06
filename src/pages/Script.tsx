@@ -4,7 +4,7 @@ import { ScriptViewer } from "../components/ScriptEdit";
 import { MobileScriptRedirect } from "../components/ScriptTraining";
 import PersonConfused from "../components/Person-Confused";
 import { IsMobileContext } from "../App";
-import { useAuthentication } from "../backend";
+import { useAuthentication } from "../client";
 import { StateScriptTransferObject } from "../components/NewScriptFileChooser";
 import { DocumentView } from "../components/DocumentView";
 
