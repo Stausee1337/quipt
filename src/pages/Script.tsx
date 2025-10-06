@@ -41,10 +41,10 @@ export function NewScriptRoute(): JSX.Element {
                     <Computer/>
                     <h2>Nutze deinen Computer!</h2>
                     <div class="text">
-                        Sktipte am Smartphone zu erstellen ist leider nicht mölich
+                        Skripte am Smartphone zu erstellen ist leider nicht mölich
                         <ul>
                             <li>Melde dich auf einem Desktop PC mit deinem Quipt Konto an</li>
-                            <li>Lande ein PDF in unseren interaktiven Editor hoch</li>
+                            <li>Lade ein PDF in unseren interaktiven Editor hoch</li>
                         </ul>
                     </div>
                 </div>

@@ -5,7 +5,7 @@ import { placeholder } from "@codemirror/view";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { Division, Script, TextCue, TextCuePair } from '../backend';
-import { ExposedComponentType, TextCueView, renderCue } from './TextCueView';
+import { ExposedComponentType, TextCueView, renderCue, renderCuePair as renderCuePairSimple } from './TextCueView';
 import { ScriptContextObj } from '../script';
 import { DivisionInfoComponent, DivisionInfoView } from './DivisionInfoView';
 import { useNavigate, useParams } from '@solidjs/router';
@@ -14,6 +14,7 @@ import { ScriptInfo, computeScriptInfo, createInvalidatable } from './common';
 import { ActorPill } from './ActorPill';
 import { ExposedComponent } from '../exposed-component';
 import { installContextMenuHandler, toggleMenu } from '../popover-menu';
+import { DialogManager } from '../dialog';
 
 const myTheme = EditorView.theme({}, {dark: true})
 
@@ -92,8 +93,38 @@ function CueEditMenu(props: {
     );
 }
 
+function DeleteCueDialog(
+    props: {
+        cuePair: Readonly<TextCuePair>,
+        closer: (res: undefined|true) => void
+    }
+): JSX.Element {
+
+    return (
+        <>
+            <button class="close" onClick={() => props.closer(undefined)}>
+                <i class="bi bi-x"/>
+            </button>
+            <h3>Einsatz Löschen?</h3>
+            <span>Möchten sie diesen Einsatz <strong>unwiederruflich</strong> löschen?</span>
+            <div class="single-cue-viewer">
+                { renderCuePairSimple(props.cuePair) } 
+            </div>
+            <div class="bottom-line">
+                <button class="secondary-button" onClick={() => props.closer(undefined)}>
+                    Abbrechen
+                </button>
+                <button class="red-button" onClick={() => props.closer(true)}>
+                    Löschen
+                </button>
+            </div>
+        </>
+    );
+}
+
 function EditableTextCue(
     props: {
+        cuePair: Readonly<TextCuePair>,
         textCue: Readonly<TextCue>|null,
         type: "request"|"response",
         idx: number
@@ -131,8 +162,15 @@ function EditableTextCue(
         return cue;
     });
 
-    function onDelete() {
-
+    async function onDelete() {
+        const res = await DialogManager.openDialog<true>(
+            ({closer}) => <DeleteCueDialog 
+                cuePair={props.cuePair}
+                closer={closer}/>,
+            owner
+        );
+        if (res === undefined) return;
+        editContext.deleteCue(props.idx);
     }
 
     function onEdit() {
@@ -204,9 +242,9 @@ function GapInjectHandle(
 function renderCuePair(textCuePair: Readonly<TextCuePair>, idx: number): JSX.Element {
     return (
         <>
-            <EditableTextCue textCue={textCuePair.request} idx={idx} type="request"/>
+            <EditableTextCue cuePair={textCuePair} textCue={textCuePair.request} idx={idx} type="request"/>
             <GapInjectHandle static/>
-            <EditableTextCue textCue={textCuePair.response} idx={idx} type="response"/>
+            <EditableTextCue cuePair={textCuePair} textCue={textCuePair.response} idx={idx} type="response"/>
             <GapInjectHandle data-index={idx}/>
         </>
     )
@@ -501,8 +539,9 @@ function EditableDivisionInfoView(
 interface ScriptEditContext {
     readonly scriptInfo: ScriptInfo;
     updateDescription(newDescription: string): void;
+    deleteCue(index: number): void;
+    insertCue(index: number, newCue: TextCuePair): void;
     updateCue(index: number, updater: (p: TextCuePair) => TextCuePair): void;
-    insertCue(index: number, newCue: TextCuePair) : void;
 }
 
 const ScriptEditContextObj = createContext<ScriptEditContext>();
@@ -543,7 +582,13 @@ function ScriptCueView(
                 );
                 const [, invalidate] = invalidatables[idx];
                 invalidate();
-            }
+            },
+            deleteCue(index) {
+                const division = script.divisions[idx];
+                division.textCues.splice(index, 1);
+                const [, invalidate] = invalidatables[idx];
+                invalidate(); 
+            },
         };
         return (
             <div class="script-divsion" data-division={idx}>

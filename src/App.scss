@@ -559,6 +559,21 @@ div.readable-content-view div.script-divsion {
   }
 }
 
+div#dialog-box:has(div.single-cue-viewer) {
+  width: 80rem;
+
+  div.single-cue-viewer {
+    padding: 1rem;
+    border-radius: 1rem;
+    background-color: $color-accent2;
+    border: 0.1rem solid $lighter1;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    z-index: 2;
+  }
+}
+
 @keyframes zoom-big {
   from {
     top: 50%;
