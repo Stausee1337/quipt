@@ -7,12 +7,13 @@ import { tags } from "@lezer/highlight";
 import { Division, Script, TextCue, TextCuePair } from '../backend';
 import { ExposedComponentType, TextCueView, renderCue } from './TextCueView';
 import { ScriptContextObj } from '../script';
-import { DivisionInfoView } from './DivisionInfoView';
+import { DivisionInfoComponent, DivisionInfoView } from './DivisionInfoView';
 import { useNavigate, useParams } from '@solidjs/router';
 import { insert } from 'solid-js/web';
 import { ScriptInfo, computeScriptInfo, createInvalidatable } from './common';
 import { ActorPill } from './ActorPill';
-import { reference } from '@popperjs/core';
+import { ExposedComponent } from '../exposed-component';
+import { installContextMenuHandler, toggleMenu } from '../popover-menu';
 
 const myTheme = EditorView.theme({}, {dark: true})
 
@@ -79,12 +80,27 @@ function EditCommitView(): JSX.Element {
     );
 }
 
+function CueEditMenu(props: {
+    onEdit: () => void,
+    onDelete: () => void,
+}): JSX.Element {
+    return (
+        <ul class="menu-options">
+            <li onClick={props.onDelete}>Löschen</li>
+            <li onClick={props.onEdit}>Bearbeiten</li>
+        </ul>
+    );
+}
+
 function EditableTextCue(
     props: {
         textCue: Readonly<TextCue>|null,
-        type: "request"|"response"
+        type: "request"|"response",
+        idx: number
     }
 ): JSX.Element {
+    const editContext = useContext(ScriptEditContextObj)!;
+
     const owner = getOwner()!;
     owner.context = { ...owner.context, [EditableCueContextObj.id]: closeEditor };
 
@@ -97,18 +113,29 @@ function EditableTextCue(
     const cueComponent = createMemo(() => {
         const cue = renderCue(textCue(), props.type);
 
+        installContextMenuHandler(
+            cue.cueElement,
+            "mouse",
+            CueEditMenu,
+            { onEdit, onDelete }
+        );
+
         onMount(() => {
-            cue.cueElement.addEventListener('click', onClick);
-        });
+            cue.cueElement.addEventListener('contextmenu', toggleMenu as any);
+        })
 
         onCleanup(() => {
-            cue.cueElement.removeEventListener('click', onClick);
-        });
+            cue.cueElement.removeEventListener('contextmenu', toggleMenu as any);
+        })
 
         return cue;
     });
 
-    function onClick() {
+    function onDelete() {
+
+    }
+
+    function onEdit() {
         if (revoker === undefined) {
             const comp = cueComponent();
             comp.cueElement.classList.add('editing');
@@ -129,10 +156,12 @@ function EditableTextCue(
             comp.cueElement.classList.remove('editing');
             comp.removeExtension(EditCommitView);
 
-            if (res === "accept")
-                setTextCue(p => ({ actors: p.actors, text: content() }));
-            else
+            if (res === "dismiss")
                 setContent(textCue().text ?? '');
+            else {
+                setTextCue(p => ({ actors: p.actors, text: content() }));
+                editContext.updateCue(props.idx, p => ({ ...p, [props.type]: textCue() }));
+            }
 
             revoker = undefined;
         }
@@ -144,11 +173,29 @@ function EditableTextCue(
 function GapInjectHandle(
     props: { static?: boolean } & JSX.HTMLAttributes<HTMLDivElement>
 ): JSX.Element {
+    const owner = getOwner();
+    const editContext = useContext(ScriptEditContextObj)!;
     const [, rest] = splitProps(props, [
         "static", "classList", "style", "children"
     ]);
+
+    let handle: HTMLDivElement;
+    async function onClick() {
+        const newCue = await createCueInserter(handle, editContext.scriptInfo, owner);
+        if (newCue === undefined) return;
+
+        editContext.insertCue(
+            newCue.index,
+            { 
+                request: newCue.request,
+                response: newCue.response,
+                previousScores: []
+            }
+        );
+    }
+
     return (
-        <div class="gap-inject-handle" classList={{ static: props.static }} {...rest}>
+        <div ref={handle} class="gap-inject-handle" onClick={onClick} classList={{ static: props.static }} {...rest}>
             { props.static ? null : <i class="bi bi-plus-circle"/> }
         </div>
     );
@@ -157,9 +204,9 @@ function GapInjectHandle(
 function renderCuePair(textCuePair: Readonly<TextCuePair>, idx: number): JSX.Element {
     return (
         <>
-            <EditableTextCue textCue={textCuePair.request} type="request"/>
+            <EditableTextCue textCue={textCuePair.request} idx={idx} type="request"/>
             <GapInjectHandle static/>
-            <EditableTextCue textCue={textCuePair.response} type="response"/>
+            <EditableTextCue textCue={textCuePair.response} idx={idx} type="response"/>
             <GapInjectHandle data-index={idx}/>
         </>
     )
@@ -303,7 +350,6 @@ interface CueInsertionContext {
 const CueInsertionContextObj = createContext<CueInsertionContext>();
 type InsertedCue = Omit<TextCuePair, "previousScores"> & {
     index: number,
-    division: number
 };
 
 function createCueInserter(
@@ -317,7 +363,6 @@ function createCueInserter(
     createRoot(dispose => {
         const divisionElement = handle.parentElement!;
         const index = Number(handle.dataset.index) + 1;
-        const division = Number(divisionElement.dataset.division);
 
         const context: CueInsertionContext = {
             cancel() {
@@ -328,13 +373,9 @@ function createCueInserter(
             },
             confirmWithCue(cue) {
                 dispose();
-                resolve({ ...cue, index, division });
+                resolve({ ...cue, index });
             },
         };
-
-        onCleanup(() => {
-            console.log('onCleanup');
-        })
 
         let insertContainer: HTMLDivElement;
         const content = (
@@ -349,12 +390,128 @@ function createCueInserter(
     return promise;
 }
 
+function DivisionEditMenu(
+    props: {
+        onEdit: () => void,
+        onRename: () => void
+    }
+): JSX.Element {
+    return (
+        <ul class="menu-options">
+            <li onClick={props.onEdit}>Bearbeiten</li>
+            <li onClick={props.onRename}>Umbenennen</li>
+        </ul>
+    );
+}
+
+function EditableDivisionInfoView(
+    props: {
+        division: Readonly<Division>
+    }
+): JSX.Element {
+    const editContext = useContext(ScriptEditContextObj)!;
+
+    const [division, setDivision] = createSignal<Division>(props.division);
+    const [isEditing, setIsEditing] = createSignal<boolean>(false);
+
+    const infoComponent = createMemo(() => { 
+        const component = (
+            <DivisionInfoView division={division()}>
+                {
+                    isEditing() && (
+                        <EditableCueContextObj.Provider value={closeEditor}>
+                            <EditCommitView/>
+                        </EditableCueContextObj.Provider>
+                    )
+                }
+            </DivisionInfoView>
+        ) as ExposedComponent<DivisionInfoComponent>;
+
+        installContextMenuHandler(
+            component.infoElement,
+            "mouse",
+            DivisionEditMenu,
+            { onEdit, onRename }
+        );
+
+        onMount(() => {
+            component.infoElement.addEventListener('contextmenu', toggleMenu as any);
+        })
+
+        onCleanup(() => {
+            component.infoElement.removeEventListener('contextmenu', toggleMenu as any);
+        })
+
+        return component;
+    });
+
+    let revoker: (() => void)|undefined;
+    const owner = getOwner()!;
+    const [content, setContent] = createSignal<string>(props.division.description);
+
+    createEffect(() => {
+        const component = infoComponent();
+        const editing = isEditing();
+
+        if (editing)
+            component.infoElement.classList.add('editing');
+        else
+            component.infoElement.classList.remove('editing');
+    })
+
+    function onRename() {
+
+    }
+
+    function onEdit() {
+        if (revoker === undefined) {
+            const component = infoComponent();
+
+            revoker = component.injectContent(
+                runWithOwner(owner, () =>
+                    <Editor content={content()} onChange={setContent} autofocus/>
+                )
+            );
+            setIsEditing(true);
+        }
+    }
+
+    function closeEditor(res: "dismiss"|"accept") {
+        if (revoker !== undefined) {
+
+            revoker();
+            setIsEditing(false);
+
+            if (res === "dismiss")
+                setContent(division().description);
+            else {
+                const data = window.structuredClone(division());
+                data.description = content();
+                setDivision(data);
+                editContext.updateDescription(content());
+            }
+
+            revoker = undefined;
+        }
+    }
+
+    return <>{ infoComponent() }</>;
+}
+
+interface ScriptEditContext {
+    readonly scriptInfo: ScriptInfo;
+    updateDescription(newDescription: string): void;
+    updateCue(index: number, updater: (p: TextCuePair) => TextCuePair): void;
+    insertCue(index: number, newCue: TextCuePair) : void;
+}
+
+const ScriptEditContextObj = createContext<ScriptEditContext>();
+
 function ScriptCueView(
     props: {
         script: Readonly<Script>
     }
 ): JSX.Element {
-    const owner = getOwner()!;
     onMount(() => {
         document.title = `${props.script.name} - Quipt`
     })
@@ -366,36 +523,36 @@ function ScriptCueView(
     const script = window.structuredClone(props.script);
     const scriptInfo = computeScriptInfo(script);
 
-    async function onClick(event: MouseEvent) {
-        const path = event.composedPath();
-        const handle = path.find(
-            t => (t instanceof HTMLDivElement)
-            && t.classList.contains('gap-inject-handle')) as HTMLDivElement|undefined;
-        if (handle === undefined) return;
-
-        const newCue = await createCueInserter(handle, scriptInfo, owner);
-        if (newCue === undefined) return;
-
-        const division = script.divisions[newCue.division];
-        division.textCues.splice(
-            newCue.index,
-            0,
-            { 
-                request: newCue.request,
-                response: newCue.response,
-                previousScores: []
-            }
-        );
-        invalidatables[newCue.division][1]();
-    }
-
     function renderDivision(division: Division, idx: number): JSX.Element {
+        const editContext: ScriptEditContext = {
+            scriptInfo,
+            updateDescription(newDescription) {
+                division.description = newDescription;
+            },
+            updateCue(index: number, updater: (p: TextCuePair) => TextCuePair) {
+                const prev = division.textCues[index];
+                const next = updater(prev);
+                division.textCues[index] = next;
+            },
+            insertCue(index: number, newCue: TextCuePair) {
+                const division = script.divisions[idx];
+                division.textCues.splice(
+                    index,
+                    0,
+                    newCue,
+                );
+                const [, invalidate] = invalidatables[idx];
+                invalidate();
+            }
+        };
         return (
-            <div class="script-divsion" onClick={onClick} data-division={idx}>
-                <h2>{ division.name }</h2>
-                <DivisionInfoView division={division}/>
-                <GapInjectHandle data-index={-1}/>
-                { division.textCues.map(renderCuePair) }
+            <div class="script-divsion" data-division={idx}>
+                <ScriptEditContextObj.Provider value={editContext}>
+                    <h2>{ division.name }</h2>
+                    <EditableDivisionInfoView division={division}/>
+                    <GapInjectHandle data-index={-1}/>
+                    { division.textCues.map(renderCuePair) }
+                </ScriptEditContextObj.Provider>
             </div>
         );
     }

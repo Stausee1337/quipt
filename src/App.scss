@@ -389,22 +389,25 @@ div.desktop-view {
   }
 }
 
-div.cue div.cm-scroller {
-  font-family: inherit;
+div.cue, div.division-info {
+  div.cm-scroller {
+    font-family: inherit;
+    line-height: inherit;
 
-  div.cm-content {
-    padding: 0;
-    
-    div.cm-line {
+    div.cm-content {
       padding: 0;
-      padding-left: 1px;
-      padding-right: 1px;
-    }
-  } 
+
+      div.cm-line {
+        padding: 0;
+        padding-left: 1px;
+        padding-right: 1px;
+      }
+    } 
+  }
 }
 
-div.cue-wrapper:has(div.edit-commit-container) {
-  div.cue.editing {
+div.cue-wrapper:has(div.edit-commit-container), div.division-info-wrapper:has(div.edit-commit-container) {
+  div.editing {
     box-shadow: 0 0 0 0.2rem $primary inset;
   }
 
@@ -785,7 +788,9 @@ div.script-view {
 
 div.division-info-wrapper {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 
   div.division-info {
     padding: 1rem;
