@@ -3,14 +3,14 @@ import { insert } from "solid-js/web";
 import Popper, { createPopper } from "@popperjs/core"
 
 export class ContextMenuEvent extends Event  {
-    constructor(public reference: HTMLElement) {
+    constructor(public reference: HTMLElement, public clientX: number, public clientY: number) {
         super('еееContextMenu');
     } 
 }
 
 function handleContextMenu<P extends Record<string, any>>(
     event: ContextMenuEvent,
-    placement: Popper.Placement,
+    placement: Popper.Placement|"mouse",
     Component: Component<P>,
     props: P,
     detatchedOwner?: typeof Owner
@@ -35,16 +35,32 @@ function handleContextMenu<P extends Record<string, any>>(
 
         function captureClick(event: MouseEvent) {
             const path = event.composedPath();
-            if (!(path.includes(reference) || path.includes(popoverMenu)))
+            if ((!path.includes(reference) || placement === "mouse") && !path.includes(popoverMenu))
                 dispose();
         }
 
         let popper: Popper.Instance|undefined;
         onMount(() => {
+            let virtualReference = placement === "mouse" ? {
+                getBoundingClientRect(): DOMRect {
+                    return {
+                        width: 0,
+                        height: 0,
+                        top: event.clientY,
+                        bottom: event.clientY,
+                        left: event.clientX,
+                        right: event.clientX,
+                        x: event.clientX,
+                        y: event.clientY,
+                    };
+                }
+            } : undefined;
             popper = createPopper(
-                reference,
+                virtualReference ?? reference,
                 popoverMenu,
-                { placement }
+                {
+                    placement: placement === "mouse" ? "right-start" : placement
+                }
             )
             document.documentElement.addEventListener('click', captureClick);
             target.addEventListener('еееContextMenu', dispose);
@@ -66,7 +82,7 @@ function handleContextMenu<P extends Record<string, any>>(
 
 export function installContextMenuHandler<P extends Record<string, any>>(
     target: HTMLElement,
-    placement: Popper.Placement,
+    placement: Popper.Placement | "mouse",
     Component: Component<P>,
     props: P
 ) {
@@ -80,7 +96,7 @@ export function installContextMenuHandler<P extends Record<string, any>>(
 export function toggleMenu(event: MouseEvent & { currentTarget: HTMLElement }) {
     event.preventDefault();
     const target = event.currentTarget;
-    const toggleMenu = new ContextMenuEvent(/* reference */ target);
+    const toggleMenu = new ContextMenuEvent(/* reference */ target, event.clientX, event.clientY);
     target.dispatchEvent(toggleMenu);
 }
 
