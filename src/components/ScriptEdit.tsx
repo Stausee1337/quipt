@@ -593,7 +593,7 @@ function ScriptCueView(
             },
         };
         return (
-            <div class="script-divsion" data-division={idx}>
+            <div class="script-divsion" id={`division${idx}`} data-division={idx}>
                 <ScriptEditContextObj.Provider value={editContext}>
                     <h2>{ division.name }</h2>
                     <EditableDivisionInfoView division={division}/>
@@ -608,17 +608,67 @@ function ScriptCueView(
         (division, idx) => createInvalidatable(() => renderDivision(division, idx)))
 
     const divisionElements = createMemo(() => invalidatables.map(([element]) => element()));
+    const [divisionIdx, setDivisionIdx] = createSignal<number>(0);
+    
+    let contentElement: HTMLDivElement;
+    const scrollingElement = document.querySelector("div.routing-contents")! as HTMLDivElement;
+    function onScroll() {
+        const rect = scrollingElement.getBoundingClientRect();
+        const element = document.elementFromPoint(
+            rect.left + contentElement.offsetWidth / 2,
+            rect.top + 10
+        );
+
+        let currentElement: Element|null = element;
+        while (currentElement !== null) {
+            if (currentElement.classList.contains('script-divsion')
+                    && (currentElement instanceof HTMLElement)) {
+                const divisionIdx = Number(currentElement.dataset.division)
+                setDivisionIdx(divisionIdx);
+                break;
+            }
+
+            currentElement = currentElement.parentElement;
+        }
+    }
+
+    function jumpToDivision(event: MouseEvent & { currentTarget: HTMLSpanElement }) {
+        const target = event.currentTarget;
+        const divisionIdx = Number(target.dataset.idx);
+        const element = document.getElementById(`division${divisionIdx}`)!;
+        scrollingElement.scrollTo({ top: element.offsetTop });
+    }
+
+    onMount(() => {
+        scrollingElement.addEventListener('scroll', onScroll);
+    })
+
+    onCleanup(() => {
+        scrollingElement.removeEventListener('scroll', onScroll);
+    })
 
     return (
-        <div class="desktop-view">
-            <h2 class="script-title">{ script.name }</h2>
-            <div class="grid-layout-filler overview">
-                <div class="division-overview">
-                </div>
-            </div>
+        <div ref={contentElement} class="desktop-view">
             <div class="grid-layout-filler cues">
                 <div class="readable-content-view">
+                    <h1 class="script-info">{ script.name }</h1>
                     { divisionElements() } 
+                </div>
+            </div>
+            <div class="grid-layout-filler overview">
+                <div class="division-overview">
+                    <h4>Abschnitte</h4>
+                    <section class="divisions">
+                        <ul>
+                            {
+                                script.divisions.map((d, idx) => 
+                                    <li classList={{ current: idx === divisionIdx() }} onClick={jumpToDivision} data-idx={idx}>
+                                        { d.name }
+                                    </li>
+                                )
+                            }
+                        </ul>
+                    </section>
                 </div>
             </div>
         </div>

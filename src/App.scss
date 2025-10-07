@@ -341,30 +341,27 @@ div.script-overview {
 
 $font-family-system: -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Helvetica,Arial,sans-serif;
 
+
+div.routing-contents:has(div.desktop-view) {
+  align-items: center;
+}
+
 div.routing-contents:has(div.desktop-view),
 div.routing-contents:has(div.document-view) {
   overflow-y: auto;
 }
 
-
 div.desktop-view {
-  flex: 1;
   display: grid;
-  grid-template-rows: 6rem 1fr;
-  grid-template-columns: 1fr auto;
-  grid-template-areas: 
-    "header header"
-    "cues overview";
+  grid-template-rows: 1fr;
+  grid-template-columns: minmax(auto, 94.8rem) 40rem;
+  grid-template-areas: "cues overview";
   gap: 0 1rem;
-
-  h2.script-title {
-    grid-area: header;
-    line-height: 6rem;
-  }
 
   div.grid-layout-filler {
     &.overview {
       grid-area: overview;
+      width: 40rem;
     }
     &.cues {
       grid-area: cues;
@@ -372,20 +369,81 @@ div.desktop-view {
   }
 
   div.readable-content-view {
-    margin: 0 auto;
-    max-width: 94.8rem;
     user-select: none;
+
+    h1.script-info {
+      margin: 0 1rem;
+      padding: 1rem 0;
+    }
+
+    h2 {
+      text-align: left;
+    }
+
+    h1, h2 {
+      position: relative;
+
+      &::after {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        bottom: 1rem;
+        content: "";  
+        border-bottom: 0.1rem solid $lighter1;
+      }
+    }
+
   }
 
   div.division-overview {
     border: 0.1rem solid $lighter1;
     border-radius: 1rem;
     grid-area: overview;
-    padding: 1rem;
     width: 40rem;
-    background-color: $color-accent1;
     position: sticky;
     top: 0;
+
+    h4 {
+      padding: .5rem 1rem;
+      &:not(:first-child) {
+        border-top: 0.1rem solid $lighter1;
+      }
+      &:not(:last-child) {
+        border-bottom: 0.1rem solid $lighter1;
+      }
+      background-color: $color-accent1;
+    }
+
+    section {
+      padding: .5rem 1rem;
+    }
+
+    section.divisions {
+      flex: 1 1 auto;      /* take remaining space */
+      min-height: 0;       /* 🔑 allow shrinking */
+      overflow-y: auto;
+
+      :is(ul) {
+        padding: 0;
+        margin: 0;
+        list-style-type: none;
+        user-select: none;
+
+        li {
+          padding: 0.5rem 1rem;
+          border-radius: 0.5rem;
+          cursor: pointer;
+
+          &:hover {
+            background-color: $color-accent1;
+          }
+
+          &.current {
+            background-color: $color-accent1;
+          }
+        }
+      }
+    }
   }
 }
 
