@@ -354,7 +354,7 @@ div.routing-contents:has(div.document-view) {
 div.desktop-view {
   display: grid;
   grid-template-rows: 1fr;
-  grid-template-columns: minmax(auto, 94.8rem) 40rem;
+  grid-template-columns: minmax(auto, calc(94.8rem + 2rem)) 40rem;
   grid-template-areas: "cues overview";
   gap: 0 1rem;
 
@@ -363,16 +363,14 @@ div.desktop-view {
       grid-area: overview;
       width: 40rem;
     }
-    &.cues {
-      grid-area: cues;
-    }
   }
 
   div.readable-content-view {
+    grid-area: cues;
     user-select: none;
+    margin: 0 1rem;
 
     h1.script-info {
-      margin: 0 1rem;
       padding: 1rem 0;
     }
 
@@ -398,10 +396,10 @@ div.desktop-view {
   div.division-overview {
     border: 0.1rem solid $lighter1;
     border-radius: 1rem;
-    grid-area: overview;
     width: 40rem;
     position: sticky;
     top: 0;
+    overflow: hidden;
 
     h4 {
       padding: .5rem 1rem;
@@ -412,6 +410,15 @@ div.desktop-view {
         border-bottom: 0.1rem solid $lighter1;
       }
       background-color: $color-accent1;
+    }
+
+    section.script-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      span.info {
+        color: $lighter2;
+      }
     }
 
     section {
@@ -535,7 +542,6 @@ div.cue:has(div.cm-editor) {
 
 div.readable-content-view div.script-divsion {
   gap: calc(2.5rem / 2);
-  margin: 0 1rem;
   position: relative;
 
   div.cue-insert-container {

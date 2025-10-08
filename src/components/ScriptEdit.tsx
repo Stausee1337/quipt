@@ -10,7 +10,7 @@ import { ScriptContextObj } from '../script';
 import { DivisionInfoComponent, DivisionInfoView } from './DivisionInfoView';
 import { useNavigate, useParams } from '@solidjs/router';
 import { insert } from 'solid-js/web';
-import { ScriptInfo, computeScriptInfo, createInvalidatable } from './common';
+import { ScriptInfo, computeScriptInfo, createInvalidatable, pluralize } from './common';
 import { ActorPill } from './ActorPill';
 import { ExposedComponent } from '../exposed-component';
 import { installContextMenuHandler, toggleMenu } from '../popover-menu';
@@ -649,14 +649,17 @@ function ScriptCueView(
 
     return (
         <div ref={contentElement} class="desktop-view">
-            <div class="grid-layout-filler cues">
-                <div class="readable-content-view">
-                    <h1 class="script-info">{ script.name }</h1>
-                    { divisionElements() } 
-                </div>
+            <div class="readable-content-view">
+                <h1 class="script-info">{ script.name }</h1>
+                { divisionElements() } 
             </div>
             <div class="grid-layout-filler overview">
                 <div class="division-overview">
+                    <h4>Info</h4>
+                    <section class="script-info">
+                        <span class="info">{ pluralize(scriptInfo.textCues, 'Einsatz', 'Einsätze') }</span>
+                        <span class="info">{ scriptInfo.actors.join(', ') } Spieler</span>
+                    </section>
                     <h4>Abschnitte</h4>
                     <section class="divisions">
                         <ul>
