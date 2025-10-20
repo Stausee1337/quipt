@@ -6,7 +6,7 @@ import (
 	"github.com/stausee1337/quipt/pkg/config"
 )
 
-//go:generate protoc --go_opt=paths=source_relative --go_out=../../protos --proto_path=../../../protos ../../../protos/main.proto ../../../protos/auth.proto ../../../protos/scripts.proto
+//go:generate go run github.com/stausee1337/qrpc --output-dir ..\..\internal\qmodel ..\..\..\qdefs\script.rpc ..\..\..\qdefs\user.rpc
 func main() {
 	cfg := config.Load();
 

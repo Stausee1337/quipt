@@ -1,0 +1,82 @@
+import { schemas as $s, runtime as $r } from 'qrpc-js';
+
+export const TextCue = $s.Record('TextCue', {
+  actors: $s.Array($s.String),
+  text: $s.String,
+});
+export type TextCue = $s.TypeOf<typeof TextCue>;
+
+export const User = $s.Record('User', {
+  uuid: $s.UUID,
+  username: $s.String,
+  verified: $s.Boolean,
+});
+export type User = $s.TypeOf<typeof User>;
+
+export const AuthError = $s.Enum(
+  'AuthError',
+  'USERNAME_MALFORMED',
+  'WEAK_PASSWORD',
+  'INVALID_CREDENTIALS',
+  'USERNAME_ALREADY_EXISTS',
+  'TOKEN_EXPIRED',
+  'UNAUTHORIZED',
+);
+export type AuthError = $s.TypeOf<typeof AuthError>;
+
+export const AuthSuccess = $s.Record('AuthSuccess', {
+  userId: $s.UUID,
+  accessToken: $s.String,
+  refreshToken: $s.String,
+  expiresAt: $s.Number,
+});
+export type AuthSuccess = $s.TypeOf<typeof AuthSuccess>;
+
+export const TextCuePair = $s.Record('TextCuePair', {
+  request: $s.Optional(TextCue),
+  response: TextCue,
+  previousScores: $s.Array($s.UInt),
+});
+export type TextCuePair = $s.TypeOf<typeof TextCuePair>;
+
+export const Division = $s.Record('Division', {
+  name: $s.String,
+  description: $s.String,
+  textCues: $s.Array(TextCuePair),
+  previousTotals: $s.Array($s.UInt),
+});
+export type Division = $s.TypeOf<typeof Division>;
+
+export const Script = $s.Record('Script', {
+  uuid: $s.UUID,
+  name: $s.String,
+  createdAt: $s.Number,
+  divisions: $s.Array(Division),
+});
+export type Script = $s.TypeOf<typeof Script>;
+
+export const ScriptService = $r.service('script', {
+  list: $r.query('list', $s.Array(Script)),
+  get: $r.query('get', { uuid: $s.UUID }, Script),
+  saveScores: $r.mutation('saveScores', {
+    scriptId: $s.UUID,
+    divisionIdx: $s.UInt,
+    newScores: $s.Array($s.UInt),
+  }),
+  rename: $r.mutation('rename', { uuid: $s.UUID, name: $s.String }),
+});
+
+export const AuthService = $r.service('auth', {
+  signin: $r.mutation(
+    'signin',
+    { username: $s.String, password: $s.String },
+    $s.Union(AuthSuccess, AuthError),
+  ),
+  singup: $r.mutation(
+    'singup',
+    { username: $s.String, password: $s.String },
+    $s.Union(AuthSuccess, AuthError),
+  ),
+});
+
+export const UserService = $r.service('user', { get: $r.query('get', User) });

@@ -7,7 +7,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
+	"github.com/stausee1337/qrpc/qrpc"
 	"github.com/stausee1337/quipt/internal/handler"
+	"github.com/stausee1337/quipt/internal/qmodel"
 	"github.com/stausee1337/quipt/internal/service"
 	"github.com/stausee1337/quipt/pkg/config"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -25,6 +27,9 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 	authService := service.NewAuthService(cfg, redis)
 	userService := service.NewUserService(db)
 	scriptsService := service.NewScriptsService(db)
+
+	scriptService := qmodel.CreateScriptService(nil, nil)
+	qsrv := qrpc.NewRPCServer(scriptService)
 
 	r.Use(loggingMiddleware);
 	r.Use(corsMiddleware(cfg));
@@ -46,6 +51,7 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 	r.Post("/create-script", scriptsHandler.HandleNew)
 	r.Post("/rename-script", scriptsHandler.HandleRename)
 	r.Post("/delete-script", scriptsHandler.HandleDelete)
+	r.Mount("/qrpc", qsrv)
 
 	return &Server{router: r};
 }

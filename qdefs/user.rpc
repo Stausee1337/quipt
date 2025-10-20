@@ -1,0 +1,32 @@
+
+record User {
+    uuid: UUID;
+    username: string;
+    verified: bool;
+}
+
+enum AuthError {
+  USERNAME_MALFORMED,
+  WEAK_PASSWORD,
+  INVALID_CREDENTIALS,
+  USERNAME_ALREADY_EXISTS,
+  TOKEN_EXPIRED,
+  UNAUTHORIZED,
+}
+
+record AuthSuccess {
+    userId: UUID;
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: float;
+}
+
+service auth {
+    mutation signin(username: string, password: string): AuthSuccess|AuthError;
+    mutation singup(username: string, password: string): AuthSuccess|AuthError;
+}
+
+service user {
+    query get(): User;
+}
+
