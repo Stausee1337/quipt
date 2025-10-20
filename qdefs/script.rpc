@@ -33,5 +33,7 @@ service script {
         newScores: uint[],
     ): empty;
     mutation rename(uuid: UUID, name: string): empty;
+    mutation create(script: Script): UUID;
+    mutation delete(uuid: UUID): empty;
 }
 

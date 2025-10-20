@@ -1,18 +1,19 @@
 import { JSX, createSignal, createMemo, onMount, createEffect } from 'solid-js';
 import { RouteSectionProps, A, useNavigate } from '@solidjs/router';
-import { useAuthentication, defaultRequests, auth } from '../client';
+import { useAuthentication, authService } from '../client';
 import { QuiptFormEvent, quiptForm, quiptValidator, validators, createReactiveFormData } from '../forms';
 import Logo from '../components/Quipt-Logo'
+import { AuthError } from '../schemas';
 
-function convertErrorToMessage(error: auth.AuthError): string {
-    switch (error.code) {
-        case auth.AuthErrorCode.INVALID_CREDENTIALS:
+function convertErrorToMessage(error: AuthError): string {
+    switch (error) {
+        case 'INVALID_CREDENTIALS':
             return 'Benuzername order Passwort ist falsch'
-        case auth.AuthErrorCode.USERNAME_MALFORMED:
+        case 'USERNAME_MALFORMED':
             return 'Benuzername kann nicht vergeben werden'
-        case auth.AuthErrorCode.USERNAME_ALREADY_EXISTS:
+        case 'USERNAME_ALREADY_EXISTS':
             return 'Der Benuzername exsitiert bereits'
-        case auth.AuthErrorCode.WEAK_PASSWORD:
+        case 'WEAK_PASSWORD':
             return 'Das Passwort ist zu schwach'
     }
     throw 'unreachable'
@@ -51,18 +52,18 @@ export function UserAuthenticate(
         setLoading(true);
         currentFormData.blur();
 
-        const endpoint: "/auth/signin"|"/auth/signup" = props.location.pathname === '/signin'
-            ? "/auth/signin"
-            : "/auth/signup";
-        const [success, error] = await defaultRequests.post(endpoint, {
+        const endpoint = props.location.pathname === '/signin'
+            ? authService.signin
+            : authService.signup;
+        const result = await endpoint({
             username: e.formData['username'] ?? '',
             password: e.formData['password'] ?? ''
         })
 
         setLoading(false);
 
-        if (error !== undefined) {
-            currentFormData.postErrorMessage(convertErrorToMessage(error));
+        if (AuthError.isSchema(result)) {
+            currentFormData.postErrorMessage(convertErrorToMessage(result));
             const input = props.location.pathname === '/signin'
                 ? 'password'
                 : 'username';
@@ -71,7 +72,7 @@ export function UserAuthenticate(
             return;
         }
 
-        authentication.loginUser(success);
+        authentication.loginUser(result);
         navigate('/');
     }
 

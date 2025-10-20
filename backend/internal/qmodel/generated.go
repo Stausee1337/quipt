@@ -16,6 +16,8 @@ type ScriptServiceQueries interface {
 type ScriptServiceMutation interface {
 	SaveScores(ctx context.Context, scriptId uuid.UUID, divisionIdx uint, newScores []uint) error
 	Rename(ctx context.Context, uuid uuid.UUID, name string) error
+	Create(ctx context.Context, script Script) (uuid.UUID, error)
+	Delete(ctx context.Context, uuid uuid.UUID) error
 }
 
 func CreateScriptService(queries ScriptServiceQueries, mutations ScriptServiceMutation) *qrpc.Service {
@@ -84,6 +86,31 @@ func еееResolveScriptServiceMutation(p ScriptServiceMutation, mutation string
 
 			return nil
 		})
+	case "create":
+		type input struct {
+			Script Script `json:"script"`
+		}
+		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
+			data, err := p.Create(ctx, args.Script)
+			if err != nil {
+				return qrpc.WrapError(err)
+			}
+
+			return qrpc.WrapData(data)
+
+		})
+	case "delete":
+		type input struct {
+			Uuid uuid.UUID `json:"uuid"`
+		}
+		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
+			err := p.Delete(ctx, args.Uuid)
+			if err != nil {
+				return qrpc.WrapError(err)
+			}
+
+			return nil
+		})
 	default:
 		return nil
 	}
@@ -94,10 +121,15 @@ type AuthServiceMutation interface {
 		Variant1 *AuthSuccess `json:"variant1,omitempty"`
 		Variant2 *AuthError   `json:"variant2,omitempty"`
 	}, error)
-	Singup(ctx context.Context, username string, password string) (struct {
+	Signup(ctx context.Context, username string, password string) (struct {
 		Variant1 *AuthSuccess `json:"variant1,omitempty"`
 		Variant2 *AuthError   `json:"variant2,omitempty"`
 	}, error)
+	Refresh(ctx context.Context, refreshToken string) (struct {
+		Variant1 *AuthSuccess `json:"variant1,omitempty"`
+		Variant2 *AuthError   `json:"variant2,omitempty"`
+	}, error)
+	Logout(ctx context.Context, refreshToken string) error
 }
 
 func CreateAuthService(mutations AuthServiceMutation) *qrpc.Service {
@@ -123,19 +155,44 @@ func еееResolveAuthServiceMutation(p AuthServiceMutation, mutation string) ht
 			return qrpc.WrapData(data)
 
 		})
-	case "singup":
+	case "signup":
 		type input struct {
 			Username string `json:"username"`
 			Password string `json:"password"`
 		}
 		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
-			data, err := p.Singup(ctx, args.Username, args.Password)
+			data, err := p.Signup(ctx, args.Username, args.Password)
 			if err != nil {
 				return qrpc.WrapError(err)
 			}
 
 			return qrpc.WrapData(data)
 
+		})
+	case "refresh":
+		type input struct {
+			RefreshToken string `json:"refreshToken"`
+		}
+		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
+			data, err := p.Refresh(ctx, args.RefreshToken)
+			if err != nil {
+				return qrpc.WrapError(err)
+			}
+
+			return qrpc.WrapData(data)
+
+		})
+	case "logout":
+		type input struct {
+			RefreshToken string `json:"refreshToken"`
+		}
+		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
+			err := p.Logout(ctx, args.RefreshToken)
+			if err != nil {
+				return qrpc.WrapError(err)
+			}
+
+			return nil
 		})
 	default:
 		return nil

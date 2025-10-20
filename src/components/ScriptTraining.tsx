@@ -1,8 +1,9 @@
-import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, useContext, createMemo, Switch, Match, untrack, getOwner, runWithOwner } from 'solid-js';
+import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, useContext, createMemo, Switch, Match, getOwner, runWithOwner } from 'solid-js';
 import { useNavigate, A, useParams, Params } from '@solidjs/router';
 import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
-import { useAuthentication, Division, Script, TextCue } from '../client';
+import { useAuthentication } from '../client';
+import { Division, Script, TextCue } from '../schemas';
 import { ScriptContextObj, ScriptContext } from '../script';
 import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, pluralize, computeScriptInfo, createInvalidatable } from './common';
 import { renderCue as renderCueImpl } from './TextCueView';
@@ -10,7 +11,7 @@ import { DivisionInfoView } from './DivisionInfoView';
 import { ConfidenceReportView, ConfidenceReporter } from './ConfidenceReportView';
 
 function renderCue(
-    textCue: Readonly<TextCue> | null,
+    textCue: TextCue | undefined,
     type: "request"|"response",
     last: Accessor<boolean>,
     confidenceReport: Accessor<ConfidenceReporter|undefined>,
@@ -159,7 +160,7 @@ function TrainingRunView(
     const [currentBarTotal, setCurrentBarTotal] = createSignal<number>(maxScore);
 
     const root = document.querySelector("div.routing-contents")! as HTMLElement;
-    let view: HTMLDivElement;
+    let view: HTMLDivElement = undefined!;
 
     let scrollLocked = false;
     function append() {

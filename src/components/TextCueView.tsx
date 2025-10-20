@@ -1,7 +1,8 @@
 /* @refresh reload */
 import { Component, JSX, createMemo, createSignal, getOwner, runWithOwner } from "solid-js";
 import { formatActorsArray, formatMarkdown, formatString } from "./common";
-import { FormattedString, TextCue, TextCuePair } from "../client";
+import { FormattedString } from "../client";
+import { TextCue, TextCuePair } from "../schemas"
 import { ExposedComponent, bindComponent } from "../exposed-component";
 import { untrack } from "solid-js";
 
@@ -83,7 +84,7 @@ export function TextCueView(props: TextCueViewProps): ExposedComponentType {
 }
 
 export function renderCue(
-    textCue: Readonly<TextCue> | null,
+    textCue: TextCue | undefined,
     type: "request"|"response",
 ): ExposedComponentType {
     const cueData = type === "request" 
@@ -97,7 +98,7 @@ export function renderCue(
     ) as ExposedComponentType;
 }
 
-export function renderCuePair(textCuePair: Readonly<TextCuePair>): JSX.Element {
+export function renderCuePair(textCuePair: TextCuePair): JSX.Element {
     return (
         <>
             { renderCue(textCuePair.request, "request") }

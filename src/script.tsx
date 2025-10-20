@@ -1,7 +1,9 @@
 import { createSignal, JSX, createEffect, createContext, Component, createResource, createMemo } from 'solid-js';
 import { createComponent } from 'solid-js/web';
 import { useParams } from '@solidjs/router';
-import { AuthenticationContext, Division, Script } from './client';
+import { schemas } from 'qrpc-js';
+import { AuthenticationContext } from './client';
+import { Script } from './schemas';
 
 export const ScriptContextObj = createContext<ScriptContext>();
 
@@ -13,14 +15,14 @@ export interface ScriptContext {
         onError: () => void
     ): JSX.Element;
     commitNewConfidences(divisionIdx: number, newScores: number[]): void;
-    deleteScript(uuid: string): void;
-    renameScript(uuid: string, name: string): void;
+    deleteScript(uuid: schemas.UUID): void;
+    renameScript(uuid: schemas.UUID, name: string): void;
 }
 
 export function createScriptContext(authenticationContext: AuthenticationContext): ScriptContext {
     const location = useParams();
     let notValidatedScriptId: string|undefined = location.uuid;
-    const [currentScriptId, setCurrentScriptId] = createSignal<string|undefined>(undefined);
+    const [currentScriptId, setCurrentScriptId] = createSignal<schemas.UUID|undefined>(undefined);
     const scriptCache: Map<string, Script> = new Map();
 
     const [currentScript, { refetch, mutate }] = createResource(async () => {
@@ -34,8 +36,11 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             setCurrentScriptId(currentScript.uuid);
             return currentScript;
         }
-        const [script, error] = await authenticationContext.requests!.getParametrized("/script", currentId)
-        if (error !== undefined) {
+
+        let script: Script;
+        try {
+            script = await authenticationContext.services!.script.get({ uuid: currentId })
+        } catch (error) {
             notValidatedScriptId = undefined;
             setCurrentScriptId(undefined);
             throw `could not get script: ${error}`;
@@ -98,16 +103,19 @@ export function createScriptContext(authenticationContext: AuthenticationContext
 
             mutate(newScript);
 
-            const err = await authenticationContext.requests!
-                .post("/commit-scores", { scriptId: script.uuid, divisionIdx, newScores });
+            const err = await authenticationContext.services!
+                .script.saveScores({ scriptId: script.uuid, divisionIdx, newScores });
             if (err !== undefined)
                 console.error(err);
         },
         async createNewScript(script) {
             const newScript = window.structuredClone(script);
-            const [uuid, error] = await authenticationContext.requests!.post("/create-script", script);
-            if (error !== undefined)
+            let uuid: schemas.UUID;
+            try {
+                uuid = await authenticationContext.services!.script.create({ script });
+            } catch (error) {
                 throw `could not create new script: ${error}`;
+            }
             const createdAt = Date.now();
 
             newScript.uuid = uuid;
@@ -120,18 +128,21 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             return newScript;
         },
         async deleteScript(uuid) {  
-            const error = await authenticationContext.requests!.post("/delete-script", uuid);
-            if (error !== undefined)
-                throw `could not rename script: ${error}`;
+            try {
+                await authenticationContext.services!.script.delete({ uuid });
+            } catch (error) {
+                throw `could not delete script: ${error}`;
+            }
             const [_, { refetch }] = authenticationContext.requests!.getCached("/list-scripts");
             refetch();
             scriptCache.delete(uuid);
         },
         async renameScript(uuid, name) {
-            const error = await authenticationContext.requests!.post(
-                "/rename-script", { scriptId: uuid, newName: name });
-            if (error !== undefined)
+            try {
+                await authenticationContext.services!.script.rename({ uuid, name });
+            } catch (error) {
                 throw `could not rename script: ${error}`;
+            }
             const [_, { refetch }] = authenticationContext.requests!.getCached("/list-scripts");
             refetch();
             const script = scriptCache.get(uuid);
