@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -159,8 +158,8 @@ func (s* AuthService) SignoutUserFromClient(ctx context.Context, refreshToken st
 	return nil
 }
 
-func (s *AuthService) GetLoggedInUser(r *http.Request) *UserClaims {
-	claims, ok := r.Context().Value(userCtxKey).(*UserClaims)
+func (s *AuthService) GetLoggedInUser(ctx context.Context) *UserClaims {
+	claims, ok := ctx.Value(userCtxKey).(*UserClaims)
 	if !ok {
 		return nil;
 	}

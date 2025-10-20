@@ -12,7 +12,6 @@ import (
 
 	"github.com/stausee1337/quipt/internal/qmodel"
 	"github.com/stausee1337/quipt/internal/repository"
-	"github.com/stausee1337/quipt/protos"
 )
 
 const bcryptCost = 14;
@@ -119,19 +118,14 @@ func (s *UserService) Signup(
 	}, nil;
 }
 
-func (s *UserService) GetUserById(ctx context.Context, uuidString string) (*protos.User, error) {
-	parsedUuid, err := uuid.Parse(uuidString)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse user uuid %q: %w", uuidString, err)
-	}
-
-	user, err := s.repo.FindUserById(ctx, parsedUuid)
+func (s *UserService) GetUserById(ctx context.Context, userUuid uuid.UUID) (*qmodel.User, error) {
+	user, err := s.repo.FindUserById(ctx, userUuid)
 	if err != nil {
 		return nil, err
 	}
 
-	return &protos.User {
-		Id: uuid.UUID(user.Uuid).String(),
+	return &qmodel.User {
+		Uuid: uuid.UUID(user.Uuid),
 		Username: user.Username,
 		Verified: user.Verified,
 	}, nil;

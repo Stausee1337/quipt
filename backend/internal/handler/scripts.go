@@ -25,7 +25,7 @@ func NewScriptsHanlder(
 }
 
 func (h *ScriptsHandler) HandleList(w http.ResponseWriter, r *http.Request) {
-	claims := h.auth.GetLoggedInUser(r)
+	claims := h.auth.GetLoggedInUser(r.Context())
 	if claims == nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -47,7 +47,7 @@ func (h *ScriptsHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ScriptsHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
-	claims := h.auth.GetLoggedInUser(r)
+	claims := h.auth.GetLoggedInUser(r.Context())
 	if claims == nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -87,7 +87,7 @@ func (h *ScriptsHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ScriptsHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
-	claims := h.auth.GetLoggedInUser(r)
+	claims := h.auth.GetLoggedInUser(r.Context())
 	if claims == nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -134,7 +134,7 @@ func (h *ScriptsHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ScriptsHandler) HandleNew(w http.ResponseWriter, r *http.Request) {
-	claims := h.auth.GetLoggedInUser(r)
+	claims := h.auth.GetLoggedInUser(r.Context())
 	if claims == nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -181,7 +181,7 @@ func (h *ScriptsHandler) HandleNew(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ScriptsHandler) HandleRename(w http.ResponseWriter, r *http.Request) {
-	claims := h.auth.GetLoggedInUser(r)
+	claims := h.auth.GetLoggedInUser(r.Context())
 	if claims == nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -229,7 +229,7 @@ func (h *ScriptsHandler) HandleRename(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ScriptsHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
-	claims := h.auth.GetLoggedInUser(r)
+	claims := h.auth.GetLoggedInUser(r.Context())
 	if claims == nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
