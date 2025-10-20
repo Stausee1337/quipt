@@ -9,11 +9,10 @@ import (
 
 type UserQueryHandler struct {
 	user *service.UserService
-	auth *service.AuthService
 }
 
-func NewUserHandler(user *service.UserService, auth *service.AuthService) *UserQueryHandler {
-	return &UserQueryHandler{user, auth}
+func NewUserHandler(user *service.UserService) *UserQueryHandler {
+	return &UserQueryHandler{user}
 }
 
 func (h *UserQueryHandler) Get(ctx context.Context) (*qmodel.User, error) {

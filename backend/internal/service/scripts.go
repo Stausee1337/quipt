@@ -3,25 +3,32 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"slices"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stausee1337/quipt/internal/qmodel"
 	"github.com/stausee1337/quipt/internal/repository"
-	"github.com/stausee1337/quipt/protos"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type ScriptError struct {
-	Code	protos.ScriptErrorCode
-	Message	string
+	message	string
 }
 
-func (w *ScriptError) Error() string {
-	return w.Message;
+func makeError(message string) error {
+	return ScriptError{ message }
 }
+
+func (w ScriptError) Error() string {
+	return w.message;
+}
+
+var errUnknownScript = makeError("unknown script")
+var errInvalidScoreData = makeError("invalid score data")
+var errInvalidScriptName = makeError("invalid score data")
+var errDivisionOutOfBounds = makeError("division out of bounds")
 
 type ScriptsService struct {
 	repo *repository.ScriptsRepo
@@ -33,67 +40,79 @@ func NewScriptsService(db *mongo.Database) *ScriptsService {
 	};
 }
 
-func (s *ScriptsService) GetAllScripts(
-	ctx context.Context,
-	userUuid string,
-) ([]*protos.Script, error) {
-	parsedUserId, err := uuid.Parse(userUuid)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
-	}
-
-	rawScripts, err := s.repo.FindScriptsForOnwer(ctx, parsedUserId);
+func (s *ScriptsService) GetAll(ctx context.Context, userUuid uuid.UUID) ([]qmodel.Script, error) {
+	rawScripts, err := s.repo.FindScriptsForOnwer(ctx, userUuid);
 	if err != nil {
 		return nil, err
 	}
 
-	var scripts []*protos.Script
+	var scripts []qmodel.Script
 	for _, rawScript := range rawScripts {
-		scripts = append(scripts, &protos.Script {
-			Uuid: uuid.UUID(rawScript.Uuid).String(),
+		scripts = append(scripts, qmodel.Script {
+			Uuid: uuid.UUID(rawScript.Uuid),
 			Name: rawScript.Name,
 			Divisions: nil,
-			CreatedAt: rawScript.CreatedAt,
+			CreatedAt: float64(rawScript.CreatedAt),
 		});
 	}
 
 	return scripts, nil
 }
 
-func (s *ScriptsService) GetScriptById(
+func (s *ScriptsService) AddNew(
 	ctx context.Context,
-	userUuid string,
-	uuidString string,
-) (*protos.Script, error) {
-	parsedUserId, err := uuid.Parse(userUuid)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
+	userUuid uuid.UUID,
+	script qmodel.Script,
+) (*uuid.UUID, error) {
+	if len(script.Name) == 0 {
+		return nil, errInvalidScriptName
 	}
 
-	parsedUuid, err := uuid.Parse(uuidString)
+	repoScript, repoDivisions := transformProtoScript(userUuid, &script);
+
+	divisionIds, err := s.repo.InsertNewDivisions(ctx, repoDivisions)
 	if err != nil {
-		return nil, &ScriptError {
-			Code: protos.ScriptErrorCode_ID_MALFORMED,
-			Message: "malformed id",
-		}
+		return nil, err
+	}
+	repoScript.Divisions = divisionIds;
+
+	err = s.repo.InsertNewScript(ctx, repoScript)
+	if err != nil {
+		return nil, err
 	}
 
-	script, err := s.repo.FindScriptById(ctx, parsedUuid)
+	scriptUuid := uuid.UUID(repoScript.Uuid)
+	return &scriptUuid, nil
+}
+
+func (s *ScriptsService) lookupByIdAndOwner(
+	ctx context.Context,
+	userUuid uuid.UUID,
+	scriptUuid uuid.UUID,
+) (*repository.Script, error) {
+	script, err := s.repo.FindScriptById(ctx, scriptUuid)
 	if errors.Is(err, repository.ErrUnknownScript) {
-		return nil, &ScriptError {
-			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
-			Message: "unknown script",
-		}
+		return nil,	errUnknownScript 
 	} else if err != nil {
 		return nil, err
 	}
 
-	if script.Owner != parsedUserId {
+	if script.Owner != userUuid {
 		// the user doesn't own the script
-		return nil, &ScriptError {
-			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
-			Message: "unknown script",
-		}
+		return nil, errUnknownScript
+	}
+
+	return script, nil
+}
+
+func (s *ScriptsService) GetById(
+	ctx context.Context,
+	userUuid uuid.UUID,
+	scriptUuid uuid.UUID,
+) (*qmodel.Script, error) {
+	script, err := s.lookupByIdAndOwner(ctx, userUuid, scriptUuid)
+	if err != nil {
+		return nil, err
 	}
 
 	repoDivisions, err := s.repo.QueryAllDivisionObjects(ctx, script.Divisions)
@@ -103,126 +122,68 @@ func (s *ScriptsService) GetScriptById(
 
 	divisions := transformRepoDivisions(repoDivisions);
 
-	return &protos.Script {
-		Uuid: uuid.UUID(script.Uuid).String(),
+	return &qmodel.Script {
+		Uuid: uuid.UUID(script.Uuid),
 		Name: script.Name,
 		Divisions: divisions,
 	}, nil
 }
 
-func (s *ScriptsService) UpdateScriptDivisionScores(
+func (s *ScriptsService) AddDivisionScores(
 	ctx context.Context,
-	userUuid string,
-	request *protos.DivisionScoreUpdate,
+	userUuid uuid.UUID,
+	scriptUuid uuid.UUID,
+	divisionIdx uint,
+	newScores []uint,
 ) error {
-	if slices.Contains(request.NewScores, 0) {
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_INVALID_SCORE_DATA,
-			Message: "invalid score data",
-		}
+	if slices.Contains(newScores, 0) {
+		return errInvalidScoreData
 	}
 
-	parsedUserId, err := uuid.Parse(userUuid)
+	script, err := s.lookupByIdAndOwner(ctx, userUuid, scriptUuid)
 	if err != nil {
-		return fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
-	}
-
-	parsedUuid, err := uuid.Parse(request.ScriptId)
-	if err != nil {
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_ID_MALFORMED,
-			Message: "malformed id",
-		}
-	}
-
-	script, err := s.repo.FindScriptById(ctx, parsedUuid)
-	if errors.Is(err, repository.ErrUnknownScript) {
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
-			Message: "unknown script",
-		}
-	} else if err != nil {
 		return err
 	}
 
-	if script.Owner != parsedUserId {
-		// the user doesn't own the script
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
-			Message: "unknown script",
-		}
+	if divisionIdx >= uint(len(script.Divisions)) {
+		return errDivisionOutOfBounds
 	}
 
-	if request.DivisionIdx >= uint32(len(script.Divisions)) {
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_DIVISION_OUT_OF_BOUNDS,
-			Message: "division out of bounds",
-		}
-	}
-
-	divisionId := script.Divisions[request.DivisionIdx];
+	divisionId := script.Divisions[divisionIdx];
 
 	division, err := s.repo.LoadDivision(ctx, divisionId)
 	if err != nil {
 		return err
 	}
 
-	if len(division.TextCues) != len(request.NewScores) {
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_INVALID_SCORE_DATA,
-			Message: "invalid score data",
-		}
+	if len(division.TextCues) != len(newScores) {
+		return errInvalidScoreData
 	}
 
-	err = s.repo.UpdateTextCueScores(ctx, divisionId, request.NewScores)
+	err = s.repo.UpdateTextCueScores(
+		ctx,
+		divisionId,
+		mapSlice(newScores, func(x uint) uint32 { return uint32(x) }),
+	)
 	return err
 }
 
-func (s *ScriptsService) RenameScript(
+func (s *ScriptsService) Rename(
 	ctx context.Context,
-	userUuid string,
-	scriptUuid string,
+	userUuid uuid.UUID,
+	scriptUuid uuid.UUID,
 	newName string,
 ) error {
 	if len(newName) == 0 {
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_INVALID_SCRIPT_NAME,
-			Message: "invalid script name",
-		}
+		return errInvalidScriptName
 	}
 
-	parsedUserId, err := uuid.Parse(userUuid)
+	script, err := s.lookupByIdAndOwner(ctx, userUuid, scriptUuid)
 	if err != nil {
-		return fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
-	}
-
-	parsedUuid, err := uuid.Parse(scriptUuid)
-	if err != nil {
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_ID_MALFORMED,
-			Message: "malformed id",
-		}
-	}
-
-	script, err := s.repo.FindScriptById(ctx, parsedUuid)
-	if errors.Is(err, repository.ErrUnknownScript) {
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
-			Message: "unknown script",
-		}
-	} else if err != nil {
 		return err
 	}
 
-	if script.Owner != parsedUserId {
-		// the user doesn't own the script
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
-			Message: "unknown script",
-		}
-	}
-
-	err = s.repo.UpdateScriptName(ctx, parsedUuid, newName)
+	err = s.repo.UpdateScriptName(ctx, script.Uuid, newName)
 	if err != nil {
 		return err
 	}
@@ -230,73 +191,15 @@ func (s *ScriptsService) RenameScript(
 	return nil
 }
 
-func (s *ScriptsService) AddNewScript(
+
+func (s *ScriptsService) Delete(
 	ctx context.Context,
-	userUuid string,
-	script *protos.Script,
-) (string, error) {
-	if len(script.Name) == 0 {
-		return "", &ScriptError {
-			Code: protos.ScriptErrorCode_INVALID_SCRIPT_NAME,
-			Message: "invalid script name",
-		}
-	}
-
-	parsedUserId, err := uuid.Parse(userUuid)
-	if err != nil {
-		return "", fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
-	}
-
-	repoScript, repoDivisions := transformProtoScript(parsedUserId, script);
-
-	divisionIds, err := s.repo.InsertNewDivisions(ctx, repoDivisions)
-	if err != nil {
-		return "", err
-	}
-	repoScript.Divisions = divisionIds;
-
-	err = s.repo.InsertNewScript(ctx, repoScript)
-	if err != nil {
-		return "", err
-	}
-
-	return uuid.UUID(repoScript.Uuid).String(), nil
-}
-
-func (s *ScriptsService) DeleteScript(
-	ctx context.Context,
-	userUuid string,
-	scriptUuid string,
+	userUuid uuid.UUID,
+	scriptUuid uuid.UUID,
 ) error {
-	parsedUserId, err := uuid.Parse(userUuid)
+	script, err := s.lookupByIdAndOwner(ctx, userUuid, scriptUuid)
 	if err != nil {
-		return fmt.Errorf("could not parse uuid %q: %w", userUuid, err)
-	}
-
-	parsedUuid, err := uuid.Parse(scriptUuid)
-	if err != nil {
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_ID_MALFORMED,
-			Message: "malformed id",
-		}
-	}
-
-	script, err := s.repo.FindScriptById(ctx, parsedUuid)
-	if errors.Is(err, repository.ErrUnknownScript) {
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
-			Message: "unknown script",
-		}
-	} else if err != nil {
 		return err
-	}
-
-	if script.Owner != parsedUserId {
-		// the user doesn't own the script
-		return &ScriptError {
-			Code: protos.ScriptErrorCode_UNKNOWN_SCRIPT,
-			Message: "unknown script",
-		}
 	}
 
 	err = s.repo.DeleteDivisions(ctx, script.Divisions)
@@ -304,7 +207,7 @@ func (s *ScriptsService) DeleteScript(
 		return err
 	}
 
-	err = s.repo.DeleteScript(ctx, parsedUuid);
+	err = s.repo.DeleteScript(ctx, scriptUuid);
 	if err != nil {
 		return err
 	}
@@ -312,7 +215,7 @@ func (s *ScriptsService) DeleteScript(
 	return nil
 }
 
-func transformProtoScript(owner uuid.UUID, script *protos.Script) (repository.Script, []repository.Division) {
+func transformProtoScript(owner uuid.UUID, script *qmodel.Script) (repository.Script, []repository.Division) {
 	var resultDivisions []repository.Division
 
 	for _, division := range script.Divisions {
@@ -335,7 +238,7 @@ func transformProtoScript(owner uuid.UUID, script *protos.Script) (repository.Sc
 	}, resultDivisions
 }
 
-func transformProtoTextCues(textCues []*protos.TextCuePair) []repository.TextCuePair {
+func transformProtoTextCues(textCues []qmodel.TextCuePair) []repository.TextCuePair {
 	var resultTextCues []repository.TextCuePair
 
 	for _, textCue := range textCues {
@@ -346,7 +249,7 @@ func transformProtoTextCues(textCues []*protos.TextCuePair) []repository.TextCue
 		}
 		resultTextCue := repository.TextCuePair {
 			Request: resultRequest,
-			Response: transformProtoTextCue(textCue.Response),
+			Response: transformProtoTextCue(&textCue.Response),
 			PreviousScores: []uint32{},
 		};
 		resultTextCues = append(resultTextCues, resultTextCue)
@@ -355,53 +258,59 @@ func transformProtoTextCues(textCues []*protos.TextCuePair) []repository.TextCue
 	return resultTextCues
 }
 
-func transformProtoTextCue(textCue *protos.TextCue) repository.TextCue {
+func transformProtoTextCue(textCue *qmodel.TextCue) repository.TextCue {
 	return repository.TextCue {
 		Actors: textCue.Actors,
 		Text: textCue.Text,
 	}
 }
 
-func transformRepoDivisions(repoDivisions []*repository.Division) []*protos.Division {
-	var resultDivisions []*protos.Division
+func transformRepoDivisions(repoDivisions []*repository.Division) []qmodel.Division {
+	var resultDivisions []qmodel.Division
 
 	for _, repoDivision := range repoDivisions {
 		resultTextCues := transformRepoTextCues(repoDivision.TextCues);
-		resultDivision := protos.Division {
+		resultDivisions = append(resultDivisions, qmodel.Division {
 			Name: repoDivision.Name,
 			Description: repoDivision.Description,
-			PreviousTotals: repoDivision.PreviousTotals,
+			PreviousTotals: mapSlice(repoDivision.PreviousTotals, func (x uint32) uint { return uint(x) }),
 			TextCues: resultTextCues,
-		};
-		resultDivisions = append(resultDivisions, &resultDivision)
+		})
 	}
 
 	return resultDivisions
 }
 
-func transformRepoTextCues(repoTextCues []repository.TextCuePair) []*protos.TextCuePair {
-	var resultTextCues []*protos.TextCuePair
+func transformRepoTextCues(repoTextCues []repository.TextCuePair) []qmodel.TextCuePair {
+	var resultTextCues []qmodel.TextCuePair
 
 	for _, repoTextCue := range repoTextCues {
-		var resultRequest *protos.TextCue = nil
+		var resultRequest *qmodel.TextCue = nil
 		if repoTextCue.Request != nil {
-			resultRequest = transformRepoTextCue(*repoTextCue.Request)
+			qslot := transformRepoTextCue(*repoTextCue.Request)
+			resultRequest = &qslot
 		}
-		resultTextCue := protos.TextCuePair {
+		resultTextCues = append(resultTextCues, qmodel.TextCuePair {
 			Request: resultRequest,
 			Response: transformRepoTextCue(repoTextCue.Response),
-			PreviousScores: repoTextCue.PreviousScores,
-		};
-		resultTextCues = append(resultTextCues, &resultTextCue)
+			PreviousScores: mapSlice(repoTextCue.PreviousScores, func (x uint32) uint { return uint(x) }),
+		})
 	}
 
 	return resultTextCues
 }
 
-func transformRepoTextCue(textCue repository.TextCue) *protos.TextCue {
-	return &protos.TextCue {
+func transformRepoTextCue(textCue repository.TextCue) qmodel.TextCue {
+	return qmodel.TextCue {
 		Actors: textCue.Actors,
 		Text: textCue.Text,
 	};
 }
 
+func mapSlice[T, V any](ts []T, fn func(T) V) []V {
+	result := make([]V, len(ts))
+	for i, t := range ts {
+		result[i] = fn(t)
+	}
+	return result
+}

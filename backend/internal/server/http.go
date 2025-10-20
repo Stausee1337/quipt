@@ -33,24 +33,22 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 	)
 
 	userQService := qmodel.CreateUserService(
-		handler.NewUserHandler(userService, authService),
+		handler.NewUserHandler(userService),
 	)
 	userQService.Use(handler.EnsureAuthorizedMiddleware(authService));
 
-	qsrv := qrpc.NewRPCServer(authQService, userQService)
+	scriptQService := qmodel.CreateScriptService(
+		handler.NewScriptHandlers(scriptsService),
+	)
+	scriptQService.Use(handler.EnsureAuthorizedMiddleware(authService));
+
+	qsrv := qrpc.NewRPCServer(authQService, userQService, scriptQService)
 	qsrv.SetLogger(slog.Default());
 
 	r.Use(loggingMiddleware);
 	r.Use(corsMiddleware(cfg));
 	r.Use(authMiddleware(authService));
 
-	scriptsHandler := handler.NewScriptsHanlder(authService, scriptsService)
-	r.Get("/list-scripts", scriptsHandler.HandleList)
-	r.Get("/script/{ScriptID}", scriptsHandler.HandleGet)
-	r.Post("/commit-scores", scriptsHandler.HandleUpdate)
-	r.Post("/create-script", scriptsHandler.HandleNew)
-	r.Post("/rename-script", scriptsHandler.HandleRename)
-	r.Post("/delete-script", scriptsHandler.HandleDelete)
 	r.Mount("/qrpc", qsrv)
 
 	return &Server{router: r};
