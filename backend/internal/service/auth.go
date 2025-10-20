@@ -98,8 +98,6 @@ func (t* refreshToken) commit(ctx context.Context, db *redis.Client) error {
 		return fmt.Errorf("could not hash secret refresh token: %w", err)
 	}
 
-	fmt.Printf("commit: %v\n", string(hashed_secret))
-
 	bytes, err := json.Marshal(refreshTokenSavedData{
 		Uuid: t.uuid,
 		Secret: string(hashed_secret),
@@ -168,7 +166,7 @@ func (s *AuthService) GetLoggedInUser(ctx context.Context) *UserClaims {
 
 var ErrInvalidToken = errors.New("invalid refresh token")
 
-func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*qmodel.AuthSuccess, error) {
+func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*qmodel.AuthSuccess, error) {
 	splits := strings.SplitN(refreshToken, ".", 2)
 	if len(splits) < 2 {
 		return nil, ErrInvalidToken
@@ -182,14 +180,11 @@ func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*q
 		return nil, fmt.Errorf("could not lookup refresh token: %w", err)
 	}
 
-	fmt.Printf("%q\n", rawData)
-
 	var data refreshTokenSavedData
 	err = json.Unmarshal([]byte(rawData), &data)
 	if err != nil {
 		return nil, fmt.Errorf("could not json decode for refresh token %q: %w", id, err)
 	}
-	fmt.Printf("refresh: %v\n", data.Secret)
 
 	err = bcrypt.CompareHashAndPassword([]byte(data.Secret), []byte(secret));
 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {

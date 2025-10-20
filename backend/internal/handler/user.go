@@ -17,7 +17,7 @@ func NewUserHandler(user *service.UserService) *UserQueryHandler {
 
 func (h *UserQueryHandler) Get(ctx context.Context) (*qmodel.User, error) {
 	userUuid := LoggedInUser(ctx);
-	user, err := h.user.GetUserById(ctx, userUuid)
+	user, err := h.user.GetById(ctx, userUuid)
 	if err != nil {
 		panic(err)
 	}

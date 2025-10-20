@@ -64,7 +64,7 @@ func (h *AuthMutationHandler) Signup(ctx context.Context, username string, passw
 }
 
 func (h *AuthMutationHandler) Refresh(ctx context.Context, refreshToken string) (*qmodel.AuthSuccess, error) {
-	auth, err := h.auth.RefreshLogin(ctx, refreshToken)
+	auth, err := h.auth.RefreshToken(ctx, refreshToken)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidToken) {
 			return nil, errors.New("invalid refresh token")

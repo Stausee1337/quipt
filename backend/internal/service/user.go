@@ -118,7 +118,7 @@ func (s *UserService) Signup(
 	}, nil;
 }
 
-func (s *UserService) GetUserById(ctx context.Context, userUuid uuid.UUID) (*qmodel.User, error) {
+func (s *UserService) GetById(ctx context.Context, userUuid uuid.UUID) (*qmodel.User, error) {
 	user, err := s.repo.FindUserById(ctx, userUuid)
 	if err != nil {
 		return nil, err
