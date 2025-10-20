@@ -81,11 +81,7 @@ export const AuthService = $r.service('auth', {
     { username: $s.String, password: $s.String },
     $s.Union(AuthSuccess, AuthError),
   ),
-  refresh: $r.mutation(
-    'refresh',
-    { refreshToken: $s.String },
-    $s.Union(AuthSuccess, AuthError),
-  ),
+  refresh: $r.mutation('refresh', { refreshToken: $s.String }, AuthSuccess),
   logout: $r.mutation('logout', { refreshToken: $s.String }),
 });
 export type AuthService = InstanceType<typeof AuthService>;

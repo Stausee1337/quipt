@@ -1,4 +1,4 @@
-import { createSignal, JSX, createEffect, createContext, Component, createResource, createMemo } from 'solid-js';
+import { createSignal, JSX, createEffect, createContext, Component, createMemo, Accessor } from 'solid-js';
 import { createComponent } from 'solid-js/web';
 import { useParams } from '@solidjs/router';
 import { schemas } from 'qrpc-js';
@@ -8,7 +8,10 @@ import { useQuery } from '@tanstack/solid-query';
 
 export const ScriptContextObj = createContext<ScriptContext>();
 
+export type PartialScript = Omit<Script, "divisions">
+
 export interface ScriptContext {
+    readonly allScripts: Accessor<PartialScript[]>
     readonly currentScript: string|undefined;
     createNewScript(script: Script): Promise<Script>;
     instantiateDelayed(
@@ -36,13 +39,13 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         async queryFn() {
             if (notValidatedScriptId === undefined) {
                 setCurrentScriptId(undefined);
-                return undefined;
+                return null;
             }
             const scripts = await scriptsQuery.promise;
             const script = scripts.find(s => s.uuid === notValidatedScriptId);
             if (script === undefined) {
                 setCurrentScriptId(undefined);
-                return script;
+                return null;
             }
             setCurrentScriptId(script.uuid);
             let fullScript = scriptCache.get(script.uuid);
@@ -85,13 +88,22 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         queryClient.invalidateQueries({ queryKey: ['currentScript'] })
     });
 
+    const allScripts = createMemo<Script[]>(() => {
+        if (scriptsQuery.status !== "success")
+            return [];
+        return scriptsQuery.data;
+    })
+
     return {
+        get allScripts() {
+            return allScripts;
+        },
         get currentScript() {
             return currentScriptId();
         },
         instantiateDelayed(Component, onError) {
             const renderedElement = createMemo(() => {
-                const condition = createMemo(() => currentScript.status === "success" && currentScript.data !== undefined);
+                const condition = createMemo(() => currentScript.status === "success" && currentScript.data !== null);
                 if (condition())
                     return createComponent(
                         Component,

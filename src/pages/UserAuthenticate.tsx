@@ -53,8 +53,9 @@ export function UserAuthenticate(
         currentFormData.blur();
 
         const endpoint = props.location.pathname === '/signin'
-            ? authService.signin
-            : authService.signup;
+            ? authService.signin.bind(authService)
+            : authService.signup.bind(authService);
+
         const result = await endpoint({
             username: e.formData['username'] ?? '',
             password: e.formData['password'] ?? ''

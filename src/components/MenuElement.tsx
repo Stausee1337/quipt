@@ -1,8 +1,8 @@
-import { Accessor, JSX, Setter, createContext, createDeferred, createEffect, createMemo, createRenderEffect, createSignal, getOwner, onCleanup, runWithOwner, untrack, useContext } from "solid-js";
+import { Accessor, JSX, Setter, createContext, createDeferred, createMemo, createRenderEffect, createResource, createSignal, getOwner, onCleanup, runWithOwner, untrack, useContext } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { A, useBeforeLeave } from "@solidjs/router";
-import { scripts, useAuthentication } from "../client";
-import { ScriptContextObj } from "../script";
+import { useAuthentication } from "../client";
+import { PartialScript, ScriptContextObj } from "../script";
 import QuiptLogo from "./Quipt-Logo";
 import { DialogManager } from "../dialog";
 import { NewScriptFileChooser } from "./NewScriptFileChooser";
@@ -117,7 +117,7 @@ function ListElement(
 
 function DeleteScriptDialog(
     { script, closer }: {
-        script: scripts.IScript,
+        script: PartialScript,
         closer: (res: string|undefined) => void
     }
 ): JSX.Element {
@@ -173,7 +173,7 @@ const ScriptElementContextObj = createContext<ScriptElementContext>();
 function EditableScriptElement(
     props: {
         children?: JSX.Element,
-        script: scripts.IScript
+        script: PartialScript
     }
 ): JSX.Element {
     const scriptContext = useContext(ScriptContextObj)!;
@@ -212,10 +212,12 @@ export function MenuElement(
     const owner = getOwner()!;
     const isMobile = useContext(IsMobileContext)!;
     const authentication = useAuthentication()!;
-    const closer = props.closer;
-    const [user, {}] = authentication.requests!.getCached("/get-user");
-    const [scripts , {}] = authentication.requests!.getCached("/list-scripts");
     const scriptContext = useContext(ScriptContextObj)!;
+
+    const closer = props.closer;
+
+    const [user] = createResource(() => authentication.services!.user.get());
+    const scripts = scriptContext.allScripts;
 
     if (closer !== undefined) {
         useBeforeLeave(() => {
@@ -241,7 +243,7 @@ export function MenuElement(
         )
     }
 
-    function renderScriptElement(script: scripts.IScript): JSX.Element {
+    function renderScriptElement(script: PartialScript): JSX.Element {
         return createMemo(() => {
             return (
                 <EditableScriptElement script={script}>
@@ -277,11 +279,10 @@ export function MenuElement(
             </div>
 
             <div style={{'min-width': '0', 'max-width': '100%'}}>
-                 { 
-                     (scripts.loading || scripts.error) ? null :
-                         scripts()!
-                            .toSorted((a, b) => b.createdAt - a.createdAt)
-                            .map(renderScriptElement)
+                 {
+                     scripts()!
+                        .toSorted((a, b) => b.createdAt - a.createdAt)
+                        .map(renderScriptElement)
                  }
             </div>
 

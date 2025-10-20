@@ -24,7 +24,7 @@ record AuthSuccess {
 service auth {
     mutation signin(username: string, password: string): AuthSuccess|AuthError;
     mutation signup(username: string, password: string): AuthSuccess|AuthError;
-    mutation refresh(refreshToken: string): AuthSuccess|AuthError;
+    mutation refresh(refreshToken: string): AuthSuccess;
     mutation logout(refreshToken: string): empty;
 }
 

@@ -3,7 +3,8 @@ import { createSignal, onCleanup, JSX, createEffect, createContext } from 'solid
 import { HeaderElement } from './components/HeaderElement';
 import { MenuElement } from './components/MenuElement';
 import { Router, Route, Navigate, useNavigate } from '@solidjs/router';
-import { AuthenticationContextObj, createAuthenticationContext, useAuthentication } from './client';
+import { QueryClientProvider } from '@tanstack/solid-query';
+import { AuthenticationContextObj, queryClient, createAuthenticationContext, useAuthentication } from './client';
 import { ScriptContextObj, createScriptContext } from './script';
 import { UserAuthenticate } from './pages/UserAuthenticate';
 import { Root } from './pages/Root';
@@ -57,6 +58,7 @@ function App(props: { children: JSX.Element }): JSX.Element {
 export default function() {
     const authenticationContext = createAuthenticationContext();
     return (
+        <QueryClientProvider client={queryClient}>
         <AuthenticationContextObj.Provider value={authenticationContext}>
             <Router root={App}>
                 <Route path="/" component={Root}/>
@@ -76,6 +78,7 @@ export default function() {
                     component={() => <Navigate href="/"/>}/>
             </Router>
         </AuthenticationContextObj.Provider>
+        </QueryClientProvider>
     );
 }
 

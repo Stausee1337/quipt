@@ -13,6 +13,7 @@ export const queryClient = new QueryClient({
 
 const apiURL = import.meta.env.VITE_API_HOST;
 const qrpcURL = `${apiURL}/qrpc`;
+
 const defaultExecutor = createSimpleExecutor(qrpcURL);
 
 export const authService = new AuthService(defaultExecutor);
@@ -23,7 +24,7 @@ interface AuthorizedContext {
 }
 
 function createAuthorizedExecutor(ctx: AuthorizedContext): runtime.Executor {
-    return async (url: string, body: any): Promise<Response> => {
+    return async (url: string, body: string): Promise<Response> => {
         const accessToken = await ctx.ensureToken();
         const headers = {
             'Authorization': `Bearer ${accessToken}`
