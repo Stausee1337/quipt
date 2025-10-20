@@ -28,18 +28,13 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 	userService := service.NewUserService(db)
 	scriptsService := service.NewScriptsService(db)
 
-	scriptService := qmodel.CreateScriptService(nil, nil)
-	qsrv := qrpc.NewRPCServer(scriptService)
+	authQService := qmodel.CreateAuthService(handler.NewAuthHandler(authService, userService))
+	qsrv := qrpc.NewRPCServer(authQService)
+	qsrv.SetLogger(slog.Default());
 
 	r.Use(loggingMiddleware);
 	r.Use(corsMiddleware(cfg));
 	r.Use(authMiddleware(authService));
-
-	signupHandler := handler.NewSignupHandler(userService, authService);
-	r.Post("/auth/signup", signupHandler.HandleSignup);
-	r.Post("/auth/signin", signupHandler.HandleSignin);
-	r.Post("/auth/refresh", signupHandler.HandleRefresh);
-	r.Post("/auth/expire", signupHandler.HandleExpire);
 
 	userHandler := handler.NewUserHandler(userService, authService)
 	r.Get("/get-user", userHandler.HandleGet)

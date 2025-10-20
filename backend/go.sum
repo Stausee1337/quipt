@@ -26,6 +26,8 @@ github.com/stausee1337/qrpc v0.1.4 h1:m1iInUhBZZ5Z70S55l4cXVX7f1gA3jijsyuNYu6Tk3
 github.com/stausee1337/qrpc v0.1.4/go.mod h1:sL4nExHsZnwtVaUKNvKBxl9c8jiksO2qwe1HCyB+8ns=
 github.com/stausee1337/qrpc v0.1.5 h1:z3F/JD1Q6rRhKbRKf16kvYzcbE1sSJFF8VDODvK6JVs=
 github.com/stausee1337/qrpc v0.1.5/go.mod h1:sL4nExHsZnwtVaUKNvKBxl9c8jiksO2qwe1HCyB+8ns=
+github.com/stausee1337/qrpc v0.1.6 h1:QlyqFdh3VjS7jWGLTtQwmqw1vLBF3giqMwMAz0Zgn1I=
+github.com/stausee1337/qrpc v0.1.6/go.mod h1:sL4nExHsZnwtVaUKNvKBxl9c8jiksO2qwe1HCyB+8ns=
 github.com/urfave/cli/v2 v2.27.7 h1:bH59vdhbjLv3LAvIu6gd0usJHgoTTPhCFib8qqOwXYU=
 github.com/urfave/cli/v2 v2.27.7/go.mod h1:CyNAG/xg+iAOg0N4MPGZqVmv2rCoP267496AOXUZjA4=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=

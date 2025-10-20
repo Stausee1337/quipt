@@ -15,7 +15,7 @@ require (
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/redis/go-redis/v9 v9.14.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/stausee1337/qrpc v0.1.5 // indirect
+	github.com/stausee1337/qrpc v0.1.6 // indirect
 	github.com/urfave/cli/v2 v2.27.7 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect

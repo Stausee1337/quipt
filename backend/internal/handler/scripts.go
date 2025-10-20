@@ -31,7 +31,7 @@ func (h *ScriptsHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scripts, err := h.scripts.GetAllScripts(r.Context(), claims.Uuid)
+	scripts, err := h.scripts.GetAllScripts(r.Context(), claims.Uuid.String())
 	if err != nil {
 		logFatalAndReport(w, err)
 		return
@@ -57,7 +57,7 @@ func (h *ScriptsHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	scriptId := chi.URLParam(r, "ScriptID");
 
-	script, err := h.scripts.GetScriptById(ctx, claims.Uuid, scriptId);
+	script, err := h.scripts.GetScriptById(ctx, claims.Uuid.String(), scriptId);
 	var response []byte
 
 	if err != nil {
@@ -109,7 +109,7 @@ func (h *ScriptsHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	err = h.scripts.UpdateScriptDivisionScores(ctx, claims.Uuid, &req)
+	err = h.scripts.UpdateScriptDivisionScores(ctx, claims.Uuid.String(), &req)
 
 	if err == nil {
 		w.WriteHeader(http.StatusNoContent)
@@ -156,7 +156,7 @@ func (h *ScriptsHandler) HandleNew(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	newUuid, err := h.scripts.AddNewScript(ctx, claims.Uuid, &req)
+	newUuid, err := h.scripts.AddNewScript(ctx, claims.Uuid.String(), &req)
 	if err == nil {
 		w.Write([]byte(newUuid))
 		return;
@@ -203,7 +203,7 @@ func (h *ScriptsHandler) HandleRename(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	err = h.scripts.RenameScript(ctx, claims.Uuid, req.ScriptId, req.NewName)
+	err = h.scripts.RenameScript(ctx, claims.Uuid.String(), req.ScriptId, req.NewName)
 
 	if err == nil {
 		w.WriteHeader(http.StatusNoContent);
@@ -246,7 +246,7 @@ func (h *ScriptsHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	err = h.scripts.DeleteScript(ctx, claims.Uuid, scriptUuid)
+	err = h.scripts.DeleteScript(ctx, claims.Uuid.String(), scriptUuid)
 
 	if err == nil {
 		w.WriteHeader(http.StatusNoContent);

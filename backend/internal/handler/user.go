@@ -24,7 +24,7 @@ func (h *UserHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.user.GetUserById(r.Context(), claims.Uuid)
+	user, err := h.user.GetUserById(r.Context(), claims.Uuid.String())
 	if err != nil {
 		logFatalAndReport(w, err)
 		return

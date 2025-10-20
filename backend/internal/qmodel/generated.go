@@ -9,14 +9,14 @@ import (
 )
 
 type ScriptServiceQueries interface {
-	List(ctx context.Context) ([]Script, error)
-	Get(ctx context.Context, uuid uuid.UUID) (Script, error)
+	List(ctx context.Context) (*[]Script, error)
+	Get(ctx context.Context, uuid uuid.UUID) (*Script, error)
 }
 
 type ScriptServiceMutation interface {
 	SaveScores(ctx context.Context, scriptId uuid.UUID, divisionIdx uint, newScores []uint) error
 	Rename(ctx context.Context, uuid uuid.UUID, name string) error
-	Create(ctx context.Context, script Script) (uuid.UUID, error)
+	Create(ctx context.Context, script Script) (*uuid.UUID, error)
 	Delete(ctx context.Context, uuid uuid.UUID) error
 }
 
@@ -117,18 +117,15 @@ func еееResolveScriptServiceMutation(p ScriptServiceMutation, mutation string
 }
 
 type AuthServiceMutation interface {
-	Signin(ctx context.Context, username string, password string) (struct {
+	Signin(ctx context.Context, username string, password string) (*struct {
 		Variant1 *AuthSuccess `json:"variant1,omitempty"`
 		Variant2 *AuthError   `json:"variant2,omitempty"`
 	}, error)
-	Signup(ctx context.Context, username string, password string) (struct {
+	Signup(ctx context.Context, username string, password string) (*struct {
 		Variant1 *AuthSuccess `json:"variant1,omitempty"`
 		Variant2 *AuthError   `json:"variant2,omitempty"`
 	}, error)
-	Refresh(ctx context.Context, refreshToken string) (struct {
-		Variant1 *AuthSuccess `json:"variant1,omitempty"`
-		Variant2 *AuthError   `json:"variant2,omitempty"`
-	}, error)
+	Refresh(ctx context.Context, refreshToken string) (*AuthSuccess, error)
 	Logout(ctx context.Context, refreshToken string) error
 }
 
@@ -200,7 +197,7 @@ func еееResolveAuthServiceMutation(p AuthServiceMutation, mutation string) ht
 }
 
 type UserServiceQueries interface {
-	Get(ctx context.Context) (User, error)
+	Get(ctx context.Context) (*User, error)
 }
 
 func CreateUserService(queries UserServiceQueries) *qrpc.Service {

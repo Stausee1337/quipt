@@ -10,19 +10,17 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/stausee1337/quipt/internal/qmodel"
 	"github.com/stausee1337/quipt/internal/repository"
 	"github.com/stausee1337/quipt/protos"
 )
 
 const bcryptCost = 14;
 
-type AuthError struct {
-	Code 	protos.AuthErrorCode
-	Message string
-}
+type AuthError qmodel.AuthError
 
-func (w *AuthError) Error() string {
-	return w.Message;
+func (w AuthError) Error() string {
+	return string(w);
 }
 
 type UserService struct {
@@ -47,16 +45,13 @@ func (s* UserService) Signin(
 	ctx context.Context,
 	username string,
 	password string,
-) (*protos.User, error) {
+) (*qmodel.User, error) {
 	user, err := s.repo.FindUserByName(ctx, username)
 	if err != nil {
 		if errors.Is(err, repository.ErrUnknownUser) {
 			// we should do compare hash and password here anyways,
 			// in order not to have a response time difference between email or password invalid
-			return nil, &AuthError{
-				Code: protos.AuthErrorCode_INVALID_CREDENTIALS,
-				Message: "invalid credentials",
-			};
+			return nil, AuthError(qmodel.AuthErrorINVALIDCREDENTIALS);
 		}
 		return nil, err;
 	}
@@ -68,16 +63,13 @@ func (s* UserService) Signin(
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), passwordBytes);
 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
-		return nil, &AuthError{
-			Code: protos.AuthErrorCode_INVALID_CREDENTIALS,
-			Message: "invalid credentials",
-		};
+		return nil, AuthError(qmodel.AuthErrorINVALIDCREDENTIALS);
 	} else if err != nil {
 		return nil, fmt.Errorf("could not hash password %q: %w", username, err);
 	}
 
-	return &protos.User{
-		Id: uuid.UUID(user.Uuid).String(),
+	return &qmodel.User{
+		Uuid: uuid.UUID(user.Uuid),
 		Username: user.Username,
 		Verified: user.Verified,
 	}, nil;
@@ -89,31 +81,22 @@ func (s *UserService) Signup(
 	password string,
 	sub *string,
 	verified bool,
-) (*protos.User, error) {
+) (*qmodel.User, error) {
 	if len(username) < 3 {
-		return nil, &AuthError {
-			Code: protos.AuthErrorCode_USERNAME_MALFORMED,
-			Message: "malformed username",
-		}
+		return nil, AuthError(qmodel.AuthErrorUSERNAMEMALFORMED);
 	}
 
 	if !simplePasswordCheck(password) {
-		return nil, &AuthError {
-			Code: protos.AuthErrorCode_WEAK_PASSWORD,
-			Message: "password too weak",
-		}
+		return nil, AuthError(qmodel.AuthErrorWEAKPASSWORD);
 	}
 	_, err := s.repo.FindUserByName(ctx, username)
 	if err == nil {
-		return nil, &AuthError {
-			Code: protos.AuthErrorCode_USERNAME_ALREADY_EXISTS,
-			Message: "username already exists",
-		}
+		return nil, AuthError(qmodel.AuthErrorUSERNAMEALREADYEXISTS);
 	} else if !errors.Is(err, repository.ErrUnknownUser) {
 		return nil, err;
 	}
 
-	hashed_password, err := s.hashPassword(password);
+	hashedPassword, err := s.hashPassword(password);
 	if err != nil {
 		return nil, err;
 	}
@@ -121,7 +104,7 @@ func (s *UserService) Signup(
 	user := repository.User {
 		Sub: sub,
 		Username: username,
-		Password: hashed_password,
+		Password: hashedPassword,
 		Verified: verified,	
 	};
 	err = s.repo.CreateUser(ctx, &user);
@@ -129,8 +112,8 @@ func (s *UserService) Signup(
 		return nil, err;
 	}
 
-	return &protos.User {
-		Id: uuid.UUID(user.Uuid).String(),
+	return &qmodel.User {
+		Uuid: uuid.UUID(user.Uuid),
 		Username: username,
 		Verified: verified,
 	}, nil;

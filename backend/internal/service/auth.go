@@ -15,13 +15,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/stausee1337/quipt/internal/qmodel"
 	"github.com/stausee1337/quipt/pkg/config"
-	"github.com/stausee1337/quipt/protos"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserClaims struct {
-	Uuid string
+	Uuid uuid.UUID
 	jwt.RegisteredClaims
 }
 
@@ -55,14 +55,19 @@ func (s *AuthService) VerifyToken(ctx context.Context, tokenStr string) context.
 
 type refreshToken struct {
 	id 		string
-	uuid	string
+	uuid	uuid.UUID
 	secret 	string
 	expires	time.Duration
 }
 
+type refreshTokenSavedData struct {
+	uuid	uuid.UUID
+	secret 	string
+}
+
 const REFRESH_TTL time.Duration = 30 * 24 * time.Hour
 
-func newRefreshToken(userUuid string) (*refreshToken, error) {
+func newRefreshToken(userUuid uuid.UUID) (*refreshToken, error) {
 	base64Encoding := base64.StdEncoding.WithPadding(base64.NoPadding)
 
 	var tok refreshToken
@@ -94,9 +99,9 @@ func (t* refreshToken) commit(ctx context.Context, db *redis.Client) error {
 		return fmt.Errorf("could not hash secret refresh token: %w", err)
 	}
 
-	bytes, err := json.Marshal(map[string]any{
-		"uuid": t.uuid,
-		"secret": string(hashed_secret),
+	bytes, err := json.Marshal(refreshTokenSavedData{
+		uuid: t.uuid,
+		secret: string(hashed_secret),
 	})
 	if err != nil {
 		return fmt.Errorf("could not json encode refresh token: %w", err)
@@ -113,12 +118,12 @@ func (t* refreshToken) commit(ctx context.Context, db *redis.Client) error {
 	return nil
 }
 
-func (s *AuthService) SigninUserAtClient(ctx context.Context, user *protos.User) (*protos.AuthSuccess, error) {
-	accessToken, err := s.createAccessToken(user.Id);
+func (s *AuthService) SigninUserAtClient(ctx context.Context, user *qmodel.User) (*qmodel.AuthSuccess, error) {
+	accessToken, err := s.createAccessToken(user.Uuid);
 	if err != nil {
 		return nil, err
 	}
-	refreshToken, err := newRefreshToken(user.Id)
+	refreshToken, err := newRefreshToken(user.Uuid)
 	if err != nil {
 		return nil, err
 	}
@@ -127,11 +132,11 @@ func (s *AuthService) SigninUserAtClient(ctx context.Context, user *protos.User)
 		return nil, err
 	}
 
-	return &protos.AuthSuccess {
-		UserId: user.Id,
+	return &qmodel.AuthSuccess {
+		UserId: user.Uuid,
 		AccessToken: accessToken.signed,
 		RefreshToken: refreshToken.string(),
-		ExpiresAt: accessToken.expires,
+		ExpiresAt: float64(accessToken.expires),
 	}, nil
 }
 
@@ -162,7 +167,7 @@ func (s *AuthService) GetLoggedInUser(r *http.Request) *UserClaims {
 
 var ErrInvalidToken = errors.New("invalid refresh token")
 
-func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*protos.AuthSuccess, error) {
+func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*qmodel.AuthSuccess, error) {
 	splits := strings.SplitN(refreshToken, ".", 2)
 	if len(splits) < 2 {
 		return nil, ErrInvalidToken
@@ -176,28 +181,20 @@ func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*p
 		return nil, fmt.Errorf("could not lookup refresh token: %w", err)
 	}
 
-	var data map[string]any
+	var data refreshTokenSavedData
 	err = json.Unmarshal([]byte(rawData), &data)
 	if err != nil {
 		return nil, fmt.Errorf("could not json decode for refresh token %q: %w", id, err)
 	}
 
-	uuid, ok := data["uuid"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid data in redis store %q: %w", id, err)
-	}
-	hashedSecret, ok := data["secret"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid data in redis store %q: %w", id, err)
-	}
-	err = bcrypt.CompareHashAndPassword([]byte(hashedSecret), []byte(secret));
+	err = bcrypt.CompareHashAndPassword([]byte(data.secret), []byte(secret));
 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 		return nil, ErrInvalidToken
 	} else if err != nil {
 		return nil, err
 	}
 
-	accessToken, err := s.createAccessToken(uuid)
+	accessToken, err := s.createAccessToken(data.uuid)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +204,7 @@ func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*p
 		return nil, fmt.Errorf("could not delete prev refresh token %q: %w", id, err)
 	}
 
-	nextRefreshToken, err := newRefreshToken(uuid)
+	nextRefreshToken, err := newRefreshToken(data.uuid)
 	if err != nil {
 		return nil, err
 	}
@@ -217,16 +214,16 @@ func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*p
 		return nil, err
 	}
 	
-	return &protos.AuthSuccess {
-		UserId: uuid,
+	return &qmodel.AuthSuccess {
+		UserId: data.uuid,
 		AccessToken: accessToken.signed,
 		RefreshToken: nextRefreshToken.string(),
-		ExpiresAt: accessToken.expires,
+		ExpiresAt: float64(accessToken.expires),
 	}, nil
 }
 
-func (s *AuthService) createAccessToken(uuid string) (*signedToken, error) {
-	claims := UserClaims {
+func (s *AuthService) createAccessToken(uuid uuid.UUID) (*signedToken, error) {
+	claims := UserClaims{
 		Uuid: uuid,
 	}
 	expires := time.Now().Add(15 * time.Minute)
