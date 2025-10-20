@@ -61,8 +61,8 @@ type refreshToken struct {
 }
 
 type refreshTokenSavedData struct {
-	uuid	uuid.UUID
-	secret 	string
+	Uuid	uuid.UUID `json:"uuid"`
+	Secret 	string	  `json:"secret"`
 }
 
 const REFRESH_TTL time.Duration = 30 * 24 * time.Hour
@@ -99,9 +99,11 @@ func (t* refreshToken) commit(ctx context.Context, db *redis.Client) error {
 		return fmt.Errorf("could not hash secret refresh token: %w", err)
 	}
 
+	fmt.Printf("commit: %v\n", string(hashed_secret))
+
 	bytes, err := json.Marshal(refreshTokenSavedData{
-		uuid: t.uuid,
-		secret: string(hashed_secret),
+		Uuid: t.uuid,
+		Secret: string(hashed_secret),
 	})
 	if err != nil {
 		return fmt.Errorf("could not json encode refresh token: %w", err)
@@ -181,20 +183,23 @@ func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*q
 		return nil, fmt.Errorf("could not lookup refresh token: %w", err)
 	}
 
+	fmt.Printf("%q\n", rawData)
+
 	var data refreshTokenSavedData
 	err = json.Unmarshal([]byte(rawData), &data)
 	if err != nil {
 		return nil, fmt.Errorf("could not json decode for refresh token %q: %w", id, err)
 	}
+	fmt.Printf("refresh: %v\n", data.Secret)
 
-	err = bcrypt.CompareHashAndPassword([]byte(data.secret), []byte(secret));
+	err = bcrypt.CompareHashAndPassword([]byte(data.Secret), []byte(secret));
 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 		return nil, ErrInvalidToken
 	} else if err != nil {
 		return nil, err
 	}
 
-	accessToken, err := s.createAccessToken(data.uuid)
+	accessToken, err := s.createAccessToken(data.Uuid)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +209,7 @@ func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*q
 		return nil, fmt.Errorf("could not delete prev refresh token %q: %w", id, err)
 	}
 
-	nextRefreshToken, err := newRefreshToken(data.uuid)
+	nextRefreshToken, err := newRefreshToken(data.Uuid)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +220,7 @@ func (s *AuthService) RefreshLogin(ctx context.Context, refreshToken string) (*q
 	}
 	
 	return &qmodel.AuthSuccess {
-		UserId: data.uuid,
+		UserId: data.Uuid,
 		AccessToken: accessToken.signed,
 		RefreshToken: nextRefreshToken.string(),
 		ExpiresAt: float64(accessToken.expires),
