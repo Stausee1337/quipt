@@ -4,7 +4,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { placeholder } from "@codemirror/view";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import { Division, Script, TextCue, TextCuePair } from '../client';
+import { Division, Script, TextCue, TextCuePair } from '../schemas';
 import { ExposedComponentType, TextCueView, renderCue, renderCuePair as renderCuePairSimple } from './TextCueView';
 import { ScriptContextObj } from '../script';
 import { DivisionInfoComponent, DivisionInfoView } from './DivisionInfoView';
@@ -95,7 +95,7 @@ function CueEditMenu(props: {
 
 function DeleteCueDialog(
     props: {
-        cuePair: Readonly<TextCuePair>,
+        cuePair: TextCuePair,
         closer: (res: undefined|true) => void
     }
 ): JSX.Element {
@@ -124,8 +124,8 @@ function DeleteCueDialog(
 
 function EditableTextCue(
     props: {
-        cuePair: Readonly<TextCuePair>,
-        textCue: Readonly<TextCue>|null,
+        cuePair: TextCuePair,
+        textCue: TextCue|null,
         type: "request"|"response",
         idx: number
     }
@@ -135,8 +135,7 @@ function EditableTextCue(
     const owner = getOwner()!;
     owner.context = { ...owner.context, [EditableCueContextObj.id]: closeEditor };
 
-    const [textCue, setTextCue] = createSignal<TextCue>(
-        window.structuredClone(props.textCue) ?? { text: null, actors: [] });
+    const [textCue, setTextCue] = createSignal<TextCue>(props.textCue ?? { text: null, actors: [] });
 
     let revoker: (() => void)|undefined;
     const [content, setContent] = createSignal<string>(textCue().text ?? '');
@@ -239,7 +238,7 @@ function GapInjectHandle(
     );
 }
 
-function renderCuePair(textCuePair: Readonly<TextCuePair>, idx: number): JSX.Element {
+function renderCuePair(textCuePair: TextCuePair, idx: number): JSX.Element {
     return (
         <>
             <EditableTextCue cuePair={textCuePair} textCue={textCuePair.request} idx={idx} type="request"/>
@@ -444,7 +443,7 @@ function DivisionEditMenu(
 
 function EditableDivisionInfoView(
     props: {
-        division: Readonly<Division>
+        division: Division
     }
 ): JSX.Element {
     const editContext = useContext(ScriptEditContextObj)!;
@@ -548,7 +547,7 @@ const ScriptEditContextObj = createContext<ScriptEditContext>();
 
 function ScriptCueView(
     props: {
-        script: Readonly<Script>
+        script: Script
     }
 ): JSX.Element {
     const scriptContext = useContext(ScriptContextObj)!;
@@ -561,8 +560,7 @@ function ScriptCueView(
         document.title = `${props.script.name} - Quipt`
     })
 
-    const script = window.structuredClone(props.script);
-    const scriptInfo = computeScriptInfo(script);
+    const scriptInfo = computeScriptInfo(props.script);
 
     function renderDivision(division: Division, idx: number): JSX.Element {
         const editContext: ScriptEditContext = {
@@ -604,13 +602,13 @@ function ScriptCueView(
         );
     }
 
-    const invalidatables = script.divisions.map(
+    const invalidatables = props.script.divisions.map(
         (division, idx) => createInvalidatable(() => renderDivision(division, idx)))
 
     const divisionElements = createMemo(() => invalidatables.map(([element]) => element()));
     const [divisionIdx, setDivisionIdx] = createSignal<number>(0);
     
-    let contentElement: HTMLDivElement;
+    let contentElement: HTMLDivElement = undefined!;
     const scrollingElement = document.querySelector("div.routing-contents")! as HTMLDivElement;
     function onScroll() {
         const rect = scrollingElement.getBoundingClientRect();
@@ -650,7 +648,7 @@ function ScriptCueView(
     return (
         <div ref={contentElement} class="desktop-view">
             <div class="readable-content-view">
-                <h1 class="script-info">{ script.name }</h1>
+                <h1 class="script-info">{ props.script.name }</h1>
                 { divisionElements() } 
             </div>
             <div class="grid-layout-filler overview">
@@ -664,7 +662,7 @@ function ScriptCueView(
                     <section class="divisions">
                         <ul>
                             {
-                                script.divisions.map((d, idx) => 
+                                props.script.divisions.map((d, idx) => 
                                     <li classList={{ current: idx === divisionIdx() }} onClick={jumpToDivision} data-idx={idx}>
                                         { d.name }
                                     </li>

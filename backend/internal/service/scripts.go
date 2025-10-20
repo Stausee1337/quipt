@@ -51,7 +51,7 @@ func (s *ScriptsService) GetAll(ctx context.Context, userUuid uuid.UUID) ([]qmod
 		scripts = append(scripts, qmodel.Script {
 			Uuid: uuid.UUID(rawScript.Uuid),
 			Name: rawScript.Name,
-			Divisions: nil,
+			Divisions: []qmodel.Division{},
 			CreatedAt: float64(rawScript.CreatedAt),
 		});
 	}

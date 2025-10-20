@@ -4,11 +4,11 @@ import { AuthService, AuthSuccess, ScriptService, UserService } from "./schemas"
 import { QueryClient } from "@tanstack/solid-query";
 
 export const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            experimental_prefetchInRender: true,
-        },
-    },
+    // defaultOptions: {
+    //     queries: {
+    //         experimental_prefetchInRender: true,
+    //     },
+    // },
 })
 
 const apiURL = import.meta.env.VITE_API_HOST;
