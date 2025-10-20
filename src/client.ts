@@ -1,9 +1,19 @@
 import { JSX, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
-import { AuthService, AuthSuccess, ScriptService, UserService } from "./schemas"
 import { runtime, createSimpleExecutor } from "qrpc-js"
+import { AuthService, AuthSuccess, ScriptService, UserService } from "./schemas"
+import { QueryClient } from "@tanstack/solid-query";
+
+export const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            experimental_prefetchInRender: true,
+        },
+    },
+})
 
 const apiURL = import.meta.env.VITE_API_HOST;
-const defaultExecutor = createSimpleExecutor(apiURL);
+const qrpcURL = `${apiURL}/qrpc`;
+const defaultExecutor = createSimpleExecutor(qrpcURL);
 
 export const authService = new AuthService(defaultExecutor);
 
@@ -20,7 +30,7 @@ function createAuthorizedExecutor(ctx: AuthorizedContext): runtime.Executor {
         };
         let didRefresh = false;
         do {
-            const response = await fetch(`${apiURL}${url}`, { method: "POST", body, headers });
+            const response = await fetch(`${qrpcURL}${url}`, { method: "POST", body, headers });
             if (response.status === 401 && !didRefresh) {
                 await ctx.refreshLogin()
                 didRefresh = true;

@@ -2,8 +2,9 @@ import { createSignal, JSX, createEffect, createContext, Component, createResour
 import { createComponent } from 'solid-js/web';
 import { useParams } from '@solidjs/router';
 import { schemas } from 'qrpc-js';
-import { AuthenticationContext } from './client';
+import { AuthenticationContext, queryClient } from './client';
 import { Script } from './schemas';
+import { useQuery } from '@tanstack/solid-query';
 
 export const ScriptContextObj = createContext<ScriptContext>();
 
@@ -22,38 +23,66 @@ export interface ScriptContext {
 export function createScriptContext(authenticationContext: AuthenticationContext): ScriptContext {
     const location = useParams();
     let notValidatedScriptId: string|undefined = location.uuid;
+
     const [currentScriptId, setCurrentScriptId] = createSignal<schemas.UUID|undefined>(undefined);
-    const scriptCache: Map<string, Script> = new Map();
+    const scriptCache: Map<schemas.UUID, Script> = new Map();
 
-    const [currentScript, { refetch, mutate }] = createResource(async () => {
-        const currentId = notValidatedScriptId;
-        if (currentId === undefined) {
-            setCurrentScriptId(undefined);
-            return undefined;
+    const scriptsQuery = useQuery(() => ({
+        queryKey: ['scripts'],
+        queryFn: () => authenticationContext.services!.script.list()
+    }))
+    const currentScript = useQuery(() => ({
+        queryKey: ['currentScript'],
+        async queryFn() {
+            if (notValidatedScriptId === undefined) {
+                setCurrentScriptId(undefined);
+                return undefined;
+            }
+            const scripts = await scriptsQuery.promise;
+            const script = scripts.find(s => s.uuid === notValidatedScriptId);
+            if (script === undefined) {
+                setCurrentScriptId(undefined);
+                return script;
+            }
+            setCurrentScriptId(script.uuid);
+            let fullScript = scriptCache.get(script.uuid);
+            if (fullScript !== undefined)
+                return fullScript;
+            fullScript = await authenticationContext.services!.script.get({ uuid: script.uuid });
+            scriptCache.set(fullScript.uuid, fullScript);
+            return fullScript;
         }
-        let currentScript = scriptCache.get(currentId);
-        if (currentScript !== undefined) {
-            setCurrentScriptId(currentScript.uuid);
-            return currentScript;
-        }
+    }))
 
-        let script: Script;
-        try {
-            script = await authenticationContext.services!.script.get({ uuid: currentId })
-        } catch (error) {
-            notValidatedScriptId = undefined;
-            setCurrentScriptId(undefined);
-            throw `could not get script: ${error}`;
-        }
-        setCurrentScriptId(script.uuid);
-        currentScript = script as Script;
-        scriptCache.set(currentId, currentScript);
-        return currentScript;
-    });
+    // const [currentScript, { refetch, mutate }] = createResource(async () => {
+    //     const currentId = notValidatedScriptId;
+    //     if (currentId === undefined) {
+    //         setCurrentScriptId(undefined);
+    //         return undefined;
+    //     }
+    //     let currentScript = scriptCache.get(currentId);
+    //     if (currentScript !== undefined) {
+    //         setCurrentScriptId(currentScript.uuid);
+    //         return currentScript;
+    //     }
+
+    //     let script: Script;
+    //     try {
+    //         script = await authenticationContext.services!.script.get({ uuid: currentId })
+    //     } catch (error) {
+    //         notValidatedScriptId = undefined;
+    //         setCurrentScriptId(undefined);
+    //         throw `could not get script: ${error}`;
+    //     }
+    //     setCurrentScriptId(script.uuid);
+    //     currentScript = script as Script;
+    //     scriptCache.set(currentId, currentScript);
+    //     return currentScript;
+    // });
 
     createEffect(() => {
         notValidatedScriptId = location.uuid; 
-        refetch();
+        queryClient.invalidateQueries({ queryKey: ['currentScript'] })
     });
 
     return {
@@ -62,17 +91,17 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         },
         instantiateDelayed(Component, onError) {
             const renderedElement = createMemo(() => {
-                const condition = createMemo(() => currentScript.state === "ready" && currentScript() !== undefined);
+                const condition = createMemo(() => currentScript.status === "success" && currentScript.data !== undefined);
                 if (condition())
                     return createComponent(
                         Component,
                         {
                             get script() {
-                                return currentScript()!;
+                                return currentScript.data!;
                             }
                         }
                     );
-                const isError = createMemo(() => currentScript.state === "errored");
+                const isError = createMemo(() => currentScript.status === "error");
                 if (isError()) onError();
                 return null;
             });
@@ -122,8 +151,7 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             newScript.createdAt = createdAt;
             scriptCache.set(newScript.uuid, newScript);
 
-            const [_, { refetch }] = authenticationContext.requests!.getCached("/list-scripts");
-            refetch();
+            queryClient.invalidateQueries({ queryKey: ['scripts'] });
 
             return newScript;
         },
