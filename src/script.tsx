@@ -15,13 +15,16 @@ export interface ScriptContext {
     readonly currentScript: string|undefined;
     createNewScript(script: Script): Promise<Script>;
     instantiateDelayed(
-        component: Component<{ script: Readonly<Script> }>,
+        component: Component<{ script: Script }>,
         onError: () => void
     ): JSX.Element;
     commitNewConfidences(divisionIdx: number, newScores: number[]): void;
     deleteScript(uuid: schemas.UUID): void;
     renameScript(uuid: schemas.UUID, name: string): void;
 }
+
+// const STALE_TIME: number = 10 * 60_000; // 10 Minutes
+const STALE_TIME: number = Infinity;
 
 export function createScriptContext(authenticationContext: AuthenticationContext): ScriptContext {
     const location = useParams();
@@ -31,7 +34,8 @@ export function createScriptContext(authenticationContext: AuthenticationContext
 
     const scriptsQuery = useQuery(() => ({
         queryKey: ['scripts'],
-        queryFn: () => authenticationContext.services!.script.list()
+        queryFn: () => authenticationContext.services!.script.list(),
+        staleTime: STALE_TIME
     }))
 
     createEffect(async () => {
@@ -40,7 +44,7 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             setCurrentScriptId(undefined);
             return;
         }
-        const scripts = await queryClient.fetchQuery<Script[]>({ queryKey: ['scripts'] });
+        const scripts = await queryClient.ensureQueryData<Script[]>({ queryKey: ['scripts'] });
         const script = scripts.find(s => s.uuid === notValidatedScriptId);
         if (script === undefined) {
             setCurrentScriptId(undefined);
@@ -75,15 +79,20 @@ export function createScriptContext(authenticationContext: AuthenticationContext
     //     return currentScript;
     // });
 
+
+    // createMemo(() => {
+    //     <Test id={currentScriptId()}/>
+    // })
+
     const scriptQuery = useQuery(() => ({
         queryKey: ['script', currentScriptId()],
         async queryFn() {
             const scriptUuid = untrack(currentScriptId);
             if (scriptUuid === undefined)
-                return null;
-            console.log('world');
+                throw 'unknown script'
             return await authenticationContext.services!.script.get({ uuid: scriptUuid });
-        }
+        },
+        staleTime: STALE_TIME
     }));
 
     const allScripts = createMemo<Script[]>(() => {
@@ -102,7 +111,7 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         instantiateDelayed(Component, onError) {
             const renderedElement = createMemo(() => {
 
-                const condition = createMemo(() => scriptQuery.status === "success" && scriptQuery.data !== null);
+                const condition = createMemo(() => scriptQuery.status === "success");
                 if (condition())
                     return createComponent(
                         Component,

@@ -1,4 +1,4 @@
-import { JSX, createContext, createDeferred, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, splitProps, useContext, createRoot, runWithOwner, Owner } from 'solid-js';
+import { JSX, createContext, createDeferred, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, splitProps, useContext, createRoot, runWithOwner, Owner, mapArray, Accessor, For } from 'solid-js';
 import { EditorView, minimalSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { placeholder } from "@codemirror/view";
@@ -10,11 +10,13 @@ import { ScriptContextObj } from '../script';
 import { DivisionInfoComponent, DivisionInfoView } from './DivisionInfoView';
 import { useNavigate, useParams } from '@solidjs/router';
 import { insert } from 'solid-js/web';
-import { ScriptInfo, computeScriptInfo, createInvalidatable, pluralize } from './common';
+import { ScriptInfo, computeScriptInfo, pluralize } from './common';
 import { ActorPill } from './ActorPill';
 import { ExposedComponent } from '../exposed-component';
 import { installContextMenuHandler, toggleMenu } from '../popover-menu';
 import { DialogManager } from '../dialog';
+import { useMutation } from '@tanstack/solid-query';
+import { queryClient } from '../client';
 
 const myTheme = EditorView.theme({}, {dark: true})
 
@@ -124,21 +126,21 @@ function DeleteCueDialog(
 
 function EditableTextCue(
     props: {
+        index: number,
         cuePair: TextCuePair,
-        textCue: TextCue|null,
         type: "request"|"response",
-        idx: number
     }
 ): JSX.Element {
     const editContext = useContext(ScriptEditContextObj)!;
+    const textCue = createMemo(() => props.cuePair[props.type]);
 
     const owner = getOwner()!;
     owner.context = { ...owner.context, [EditableCueContextObj.id]: closeEditor };
 
-    const [textCue, setTextCue] = createSignal<TextCue>(props.textCue ?? { text: null, actors: [] });
+    // const [textCue, setTextCue] = createSignal<TextCue>(props.textCue ?? { text: null, actors: [] });
 
     let revoker: (() => void)|undefined;
-    const [content, setContent] = createSignal<string>(textCue().text ?? '');
+    const [content, setContent] = createSignal<string>(textCue()?.text ?? '');
 
     const cueComponent = createMemo(() => {
         const cue = renderCue(textCue(), props.type);
@@ -161,6 +163,29 @@ function EditableTextCue(
         return cue;
     });
 
+
+    const deleteMutation = useMutation(() => ({
+        mutationFn: () => editContext.deleteCue(props.index),
+        onError(error, variables, onMutateResult, context) {
+            console.log(error, variables, onMutateResult, context);
+        },
+    }))
+
+    const editMutation = useMutation(() => ({
+        mutationFn(newCue: TextCue) {
+            return editContext.updateCue(
+                props.index,
+                {
+                    ...props.cuePair,
+                    [props.type]: newCue
+                }
+            );
+        },
+        onError(error, variables, onMutateResult, context) {
+            console.log(error, variables, onMutateResult, context);
+        },
+    }))
+
     async function onDelete() {
         const res = await DialogManager.openDialog<true>(
             ({closer}) => <DeleteCueDialog 
@@ -169,7 +194,7 @@ function EditableTextCue(
             owner
         );
         if (res === undefined) return;
-        editContext.deleteCue(props.idx);
+        deleteMutation.mutate();
     }
 
     function onEdit() {
@@ -194,10 +219,15 @@ function EditableTextCue(
             comp.removeExtension(EditCommitView);
 
             if (res === "dismiss")
-                setContent(textCue().text ?? '');
+                setContent(textCue()?.text ?? '');
             else {
-                setTextCue(p => ({ actors: p.actors, text: content() }));
-                editContext.updateCue(props.idx, p => ({ ...p, [props.type]: textCue() }));
+                const prevTextCue = textCue();
+                const newTextCue = {
+                    actors: prevTextCue?.actors ?? 
+                        editContext.scriptInfo.self !== undefined ? [editContext.scriptInfo.self!] : [],
+                    text: content()
+                };
+                editMutation.mutate(newTextCue);
             }
 
             revoker = undefined;
@@ -216,7 +246,7 @@ function GapInjectHandle(
         "static", "classList", "style", "children"
     ]);
 
-    let handle: HTMLDivElement;
+    let handle: HTMLDivElement = undefined!;
     async function onClick() {
         const newCue = await createCueInserter(handle, editContext.scriptInfo, owner);
         if (newCue === undefined) return;
@@ -238,13 +268,13 @@ function GapInjectHandle(
     );
 }
 
-function renderCuePair(textCuePair: TextCuePair, idx: number): JSX.Element {
+function renderCuePair(textCuePair: TextCuePair, idx: Accessor<number>): JSX.Element {
     return (
         <>
-            <EditableTextCue cuePair={textCuePair} textCue={textCuePair.request} idx={idx} type="request"/>
+            <EditableTextCue index={idx()} cuePair={textCuePair} type="request"/>
             <GapInjectHandle static/>
-            <EditableTextCue cuePair={textCuePair} textCue={textCuePair.response} idx={idx} type="response"/>
-            <GapInjectHandle data-index={idx}/>
+            <EditableTextCue index={idx()} cuePair={textCuePair} type="response"/>
+            <GapInjectHandle data-index={idx()}/>
         </>
     )
 }
@@ -414,7 +444,7 @@ function createCueInserter(
             },
         };
 
-        let insertContainer: HTMLDivElement;
+        let insertContainer: HTMLDivElement = undefined!;
         const content = (
             <CueInsertionContextObj.Provider value={context}>
                 <NewCueInserter ref={insertContainer} actors={scriptInfo.actors} self={scriptInfo.self}/>
@@ -538,9 +568,9 @@ function EditableDivisionInfoView(
 interface ScriptEditContext {
     readonly scriptInfo: ScriptInfo;
     updateDescription(newDescription: string): void;
-    deleteCue(index: number): void;
-    insertCue(index: number, newCue: TextCuePair): void;
-    updateCue(index: number, updater: (p: TextCuePair) => TextCuePair): void;
+    deleteCue(index: number): Promise<{ prev: Script }>;
+    insertCue(index: number, newCue: TextCuePair): Promise<{ prev: Script }>;
+    updateCue(index: number, newCue: TextCuePair): Promise<{ prev: Script }>;
 }
 
 const ScriptEditContextObj = createContext<ScriptEditContext>();
@@ -560,18 +590,37 @@ function ScriptCueView(
         document.title = `${props.script.name} - Quipt`
     })
 
-    const scriptInfo = computeScriptInfo(props.script);
+    const scriptInfo = createMemo(() => computeScriptInfo(props.script));
 
-    function renderDivision(division: Division, idx: number): JSX.Element {
+    function renderDivision(division: Division, idx: Accessor<number>): JSX.Element {
         const editContext: ScriptEditContext = {
-            scriptInfo,
+            get scriptInfo() {
+                return scriptInfo();
+            },
             updateDescription(newDescription) {
                 division.description = newDescription;
             },
-            updateCue(index: number, updater: (p: TextCuePair) => TextCuePair) {
-                const prev = division.textCues[index];
-                const next = updater(prev);
-                division.textCues[index] = next;
+            async updateCue(index, newCuePair) {
+                await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
+                const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
+                queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
+                    if (!old) return old;
+
+                    const target = old.divisions[idx()].textCues[index];
+                    return {
+                        ...old,
+                        divisions: Array.from({
+                            ...old.divisions,
+                            [idx()]: {
+                                ...old.divisions[idx()],
+                                textCues: old.divisions[idx()].textCues
+                                    .map(p => p !== target ? p : newCuePair)
+                            },
+                            length: old.divisions.length
+                        })
+                    };
+                })
+                return { prev };
             },
             insertCue(index: number, newCue: TextCuePair) {
                 const division = script.divisions[idx];
@@ -583,29 +632,42 @@ function ScriptCueView(
                 const [, invalidate] = invalidatables[idx];
                 invalidate();
             },
-            deleteCue(index) {
-                const division = script.divisions[idx];
-                division.textCues.splice(index, 1);
-                const [, invalidate] = invalidatables[idx];
-                invalidate(); 
+            async deleteCue(index) {
+                await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
+                const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
+                queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
+                    if (!old) return old;
+
+                    const toRemove = old.divisions[idx()].textCues[index];
+                    return {
+                        ...old,
+                        divisions: Array.from({
+                            ...old.divisions,
+                            [idx()]: {
+                                ...old.divisions[idx()],
+                                textCues: old.divisions[idx()].textCues.filter(p => p !== toRemove)
+                            },
+                            length: old.divisions.length
+                        })
+                    };
+                })
+                return { prev };
             },
         };
         return (
-            <div class="script-divsion" id={`division${idx}`} data-division={idx}>
+            <div class="script-divsion" id={`division${idx()}`} data-division={idx()}>
                 <ScriptEditContextObj.Provider value={editContext}>
                     <h2>{ division.name }</h2>
                     <EditableDivisionInfoView division={division}/>
                     <GapInjectHandle data-index={-1}/>
-                    { division.textCues.map(renderCuePair) }
+                    {
+                        mapArray(() => division.textCues, renderCuePair) as unknown as JSX.Element
+                    }
                 </ScriptEditContextObj.Provider>
             </div>
         );
     }
 
-    const invalidatables = props.script.divisions.map(
-        (division, idx) => createInvalidatable(() => renderDivision(division, idx)))
-
-    const divisionElements = createMemo(() => invalidatables.map(([element]) => element()));
     const [divisionIdx, setDivisionIdx] = createSignal<number>(0);
     
     let contentElement: HTMLDivElement = undefined!;
@@ -649,24 +711,26 @@ function ScriptCueView(
         <div ref={contentElement} class="desktop-view">
             <div class="readable-content-view">
                 <h1 class="script-info">{ props.script.name }</h1>
-                { divisionElements() } 
+                <For each={props.script.divisions}>
+                    { renderDivision }
+                </For>
             </div>
             <div class="grid-layout-filler overview">
                 <div class="division-overview">
                     <h4>Info</h4>
                     <section class="script-info">
-                        <span class="info">{ pluralize(scriptInfo.textCues, 'Einsatz', 'Einsätze') }</span>
-                        <span class="info">{ scriptInfo.actors.join(', ') } Spieler</span>
+                        <span class="info">{ pluralize(scriptInfo().textCues, 'Einsatz', 'Einsätze') }</span>
+                        <span class="info">{ scriptInfo().actors.join(', ') } Spieler</span>
                     </section>
                     <h4>Abschnitte</h4>
                     <section class="divisions">
                         <ul>
                             {
-                                props.script.divisions.map((d, idx) => 
-                                    <li classList={{ current: idx === divisionIdx() }} onClick={jumpToDivision} data-idx={idx}>
+                                mapArray(() => props.script.divisions, (d, idx) => 
+                                    <li classList={{ current: idx() === divisionIdx() }} onClick={jumpToDivision} data-idx={idx()}>
                                         { d.name }
                                     </li>
-                                )
+                                ) as unknown as JSX.Element
                             }
                         </ul>
                     </section>
