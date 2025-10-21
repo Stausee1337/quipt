@@ -478,12 +478,11 @@ function EditableDivisionInfoView(
 ): JSX.Element {
     const editContext = useContext(ScriptEditContextObj)!;
 
-    const [division, setDivision] = createSignal<Division>(props.division);
     const [isEditing, setIsEditing] = createSignal<boolean>(false);
 
     const infoComponent = createMemo(() => { 
         const component = (
-            <DivisionInfoView division={division()}>
+            <DivisionInfoView division={props.division}>
                 {
                     isEditing() && (
                         <EditableCueContextObj.Provider value={closeEditor}>
@@ -514,7 +513,9 @@ function EditableDivisionInfoView(
 
     let revoker: (() => void)|undefined;
     const owner = getOwner()!;
-    const [content, setContent] = createSignal<string>(props.division.description);
+    const description = createMemo(() => props.division.description);
+
+    const [currentContent, setCurrentContent] = createSignal<string>(description());
 
     createEffect(() => {
         const component = infoComponent();
@@ -536,12 +537,16 @@ function EditableDivisionInfoView(
 
             revoker = component.injectContent(
                 runWithOwner(owner, () =>
-                    <Editor content={content()} onChange={setContent} autofocus/>
+                    <Editor content={description()} onChange={setCurrentContent} autofocus/>
                 )
             );
             setIsEditing(true);
         }
     }
+
+    const descriptionMutation = useMutation(() => ({
+        mutationFn: editContext.updateDescription
+    }));
 
     function closeEditor(res: "dismiss"|"accept") {
         if (revoker !== undefined) {
@@ -550,12 +555,9 @@ function EditableDivisionInfoView(
             setIsEditing(false);
 
             if (res === "dismiss")
-                setContent(division().description);
+                setCurrentContent(description());
             else {
-                const data = window.structuredClone(division());
-                data.description = content();
-                setDivision(data);
-                editContext.updateDescription(content());
+                descriptionMutation.mutate(currentContent());
             }
 
             revoker = undefined;
@@ -567,7 +569,7 @@ function EditableDivisionInfoView(
 
 interface ScriptEditContext {
     readonly scriptInfo: ScriptInfo;
-    updateDescription(newDescription: string): void;
+    updateDescription(newDescription: string): Promise<{ prev: Script }>;
     deleteCue(index: number): Promise<{ prev: Script }>;
     insertCue(index: number, newCue: TextCuePair): Promise<{ prev: Script }>;
     updateCue(index: number, newCue: TextCuePair): Promise<{ prev: Script }>;
@@ -597,8 +599,25 @@ function ScriptCueView(
             get scriptInfo() {
                 return scriptInfo();
             },
-            updateDescription(newDescription) {
-                division.description = newDescription;
+            async updateDescription(newDescription) {
+                await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
+                const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
+                queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
+                    if (!old) return old;
+
+                    return {
+                        ...old,
+                        divisions: Array.from({
+                            ...old.divisions,
+                            [idx()]: {
+                                ...old.divisions[idx()],
+                                description: newDescription
+                            },
+                            length: old.divisions.length
+                        })
+                    };
+                })
+                return { prev };
             },
             async updateCue(index, newCuePair) {
                 await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
@@ -622,15 +641,30 @@ function ScriptCueView(
                 })
                 return { prev };
             },
-            insertCue(index: number, newCue: TextCuePair) {
-                const division = script.divisions[idx];
-                division.textCues.splice(
-                    index,
-                    0,
-                    newCue,
-                );
-                const [, invalidate] = invalidatables[idx];
-                invalidate();
+            async insertCue(index, newCue) {
+                await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
+                const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
+                queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
+                    if (!old) return old;
+
+                    const textCues = old.divisions[idx()].textCues;
+                    return {
+                        ...old,
+                        divisions: Array.from({
+                            ...old.divisions,
+                            [idx()]: {
+                                ...old.divisions[idx()],
+                                textCues: [
+                                    ...textCues.slice(0, index),
+                                    newCue,
+                                    ...textCues.slice(index),
+                                ]
+                            },
+                            length: old.divisions.length
+                        })
+                    };
+                })
+                return { prev };
             },
             async deleteCue(index) {
                 await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
