@@ -1,4 +1,4 @@
-import { Component, JSX, Owner, createRoot, onMount } from "solid-js";
+import { Component, JSX, Owner, createRoot, onCleanup, onMount } from "solid-js";
 import { insert } from "solid-js/web";
 
 
@@ -75,16 +75,27 @@ function DialogBox<T>(
         onClose: (res: T|PromiseLike<T>|undefined) => void
     }
 ): JSX.Element {
-    const dialog = (
-        <div id="dialog-box">
-            <Children closer={onClose}/>
-        </div>
-    ) as HTMLDivElement;
+    let dialog: HTMLDivElement = undefined!;
+
+    function onKeydown(event: KeyboardEvent) {
+        if (event.key === "Escape")
+            onClose(undefined);
+    }
+
+    onMount(() => {
+        document.documentElement.addEventListener('keydown', onKeydown);
+    })
+
+    onCleanup(() => {
+        document.documentElement.removeEventListener('keydown', onKeydown);
+    })
 
     return (
         <>
             <div id="modal-dialog-backdrop" onClick={() => onClose(undefined)}/>
-            {dialog}
+            <div ref={dialog} id="dialog-box">
+                <Children closer={onClose}/>
+            </div>
         </>
     );
 }
