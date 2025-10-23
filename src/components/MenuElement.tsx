@@ -7,7 +7,7 @@ import QuiptLogo from "./Quipt-Logo";
 import { DialogManager } from "../dialog";
 import { NewScriptFileChooser } from "./NewScriptFileChooser";
 import { IsMobileContext } from "../App";
-import { installContextMenuHandler, toggleMenu } from "../popover-menu";
+import { installPopoverMenuHandler, toggleMenu } from "../popover-menu";
 
 interface ListElementStateContext {
     readonly elementKind: 'span'|'input';
@@ -153,7 +153,7 @@ function ScriptMenuButton(): JSX.Element {
         </button>
     ) as HTMLButtonElement;
 
-    installContextMenuHandler(
+    installPopoverMenuHandler(
         button,
         "bottom-start",
         ScriptContextMenu,

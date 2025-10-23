@@ -1,4 +1,4 @@
-import { Accessor, JSX, Setter, batch, createEffect, createMemo, createSignal, onCleanup, onMount, untrack, useContext } from "solid-js";
+import { JSX, Setter, batch, createEffect, createMemo, createSignal, onCleanup, onMount, useContext } from "solid-js";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
 import { createInvalidatable, pluralize } from "./common";
 import * as b from "../client";
@@ -7,7 +7,7 @@ import { renderCuePair } from "./TextCueView";
 import { DivisionInfoView } from "./DivisionInfoView";
 import { ScriptContextObj } from "../script";
 import { useNavigate } from "@solidjs/router";
-import { ContextMenuEvent, installContextMenuHandler, toggleMenu } from "../popover-menu";
+import { ToggleMenuEvent, installPopoverMenuHandler, toggleMenu } from "../popover-menu";
 import { ActorPill } from "./ActorPill";
 
 type MupdfLib = typeof import("mupdf");
@@ -666,7 +666,7 @@ function PageView(
     function onOpenMenu(event: MouseEvent) {
         const target = event.target as HTMLElement;
         const parent = target.parentElement!;
-        const toggleMenu = new ContextMenuEvent(target);
+        const toggleMenu = new ToggleMenuEvent(target);
         parent.dispatchEvent(toggleMenu);
     }
 
@@ -697,7 +697,7 @@ function PageView(
                 <i class="menu-icon" onClick={onOpenMenu}>&#xF5D3;</i>
             </span> as HTMLSpanElement;
 
-        installContextMenuHandler(
+        installPopoverMenuHandler(
             visualBlock,
             'bottom-start',
             ViewBlockMenu,
@@ -1402,7 +1402,7 @@ export function DocumentView(
                 onClick={toggleMenu}
                 actor={actor}
                 count={count}/> as HTMLSpanElement;
-        installContextMenuHandler(
+        installPopoverMenuHandler(
             actorPill,
             'top',
             ActorMenu,

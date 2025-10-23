@@ -1,4 +1,4 @@
-import { JSX, createContext, createDeferred, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, splitProps, useContext, createRoot, runWithOwner, Owner, mapArray, Accessor, For } from 'solid-js';
+import { JSX, createContext, createDeferred, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, splitProps, useContext, createRoot, runWithOwner, indexArray, mapArray, Owner, Accessor } from 'solid-js';
 import { EditorView, minimalSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { placeholder } from "@codemirror/view";
@@ -13,7 +13,7 @@ import { insert } from 'solid-js/web';
 import { ScriptInfo, computeScriptInfo, pluralize } from './common';
 import { ActorPill } from './ActorPill';
 import { ExposedComponent } from '../exposed-component';
-import { installContextMenuHandler, toggleMenu } from '../popover-menu';
+import { installPopoverMenuHandler, contextMenu } from '../popover-menu';
 import { DialogManager } from '../dialog';
 import { useMutation } from '@tanstack/solid-query';
 import { queryClient } from '../client';
@@ -73,11 +73,11 @@ function EditCommitView(): JSX.Element {
     const close = useContext(EditableCueContextObj);
     return (
         <div class="edit-commit-container">
-            <button class="icon-button" onClick={() => close?.("dismiss")}>
-                <i class="bi bi-x"/>
+            <button class="icon-button " onClick={() => close?.("dismiss")}>
+                &#xF62A;
             </button>
             <button class="icon-button" onClick={() => close?.("accept")}>
-                <i class="bi bi-check2"/>
+                &#xF272;
             </button>
         </div>
     );
@@ -137,32 +137,25 @@ function EditableTextCue(
     const owner = getOwner()!;
     owner.context = { ...owner.context, [EditableCueContextObj.id]: closeEditor };
 
-    // const [textCue, setTextCue] = createSignal<TextCue>(props.textCue ?? { text: null, actors: [] });
-
     let revoker: (() => void)|undefined;
     const [content, setContent] = createSignal<string>(textCue()?.text ?? '');
 
-    const cueComponent = createMemo(() => {
-        const cue = renderCue(textCue(), props.type);
+    const cueComponent = renderCue(textCue, props.type);
 
-        installContextMenuHandler(
-            cue.cueElement,
-            "mouse",
-            CueEditMenu,
-            { onEdit, onDelete }
-        );
+    installPopoverMenuHandler(
+        cueComponent.cueElement,
+        "auto",
+        CueEditMenu,
+        { onEdit, onDelete }
+    );
 
-        onMount(() => {
-            cue.cueElement.addEventListener('contextmenu', toggleMenu as any);
-        })
+    onMount(() => {
+        cueComponent.cueElement.addEventListener('contextmenu', contextMenu);
+    })
 
-        onCleanup(() => {
-            cue.cueElement.removeEventListener('contextmenu', toggleMenu as any);
-        })
-
-        return cue;
-    });
-
+    onCleanup(() => {
+        cueComponent.cueElement.removeEventListener('contextmenu', contextMenu);
+    })
 
     const deleteMutation = useMutation(() => ({
         mutationFn: () => editContext.deleteCue(props.index),
@@ -199,32 +192,33 @@ function EditableTextCue(
 
     function onEdit() {
         if (revoker === undefined) {
-            const comp = cueComponent();
-            comp.cueElement.classList.add('editing');
-            revoker = comp.injectContent(
+            cueComponent.cueElement.classList.add('editing');
+            revoker = cueComponent.injectContent(
                 runWithOwner(owner, () =>
                     <Editor content={content()} onChange={setContent} autofocus/>
                 )
             );
-            comp.addExtension(EditCommitView);
+            cueComponent.addExtension(EditCommitView);
         }
     }
 
     function closeEditor(res: "dismiss"|"accept") {
         if (revoker !== undefined) {
-            const comp = cueComponent();
-
             revoker();
-            comp.cueElement.classList.remove('editing');
-            comp.removeExtension(EditCommitView);
+            cueComponent.cueElement.classList.remove('editing');
+            cueComponent.removeExtension(EditCommitView);
 
             if (res === "dismiss")
                 setContent(textCue()?.text ?? '');
             else {
-                const prevTextCue = textCue();
+                const prevTextCue = (
+                    textCue() !== undefined
+                        ? JSON.parse(JSON.stringify(textCue()!))
+                        : undefined
+                ) as TextCue|undefined;
                 const newTextCue = {
                     actors: prevTextCue?.actors ?? 
-                        editContext.scriptInfo.self !== undefined ? [editContext.scriptInfo.self!] : [],
+                        (editContext.scriptInfo.self !== undefined ? [editContext.scriptInfo.self!] : []),
                     text: content()
                 };
                 editMutation.mutate(newTextCue);
@@ -234,7 +228,7 @@ function EditableTextCue(
         }
     }
 
-    return <>{ cueComponent() }</>;
+    return <>{ cueComponent }</>;
 }
 
 function GapInjectHandle(
@@ -246,19 +240,25 @@ function GapInjectHandle(
         "static", "classList", "style", "children"
     ]);
 
+    const insertMutation = useMutation(() => ({
+        mutationFn({ index, newCue }: { index: number, newCue: TextCuePair }) {
+            return editContext.insertCue(index, newCue);
+        }
+    }))
+
     let handle: HTMLDivElement = undefined!;
     async function onClick() {
         const newCue = await createCueInserter(handle, editContext.scriptInfo, owner);
         if (newCue === undefined) return;
 
-        editContext.insertCue(
-            newCue.index,
-            { 
+        insertMutation.mutate({
+            index: newCue.index,
+            newCue: { 
                 request: newCue.request,
                 response: newCue.response,
                 previousScores: []
             }
-        );
+        });
     }
 
     return (
@@ -268,13 +268,13 @@ function GapInjectHandle(
     );
 }
 
-function renderCuePair(textCuePair: TextCuePair, idx: Accessor<number>): JSX.Element {
+function renderCuePair(textCuePair: Accessor<TextCuePair>, idx: number): JSX.Element {
     return (
         <>
-            <EditableTextCue index={idx()} cuePair={textCuePair} type="request"/>
+            <EditableTextCue index={idx} cuePair={textCuePair()} type="request"/>
             <GapInjectHandle static/>
-            <EditableTextCue index={idx()} cuePair={textCuePair} type="response"/>
-            <GapInjectHandle data-index={idx()}/>
+            <EditableTextCue index={idx} cuePair={textCuePair()} type="response"/>
+            <GapInjectHandle data-index={idx}/>
         </>
     )
 }
@@ -439,6 +439,8 @@ function createCueInserter(
                 resolve(undefined);
             },
             confirmWithCue(cue) {
+                divisionElement.insertBefore(handle, insertContainer);
+                insertContainer.remove();
                 dispose();
                 resolve({ ...cue, index });
             },
@@ -473,7 +475,8 @@ function DivisionEditMenu(
 
 function EditableDivisionInfoView(
     props: {
-        division: Division
+        division: Division,
+        onRename: () => void
     }
 ): JSX.Element {
     const editContext = useContext(ScriptEditContextObj)!;
@@ -493,19 +496,24 @@ function EditableDivisionInfoView(
             </DivisionInfoView>
         ) as ExposedComponent<DivisionInfoComponent>;
 
-        installContextMenuHandler(
+        installPopoverMenuHandler(
             component.infoElement,
-            "mouse",
+            "auto",
             DivisionEditMenu,
-            { onEdit, onRename }
+            { 
+                onEdit, 
+                get onRename() {
+                    return props.onRename;
+                }
+            }
         );
 
         onMount(() => {
-            component.infoElement.addEventListener('contextmenu', toggleMenu as any);
+            component.infoElement.addEventListener('contextmenu', contextMenu);
         })
 
         onCleanup(() => {
-            component.infoElement.removeEventListener('contextmenu', toggleMenu as any);
+            component.infoElement.removeEventListener('contextmenu', contextMenu);
         })
 
         return component;
@@ -526,10 +534,6 @@ function EditableDivisionInfoView(
         else
             component.infoElement.classList.remove('editing');
     })
-
-    function onRename() {
-
-    }
 
     function onEdit() {
         if (revoker === undefined) {
@@ -594,7 +598,9 @@ function ScriptCueView(
 
     const scriptInfo = createMemo(() => computeScriptInfo(props.script));
 
-    function renderDivision(division: Division, idx: Accessor<number>): JSX.Element {
+    function renderDivision(division: Accessor<Division>, index: number): JSX.Element {
+        const idx = () => index;
+
         const editContext: ScriptEditContext = {
             get scriptInfo() {
                 return scriptInfo();
@@ -688,14 +694,19 @@ function ScriptCueView(
                 return { prev };
             },
         };
+
+        function onRename() {
+
+        }
+
         return (
             <div class="script-divsion" id={`division${idx()}`} data-division={idx()}>
                 <ScriptEditContextObj.Provider value={editContext}>
-                    <h2>{ division.name }</h2>
-                    <EditableDivisionInfoView division={division}/>
+                    <h2>{ division().name }</h2>
+                    <EditableDivisionInfoView division={division()} onRename={onRename}/>
                     <GapInjectHandle data-index={-1}/>
                     {
-                        mapArray(() => division.textCues, renderCuePair) as unknown as JSX.Element
+                        indexArray(() => division().textCues, renderCuePair) as unknown as JSX.Element
                     }
                 </ScriptEditContextObj.Provider>
             </div>
@@ -745,9 +756,9 @@ function ScriptCueView(
         <div ref={contentElement} class="desktop-view">
             <div class="readable-content-view">
                 <h1 class="script-info">{ props.script.name }</h1>
-                <For each={props.script.divisions}>
-                    { renderDivision }
-                </For>
+                {
+                    indexArray(() => props.script.divisions, renderDivision) as unknown as JSX.Element
+                }
             </div>
             <div class="grid-layout-filler overview">
                 <div class="division-overview">

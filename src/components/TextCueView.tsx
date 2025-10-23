@@ -1,5 +1,5 @@
 /* @refresh reload */
-import { Component, JSX, createMemo, createSignal, getOwner, runWithOwner } from "solid-js";
+import { Accessor, Component, JSX, createMemo, createSignal, getOwner, runWithOwner } from "solid-js";
 import { formatActorsArray, formatMarkdown, formatString } from "./common";
 import { FormattedString } from "../client";
 import { TextCue, TextCuePair } from "../schemas"
@@ -84,17 +84,20 @@ export function TextCueView(props: TextCueViewProps): ExposedComponentType {
 }
 
 export function renderCue(
-    textCue: TextCue | undefined,
+    textCue: TextCue | Accessor<TextCue|undefined> | undefined,
     type: "request"|"response",
 ): ExposedComponentType {
-    const cueData = type === "request" 
-        ? { actors: formatActorsArray(textCue?.actors ?? null), text: textCue?.text ?? "_Du bist der erste in diesem Abschnitt_" }
-        : { actors: formatActorsArray(textCue!.actors.length === 1 ? null : textCue!.actors), text: textCue!.text! };
+    const textCue1 = createMemo(() => typeof textCue === "function" ? textCue() : textCue);
+    const cueData = createMemo(
+        () => type === "request" 
+            ? { actors: formatActorsArray(textCue1()?.actors ?? null), text: textCue1()?.text ?? "_Du bist der erste in diesem Abschnitt_" }
+            : { actors: formatActorsArray(textCue1()!.actors.length === 1 ? null : textCue1()!.actors), text: textCue1()!.text! }
+    );
     return (
         <TextCueView
             type={type}
-            text={formatMarkdown(cueData.text)}
-            actorsInfo={cueData.actors}/>
+            text={formatMarkdown(cueData().text)}
+            actorsInfo={cueData().actors}/>
     ) as ExposedComponentType;
 }
 
