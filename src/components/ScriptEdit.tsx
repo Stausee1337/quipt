@@ -1,4 +1,4 @@
-import { JSX, createContext, createDeferred, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, splitProps, useContext, createRoot, runWithOwner, indexArray, mapArray, Owner, Accessor } from 'solid-js';
+import { JSX, createContext, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, splitProps, useContext, createRoot, runWithOwner, indexArray, mapArray, Owner, Accessor } from 'solid-js';
 import { EditorView, minimalSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { placeholder } from "@codemirror/view";
@@ -10,7 +10,7 @@ import { ScriptContextObj } from '../script';
 import { DivisionInfoComponent, DivisionInfoView } from './DivisionInfoView';
 import { useNavigate, useParams } from '@solidjs/router';
 import { insert } from 'solid-js/web';
-import { ScriptInfo, computeScriptInfo, pluralize } from './common';
+import { ScriptInfo, computeScriptInfo, formatActorsArray, formatMarkdown, pluralize } from './common';
 import { ActorPill } from './ActorPill';
 import { ExposedComponent } from '../exposed-component';
 import { installPopoverMenuHandler, contextMenu } from '../popover-menu';
@@ -137,10 +137,21 @@ function EditableTextCue(
     const owner = getOwner()!;
     owner.context = { ...owner.context, [EditableCueContextObj.id]: closeEditor };
 
-    let revoker: (() => void)|undefined;
+    let revoker: ((res: TextCue|undefined) => void)|undefined;
     const [content, setContent] = createSignal<string>(textCue()?.text ?? '');
+    const [currentActors, setCurrentActors] = createSignal<string[]>(textCue()?.actors ?? []);
 
-    const cueComponent = renderCue(textCue, props.type);
+    createEffect(() => {
+        setContent(textCue()?.text ?? '');
+        setCurrentActors(textCue()?.actors ?? []);
+    })
+
+    const cueComponent = <TextCueView
+        type={props.type}
+        actorsInfo={
+            formatActorsArray((props.type === "response" && currentActors().length === 1) ? null : currentActors())
+        }
+        text={formatMarkdown(textCue()?.text ?? '_Du bist der erste in diesem Abschnitt_')}/> as ExposedComponentType;
 
     installPopoverMenuHandler(
         cueComponent.cueElement,
@@ -190,39 +201,74 @@ function EditableTextCue(
         deleteMutation.mutate();
     }
 
-    function onEdit() {
-        if (revoker === undefined) {
-            cueComponent.cueElement.classList.add('editing');
-            revoker = cueComponent.injectContent(
-                runWithOwner(owner, () =>
-                    <Editor content={content()} onChange={setContent} autofocus/>
-                )
-            );
-            cueComponent.addExtension(EditCommitView);
+    function createAsyncEditor(): Promise<TextCue|undefined> {
+        if (revoker !== undefined)
+            return Promise.resolve(undefined);
+
+        let resolve: (x: TextCue|undefined) => void;
+        let promise = new Promise<TextCue|undefined>(resolve1 => resolve = resolve1);
+
+        cueComponent.cueElement.classList.add('editing');
+        const revoker1 = cueComponent.injectContent(
+            runWithOwner(owner, () =>
+                <Editor content={content()} onChange={setContent} autofocus/>
+            )
+        )!;
+        cueComponent.addExtension(EditCommitView);
+        cueComponent.addExtension(CreateActorsSelector, "before");
+
+        revoker = res => {
+            revoker1();
+            resolve(res);
+        };
+
+        return promise;
+    }
+
+    async function onEdit() {
+        const editorResult = await createAsyncEditor();
+        if (editorResult === undefined) {
+            setContent(textCue()?.text ?? '');
+            setCurrentActors(textCue()?.actors ?? []);
+            return;
         }
+        editMutation.mutate(editorResult);
+    }
+
+    function CreateActorsSelector(): JSX.Element {
+        function actorsChange(newActors: string[]) {
+            if (newActors.length === 0) return;
+            setCurrentActors(newActors);
+        }
+
+        return (
+            <ActorsSelector
+                self={props.type === "response" ? editContext.scriptInfo.self : undefined}
+                actors={
+                    props.type === "response"
+                        ? editContext.scriptInfo.actors
+                        : editContext.scriptInfo.actors.filter(s => s !== editContext.scriptInfo.self)
+                }
+                selectedActors={currentActors()}
+                onSelectionChange={actorsChange}/>
+        );
     }
 
     function closeEditor(res: "dismiss"|"accept") {
         if (revoker !== undefined) {
-            revoker();
+            const newTextCue = { actors: currentActors(), text: content() };
+
+            if (!(newTextCue.actors.length > 0 && newTextCue.text.trim().length > 0) && res === "accept")
+                return;
+
             cueComponent.cueElement.classList.remove('editing');
             cueComponent.removeExtension(EditCommitView);
+            cueComponent.removeExtension(CreateActorsSelector);
 
             if (res === "dismiss")
-                setContent(textCue()?.text ?? '');
-            else {
-                const prevTextCue = (
-                    textCue() !== undefined
-                        ? JSON.parse(JSON.stringify(textCue()!))
-                        : undefined
-                ) as TextCue|undefined;
-                const newTextCue = {
-                    actors: prevTextCue?.actors ?? 
-                        (editContext.scriptInfo.self !== undefined ? [editContext.scriptInfo.self!] : []),
-                    text: content()
-                };
-                editMutation.mutate(newTextCue);
-            }
+                revoker(undefined);
+            else
+                revoker(newTextCue);
 
             revoker = undefined;
         }
@@ -283,26 +329,23 @@ function ActorsSelector(
     props: {
         self?: string,
         actors: string[],
+        selectedActors: string[],
         onSelectionChange: (selected: string[]) => void
     }
 ): JSX.Element {
-    const [selected, setSelected] = createSignal<string[]>([]);
+    // const [selected, setSelected] = createSignal<string[]>([]);
 
-    function toggleSelection(event: MouseEvent & { currentTarget: HTMLSpanElement }) {
-        const target = event.currentTarget;
-        const isSelected = target.classList.toggle('selected');
-        const currentActor = target.dataset.actor!;
+    function toggleSelection(actor: string) {
+        const prev = props.selectedActors;
+        const isSelected = !props.selectedActors.includes(actor);
 
-        setSelected(prev => [
-            ...(isSelected ? prev : prev.filter(x => x !== currentActor)),
-            ...(isSelected ? [currentActor] : [])
+        props.onSelectionChange([
+            ...(isSelected ? prev : prev.filter(x => x !== actor)),
+            ...(isSelected ? [actor] : [])
         ])
     }
 
-    createDeferred(() => {
-        props.onSelectionChange(selected());
-    })
-    
+ 
     return (
         <div class="actors-selector">
             {
@@ -317,8 +360,8 @@ function ActorsSelector(
                     .filter(actor => actor !== props.self)
                     .map(
                         actor => <ActorPill actor={actor}
-                            data-actor={actor}
-                            onClick={toggleSelection}/>
+                            classList={{'selected': props.selectedActors.includes(actor)}}
+                            onClick={() => toggleSelection(actor)}/>
                     )
             }
         </div>
@@ -335,6 +378,7 @@ function NewTextCueView(
 ): JSX.Element {
     const [selectedActors, setSelectedActors] = createSignal<string[]>([]);
     const [content, setContent] = createSignal<string>("");
+
     const component = <TextCueView
         type={props.type}
         actorsInfo={null}
@@ -343,6 +387,7 @@ function NewTextCueView(
     component.addExtension(() => <ActorsSelector
                            self={props.self}
                            actors={props.actors}
+                           selectedActors={selectedActors()}
                            onSelectionChange={setSelectedActors}/>, "before");
     createEffect(() => {
         props.onChange({
