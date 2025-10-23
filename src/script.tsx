@@ -12,7 +12,7 @@ export type PartialScript = Omit<Script, "divisions">
 
 export interface ScriptContext {
     readonly allScripts: Accessor<PartialScript[]>
-    readonly currentScript: string|undefined;
+    readonly currentScript: schemas.UUID|undefined;
     createNewScript(script: Script): Promise<Script>;
     instantiateDelayed(
         component: Component<{ script: Script }>,
@@ -129,33 +129,31 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             return renderedElement as any;
         },
         async commitNewConfidences(divisionIdx, newScores) {
-            const script = currentScript()!;
-            const division = script.divisions[divisionIdx];
+            const scriptId = currentScriptId()!;
 
-            const totalScore = newScores.reduce((a, b) => a + b);
+            await queryClient.cancelQueries({ queryKey: ['script', scriptId] })
+            queryClient.setQueryData<Script>(['script', scriptId], old => {
+                if (!old) return old;
 
-            const newDivision: Division = {
-                name: division.name,
-                description: division.description,
-                textCues: division.textCues.map((textCue, idx) => {
-                    return {
-                        request: textCue.request,
-                        response: textCue.response,
-                        previousScores: [...textCue.previousScores, newScores[idx]]
-                    };
-                }),
-                previousTotals: [...division.previousTotals, totalScore],
-            };
+                const division = old.divisions[divisionIdx];
+                return {
+                    ...old,
+                    divisions: Array.from({
+                        ...old.divisions,
+                        [divisionIdx]: {
+                            ...old.divisions[divisionIdx],
+                            textCues: division.textCues.map((pair, idx) => ({
+                                ...pair,
+                                previousScores: [...pair.previousScores, newScores[idx]]
+                            })),
+                            previousTotals: [...division.previousTotals, newScores.reduce((acc, n) => acc + n)]
+                        },
+                        length: old.divisions.length
+                    })
+                };
+            })
 
-            const newScript = { ...script };
-            newScript.divisions[divisionIdx] = newDivision;
-
-            mutate(newScript);
-
-            const err = await authenticationContext.services!
-                .script.saveScores({ scriptId: script.uuid, divisionIdx, newScores });
-            if (err !== undefined)
-                console.error(err);
+            await authenticationContext.services!.script.saveScores({ scriptId: scriptId, divisionIdx, newScores });
         },
         async createNewScript(script) {
             const newScript = window.structuredClone(script);
@@ -185,7 +183,7 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             }
 
             queryClient.invalidateQueries({ queryKey: ['scripts'] });
-            queryClient.invalidateQueries({ queryKey: ['script', uuid] });
+            queryClient.removeQueries({ queryKey: ['script', uuid] });
         },
         async renameScript(uuid, name) {
             try {

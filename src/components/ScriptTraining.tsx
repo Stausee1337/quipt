@@ -2,13 +2,13 @@ import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor
 import { useNavigate, A, useParams, Params } from '@solidjs/router';
 import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
-import { useAuthentication } from '../client';
 import { Division, Script, TextCue } from '../schemas';
-import { ScriptContextObj, ScriptContext } from '../script';
+import { ScriptContextObj, ScriptContext, PartialScript } from '../script';
 import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, pluralize, computeScriptInfo, createInvalidatable } from './common';
 import { renderCue as renderCueImpl } from './TextCueView';
 import { DivisionInfoView } from './DivisionInfoView';
 import { ConfidenceReportView, ConfidenceReporter } from './ConfidenceReportView';
+import { useQuery } from '@tanstack/solid-query';
 
 function renderCue(
     textCue: TextCue | undefined,
@@ -141,7 +141,7 @@ const trendColors = {
 
 function TrainingRunView(
     props: {
-        division: Readonly<Division>,
+        division: Division,
         manager: TrainingRunManager
     }
 ) {
@@ -429,7 +429,8 @@ function TrainingRunView(
                 { 
                     mapArray<number, JSX.Element>(
                         () => Array.from({ length: currentIndex() }, (_, index) => index + 1),
-                        renderQuote)
+                        renderQuote
+                    ) as unknown as JSX.Element
                 }
             </div>
             { !reachedEnd() 
@@ -459,7 +460,7 @@ function TrainingRunView(
 
 function leftPad(data: number[], length: number): number[] {
     if (data.length >= length)
-        return data;
+        return [...data];
     const padding = Array(length - data.length).fill(0);
     return [...padding, ...data];
 }
@@ -618,12 +619,12 @@ function TrainingRunCompletedView(
 
 function ScriptOverview(
     props: {
-        script: Readonly<Script>
+        script: Script
     }
 ): JSX.Element { 
     const { actors, textCues } = computeScriptInfo(props.script);
 
-    function renderDivision(division: Readonly<Division>, idx: Accessor<number>) {
+    function renderDivision(division: Division, idx: Accessor<number>) {
         const { actors, textCues } = computeDivisionInfo(division);
         const highScore = Math.max(0, ...division.previousTotals);
         const maxScore = Math.max(division.textCues.length * 4, highScore);
@@ -771,27 +772,25 @@ function SimpleChart(
 export function MobileScriptRedirect(): JSX.Element {
     const params = useParams()
     const navigate = useNavigate()
-    const authentication = useAuthentication()!;
     const scriptContext = useContext(ScriptContextObj)!;
+    const scriptsQuery = useQuery<PartialScript[]>(() => ({ queryKey: ['scripts'] }));
 
     const x = createMemo(() => {
         if (params.uuid !== undefined && params.division !== undefined)
             return "training-run";
         else if (params.uuid !== undefined)
             return "script-overview";
-        const [getScripts] = authentication.requests!.getCached("/list-scripts");
-        if (!getScripts.loading && !getScripts.error) {
-            const scripts = getScripts();
-            if (scripts === undefined || scripts.length === 0) {
-                navigate(`/no-script`);
-                return;
-            }
-            const script = params.uuid ?? scripts
-                .reduce((a, b) => a.createdAt > b.createdAt ? a : b)
-                .uuid!;
-            navigate(`/script/${script}`);
+        if (scriptsQuery.status === "pending")
+            return "loading-redirect";
+        const scripts = scriptsQuery.data;
+        if (scripts === undefined || scripts.length === 0) {
+            navigate(`/no-script`);
+            return;
         }
-        return "loading-redirect";
+        const script = params.uuid ?? scripts
+            .reduce((a, b) => a.createdAt > b.createdAt ? a : b)
+            .uuid!;
+        navigate(`/script/${script}`);
     });
 
     return (
@@ -832,9 +831,9 @@ let previousElement: JSX.Element = null;
 function createTrainingRunManager(
     params: Params,
     scriptContext: ScriptContext,
-    script: Readonly<Script>,
+    script: Script,
     resetState: () => void
-): [TrainingRunManager, Readonly<Division>] {
+): [TrainingRunManager, Division] {
     const navigate = useNavigate();
     const index = Number(params.division) - 1;
     const division = script.divisions[index];
@@ -931,7 +930,7 @@ function createTrainingRunManager(
 
 function TrainingRunWrapper(
     props: {
-        script: Readonly<Script>
+        script: Script
     }
 ): JSX.Element {
     const params = useParams();
