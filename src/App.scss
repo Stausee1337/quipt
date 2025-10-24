@@ -385,10 +385,14 @@ div.desktop-view {
         position: absolute;
         left: 0;
         width: 100%;
-        bottom: 1rem;
+        bottom: 0;
         content: "";  
         border-bottom: 0.1rem solid $lighter1;
       }
+    }
+
+    h2 {
+      text-align: center;
     }
 
   }
@@ -1590,9 +1594,10 @@ section.actors, div.actors-selection, div.actors-selector {
 
 span.actor-pill {
   flex: 0 0 auto;
-  padding: 0.5rem;
+  padding: 0.7rem 1.5rem;
   color: var(--actor-color);
-  border-radius: 0.5rem;
+  // border-radius: 0.5rem;
+  border-radius: 3.40282e+38px;
   background-color: rgb(from var(--actor-color) r g b / 0.1);
   font-weight: 600;
   font-size: 1.4rem;
