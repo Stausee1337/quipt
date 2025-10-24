@@ -258,6 +258,42 @@ func (r *ScriptsRepo) DeleteDivisions(ctx context.Context, divisionIds []bson.Ob
 	return nil;
 }
 
+func (r *ScriptsRepo) UpdateDivisionDescription(ctx context.Context, divisionId bson.ObjectID, description string) error {
+	_, err := r.divisions.UpdateOne(
+		ctx,
+		bson.M{ "_id": divisionId },
+		bson.M{
+			"$set": bson.M{
+				"description": description,
+			},
+		},
+	)
+
+	if err != nil {
+		return fmt.Errorf("could not set division description %q: %w", divisionId, err)
+	}
+
+	return nil
+}
+
+func (r *ScriptsRepo) RenameDivision(ctx context.Context, divisionId bson.ObjectID, name string) error {
+	_, err := r.divisions.UpdateOne(
+		ctx,
+		bson.M{ "_id": divisionId },
+		bson.M{
+			"$set": bson.M{
+				"name": name,
+			},
+		},
+	)
+
+	if err != nil {
+		return fmt.Errorf("could not set division name %q: %w", divisionId, err)
+	}
+
+	return nil
+}
+
 func (r *ScriptsRepo) InsertCueAtIndex(
 	ctx context.Context,
 	divisionId bson.ObjectID,

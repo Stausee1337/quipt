@@ -14,13 +14,9 @@ type ScriptServiceQueries interface {
 }
 
 type ScriptServiceMutation interface {
-	SaveScores(ctx context.Context, scriptId uuid.UUID, divisionIdx uint, newScores []uint) error
-	Rename(ctx context.Context, uuid uuid.UUID, name string) error
 	Create(ctx context.Context, script Script) (*uuid.UUID, error)
+	Rename(ctx context.Context, uuid uuid.UUID, name string) error
 	Delete(ctx context.Context, uuid uuid.UUID) error
-	InsertCue(ctx context.Context, uuid uuid.UUID, divisionIdx uint, cueIdx uint, cue TextCuePair) error
-	UpdateCue(ctx context.Context, uuid uuid.UUID, divisionIdx uint, cueIdx uint, newCue TextCuePair) error
-	DeleteCue(ctx context.Context, uuid uuid.UUID, divisionIdx uint, cueIdx uint) error
 }
 
 func CreateScriptService(queries ScriptServiceQueries, mutations ScriptServiceMutation) *qrpc.Service {
@@ -62,19 +58,18 @@ func еееResolveScriptServiceQuery(p ScriptServiceQueries, query string) http.
 
 func еееResolveScriptServiceMutation(p ScriptServiceMutation, mutation string) http.Handler {
 	switch mutation {
-	case "saveScores":
+	case "create":
 		type input struct {
-			ScriptId    uuid.UUID `json:"scriptId"`
-			DivisionIdx uint      `json:"divisionIdx"`
-			NewScores   []uint    `json:"newScores"`
+			Script Script `json:"script"`
 		}
 		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
-			err := p.SaveScores(ctx, args.ScriptId, args.DivisionIdx, args.NewScores)
+			data, err := p.Create(ctx, args.Script)
 			if err != nil {
 				return qrpc.WrapError(err)
 			}
 
-			return nil
+			return qrpc.WrapData(data)
+
 		})
 	case "rename":
 		type input struct {
@@ -89,19 +84,6 @@ func еееResolveScriptServiceMutation(p ScriptServiceMutation, mutation string
 
 			return nil
 		})
-	case "create":
-		type input struct {
-			Script Script `json:"script"`
-		}
-		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
-			data, err := p.Create(ctx, args.Script)
-			if err != nil {
-				return qrpc.WrapError(err)
-			}
-
-			return qrpc.WrapData(data)
-
-		})
 	case "delete":
 		type input struct {
 			Uuid uuid.UUID `json:"uuid"`
@@ -114,7 +96,89 @@ func еееResolveScriptServiceMutation(p ScriptServiceMutation, mutation string
 
 			return nil
 		})
-	case "insertCue":
+	default:
+		return nil
+	}
+}
+
+type DivisionServiceMutation interface {
+	SaveScores(ctx context.Context, scriptId uuid.UUID, divisionIdx uint, newScores []uint) error
+	UpdateDescription(ctx context.Context, scriptId uuid.UUID, divisionIdx uint, description string) error
+	Rename(ctx context.Context, scriptId uuid.UUID, divisionIdx uint, name string) error
+}
+
+func CreateDivisionService(mutations DivisionServiceMutation) *qrpc.Service {
+	return qrpc.NewService(
+		"division",
+		qrpc.BindResolver(qrpc.OpMutation, mutations, еееResolveDivisionServiceMutation),
+	)
+}
+
+func еееResolveDivisionServiceMutation(p DivisionServiceMutation, mutation string) http.Handler {
+	switch mutation {
+	case "saveScores":
+		type input struct {
+			ScriptId    uuid.UUID `json:"scriptId"`
+			DivisionIdx uint      `json:"divisionIdx"`
+			NewScores   []uint    `json:"newScores"`
+		}
+		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
+			err := p.SaveScores(ctx, args.ScriptId, args.DivisionIdx, args.NewScores)
+			if err != nil {
+				return qrpc.WrapError(err)
+			}
+
+			return nil
+		})
+	case "updateDescription":
+		type input struct {
+			ScriptId    uuid.UUID `json:"scriptId"`
+			DivisionIdx uint      `json:"divisionIdx"`
+			Description string    `json:"description"`
+		}
+		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
+			err := p.UpdateDescription(ctx, args.ScriptId, args.DivisionIdx, args.Description)
+			if err != nil {
+				return qrpc.WrapError(err)
+			}
+
+			return nil
+		})
+	case "rename":
+		type input struct {
+			ScriptId    uuid.UUID `json:"scriptId"`
+			DivisionIdx uint      `json:"divisionIdx"`
+			Name        string    `json:"name"`
+		}
+		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
+			err := p.Rename(ctx, args.ScriptId, args.DivisionIdx, args.Name)
+			if err != nil {
+				return qrpc.WrapError(err)
+			}
+
+			return nil
+		})
+	default:
+		return nil
+	}
+}
+
+type CueServiceMutation interface {
+	Insert(ctx context.Context, uuid uuid.UUID, divisionIdx uint, cueIdx uint, cue TextCuePair) error
+	Update(ctx context.Context, uuid uuid.UUID, divisionIdx uint, cueIdx uint, newCue TextCuePair) error
+	Delete(ctx context.Context, uuid uuid.UUID, divisionIdx uint, cueIdx uint) error
+}
+
+func CreateCueService(mutations CueServiceMutation) *qrpc.Service {
+	return qrpc.NewService(
+		"cue",
+		qrpc.BindResolver(qrpc.OpMutation, mutations, еееResolveCueServiceMutation),
+	)
+}
+
+func еееResolveCueServiceMutation(p CueServiceMutation, mutation string) http.Handler {
+	switch mutation {
+	case "insert":
 		type input struct {
 			Uuid        uuid.UUID   `json:"uuid"`
 			DivisionIdx uint        `json:"divisionIdx"`
@@ -122,14 +186,14 @@ func еееResolveScriptServiceMutation(p ScriptServiceMutation, mutation string
 			Cue         TextCuePair `json:"cue"`
 		}
 		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
-			err := p.InsertCue(ctx, args.Uuid, args.DivisionIdx, args.CueIdx, args.Cue)
+			err := p.Insert(ctx, args.Uuid, args.DivisionIdx, args.CueIdx, args.Cue)
 			if err != nil {
 				return qrpc.WrapError(err)
 			}
 
 			return nil
 		})
-	case "updateCue":
+	case "update":
 		type input struct {
 			Uuid        uuid.UUID   `json:"uuid"`
 			DivisionIdx uint        `json:"divisionIdx"`
@@ -137,21 +201,21 @@ func еееResolveScriptServiceMutation(p ScriptServiceMutation, mutation string
 			NewCue      TextCuePair `json:"newCue"`
 		}
 		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
-			err := p.UpdateCue(ctx, args.Uuid, args.DivisionIdx, args.CueIdx, args.NewCue)
+			err := p.Update(ctx, args.Uuid, args.DivisionIdx, args.CueIdx, args.NewCue)
 			if err != nil {
 				return qrpc.WrapError(err)
 			}
 
 			return nil
 		})
-	case "deleteCue":
+	case "delete":
 		type input struct {
 			Uuid        uuid.UUID `json:"uuid"`
 			DivisionIdx uint      `json:"divisionIdx"`
 			CueIdx      uint      `json:"cueIdx"`
 		}
 		return qrpc.MakeInputHandler(func(ctx context.Context, args input) qrpc.Response {
-			err := p.DeleteCue(ctx, args.Uuid, args.DivisionIdx, args.CueIdx)
+			err := p.Delete(ctx, args.Uuid, args.DivisionIdx, args.CueIdx)
 			if err != nil {
 				return qrpc.WrapError(err)
 			}

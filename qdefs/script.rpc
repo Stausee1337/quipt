@@ -27,30 +27,48 @@ record TextCue {
 service script {
     query list(): Script[];
     query get(uuid: UUID): Script;
+
+    mutation create(script: Script): UUID;
+    mutation rename(uuid: UUID, name: string): empty;
+    mutation delete(uuid: UUID): empty;
+}
+
+service division {
     mutation saveScores(
         scriptId: UUID,
         divisionIdx: uint,
         newScores: uint[],
     ): empty;
-    mutation rename(uuid: UUID, name: string): empty;
-    mutation create(script: Script): UUID;
-    mutation delete(uuid: UUID): empty;
 
-    mutation insertCue(
+    mutation updateDescription(
+        scriptId: UUID,
+        divisionIdx: uint,
+        description: string
+    ): empty;
+
+    mutation rename(
+        scriptId: UUID,
+        divisionIdx: uint,
+        name: string
+    ): empty;
+}
+
+service cue {
+    mutation insert(
         uuid: UUID,
         divisionIdx: uint,
         cueIdx: uint,
         cue: TextCuePair
     ): empty;
 
-    mutation updateCue(
+    mutation update(
         uuid: UUID,
         divisionIdx: uint,
         cueIdx: uint,
         newCue: TextCuePair
     ): empty;
 
-    mutation deleteCue(
+    mutation delete(
         uuid: UUID,
         divisionIdx: uint,
         cueIdx: uint

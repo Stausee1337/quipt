@@ -28,21 +28,37 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 	userService := service.NewUserService(db)
 	scriptsService := service.NewScriptsService(db)
 
-	authQService := qmodel.CreateAuthService(
+	authHandler := qmodel.CreateAuthService(
 		handler.NewAuthHandler(authService, userService),
 	)
 
-	userQService := qmodel.CreateUserService(
+	userHandler := qmodel.CreateUserService(
 		handler.NewUserHandler(userService),
 	)
-	userQService.Use(handler.EnsureAuthorizedMiddleware(authService));
+	userHandler.Use(handler.EnsureAuthorizedMiddleware(authService));
 
-	scriptQService := qmodel.CreateScriptService(
+	scriptHandler := qmodel.CreateScriptService(
 		handler.NewScriptHandlers(scriptsService),
 	)
-	scriptQService.Use(handler.EnsureAuthorizedMiddleware(authService));
+	scriptHandler.Use(handler.EnsureAuthorizedMiddleware(authService));
 
-	qsrv := qrpc.NewRPCServer(authQService, userQService, scriptQService)
+	divisionHandler := qmodel.CreateDivisionService(
+		handler.NewDivisionHandler(scriptsService),
+	)
+	divisionHandler.Use(handler.EnsureAuthorizedMiddleware(authService));
+
+	cueHandler := qmodel.CreateCueService(
+		handler.NewCueHandler(scriptsService),
+	)
+	cueHandler.Use(handler.EnsureAuthorizedMiddleware(authService));
+
+	qsrv := qrpc.NewRPCServer(
+		authHandler,
+		userHandler,
+		scriptHandler,
+		divisionHandler,
+		cueHandler,
+	)
 	qsrv.SetLogger(slog.Default());
 
 	r.Use(loggingMiddleware);

@@ -129,6 +129,43 @@ func (s *ScriptsService) GetById(
 	}, nil
 }
 
+func (s *ScriptsService) Rename(
+	ctx context.Context,
+	userUuid uuid.UUID,
+	scriptUuid uuid.UUID,
+	newName string,
+) error {
+	if len(newName) == 0 {
+		return errInvalidScriptName
+	}
+
+	script, err := s.lookupByIdAndOwner(ctx, userUuid, scriptUuid)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.UpdateScriptName(ctx, script.Uuid, newName)
+}
+
+
+func (s *ScriptsService) Delete(
+	ctx context.Context,
+	userUuid uuid.UUID,
+	scriptUuid uuid.UUID,
+) error {
+	script, err := s.lookupByIdAndOwner(ctx, userUuid, scriptUuid)
+	if err != nil {
+		return err
+	}
+
+	err = s.repo.DeleteDivisions(ctx, script.Divisions)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.DeleteScript(ctx, scriptUuid);
+}
+
 func (s *ScriptsService) AddDivisionScores(
 	ctx context.Context,
 	userUuid uuid.UUID,
@@ -167,41 +204,54 @@ func (s *ScriptsService) AddDivisionScores(
 	)
 }
 
-func (s *ScriptsService) Rename(
+func (s *ScriptsService) UpdateDivisionDescription(
 	ctx context.Context,
 	userUuid uuid.UUID,
 	scriptUuid uuid.UUID,
-	newName string,
+	divisionIdx uint,
+	description string,
 ) error {
-	if len(newName) == 0 {
-		return errInvalidScriptName
-	}
-
 	script, err := s.lookupByIdAndOwner(ctx, userUuid, scriptUuid)
 	if err != nil {
 		return err
 	}
 
-	return s.repo.UpdateScriptName(ctx, script.Uuid, newName)
+	if divisionIdx >= uint(len(script.Divisions)) {
+		return errDivisionOutOfBounds
+	}
+
+	divisionId := script.Divisions[divisionIdx];
+
+	return s.repo.UpdateDivisionDescription(
+		ctx,
+		divisionId,
+		description,
+	)
 }
 
-
-func (s *ScriptsService) Delete(
+func (s *ScriptsService) RenameDivision(
 	ctx context.Context,
 	userUuid uuid.UUID,
 	scriptUuid uuid.UUID,
+	divisionIdx uint,
+	description string,
 ) error {
 	script, err := s.lookupByIdAndOwner(ctx, userUuid, scriptUuid)
 	if err != nil {
 		return err
 	}
 
-	err = s.repo.DeleteDivisions(ctx, script.Divisions)
-	if err != nil {
-		return err
+	if divisionIdx >= uint(len(script.Divisions)) {
+		return errDivisionOutOfBounds
 	}
 
-	return s.repo.DeleteScript(ctx, scriptUuid);
+	divisionId := script.Divisions[divisionIdx];
+
+	return s.repo.RenameDivision(
+		ctx,
+		divisionId,
+		description,
+	)
 }
 
 func (s *ScriptsService) InsertCue(
