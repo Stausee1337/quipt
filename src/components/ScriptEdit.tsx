@@ -668,7 +668,12 @@ function ScriptCueView(
                             length: old.divisions.length
                         })
                     };
-                })
+                });
+                await authContext.services!.division.updateDescription({
+                    scriptId: props.script.uuid,
+                    divisionIdx: idx(),
+                    description: newDescription
+                });
                 return { prev };
             },
             async updateCue(index, newCuePair) {
@@ -691,7 +696,7 @@ function ScriptCueView(
                         })
                     };
                 })
-                await authContext.services!.script.updateCue({
+                await authContext.services!.cue.update({
                     uuid: props.script.uuid,
                     divisionIdx: idx(),
                     cueIdx: index,
@@ -722,7 +727,7 @@ function ScriptCueView(
                         })
                     };
                 })
-                await authContext.services!.script.insertCue({
+                await authContext.services!.cue.insert({
                     uuid: props.script.uuid,
                     divisionIdx: idx(),
                     cueIdx: index,
@@ -749,7 +754,7 @@ function ScriptCueView(
                         })
                     };
                 })
-                await authContext.services!.script.deleteCue({
+                await authContext.services!.cue.delete({
                     uuid: props.script.uuid,
                     divisionIdx: idx(),
                     cueIdx: index,

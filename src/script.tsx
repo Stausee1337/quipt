@@ -126,7 +126,7 @@ export function createScriptContext(authenticationContext: AuthenticationContext
                 return null;
             });
 
-            return renderedElement as any;
+            return renderedElement as unknown as JSX.Element;
         },
         async commitNewConfidences(divisionIdx, newScores) {
             const scriptId = currentScriptId()!;
@@ -153,7 +153,7 @@ export function createScriptContext(authenticationContext: AuthenticationContext
                 };
             })
 
-            await authenticationContext.services!.script.saveScores({ scriptId: scriptId, divisionIdx, newScores });
+            await authenticationContext.services!.division.saveScores({ scriptId: scriptId, divisionIdx, newScores });
         },
         async createNewScript(script) {
             const newScript = window.structuredClone(script);

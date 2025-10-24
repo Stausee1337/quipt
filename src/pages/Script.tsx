@@ -4,9 +4,10 @@ import { ScriptViewer } from "../components/ScriptEdit";
 import { MobileScriptRedirect } from "../components/ScriptTraining";
 import PersonConfused from "../components/Person-Confused";
 import { IsMobileContext } from "../App";
-import { useAuthentication } from "../client";
 import { StateScriptTransferObject } from "../components/NewScriptFileChooser";
 import { DocumentView } from "../components/DocumentView";
+import { useQuery } from "@tanstack/solid-query";
+import { PartialScript } from "../script";
 
 export function ScriptRoute(): JSX.Element {
     const isMobile = useContext(IsMobileContext)!;
@@ -68,17 +69,16 @@ export function NewScriptRoute(): JSX.Element {
 
 export function NoScriptRoute(): JSX.Element {
     const navigate = useNavigate();
-    const authentication = useAuthentication()!;
-    const [getScripts] = authentication.requests!.getCached("/list-scripts");
+    const scriptsQuery = useQuery<PartialScript[]>(() => ({ queryKey: ['scripts'] }));
 
     onMount(() => {
         document.title = "Kein Skript - Quipt"
     })
     
     const x = createMemo(() => {
-        if (getScripts.loading || getScripts.error)
+        if (scriptsQuery.status === "pending")
             return;
-        const scripts = getScripts();
+        const scripts = scriptsQuery.data;
         if (scripts !== undefined && scripts.length > 0) {
             navigate(`/script/${scripts[0].uuid!}`);
             return;

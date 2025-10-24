@@ -59,33 +59,51 @@ export type Script = $s.TypeOf<typeof Script>;
 export const ScriptService = $r.service('script', {
   list: $r.query('list', $s.Array(Script)),
   get: $r.query('get', { uuid: $s.UUID }, Script),
+  create: $r.mutation('create', { script: Script }, $s.UUID),
+  rename: $r.mutation('rename', { uuid: $s.UUID, name: $s.String }),
+  delete: $r.mutation('delete', { uuid: $s.UUID }),
+});
+export type ScriptService = InstanceType<typeof ScriptService>;
+
+export const DivisionService = $r.service('division', {
   saveScores: $r.mutation('saveScores', {
     scriptId: $s.UUID,
     divisionIdx: $s.UInt,
     newScores: $s.Array($s.UInt),
   }),
-  rename: $r.mutation('rename', { uuid: $s.UUID, name: $s.String }),
-  create: $r.mutation('create', { script: Script }, $s.UUID),
-  delete: $r.mutation('delete', { uuid: $s.UUID }),
-  insertCue: $r.mutation('insertCue', {
+  updateDescription: $r.mutation('updateDescription', {
+    scriptId: $s.UUID,
+    divisionIdx: $s.UInt,
+    description: $s.String,
+  }),
+  rename: $r.mutation('rename', {
+    scriptId: $s.UUID,
+    divisionIdx: $s.UInt,
+    name: $s.String,
+  }),
+});
+export type DivisionService = InstanceType<typeof DivisionService>;
+
+export const CueService = $r.service('cue', {
+  insert: $r.mutation('insert', {
     uuid: $s.UUID,
     divisionIdx: $s.UInt,
     cueIdx: $s.UInt,
     cue: TextCuePair,
   }),
-  updateCue: $r.mutation('updateCue', {
+  update: $r.mutation('update', {
     uuid: $s.UUID,
     divisionIdx: $s.UInt,
     cueIdx: $s.UInt,
     newCue: TextCuePair,
   }),
-  deleteCue: $r.mutation('deleteCue', {
+  delete: $r.mutation('delete', {
     uuid: $s.UUID,
     divisionIdx: $s.UInt,
     cueIdx: $s.UInt,
   }),
 });
-export type ScriptService = InstanceType<typeof ScriptService>;
+export type CueService = InstanceType<typeof CueService>;
 
 export const AuthService = $r.service('auth', {
   signin: $r.mutation(

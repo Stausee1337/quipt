@@ -1,6 +1,6 @@
 import { JSX, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
 import { runtime, createSimpleExecutor } from "qrpc-js"
-import { AuthService, AuthSuccess, ScriptService, UserService } from "./schemas"
+import { AuthService, AuthSuccess, CueService, DivisionService, ScriptService, UserService } from "./schemas"
 import { QueryClient } from "@tanstack/solid-query";
 
 export const queryClient = new QueryClient({
@@ -51,9 +51,16 @@ export interface OnLogoutLifecylce {
     subscribe(listener: () => void): () => void;
 }
 
+type AuthenticatedServices = {
+    user: UserService,
+    script: ScriptService,
+    division: DivisionService,
+    cue: CueService
+};
+
 export interface AuthenticationContext {
     onLogout: OnLogoutLifecylce;
-    services: { user: UserService, script: ScriptService }|undefined;
+    services: AuthenticatedServices|undefined;
     logout(): void,
     isLoggedIn(): boolean;
     loginUser(data: AuthSuccess): any;
@@ -110,8 +117,15 @@ export function createAuthenticationContext(): AuthenticationContext {
         };
         const executor = createAuthorizedExecutor(ctx);
         const script = new ScriptService(executor);
+        const division = new DivisionService(executor);
+        const cue = new CueService(executor);
         const user = new UserService(executor);
-        return { script, user }
+        return {
+            script,
+            user,
+            division,
+            cue
+        }
     }
 
     const [accessToken, { refetch: refetchAccessToken, mutate: mutateAccessToken }] =
