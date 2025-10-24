@@ -67,6 +67,23 @@ export const ScriptService = $r.service('script', {
   rename: $r.mutation('rename', { uuid: $s.UUID, name: $s.String }),
   create: $r.mutation('create', { script: Script }, $s.UUID),
   delete: $r.mutation('delete', { uuid: $s.UUID }),
+  insertCue: $r.mutation('insertCue', {
+    uuid: $s.UUID,
+    divisionIdx: $s.UInt,
+    cueIdx: $s.UInt,
+    cue: TextCuePair,
+  }),
+  updateCue: $r.mutation('updateCue', {
+    uuid: $s.UUID,
+    divisionIdx: $s.UInt,
+    cueIdx: $s.UInt,
+    newCue: TextCuePair,
+  }),
+  deleteCue: $r.mutation('deleteCue', {
+    uuid: $s.UUID,
+    divisionIdx: $s.UInt,
+    cueIdx: $s.UInt,
+  }),
 });
 export type ScriptService = InstanceType<typeof ScriptService>;
 

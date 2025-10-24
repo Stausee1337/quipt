@@ -68,7 +68,7 @@ func (s *ScriptsService) AddNew(
 		return nil, errInvalidScriptName
 	}
 
-	repoScript, repoDivisions := transformProtoScript(userUuid, &script);
+	repoScript, repoDivisions := transformQScript(userUuid, &script);
 
 	divisionIds, err := s.repo.InsertNewDivisions(ctx, repoDivisions)
 	if err != nil {
@@ -160,12 +160,11 @@ func (s *ScriptsService) AddDivisionScores(
 		return errInvalidScoreData
 	}
 
-	err = s.repo.UpdateTextCueScores(
+	return s.repo.UpdateTextCueScores(
 		ctx,
 		divisionId,
 		mapSlice(newScores, func(x uint) uint32 { return uint32(x) }),
 	)
-	return err
 }
 
 func (s *ScriptsService) Rename(
@@ -183,12 +182,7 @@ func (s *ScriptsService) Rename(
 		return err
 	}
 
-	err = s.repo.UpdateScriptName(ctx, script.Uuid, newName)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return s.repo.UpdateScriptName(ctx, script.Uuid, newName)
 }
 
 
@@ -207,19 +201,87 @@ func (s *ScriptsService) Delete(
 		return err
 	}
 
-	err = s.repo.DeleteScript(ctx, scriptUuid);
+	return s.repo.DeleteScript(ctx, scriptUuid);
+}
+
+func (s *ScriptsService) InsertCue(
+	ctx context.Context,
+	userUuid uuid.UUID,
+	scriptUuid uuid.UUID,
+	divisionIdx uint,
+	cueIdx uint,
+	qCuePair *qmodel.TextCuePair,
+) error {
+	script, err := s.lookupByIdAndOwner(ctx, userUuid, scriptUuid)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	if divisionIdx >= uint(len(script.Divisions)) {
+		return errDivisionOutOfBounds
+	}
+
+	textCuePair := transformQTextCuePair(qCuePair);
+
+	return s.repo.InsertCueAtIndex(
+		ctx,
+		script.Divisions[divisionIdx],
+		cueIdx,
+		textCuePair,
+	);
 }
 
-func transformProtoScript(owner uuid.UUID, script *qmodel.Script) (repository.Script, []repository.Division) {
+func (s *ScriptsService) UpdateCue(
+	ctx context.Context,
+	userUuid uuid.UUID,
+	scriptUuid uuid.UUID,
+	divisionIdx uint,
+	cueIdx uint,
+	qCuePair *qmodel.TextCuePair,
+) error {
+	script, err := s.lookupByIdAndOwner(ctx, userUuid, scriptUuid)
+	if err != nil {
+		return err
+	}
+
+	if divisionIdx >= uint(len(script.Divisions)) {
+		return errDivisionOutOfBounds
+	}
+
+	textCuePair := transformQTextCuePair(qCuePair);
+
+	return s.repo.UpdateCueAtIndex(
+		ctx,
+		script.Divisions[divisionIdx],
+		cueIdx,
+		textCuePair,
+	);
+}
+
+func (s *ScriptsService) DeleteCue(
+	ctx context.Context,
+	userUuid uuid.UUID,
+	scriptUuid uuid.UUID,
+	divisionIdx uint,
+	cueIdx uint,
+) error {
+	script, err := s.lookupByIdAndOwner(ctx, userUuid, scriptUuid)
+	if err != nil {
+		return err
+	}
+
+	if divisionIdx >= uint(len(script.Divisions)) {
+		return errDivisionOutOfBounds
+	}
+
+	return s.repo.DeleteCueAtIndex(ctx, script.Divisions[divisionIdx], cueIdx);
+}
+
+func transformQScript(owner uuid.UUID, script *qmodel.Script) (repository.Script, []repository.Division) {
 	var resultDivisions []repository.Division
 
 	for _, division := range script.Divisions {
-		resultTextCues := transformProtoTextCues(division.TextCues);
+		resultTextCues := transformQTextCues(division.TextCues);
 		resultDivision := repository.Division{
 			Name: division.Name,
 			Description: division.Description,
@@ -238,27 +300,33 @@ func transformProtoScript(owner uuid.UUID, script *qmodel.Script) (repository.Sc
 	}, resultDivisions
 }
 
-func transformProtoTextCues(textCues []qmodel.TextCuePair) []repository.TextCuePair {
+func transformQTextCues(textCues []qmodel.TextCuePair) []repository.TextCuePair {
 	var resultTextCues []repository.TextCuePair
 
 	for _, textCue := range textCues {
-		var resultRequest *repository.TextCue = nil
-		if textCue.Request != nil {
-			stackCue := transformProtoTextCue(textCue.Request)
-			resultRequest = &stackCue;
-		}
-		resultTextCue := repository.TextCuePair {
-			Request: resultRequest,
-			Response: transformProtoTextCue(&textCue.Response),
-			PreviousScores: []uint32{},
-		};
-		resultTextCues = append(resultTextCues, resultTextCue)
+		resultTextCues = append(
+			resultTextCues,
+			transformQTextCuePair(&textCue),
+		)
 	}
 
 	return resultTextCues
 }
 
-func transformProtoTextCue(textCue *qmodel.TextCue) repository.TextCue {
+func transformQTextCuePair(pair *qmodel.TextCuePair) repository.TextCuePair {
+	var resultRequest *repository.TextCue = nil
+	if pair.Request != nil {
+		stackCue := transformQTextCue(pair.Request)
+		resultRequest = &stackCue;
+	}
+	return repository.TextCuePair {
+		Request: resultRequest,
+		Response: transformQTextCue(&pair.Response),
+		PreviousScores: []uint32{},
+	};
+}
+
+func transformQTextCue(textCue *qmodel.TextCue) repository.TextCue {
 	return repository.TextCue {
 		Actors: textCue.Actors,
 		Text: textCue.Text,

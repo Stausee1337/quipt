@@ -35,5 +35,25 @@ service script {
     mutation rename(uuid: UUID, name: string): empty;
     mutation create(script: Script): UUID;
     mutation delete(uuid: UUID): empty;
+
+    mutation insertCue(
+        uuid: UUID,
+        divisionIdx: uint,
+        cueIdx: uint,
+        cue: TextCuePair
+    ): empty;
+
+    mutation updateCue(
+        uuid: UUID,
+        divisionIdx: uint,
+        cueIdx: uint,
+        newCue: TextCuePair
+    ): empty;
+
+    mutation deleteCue(
+        uuid: UUID,
+        divisionIdx: uint,
+        cueIdx: uint
+    ): empty;
 }
 

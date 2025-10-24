@@ -106,3 +106,48 @@ func (h *ScriptMutationHandler) Delete(ctx context.Context, uuid uuid.UUID) erro
 	return nil
 }
 
+func (h *ScriptMutationHandler) InsertCue(ctx context.Context, uuid uuid.UUID, divisionIdx uint, cueIdx uint, cue qmodel.TextCuePair) error {
+	userUuid := LoggedInUser(ctx)
+	err := h.scripts.InsertCue(ctx, userUuid, uuid, divisionIdx, cueIdx, &cue)
+
+	if err != nil {
+		serr, ok := err.(service.ScriptError)
+		if ok {
+			return serr
+		}
+		panic(err)
+	}
+
+	return nil
+}
+
+func (h *ScriptMutationHandler) UpdateCue(ctx context.Context, uuid uuid.UUID, divisionIdx uint, cueIdx uint, newCue qmodel.TextCuePair) error {
+	userUuid := LoggedInUser(ctx)
+	err := h.scripts.UpdateCue(ctx, userUuid, uuid, divisionIdx, cueIdx, &newCue)
+
+	if err != nil {
+		serr, ok := err.(service.ScriptError)
+		if ok {
+			return serr
+		}
+		panic(err)
+	}
+
+	return nil
+}
+
+func (h *ScriptMutationHandler) DeleteCue(ctx context.Context, uuid uuid.UUID, divisionIdx uint, cueIdx uint) error {
+	userUuid := LoggedInUser(ctx)
+	err := h.scripts.DeleteCue(ctx, userUuid, uuid, divisionIdx, cueIdx)
+
+	if err != nil {
+		serr, ok := err.(service.ScriptError)
+		if ok {
+			return serr
+		}
+		panic(err)
+	}
+
+	return nil
+}
+

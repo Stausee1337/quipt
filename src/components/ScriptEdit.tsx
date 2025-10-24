@@ -5,7 +5,7 @@ import { placeholder } from "@codemirror/view";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { Division, Script, TextCue, TextCuePair } from '../schemas';
-import { ExposedComponentType, TextCueView, renderCue, renderCuePair as renderCuePairSimple } from './TextCueView';
+import { ExposedComponentType, TextCueView, renderCuePair as renderCuePairSimple } from './TextCueView';
 import { ScriptContextObj } from '../script';
 import { DivisionInfoComponent, DivisionInfoView } from './DivisionInfoView';
 import { useNavigate, useParams } from '@solidjs/router';
@@ -16,7 +16,7 @@ import { ExposedComponent } from '../exposed-component';
 import { installPopoverMenuHandler, contextMenu } from '../popover-menu';
 import { DialogManager } from '../dialog';
 import { useMutation } from '@tanstack/solid-query';
-import { queryClient } from '../client';
+import { AuthenticationContextObj, queryClient } from '../client';
 
 const myTheme = EditorView.theme({}, {dark: true})
 
@@ -631,7 +631,8 @@ function ScriptCueView(
         script: Script
     }
 ): JSX.Element {
-    const scriptContext = useContext(ScriptContextObj)!;
+    // const scriptContext = useContext(ScriptContextObj)!;
+    const authContext = useContext(AuthenticationContextObj)!;
 
     onMount(() => {
         document.title = `${props.script.name} - Quipt`
@@ -690,6 +691,12 @@ function ScriptCueView(
                         })
                     };
                 })
+                await authContext.services!.script.updateCue({
+                    uuid: props.script.uuid,
+                    divisionIdx: idx(),
+                    cueIdx: index,
+                    newCue: newCuePair
+                });
                 return { prev };
             },
             async insertCue(index, newCue) {
@@ -715,6 +722,12 @@ function ScriptCueView(
                         })
                     };
                 })
+                await authContext.services!.script.insertCue({
+                    uuid: props.script.uuid,
+                    divisionIdx: idx(),
+                    cueIdx: index,
+                    cue: newCue
+                });
                 return { prev };
             },
             async deleteCue(index) {
@@ -736,6 +749,11 @@ function ScriptCueView(
                         })
                     };
                 })
+                await authContext.services!.script.deleteCue({
+                    uuid: props.script.uuid,
+                    divisionIdx: idx(),
+                    cueIdx: index,
+                });
                 return { prev };
             },
         };

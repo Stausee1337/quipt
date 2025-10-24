@@ -258,3 +258,80 @@ func (r *ScriptsRepo) DeleteDivisions(ctx context.Context, divisionIds []bson.Ob
 	return nil;
 }
 
+func (r *ScriptsRepo) InsertCueAtIndex(
+	ctx context.Context,
+	divisionId bson.ObjectID,
+	cueIdx uint,
+	pair TextCuePair,
+) error {
+	_, err := r.divisions.UpdateOne(
+		ctx,
+		bson.M{ "_id": divisionId },
+		bson.M{
+			"$push": bson.M{ 
+				"textCues": bson.M{
+					"$each": bson.A{pair},
+					"$position": cueIdx,
+				},
+			},
+		},
+	)
+
+	if err != nil {
+		return fmt.Errorf("could not insert cue into division %q: %w", divisionId, err)
+	}
+
+	return nil
+}
+
+func (r *ScriptsRepo) UpdateCueAtIndex(
+	ctx context.Context,
+	divisionId bson.ObjectID,
+	cueIdx uint,
+	pair TextCuePair,
+) error {
+	_, err := r.divisions.UpdateOne(
+		ctx,
+		bson.M{ "_id": divisionId },
+		bson.M{
+			"$set": bson.M{ 
+				fmt.Sprintf("textCues.%v", cueIdx): pair,
+			},
+		},
+	)
+
+	if err != nil {
+		return fmt.Errorf("could not update cue into division %q: %w", divisionId, err)
+	}
+
+	return nil
+}
+
+func (r *ScriptsRepo) DeleteCueAtIndex(
+	ctx context.Context,
+	divisionId bson.ObjectID,
+	cueIdx uint,
+) error {
+	_, err := r.divisions.UpdateOne(
+		ctx,
+		bson.M{ "_id": divisionId },
+		bson.M{ "$unset": bson.M{ fmt.Sprintf("textCues.%v", cueIdx): 1 } },
+	)
+
+	if err != nil {
+		return fmt.Errorf("could not delete cue into division %q: %w", divisionId, err)
+	}
+
+	_, err = r.divisions.UpdateOne(
+		ctx,
+		bson.M{ "_id": divisionId },
+		bson.M{ "$pull": bson.M{ "textCues": bson.Null{} } },
+	)
+
+	if err != nil {
+		return fmt.Errorf("could not delete cue into division %q: %w", divisionId, err)
+	}
+
+	return nil
+}
+

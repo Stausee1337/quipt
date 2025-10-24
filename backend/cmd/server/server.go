@@ -6,7 +6,7 @@ import (
 	"github.com/stausee1337/quipt/pkg/config"
 )
 
-//go:generate go run github.com/stausee1337/qrpc --output-dir ..\..\internal\qmodel ..\..\..\qdefs\script.rpc ..\..\..\qdefs\user.rpc
+//go:generate go run github.com/stausee1337/qrpc --output-dir ../../internal/qmodel ../../../qdefs/script.rpc ../../../qdefs/user.rpc
 func main() {
 	cfg := config.Load();
 
