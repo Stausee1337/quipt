@@ -100,16 +100,16 @@ export function createAuthenticationContext(): AuthenticationContext {
 
     function createServices() {
         const ctx: AuthorizedContext = {
-         ensureToken() {
-                 if (accessToken.loading) {
-                     return new Promise<string>(resolve => {
-                         createEffect(() => {
-                             if (!accessToken.loading)
-                                 resolve(accessToken());
-                         })
-                     })
-                 }
-                 return Promise.resolve(accessToken()!);
+            ensureToken() {
+                if (accessToken.loading || accessToken() === undefined) {
+                    return new Promise<string>(resolve => {
+                        createEffect(() => {
+                            if (!accessToken.loading && accessToken() !== undefined)
+                                resolve(accessToken());
+                        })
+                    })
+                }
+                return Promise.resolve(accessToken()!);
             },
             async refreshLogin() {
                 await refetchAccessToken();
@@ -152,7 +152,10 @@ export function createAuthenticationContext(): AuthenticationContext {
         setIsLoggedIn(false);
         ctx.services = undefined; 
         setRefreshToken(undefined);
+        mutateAccessToken(undefined);
         onLogout.trigger();
+
+        queryClient.resetQueries();
     }
 
     const [isLoggedIn, setIsLoggedIn] = createSignal<boolean>(refreshToken() !== undefined);

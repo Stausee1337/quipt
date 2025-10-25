@@ -622,7 +622,7 @@ function ScriptOverview(
         script: Script
     }
 ): JSX.Element { 
-    const { actors, textCues } = computeScriptInfo(props.script);
+    const scriptInfo = createMemo(() => computeScriptInfo(props.script));
 
     function renderDivision(division: Division, idx: Accessor<number>) {
         const { actors, textCues } = computeDivisionInfo(division);
@@ -742,8 +742,8 @@ function ScriptOverview(
         <div class="script-overview">
             <div class="script-info">
                 <h2>{ props.script.name }</h2>
-                <span class="info">{ pluralize(textCues, 'Einsatz', 'Einsätze') }</span>
-                <span class="info">{ actors.join(', ') }</span>
+                <span class="info">{ pluralize(scriptInfo().textCues, 'Einsatz', 'Einsätze') }</span>
+                <span class="info">{ scriptInfo().actors.join(', ') }</span>
             </div>
             {
                 mapArray(() => props.script.divisions, renderDivision) as any

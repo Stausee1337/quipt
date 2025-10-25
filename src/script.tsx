@@ -1,4 +1,4 @@
-import { createSignal, JSX, createEffect, createContext, Component, createMemo, Accessor, untrack } from 'solid-js';
+import { createSignal, JSX, createEffect, createContext, Component, createMemo, untrack } from 'solid-js';
 import { createComponent } from 'solid-js/web';
 import { useParams } from '@solidjs/router';
 import { schemas } from 'qrpc-js';
@@ -11,7 +11,6 @@ export const ScriptContextObj = createContext<ScriptContext>();
 export type PartialScript = Omit<Script, "divisions">
 
 export interface ScriptContext {
-    readonly allScripts: Accessor<PartialScript[]>
     readonly currentScript: schemas.UUID|undefined;
     createNewScript(script: Script): Promise<Script>;
     instantiateDelayed(
@@ -30,13 +29,13 @@ export function createScriptContext(authenticationContext: AuthenticationContext
     const location = useParams();
 
     const [currentScriptId, setCurrentScriptId] = createSignal<schemas.UUID|undefined>(undefined);
-    // const scriptCache: Map<schemas.UUID, Script> = new Map();
-
-    const scriptsQuery = useQuery(() => ({
+    useQuery(() => ({
         queryKey: ['scripts'],
         queryFn: () => authenticationContext.services!.script.list(),
         staleTime: STALE_TIME
     }))
+    // const scriptCache: Map<schemas.UUID, Script> = new Map();
+
 
     createEffect(async () => {
         let notValidatedScriptId: string|undefined = location.uuid;
@@ -95,16 +94,7 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         staleTime: STALE_TIME
     }));
 
-    const allScripts = createMemo<Script[]>(() => {
-        if (scriptsQuery.status !== "success")
-            return [];
-        return scriptsQuery.data;
-    })
-
     return {
-        get allScripts() {
-            return allScripts;
-        },
         get currentScript() {
             return currentScriptId();
         },

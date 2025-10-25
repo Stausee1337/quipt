@@ -8,6 +8,8 @@ import { DialogManager } from "../dialog";
 import { NewScriptFileChooser } from "./NewScriptFileChooser";
 import { IsMobileContext } from "../App";
 import { installPopoverMenuHandler, toggleMenu } from "../popover-menu";
+import { schemas } from "qrpc-js";
+import { useQuery } from "@tanstack/solid-query";
 
 interface ListElementStateContext {
     readonly elementKind: 'span'|'input';
@@ -118,7 +120,7 @@ function ListElement(
 function DeleteScriptDialog(
     { script, closer }: {
         script: PartialScript,
-        closer: (res: string|undefined) => void
+        closer: (res: schemas.UUID|undefined) => void
     }
 ): JSX.Element {
     return (
@@ -130,7 +132,7 @@ function DeleteScriptDialog(
             <span>Dadurch wird <strong>{ script.name }</strong> unwiederruflich gelöscht</span>
             <div class="bottom-line">
                 <button class="secondary-button" onClick={() => closer(undefined)}>Abbrechen</button>
-                <button class="red-button" onClick={() => closer(script.uuid!)}>Löschen</button>
+                <button class="red-button" onClick={() => closer(script.uuid)}>Löschen</button>
             </div>
         </>
     );
@@ -181,7 +183,7 @@ function EditableScriptElement(
 
     const context : ScriptElementContext = {
         async deleteScript() {
-            const deleteUuid = await DialogManager.openDialog<string>(
+            const deleteUuid = await DialogManager.openDialog<schemas.UUID>(
                 ({ closer }) => <DeleteScriptDialog closer={closer} script={props.script}/>);
             if (deleteUuid !== undefined)
                 scriptContext.deleteScript(deleteUuid);
@@ -217,7 +219,7 @@ export function MenuElement(
     const closer = props.closer;
 
     const [user] = createResource(() => authentication.services!.user.get());
-    const scripts = scriptContext.allScripts;
+    const scriptsQuery = useQuery<PartialScript[]>(() => ({ queryKey: ['scripts'] }));
 
     if (closer !== undefined) {
         useBeforeLeave(() => {
@@ -280,9 +282,11 @@ export function MenuElement(
 
             <div style={{'min-width': '0', 'max-width': '100%'}}>
                  {
-                     scripts()!
-                        .toSorted((a, b) => b.createdAt - a.createdAt)
-                        .map(renderScriptElement)
+                     scriptsQuery.status === "success" && (
+                         scriptsQuery.data
+                            .toSorted((a, b) => b.createdAt - a.createdAt)
+                            .map(renderScriptElement)
+                     )
                  }
             </div>
 
