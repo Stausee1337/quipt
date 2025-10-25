@@ -67,16 +67,13 @@ function Editor(props: {
     return view.dom;
 }
 
-const EditableCueContextObj = createContext<(res: "dismiss"|"accept") => void>();
-
-function EditCommitView(): JSX.Element {
-    const close = useContext(EditableCueContextObj);
+function EditCommitView(props: { close: (res: "dismiss"|"accept") => void }): JSX.Element {
     return (
         <div class="edit-commit-container">
-            <button class="icon-button " onClick={() => close?.("dismiss")}>
+            <button class="icon-button " onClick={() => props.close("dismiss")}>
                 &#xF62A;
             </button>
-            <button class="icon-button" onClick={() => close?.("accept")}>
+            <button class="icon-button" onClick={() => props.close("accept")}>
                 &#xF272;
             </button>
         </div>
@@ -135,7 +132,6 @@ function EditableTextCue(
     const textCue = createMemo(() => props.cuePair[props.type]);
 
     const owner = getOwner()!;
-    owner.context = { ...owner.context, [EditableCueContextObj.id]: closeEditor };
 
     let revoker: ((res: TextCue|undefined) => void)|undefined;
     const [content, setContent] = createSignal<string>(textCue()?.text ?? '');
@@ -214,7 +210,7 @@ function EditableTextCue(
                 <Editor content={content()} onChange={setContent} autofocus/>
             )
         )!;
-        cueComponent.addExtension(EditCommitView);
+        cueComponent.addExtension(CreateEditCommitView);
         cueComponent.addExtension(CreateActorsSelector, "before");
 
         revoker = res => {
@@ -233,6 +229,10 @@ function EditableTextCue(
             return;
         }
         editMutation.mutate(editorResult);
+    }
+
+    function CreateEditCommitView(): JSX.Element {
+        return <EditCommitView close={closeEditor}/>;
     }
 
     function CreateActorsSelector(): JSX.Element {
@@ -262,7 +262,7 @@ function EditableTextCue(
                 return;
 
             cueComponent.cueElement.classList.remove('editing');
-            cueComponent.removeExtension(EditCommitView);
+            cueComponent.removeExtension(CreateEditCommitView);
             cueComponent.removeExtension(CreateActorsSelector);
 
             if (res === "dismiss")
@@ -533,9 +533,7 @@ function EditableDivisionInfoView(
             <DivisionInfoView division={props.division}>
                 {
                     isEditing() && (
-                        <EditableCueContextObj.Provider value={closeEditor}>
-                            <EditCommitView/>
-                        </EditableCueContextObj.Provider>
+                        <EditCommitView close={closeEditor}/>
                     )
                 }
             </DivisionInfoView>
