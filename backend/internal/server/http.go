@@ -24,12 +24,12 @@ func New(cfg *config.Config, documentdb *mongo.Client, redis *redis.Client) *Ser
 	r := chi.NewRouter();
 	db := documentdb.Database("quipt");
 
-	authService := service.NewAuthService(cfg, redis)
 	userService := service.NewUserService(db)
+	authService := service.NewAuthService(cfg, redis, userService)
 	scriptsService := service.NewScriptsService(db)
 
 	authHandler := qmodel.CreateAuthService(
-		handler.NewAuthHandler(authService, userService),
+		handler.NewAuthHandler(authService),
 	)
 
 	userHandler := qmodel.CreateUserService(

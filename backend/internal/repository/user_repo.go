@@ -56,12 +56,7 @@ func (r *UserRepo) FindUserByName(ctx context.Context, username string) (*User, 
 }
 
 func (r *UserRepo) CreateUser(ctx context.Context, user *User) error {
-	uuid, error := uuid.NewV7();
-	if error != nil {
-		return fmt.Errorf("create uuid: %w", error)
-	}
-	user.Uuid = uuid
-	_, error = r.users.InsertOne(ctx, user);
+	_, error := r.users.InsertOne(ctx, user);
 	if error != nil {
 		return fmt.Errorf("create user %q: %w", user.Username, error)
 	}

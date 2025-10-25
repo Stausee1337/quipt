@@ -40,7 +40,7 @@ func NewScriptsService(db *mongo.Database) *ScriptsService {
 	};
 }
 
-func (s *ScriptsService) GetAll(ctx context.Context, userUuid uuid.UUID) ([]qmodel.Script, error) {
+func (s *ScriptsService) GetAllScripts(ctx context.Context, userUuid uuid.UUID) ([]qmodel.Script, error) {
 	rawScripts, err := s.repo.FindScriptsForOnwer(ctx, userUuid);
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func (s *ScriptsService) GetAll(ctx context.Context, userUuid uuid.UUID) ([]qmod
 	return scripts, nil
 }
 
-func (s *ScriptsService) AddNew(
+func (s *ScriptsService) AddNewScript(
 	ctx context.Context,
 	userUuid uuid.UUID,
 	script qmodel.Script,
@@ -105,7 +105,7 @@ func (s *ScriptsService) lookupByIdAndOwner(
 	return script, nil
 }
 
-func (s *ScriptsService) GetById(
+func (s *ScriptsService) GetScriptById(
 	ctx context.Context,
 	userUuid uuid.UUID,
 	scriptUuid uuid.UUID,
@@ -129,7 +129,7 @@ func (s *ScriptsService) GetById(
 	}, nil
 }
 
-func (s *ScriptsService) Rename(
+func (s *ScriptsService) RenameScript(
 	ctx context.Context,
 	userUuid uuid.UUID,
 	scriptUuid uuid.UUID,
@@ -148,7 +148,7 @@ func (s *ScriptsService) Rename(
 }
 
 
-func (s *ScriptsService) Delete(
+func (s *ScriptsService) DeleteScript(
 	ctx context.Context,
 	userUuid uuid.UUID,
 	scriptUuid uuid.UUID,

@@ -23,7 +23,7 @@ func NewScriptHandlers(scripts *service.ScriptsService) (*ScriptQueryHandler, *S
 func (h *ScriptQueryHandler) List(ctx context.Context) (*[]qmodel.Script, error) {
 	userUuid := LoggedInUser(ctx)
 
-	scripts, err := h.scripts.GetAll(ctx, userUuid)
+	scripts, err := h.scripts.GetAllScripts(ctx, userUuid)
 	if err != nil {
 		panic(err)
 	}
@@ -34,7 +34,7 @@ func (h *ScriptQueryHandler) List(ctx context.Context) (*[]qmodel.Script, error)
 func (h *ScriptQueryHandler) Get(ctx context.Context, uuid uuid.UUID) (*qmodel.Script, error) {
 	userUuid := LoggedInUser(ctx)
 
-	script, err := h.scripts.GetById(ctx, userUuid, uuid)
+	script, err := h.scripts.GetScriptById(ctx, userUuid, uuid)
 	if err != nil {
 		serr, ok := err.(service.ScriptError)
 		if ok {
@@ -48,7 +48,7 @@ func (h *ScriptQueryHandler) Get(ctx context.Context, uuid uuid.UUID) (*qmodel.S
 
 func (h *ScriptMutationHandler) Rename(ctx context.Context, uuid uuid.UUID, name string) error {
 	userUuid := LoggedInUser(ctx)
-	err := h.scripts.Rename(ctx, userUuid, uuid, name)
+	err := h.scripts.RenameScript(ctx, userUuid, uuid, name)
 
 	if err != nil {
 		serr, ok := err.(service.ScriptError)
@@ -63,7 +63,7 @@ func (h *ScriptMutationHandler) Rename(ctx context.Context, uuid uuid.UUID, name
 
 func (h *ScriptMutationHandler) Create(ctx context.Context, script qmodel.Script) (*uuid.UUID, error) {
 	userUuid := LoggedInUser(ctx)
-	uuid, err := h.scripts.AddNew(ctx, userUuid, script)
+	uuid, err := h.scripts.AddNewScript(ctx, userUuid, script)
 
 	if err != nil {
 		serr, ok := err.(service.ScriptError)
@@ -78,7 +78,7 @@ func (h *ScriptMutationHandler) Create(ctx context.Context, script qmodel.Script
 
 func (h *ScriptMutationHandler) Delete(ctx context.Context, uuid uuid.UUID) error {
 	userUuid := LoggedInUser(ctx)
-	err := h.scripts.Delete(ctx, userUuid, uuid)
+	err := h.scripts.DeleteScript(ctx, userUuid, uuid)
 
 	if err != nil {
 		serr, ok := err.(service.ScriptError)

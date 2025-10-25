@@ -22,6 +22,6 @@ func (h *UserQueryHandler) Get(ctx context.Context) (*qmodel.User, error) {
 		panic(err)
 	}
 
-	return user, nil
+	return &user.User, nil
 }
 
