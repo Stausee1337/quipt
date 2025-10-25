@@ -314,10 +314,13 @@ div.script-overview {
       flex-direction: column;
       justify-content: space-between;
       gap: 0.5rem;
+      min-width: 0;
+      max-width: 100%;
 
       h3 {
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
 

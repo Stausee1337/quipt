@@ -725,6 +725,13 @@ function ScriptOverview(
                     <span class="row" style={{ color: trendColor }}>
                         <i class={`bi bi-${trendIcon}`}/> { deltaString }
                     </span>
+                    {
+                        division.previousTotals.length === 0 ? null : (
+                            <span class="row">
+                                <i class="bi bi-arrow-repeat"/> { division.previousTotals.length } x
+                            </span>
+                        )
+                    }
                 </div>
             </A>
         );
