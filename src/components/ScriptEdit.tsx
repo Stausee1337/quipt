@@ -349,9 +349,8 @@ function ActorsSelector(
 
     function onAddActor(newActor: string) {
         newActor = newActor.trim();
-        if (props.actors.includes(newActor))
-            return;
-        setNewActors(prev => [...prev, newActor])
+        if (!props.actors.includes(newActor))
+            setNewActors(prev => [...prev, newActor])
         props.onSelectionChange([
             ...props.selectedActors,
             newActor,
