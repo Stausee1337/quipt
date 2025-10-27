@@ -334,6 +334,7 @@ function ActorsSelector(
         onSelectionChange: (selected: string[]) => void
     }
 ): JSX.Element {
+    const [newActors, setNewActors] = createSignal<string[]>([]);
     // const [selected, setSelected] = createSignal<string[]>([]);
 
     function toggleSelection(actor: string) {
@@ -346,26 +347,95 @@ function ActorsSelector(
         ])
     }
 
+    function onAddActor(newActor: string) {
+        newActor = newActor.trim();
+        if (props.actors.includes(newActor))
+            return;
+        setNewActors(prev => [...prev, newActor])
+        props.onSelectionChange([
+            ...props.selectedActors,
+            newActor,
+        ])
+    }
  
     return (
         <div class="actors-selector">
             {
-                props.self === undefined ? null
-                    : <ActorPill actor="Ich"
+                props.self === undefined ? null : (
+                    <ActorPill
                         actorForColor={props.self}
                         classList={{ selected: true }}
-                        static/>
+                        static>
+                        Ich
+                    </ActorPill>
+                )
             }
             {
-                props.actors
+                [...props.actors, ...newActors()]
                     .filter(actor => actor !== props.self)
                     .map(
-                        actor => <ActorPill actor={actor}
-                            classList={{'selected': props.selectedActors.includes(actor)}}
-                            onClick={() => toggleSelection(actor)}/>
+                        actor => (
+                            <ActorPill
+                                classList={{'selected': props.selectedActors.includes(actor)}}
+                                onClick={() => toggleSelection(actor)}>
+                                {actor}
+                            </ActorPill>
+                        )
                     )
             }
+            <AddActorButton onAddActor={onAddActor}/>
         </div>
+    );
+}
+
+function AddActorButton(
+    props: {
+        onAddActor: (actor: string) => void
+    }
+): JSX.Element {
+    const [currentContent, setCurrentContent] = createSignal<string>();
+    const [isEditing, setIsEditing] = createSignal<boolean>(false);
+
+    const ocanvas = new OffscreenCanvas(1, 1);
+    const ctx = ocanvas.getContext("2d")!;
+    let spanElement: HTMLSpanElement = undefined!;
+
+    function onContentChange(newText: string) {
+        if (newText.trim().length === 0)
+            setCurrentContent(undefined);
+        else
+            setCurrentContent(newText);
+
+        const inputElement = spanElement.querySelector('input')! as HTMLInputElement;
+            
+        const computedStyle = window.getComputedStyle(spanElement);
+        const { fontStyle, fontVariant, fontWeight, fontSize, lineHeight, fontFamily } = computedStyle; 
+        ctx.font = `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize}/${lineHeight} ${fontFamily}`;
+
+        const textMetrics = ctx.measureText(newText);
+        inputElement.style.setProperty('--text-width', `${textMetrics.width}px`);
+    }
+
+    function editDone() {
+        setIsEditing(false);
+        const newName = currentContent();
+        if (newName === undefined)
+            return;
+        setCurrentContent(undefined);
+        props.onAddActor(newName);
+    }
+
+    return (
+        <MakeEditableContent component={ActorPill}
+            isEditable={isEditing()}
+            onContentChange={onContentChange}
+            onEditEnd={editDone}
+
+            ref={spanElement}
+            onClick={!isEditing() ? (() => setIsEditing(true)) : undefined}
+            actorForColor={currentContent()}
+            extra="+"
+            children=""/>
     );
 }
 

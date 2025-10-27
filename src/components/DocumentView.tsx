@@ -1,7 +1,7 @@
 import { JSX, Setter, batch, createEffect, createMemo, createSignal, onCleanup, onMount, useContext } from "solid-js";
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
 import { createInvalidatable, pluralize } from "./common";
-import * as b from "../client";
+import * as s from "../schemas";
 import { DialogManager } from "../dialog";
 import { renderCuePair } from "./TextCueView";
 import { DivisionInfoView } from "./DivisionInfoView";
@@ -9,6 +9,7 @@ import { ScriptContextObj } from "../script";
 import { useNavigate } from "@solidjs/router";
 import { ToggleMenuEvent, installPopoverMenuHandler, toggleMenu } from "../popover-menu";
 import { ActorPill } from "./ActorPill";
+import { schemas } from "qrpc-js";
 
 type MupdfLib = typeof import("mupdf");
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0]
@@ -543,7 +544,7 @@ function DistributionDialog(
             </button>
             <h2 class="disolve-and-distribute">
                 Auflösen und verteilen von
-                <ActorPill actor={props.target} static/>
+                <ActorPill static>{props.target}</ActorPill>
             </h2>
             <div class="actors-selection">
                 {
@@ -553,7 +554,7 @@ function DistributionDialog(
                              <ActorPill
                                 onClick={toggleSelection} 
                                 data-actor={actor}
-                                actor={actor}/>)
+                                children={actor}/>)
                 }
             </div>
             <div class="bottom-line">
@@ -944,7 +945,7 @@ function buildConnectedMarkdown(block: ViewBlock): string {
 type Division = {
     name?: string,
     description?: string,
-    textCues: b.TextCue[]
+    textCues: s.TextCue[]
 };
 
 function buildSemiQuiptCueData(
@@ -1095,7 +1096,7 @@ function createActorsContext(
 
 function FinalizeScriptView(
     props: {
-        closer: (res: b.Division[]|undefined) => void,
+        closer: (res: s.Division[]|undefined) => void,
         actorsMap: Map<string, number>,
         semiDivisions: Division[]
     }
@@ -1141,23 +1142,23 @@ function FinalizeScriptView(
 
     const activeDivisions = createMemo(() => {
         const selfActor = currentActor();
-        const result: b.Division[] = []
+        const result: s.Division[] = []
         for (const semiDivision of props.semiDivisions) {
-            const division: b.Division = {
+            const division: s.Division = {
                 name: semiDivision.name ?? "",
                 description: semiDivision.description ?? "",
                 previousTotals: [],
                 textCues: []
             };
 
-            let lastCue: b.TextCue|null = null;
+            let lastCue: s.TextCue|null = null;
             for (const textCue of semiDivision.textCues) {
                 if (!textCue.actors.includes(selfActor)) {
                     lastCue = textCue;
                     continue;
                 }
                 division.textCues.push({
-                    request: lastCue,
+                    request: lastCue ?? undefined,
                     response: textCue,
                     previousScores: []
                 });
@@ -1183,8 +1184,8 @@ function FinalizeScriptView(
                         <ActorPill
                             onClick={() => setCurrentActor(actor)}
                             classList={{ selected: currentActor() === actor }}
-                            actor={actor}
-                            count={props.actorsMap.get(actor)}
+                            children={actor}
+                            extra={`(${props.actorsMap.get(actor)})`}
                         /> as HTMLSpanElement
                     )
                 }
@@ -1400,8 +1401,8 @@ export function DocumentView(
         let actorPill =
             <ActorPill
                 onClick={toggleMenu}
-                actor={actor}
-                count={count}/> as HTMLSpanElement;
+                children={actor}
+                extra={`(${count})`}/> as HTMLSpanElement;
         installPopoverMenuHandler(
             actorPill,
             'top',
@@ -1413,17 +1414,17 @@ export function DocumentView(
 
     async function commmitScript() {
         const semiDivisions = buildSemiQuiptCueData(pageInfos(), actors, actorsMapping);
-        const divisions = await DialogManager.openDialog<b.Division[]>(
+        const divisions = await DialogManager.openDialog<s.Division[]>(
             ({ closer }) => <FinalizeScriptView
                 closer={closer}
                 actorsMap={actors}
                 semiDivisions={semiDivisions}/>
         );
         if (divisions === undefined) return;
-        const script: b.Script = {
+        const script: s.Script = {
             divisions,
             name: props.name,
-            uuid: "",
+            uuid: "" as schemas.UUID,
             createdAt: 0
         };
         const newScript = await scriptContext.createNewScript(script);

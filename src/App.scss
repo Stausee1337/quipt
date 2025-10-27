@@ -563,27 +563,37 @@ div.cue-wrapper:has(div.actors-selector) {
 
     span.actor-pill {
       position: relative;
+      display: flex;
 
-      &.static {
-        margin-right: 2rem;
+      &:has(input) {
+        transition: background-color 100ms linear;
       }
 
-      &.static::before {
-        content: "\F4FE";
-        right: -2.5rem;
-        color: #e3e3e3;
-
-        position: absolute;
-        font-size: 2rem;
-
-        font-family: bootstrap-icons !important;
-        font-style: normal;
-        font-weight: normal !important;
-        font-variant: normal;
-        text-transform: none;
-        line-height: 1;
-        vertical-align: -.125em;
+      input {
+        background-color: transparent;
+        width: max(1ch, var(--text-width, 0px));
+        min-width: 1ch;
       }
+
+      // &.static {
+      //   margin-right: 2rem;
+      // }
+
+      // &.static::before {
+      //   content: "\F4FE";
+      //   right: -2.5rem;
+      //   color: #e3e3e3;
+
+      //   position: absolute;
+      //   font-size: 2rem;
+
+      //   font-family: bootstrap-icons !important;
+      //   font-style: normal;
+      //   font-weight: normal !important;
+      //   font-variant: normal;
+      //   text-transform: none;
+      //   line-height: 1;
+      // }
     }
   }
 
@@ -1655,6 +1665,8 @@ span.actor-pill {
   }
 
   &.selected {
+    outline: 0.2rem solid rgb(from var(--actor-color) r g b / 0.3);
+    outline-offset: 0.2rem;
     background-color: rgb(from var(--actor-color) r g b / 0.3);
   }
 }
