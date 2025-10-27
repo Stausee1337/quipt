@@ -166,24 +166,41 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             return newScript;
         },
         async deleteScript(uuid) {  
+            await queryClient.cancelQueries({ queryKey: ['scripts'] })
+            queryClient.setQueryData<PartialScript[]>(['scripts'], old => {
+                if (!old) return old;
+
+                return old.filter(s => s.uuid !== uuid);
+            });
+
+            queryClient.removeQueries({ queryKey: ['script', uuid] });
+
             try {
                 await authenticationContext.services!.script.delete({ uuid });
             } catch (error) {
                 throw `could not delete script: ${error}`;
             }
-
-            queryClient.invalidateQueries({ queryKey: ['scripts'] });
-            queryClient.removeQueries({ queryKey: ['script', uuid] });
         },
         async renameScript(uuid, name) {
+            await queryClient.cancelQueries({ queryKey: ['scripts'] })
+            queryClient.setQueryData<PartialScript[]>(['scripts'], old => {
+                if (!old) return old;
+
+                return old.map(s => s.uuid !== uuid ? s : { ...s, name });
+            });
+
+            await queryClient.cancelQueries({ queryKey: ['script', uuid] })
+            queryClient.setQueryData<Script>(['script', uuid], old => {
+                if (!old) return old;
+
+                return { ...old, name };
+            });
+
             try {
                 await authenticationContext.services!.script.rename({ uuid, name });
             } catch (error) {
                 throw `could not rename script: ${error}`;
             }
-
-            queryClient.invalidateQueries({ queryKey: ['scripts'] });
-            queryClient.invalidateQueries({ queryKey: ['script', uuid] });
         },
     };
 }

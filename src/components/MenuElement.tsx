@@ -1,4 +1,4 @@
-import { Accessor, JSX, Setter, createContext, createDeferred, createMemo, createRenderEffect, createResource, createSignal, getOwner, onCleanup, runWithOwner, untrack, useContext } from "solid-js";
+import { JSX, children, createMemo, createResource, createSignal, getOwner, onCleanup, useContext } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { A, useBeforeLeave } from "@solidjs/router";
 import { useAuthentication } from "../client";
@@ -10,74 +10,22 @@ import { IsMobileContext } from "../App";
 import { installPopoverMenuHandler, toggleMenu } from "../popover-menu";
 import { schemas } from "qrpc-js";
 import { useQuery } from "@tanstack/solid-query";
+import { MakeEditableContent } from "./MakeEditableContent";
 
-interface ListElementStateContext {
-    readonly elementKind: 'span'|'input';
-    onBlur(event: Event): void;
-    onMount(element: HTMLInputElement): void;
-}
+function Fragment(
+    props: { children: JSX.Element }
+): JSX.Element {
+    const getChildren = children(() => props.children);
 
-const ListElementStateContextObj = createContext<ListElementStateContext>();
-
-function createListElementContext(): [ListElementStateContext, (update: (value: string) => void) => void] { 
-    const owner = getOwner()!;
-    const [state, setState] = createSignal<ListElementStateContext>();
-
-    const ctx: ListElementStateContext = {
-        get elementKind(): 'span'|'input' {
-            return state()?.elementKind ?? 'span';
-        },
-        onBlur(event) {
-            state()?.onBlur(event);
-        },
-        onMount(element) { 
-            state()?.onMount(element);
-        },
-    };
-
-    function createOwnedComputation<T>(data: Accessor<T>): T {
-        return runWithOwner(owner, () => createMemo(data)())!;
-    }
-
-    function createEditableState(update: Setter<string>) {
-        const state = createOwnedComputation<ListElementStateContext>(() => {
-            const [element, setElement] = createSignal<HTMLInputElement>();
-            const [value, setValue] = createSignal<string>();
-
-            createDeferred(() => {
-                const result = value();
-                if (result !== undefined) {
-                    setState(undefined);
-                    update(result);
-                }
-            })
-
-            return {
-                get elementKind(): 'span'|'input' {
-                    return value() === undefined ? 'input' : 'span';
-                },
-                onBlur() {
-                    const stateElement = untrack(element);
-                    if (stateElement !== undefined)
-                        setValue(p => p ?? stateElement.value);
-                },
-                onMount(element) {
-                    setElement(p => p ?? element);
-                    element.select();
-                }
-            };
-        });
-        setState(state);
-        return state;
-    }
-
-    return [ctx, createEditableState];
+    return (() => {
+        return getChildren.toArray();
+    }) as unknown as JSX.Element;
 }
 
 function ListElement(
     props: {
         icon?: string,
-        children: string,
+        children: JSX.Element,
         static?: boolean,
         current?: boolean,
         href?: string,
@@ -86,18 +34,21 @@ function ListElement(
         onUpdate?: (value: string) => void
     }
 ): JSX.Element {
-    const elementState = useContext(ListElementStateContextObj);
-    const [elementRef, setElmentRef] = createSignal<HTMLSpanElement|HTMLImageElement>();
+    // const elementState = useContext(ListElementStateContextObj);
+    // const [elementRef, setElmentRef] = createSignal<HTMLSpanElement|HTMLImageElement>();
 
-    createRenderEffect(() => {
-        const ref = elementRef();
-        if (ref instanceof HTMLInputElement)
-            elementState?.onMount(ref);
-    })
-
+    // createRenderEffect(() => {
+    //     const ref = elementRef();
+    //     if (ref instanceof HTMLInputElement)
+    //         elementState?.onMount(ref);
+    // })
+    //
+    //
+    const getChildren = children(() => props.children);
+    const isSimpleContent = createMemo(() => typeof getChildren() === "string")
 
     return (
-        <Dynamic component={(props.href === undefined || (elementState?.elementKind ?? 'span') !== 'span') ? 'span' : A}
+        <Dynamic component={(props.href === undefined || !isSimpleContent()) ? 'span' : A}
             onClick={props.onClick}
             href={props.href}
             class="list-element"
@@ -107,12 +58,11 @@ function ListElement(
                     ? <i class={`bi bi-${props.icon}`}/> 
                     : null
             }
-            <Dynamic ref={setElmentRef}
-                component={elementState?.elementKind ?? 'span'}
-                {...(elementState?.elementKind === 'input'
-                    ? { value: String(props.children), onBlur: elementState.onBlur }
-                    : { children: props.children}) }/>
-            { elementState?.elementKind !== 'input' ? props.menuButton : null }
+            <Dynamic
+                component={isSimpleContent() ? 'span' : Fragment}>
+                { props.children }
+            </Dynamic>
+            { isSimpleContent() ? props.menuButton : null }
         </Dynamic>
     );
 }
@@ -138,17 +88,27 @@ function DeleteScriptDialog(
     );
 }
 
-function ScriptContextMenu(): JSX.Element {
-    const elementContext = useContext(ScriptElementContextObj)!;
+function ScriptContextMenu(
+    props: { 
+        deleteScript: () => void;
+        renameScript: () => void;
+    }
+): JSX.Element {
+    // const elementContext = useContext(ScriptElementContextObj)!;
     return (
         <ul class="menu-options">
-            <li onClick={elementContext.deleteScript}>Löschen</li>
-            <li onClick={elementContext.renameScript}>Umbenennen</li>
+            <li onClick={props.deleteScript}>Löschen</li>
+            <li onClick={props.renameScript}>Umbenennen</li>
         </ul>
     );
 }
 
-function ScriptMenuButton(): JSX.Element {
+function ScriptMenuButton(
+    props: {
+        deleteScript: () => void;
+        renameScript: () => void;
+    }
+): JSX.Element {
     const button = (
         <button class="icon-menu-button" onClick={toggleMenu}>
             <i class="bi bi-three-dots"/> 
@@ -159,52 +119,12 @@ function ScriptMenuButton(): JSX.Element {
         button,
         "bottom-start",
         ScriptContextMenu,
-        {}
+        props
     );
 
     return button;
 }
 
-interface ScriptElementContext {
-    deleteScript(): void;
-    renameScript(): void;
-}
-
-const ScriptElementContextObj = createContext<ScriptElementContext>();
-
-function EditableScriptElement(
-    props: {
-        children?: JSX.Element,
-        script: PartialScript
-    }
-): JSX.Element {
-    const scriptContext = useContext(ScriptContextObj)!;
-    const [listElementContext, makeElementEditable] = createListElementContext();
-
-    const context : ScriptElementContext = {
-        async deleteScript() {
-            const deleteUuid = await DialogManager.openDialog<schemas.UUID>(
-                ({ closer }) => <DeleteScriptDialog closer={closer} script={props.script}/>);
-            if (deleteUuid !== undefined)
-                scriptContext.deleteScript(deleteUuid);
-        },
-        async renameScript() {
-            makeElementEditable(newValue => {
-                if (newValue === props.script.name || newValue.length === 0)
-                    return;
-                scriptContext.renameScript(props.script.uuid!, newValue);
-            });
-        }
-    };
-
-    return (
-        <ScriptElementContextObj.Provider value={context}>
-            <ListElementStateContextObj.Provider value={listElementContext}>
-                { props.children }
-            </ListElementStateContextObj.Provider>
-        </ScriptElementContextObj.Provider>
-    );
-}
 
 export function MenuElement(
     props: {
@@ -247,14 +167,39 @@ export function MenuElement(
 
     function renderScriptElement(script: PartialScript): JSX.Element {
         return createMemo(() => {
+            const [isEditing, setIsEditing] = createSignal<boolean>(false);
+            const [currentContent, setCurrentContent] = createSignal<string>(script.name);
+
+            async function deleteScript() {
+                const deleteUuid = await DialogManager.openDialog<schemas.UUID>(
+                    ({ closer }) => <DeleteScriptDialog closer={closer} script={script}/>);
+                if (deleteUuid !== undefined)
+                    scriptContext.deleteScript(deleteUuid);
+            }
+
+            async function renameScript() {
+                setIsEditing(true);
+            }
+
+            function onRenameDone() {
+                setIsEditing(false);
+                const newName = currentContent();
+                if (newName === script.name || newName.length === 0)
+                    return;
+                scriptContext.renameScript(script.uuid!, newName);
+            }
+
             return (
-                <EditableScriptElement script={script}>
-                    <ListElement href={`/script/${script.uuid}`}
-                        menuButton={<ScriptMenuButton/>}
-                        current={script.uuid === scriptContext.currentScript}>
-                        { script.name! }
-                    </ListElement>
-                </EditableScriptElement>
+                <MakeEditableContent component={ListElement}
+                    isEditable={isEditing()}
+                    onContentChange={setCurrentContent}
+                    onEditEnd={onRenameDone}
+
+                    href={`/script/${script.uuid}`}
+                    menuButton={<ScriptMenuButton deleteScript={deleteScript} renameScript={renameScript}/>}
+                    current={script.uuid === scriptContext.currentScript}>
+                    { currentContent() }
+                </MakeEditableContent>
             );
         }) as any;
     }
