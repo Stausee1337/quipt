@@ -75,7 +75,7 @@ function createFlyingScoreAnimation(
         return `translate(${relX}px, ${relY}px)`;
     }
     // const view = document.querySelector("div.script-view")!;
-    const score = view.querySelector('h2.score')! as HTMLElement;
+    const score = view.querySelector('h1.score')! as HTMLElement;
     const scoreBox = view.querySelector('div.scorebox')! as HTMLElement;
     
     const flyingScore = (<h2 class="flying-score">{scoreString()}</h2>) as HTMLHeadingElement;
@@ -93,7 +93,7 @@ function createFlyingScoreAnimation(
 
     const animation = flyingScore.animate([
         { transform: initialTranslation, offset: 0 },
-        { transform: `${finalTranslation} scale(9)`, color: progressBarColor(), offset: 1 },
+        { transform: `${finalTranslation} scale(4.5)`, color: progressBarColor(), offset: 1 },
     ], { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' });
 
     animation.addEventListener('finish', () => {
@@ -290,7 +290,7 @@ function TrainingRunView(
         append();
 
         // const view = document.querySelector("div.script-view")!;
-        const score = view.querySelector('h2.score')!;
+        const score = view.querySelector('h1.score')!;
         const targetRect = score.getBoundingClientRect();
         const indicatorColor = calculateIndicatorColor(diff);
 
@@ -414,6 +414,8 @@ function TrainingRunView(
         }
     }
 
+    // <button class="icon-button" onClick={append}>&#xF268;</button>
+
     return (
         <div ref={view} class="script-view">
             <span class="sticky-division" classList={{"visible": stickyDivisionVisible()}}>
@@ -433,8 +435,16 @@ function TrainingRunView(
                     ) as unknown as JSX.Element
                 }
             </div>
+            { currentIndex() % 2 === 0
+                ? (
+                    <div class="button-container" style={{"padding-top": (currentIndex() > 0) ? "2.5rem" : undefined}}>
+                        <button class="primary-button" onClick={append}>Aufdecken</button>
+                    </div>
+                )
+                : null
+            }
             { !reachedEnd() 
-                ? <div class="scroll-padding"/> 
+                ? <div class="scroll-padding"/>
                 : <TrainingRunCompletedView maxScore={maxScore}
                     visualTransitionTo={visualViewReset}
                     currentScoreString={scoreString()}
@@ -444,15 +454,18 @@ function TrainingRunView(
             }
             <div class="controls">
                 <div class="horizontal">
-                    <h2 class="score">{ scoreString() }</h2>
-                    <div 
-                        class="progress"
-                        style={{'--progress-width': Math.min(currentScore() / currentBarTotal(), 1),
-                            '--progress-color': progressBarColor()}}>
-                        <div class="inner"/>
-                    </div>
+                    <h1 class="score">{ scoreString() }</h1>
+                    <div style="flex: 1;"/>
+                    <span>
+                        {Math.floor(currentIndex() / 2) + 1} / {props.division.textCues.length}
+                    </span>
                 </div>
-                <button disabled={currentIndex() % 2 === 1} class="primary-button" onClick={append}>Aufdecken</button>
+                <div 
+                    class="progress"
+                    style={{'--progress-width': Math.min(currentScore() / currentBarTotal(), 1),
+                        '--progress-color': progressBarColor()}}>
+                    <div class="inner"/>
+                </div>
             </div>
         </div>
     );

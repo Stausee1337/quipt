@@ -730,7 +730,7 @@ span.score-ripple-bubble {
   position: fixed;
   opacity: 0.2;
   background-color: var(--bubble-color);
-  z-index: 5;
+  z-index: 100;
 }
 
 h2.flying-score {
@@ -738,7 +738,8 @@ h2.flying-score {
   position: fixed;
   top: 0;
   left: 0;
-  font-size: 1.6rem;
+  font-size: 3.2rem;
+  z-index: 1000;
 }
 
 div.routing-contents:has(div.script-view) {
@@ -792,8 +793,9 @@ div.script-view {
   }
 
   $scroll-padding: 25rem;
+  $button-height: 3rem;
   div.division-preamble {
-    min-height: calc(100svh - (8rem + $scroll-padding));
+    min-height: calc(100svh - (8rem + $scroll-padding + $button-height));
     padding-bottom: 2.5rem;
 
     &::before {
@@ -875,44 +877,78 @@ div.script-view {
     height: $scroll-padding;
   }
 
+  div.button-container {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+
+    button.icon-button {
+      width: 3rem;
+      height: 3rem;
+      padding: 0;
+      font-size: 2rem;
+      border: none;
+      background-color: inherit;
+      text-align: center;
+      margin: 0;
+      box-sizing: content-box;
+      color: inherit;
+      background-color: $color-accent1;
+      border-radius: 3.40282e+38px;
+      text-align: center;
+      -webkit-text-stroke: 1px #e3e3e3;
+      transform: scaleX(-1);
+
+      font-family: bootstrap-icons !important;
+      font-style: normal;
+      font-weight: normal !important;
+      font-variant: normal;
+      text-transform: none;
+    }
+  }
 
   $motion-bezier: cubic-bezier(.2, 1, .3, 1);
 
   div.controls {
-    z-index: 1000;
+    z-index: 50;
     position: fixed;
     left: 0;
     bottom: 0;
     right: 0;
-    // height: 3rem;
-    background-color: rgba($background, 0.5);
-    backdrop-filter: blur(10px);
+    background-color: $color-accent1;
+    // backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    // align-items: center;
     padding: 1rem;
     gap: 1rem;
+    padding-bottom: 2rem;
     // z-index: 1;
 
     div.horizontal {
       display: flex;
-      width: 100%;
-      gap: 1rem;
       align-items: center;
-    }
 
-    h2.score {
-      @extend .roboto-b900;
-      z-index: 10;
+      h1.score {
+        @extend .roboto-b900;
+        z-index: 10;
+      }
+
+      :is(span) {
+        color: $lighter1;
+        font-weight: bold;
+        z-index: 10;
+      }
     }
 
     $progress-bar-color: var(--progress-color);
     div.progress {
+      z-index: 10;
       background-color: $lighter1;
       height: 1.6rem;
       border-radius: 1.6rem;
       flex: 1;
+      width: 100%;
 
       &.glow .inner {
         box-shadow: 0px 0px 0.5rem 0.1rem $progress-bar-color;
