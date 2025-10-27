@@ -31,7 +31,7 @@ export function MakeEditableContent<T extends ContentComponent>(
 
         if (!props.isEditable)
             return props.children;
-        return <input ref={inputElement}
+        return <input ref={inputElement} class="injected-input"
             value={props.children}
             onBlur={() => props.onEditEnd()}
             onInput={e => props.onContentChange(e.currentTarget.value)}/>;

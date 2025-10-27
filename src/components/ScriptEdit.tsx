@@ -1,4 +1,4 @@
-import { JSX, createContext, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, splitProps, useContext, createRoot, runWithOwner, indexArray, mapArray, Owner, Accessor } from 'solid-js';
+import { JSX, createContext, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, splitProps, useContext, createRoot, runWithOwner, indexArray, mapArray, Owner, Accessor, children } from 'solid-js';
 import { EditorView, minimalSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { placeholder } from "@codemirror/view";
@@ -9,7 +9,7 @@ import { ExposedComponentType, TextCueView, renderCuePair as renderCuePairSimple
 import { ScriptContextObj } from '../script';
 import { DivisionInfoComponent, DivisionInfoView } from './DivisionInfoView';
 import { useNavigate, useParams } from '@solidjs/router';
-import { insert } from 'solid-js/web';
+import { Dynamic, insert } from 'solid-js/web';
 import { ScriptInfo, computeScriptInfo, formatActorsArray, formatMarkdown, pluralize } from './common';
 import { ActorPill } from './ActorPill';
 import { ExposedComponent } from '../exposed-component';
@@ -17,6 +17,7 @@ import { installPopoverMenuHandler, contextMenu } from '../popover-menu';
 import { DialogManager } from '../dialog';
 import { useMutation } from '@tanstack/solid-query';
 import { AuthenticationContextObj, queryClient } from '../client';
+import { MakeEditableContent } from './MakeEditableContent';
 
 const myTheme = EditorView.theme({}, {dark: true})
 
@@ -70,7 +71,7 @@ function Editor(props: {
 function EditCommitView(props: { close: (res: "dismiss"|"accept") => void }): JSX.Element {
     return (
         <div class="edit-commit-container">
-            <button class="icon-button " onClick={() => props.close("dismiss")}>
+            <button class="icon-button" onClick={() => props.close("dismiss")}>
                 &#xF62A;
             </button>
             <button class="icon-button" onClick={() => props.close("accept")}>
@@ -614,9 +615,35 @@ function EditableDivisionInfoView(
     return <>{ infoComponent() }</>;
 }
 
+function HeadingWithEditButton(
+    props: {
+        children: JSX.Element,
+        headingSize: 1|2|3|4|5|6,
+        onEditClick: () => void
+    } & JSX.HTMLAttributes<HTMLHeadingElement>
+): JSX.Element {
+    const [_, rest] = splitProps(props, ["children", "headingSize", "onEditClick"]);
+    const getChildren = children(() => props.children);
+    const isSimpleContent = createMemo(() => typeof getChildren() === "string")
+
+    return (
+        <Dynamic component={`h${props.headingSize}`} {...rest}>
+            { props.children }
+            {
+                isSimpleContent() && (
+                    <button class="icon-button" onClick={() => props.onEditClick()}>
+                        &#xF4CB;
+                    </button>
+                )
+            }
+        </Dynamic>
+    );
+}
+
 interface ScriptEditContext {
     readonly scriptInfo: ScriptInfo;
     updateDescription(newDescription: string): Promise<{ prev: Script }>;
+    renameDivision(newName: string): Promise<{ prev: Script }>;
     deleteCue(index: number): Promise<{ prev: Script }>;
     insertCue(index: number, newCue: TextCuePair): Promise<{ prev: Script }>;
     updateCue(index: number, newCue: TextCuePair): Promise<{ prev: Script }>;
@@ -629,7 +656,7 @@ function ScriptCueView(
         script: Script
     }
 ): JSX.Element {
-    // const scriptContext = useContext(ScriptContextObj)!;
+    const scriptContext = useContext(ScriptContextObj)!;
     const authContext = useContext(AuthenticationContextObj)!;
 
     onMount(() => {
@@ -648,6 +675,33 @@ function ScriptCueView(
         const editContext: ScriptEditContext = {
             get scriptInfo() {
                 return scriptInfo();
+            },
+            async renameDivision(newName) {
+                await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
+                const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
+
+                queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
+                    if (!old) return old;
+
+                    return {
+                        ...old,
+                        divisions: Array.from({
+                            ...old.divisions,
+                            [idx()]: {
+                                ...old.divisions[idx()],
+                                name: newName
+                            },
+                            length: old.divisions.length
+                        })
+                    };
+                });
+
+                await authContext.services!.division.rename({
+                    scriptId: props.script.uuid,
+                    divisionIdx: idx(),
+                    name: newName
+                });
+                return { prev };
             },
             async updateDescription(newDescription) {
                 await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
@@ -761,14 +815,38 @@ function ScriptCueView(
             },
         };
 
-        function onRename() {
+        const [isEditing, setIsEditing] = createSignal<boolean>(false);
+        const [currentName, setCurrentName] = createSignal<string>(division().name);
 
+        createEffect(() => setCurrentName(division().name))
+        const renameMutation = useMutation(() => ({
+            mutationFn: editContext.renameDivision 
+        }))
+
+        function onRename() {
+            setIsEditing(true);
+        }
+
+        function onRenameDone() {
+            setIsEditing(false);
+            const newName = currentName();
+            if (newName === division().name || newName.length === 0)
+                return
+            renameMutation.mutate(newName);
         }
 
         return (
             <div class="script-divsion" id={`division${idx()}`} data-division={idx()}>
                 <ScriptEditContextObj.Provider value={editContext}>
-                    <h2>{ division().name }</h2>
+                    <MakeEditableContent component={HeadingWithEditButton}
+                        isEditable={isEditing()}
+                        onContentChange={setCurrentName}
+                        onEditEnd={onRenameDone}
+
+                        headingSize={2}
+                        onEditClick={onRename}>
+                        { currentName() }
+                    </MakeEditableContent>
                     <EditableDivisionInfoView division={division()} onRename={onRename}/>
                     <GapInjectHandle data-index={-1}/>
                     {
@@ -818,10 +896,39 @@ function ScriptCueView(
         scrollingElement.removeEventListener('scroll', onScroll);
     })
 
+    const [isEditing, setIsEditing] = createSignal<boolean>(false);
+    const [currentName, setCurrentName] = createSignal<string>(props.script.name);
+    const renameMutation = useMutation(() => ({
+        mutationFn(newName: string) {
+            return scriptContext.renameScript(props.script.uuid, newName);
+        }
+    }))
+
+    createEffect(() => {
+        setCurrentName(props.script.name)
+    })
+
+    function onRenameDone() {
+        setIsEditing(false);
+        const newName = currentName();
+        if (newName === props.script.name || newName.length === 0)
+            return
+        renameMutation.mutate(newName);
+    }
+
     return (
         <div ref={contentElement} class="desktop-view">
             <div class="readable-content-view">
-                <h1 class="script-info">{ props.script.name }</h1>
+                <MakeEditableContent component={HeadingWithEditButton}
+                    isEditable={isEditing()}
+                    onContentChange={setCurrentName}
+                    onEditEnd={onRenameDone}
+
+                    class="script-info"
+                    headingSize={1}
+                    onEditClick={() => setIsEditing(true)}>
+                    { currentName() }
+                </MakeEditableContent>
                 {
                     indexArray(() => props.script.divisions, renderDivision) as unknown as JSX.Element
                 }
@@ -831,7 +938,7 @@ function ScriptCueView(
                     <h4>Info</h4>
                     <section class="script-info">
                         <span class="info">{ pluralize(scriptInfo().textCues, 'Einsatz', 'Einsätze') }</span>
-                        <span class="info">{ scriptInfo().actors.join(', ') } Spieler</span>
+                        <span class="info">{ scriptInfo().actors.join(', ') }</span>
                     </section>
                     <h4>Abschnitte</h4>
                     <section class="divisions">

@@ -193,16 +193,6 @@ nav.side-menu {
       text-overflow: ellipsis;
     }
 
-    :is(input) {
-      border: 0;
-      background-color: inherit;
-      font-size: $text-body-font-size;
-      outline: none;
-      margin: 0;
-      padding: 0;
-      color: #e3e3e3;
-    }
-
     :is(button) {
       grid-area: button;
     }
@@ -249,6 +239,20 @@ button.icon-menu-button {
     width: calc(100% + 2rem);
     height: calc(100% + 2rem);
   }
+}
+
+input.injected-input {
+  border: 0;
+  background-color: inherit;
+  outline: none;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+
+  font-size: inherit;
+  font-weight: inherit;
+  text-align: inherit;
+  width: 100%;
 }
 
 a.list-element:has(button.icon-menu-button) {
@@ -391,6 +395,43 @@ div.desktop-view {
         bottom: 0;
         content: "";  
         border-bottom: 0.1rem solid $lighter1;
+      }
+
+
+      button.icon-button {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        visibility: hidden;
+
+        width: 2.5rem;
+        aspect-ratio: 1;
+        border: none;
+        border-radius: 3.40282e+38px;
+        background-color: inherit;
+        font-size: 2.5rem;
+        line-height: 2.5rem;
+        text-align: center;
+        padding: 1rem;
+        margin: 0;
+        cursor: pointer;
+        box-sizing: content-box;
+
+        // display: inline-block;
+        font-family: bootstrap-icons !important;
+        font-style: normal;
+        font-weight: normal !important;
+        font-variant: normal;
+        text-transform: none;
+
+        &:hover {
+          background-color: $lighter1;
+        }
+      }
+
+      &:hover button.icon-button {
+        visibility: visible;
       }
     }
 
