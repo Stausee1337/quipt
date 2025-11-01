@@ -29,6 +29,7 @@ var errUnknownScript = makeError("unknown script")
 var errInvalidScoreData = makeError("invalid score data")
 var errInvalidScriptName = makeError("invalid score data")
 var errDivisionOutOfBounds = makeError("division out of bounds")
+var errCueOutOfBounds = makeError("cue out of bounds")
 
 type ScriptsService struct {
 	repo *repository.ScriptsRepo
@@ -298,7 +299,17 @@ func (s *ScriptsService) UpdateCue(
 		return errDivisionOutOfBounds
 	}
 
+	division, err := s.repo.LoadDivision(ctx, script.Divisions[divisionIdx]);
+	if err != nil {
+		return err
+	}
+
+	if cueIdx >= uint(len(division.TextCues)) {
+		return errCueOutOfBounds
+	}
+
 	textCuePair := transformQTextCuePair(qCuePair);
+	textCuePair.PreviousScores = division.TextCues[cueIdx].PreviousScores
 
 	return s.repo.UpdateCueAtIndex(
 		ctx,
