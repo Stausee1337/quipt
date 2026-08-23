@@ -1,6 +1,6 @@
 import { Accessor, JSX, createMemo, createSignal, untrack } from "solid-js";
 import { Lexer, MarkedToken } from 'marked';
-import { Division, Script, TextCue } from "../client";
+import { Division, Script, TextCue } from "../schemas";
 import { decode } from 'html-entities';
 
 export const progressBarGreen = '#5d9948';
@@ -115,12 +115,12 @@ function commonElements<T>(arrays: T[][]): T[] {
     return Array.from(currentSet) as T[];
 }
 
-function computeDivisionInfoImpl(division: Readonly<Division>): CueContainerInfo;
-function computeDivisionInfoImpl(division: Readonly<Division>, responseActorCollection: string[][]): CueContainerInfo;
-function computeDivisionInfoImpl(division: Readonly<Division>, responseActorCollection?: string[][]): CueContainerInfo {
+function computeDivisionInfoImpl(division: Division): CueContainerInfo;
+function computeDivisionInfoImpl(division: Division, responseActorCollection: string[][]): CueContainerInfo;
+function computeDivisionInfoImpl(division: Division, responseActorCollection?: string[][]): CueContainerInfo {
     const actorsCollection: Set<string> = new Set();
     const addActors =
-        (textCue: Readonly<TextCue>) => textCue.actors.forEach(actorsCollection.add.bind(actorsCollection))
+        (textCue: TextCue) => textCue.actors.forEach(actorsCollection.add.bind(actorsCollection))
     for (const textCuePair of division.textCues) {
         if (textCuePair.request)
             addActors(textCuePair.request);
@@ -137,7 +137,7 @@ function computeDivisionInfoImpl(division: Readonly<Division>, responseActorColl
     };
 }
 
-export function computeDivisionInfo(division: Readonly<Division>): CueContainerInfo {
+export function computeDivisionInfo(division: Division): CueContainerInfo {
     return computeDivisionInfoImpl(division);
 }
 
@@ -145,7 +145,7 @@ export interface ScriptInfo extends CueContainerInfo {
     self: string|undefined
 }
 
-export function computeScriptInfo(script: Readonly<Script>): ScriptInfo {
+export function computeScriptInfo(script: Script): ScriptInfo {
     let textCues = 0;
     const actorsSet: Set<string> = new Set();
 

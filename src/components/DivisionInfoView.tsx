@@ -1,6 +1,6 @@
 /* @refresh reload */
 import { JSX, createMemo, createSignal, untrack } from "solid-js";
-import { Division } from '../client';
+import { Division } from '../schemas';
 import { computeDivisionInfo, formatMarkdown, formatString, pluralize } from './common';
 import { ExposedComponent, bindComponent } from "../exposed-component";
 
@@ -11,7 +11,7 @@ export interface DivisionInfoComponent {
 
 export function DivisionInfoView(
     props: {
-        division: Readonly<Division>,
+        division: Division,
         children?: JSX.Element
     }
 ): ExposedComponent<DivisionInfoComponent> {

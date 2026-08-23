@@ -1,7 +1,6 @@
 /* @refresh reload */
 import { Accessor, Component, JSX, createMemo, createSignal, getOwner, runWithOwner } from "solid-js";
-import { formatActorsArray, formatMarkdown, formatString } from "./common";
-import { FormattedString } from "../client";
+import { FormattedString, formatActorsArray, formatMarkdown, formatString } from "./common";
 import { TextCue, TextCuePair } from "../schemas"
 import { ExposedComponent, bindComponent } from "../exposed-component";
 import { untrack } from "solid-js";

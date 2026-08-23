@@ -45,8 +45,6 @@ function createAuthorizedExecutor(ctx: AuthorizedContext): runtime.Executor {
     }
 }
 
-export type FormattedString = Array<{ style: JSX.CSSProperties|null, string: string }>;
-
 export interface OnLogoutLifecylce {
     subscribe(listener: () => void): () => void;
 }
@@ -133,10 +131,12 @@ export function createAuthenticationContext(): AuthenticationContext {
             const token = refreshToken();
             if (token === undefined)
                 return undefined;
-            const data = await authService.refresh({ refreshToken: token });
-            if (!AuthSuccess.isSchema(data)) {
+            let data;
+            try {
+                data = await authService.refresh({ refreshToken: token });
+            } catch {
                 logout();
-                return;
+                return undefined;
             }
             setupAutomaticRefresh(data);
             setRefreshToken(data.refreshToken);
