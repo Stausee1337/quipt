@@ -206,15 +206,16 @@ export function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => voi
 export function SimpleChart(props: {
     onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration;
 }): JSX.Element {
-    const chartJSCanvas = (<canvas class="chart-js" />) as HTMLCanvasElement;
+    let chartJSCanvas: HTMLCanvasElement|undefined = undefined;
     let chart: Chart | undefined;
 
     createEffect(() => {
+        if (chartJSCanvas === undefined) return;
         const ctx = chartJSCanvas.getContext('2d')!;
         chart = new Chart(ctx, props.onConfig(ctx));
     });
 
-    return <>{chartJSCanvas}</>;
+    return <canvas ref={chartJSCanvas} class="chart-js" />;
 }
 
 export function leftPad(data: number[], length: number): number[] {

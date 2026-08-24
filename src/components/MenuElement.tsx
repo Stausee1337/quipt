@@ -6,6 +6,7 @@ import {
     createSignal,
     getOwner,
     onCleanup,
+    onMount,
     useContext,
 } from 'solid-js';
 import { For } from 'solid-js';
@@ -41,16 +42,6 @@ function ListElement(props: {
     onClick?: (e: MouseEvent) => void;
     onUpdate?: (value: string) => void;
 }): JSX.Element {
-    // const elementState = useContext(ListElementStateContextObj);
-    // const [elementRef, setElmentRef] = createSignal<HTMLSpanElement|HTMLImageElement>();
-
-    // createRenderEffect(() => {
-    //     const ref = elementRef();
-    //     if (ref instanceof HTMLInputElement)
-    //         elementState?.onMount(ref);
-    // })
-    //
-    //
     const getChildren = children(() => props.children);
     const isSimpleContent = createMemo(() => typeof getChildren() === 'string');
 
@@ -100,7 +91,6 @@ function ScriptContextMenu(props: {
     deleteScript: () => void;
     renameScript: () => void;
 }): JSX.Element {
-    // const elementContext = useContext(ScriptElementContextObj)!;
     return (
         <ul class="menu-options">
             <li onClick={props.deleteScript}>Löschen</li>
@@ -113,15 +103,17 @@ function ScriptMenuButton(props: {
     deleteScript: () => void;
     renameScript: () => void;
 }): JSX.Element {
-    const button = (
-        <button class="icon-menu-button" onClick={toggleMenu}>
+    let button: HTMLButtonElement|undefined = undefined;
+
+    onMount(() => {
+        button && installPopoverMenuHandler(button, 'bottom-start', ScriptContextMenu, props);
+    });
+
+    return (
+        <button ref={button} class="icon-menu-button" onClick={toggleMenu}>
             <i class="bi bi-three-dots" />
         </button>
-    ) as HTMLButtonElement;
-
-    installPopoverMenuHandler(button, 'bottom-start', ScriptContextMenu, props);
-
-    return button;
+    );
 }
 
 function ScriptElement(props: { script: PartialScript }): JSX.Element {

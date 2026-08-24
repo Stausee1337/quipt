@@ -1,5 +1,5 @@
-import { Component, ComponentProps, JSX, createMemo, onMount, splitProps } from 'solid-js';
-import { createDynamic } from 'solid-js/web';
+import { Component, ComponentProps, JSX, createEffect, createSignal, splitProps } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 
 type ContentComponent = Component<{ children: JSX.Element } & any>;
 
@@ -16,28 +16,28 @@ type EditableProps<T extends ContentComponent, P = ComponentProps<T>> = {
 export function MakeEditableContent<T extends ContentComponent>(
     props: EditableProps<T>,
 ): JSX.Element {
-    const [, rest] = splitProps(props, ['component', 'children']) as [unknown, ComponentProps<T>];
+    const [inputElement, setInputElement] = createSignal<HTMLInputElement|undefined>(undefined);
+    const [, rest] = splitProps(props, ['component', 'children']);
 
-    const childComputation = createMemo<JSX.Element>(() => {
-        let inputElement: HTMLInputElement | undefined;
-        onMount(() => {
-            if (!inputElement) return;
-            inputElement.focus();
-            inputElement.select();
-        });
-
-        if (!props.isEditable) return props.children;
-        return (
-            <input
-                ref={inputElement}
-                class="injected-input"
-                value={props.children}
-                onBlur={() => props.onEditEnd()}
-                onInput={e => props.onContentChange(e.currentTarget.value)}
-            />
-        );
+    createEffect(() => {
+        const element = inputElement();
+        if (element !== undefined && element.isConnected) {
+            element.focus();
+            element.select();
+        }
     });
-    rest.children = childComputation as unknown as JSX.Element;
 
-    return createDynamic(() => props.component, rest);
+    return (
+        <Dynamic component={props.component} {...rest}>
+            {props.isEditable 
+                ? <input
+                    ref={setInputElement}
+                    class="injected-input"
+                    value={props.children}
+                    onBlur={() => props.onEditEnd()}
+                    onInput={e => props.onContentChange(e.currentTarget.value)}
+                />
+                : props.children}
+        </Dynamic>
+    );
 }

@@ -1,5 +1,4 @@
-import { JSX, createMemo, mapArray, onMount } from 'solid-js';
-import { createEffect } from 'solid-js';
+import { JSX, For, createMemo, createEffect, onMount } from 'solid-js';
 
 import { A } from '@solidjs/router';
 import { ChartConfiguration, ChartData } from 'chart.js/auto';
@@ -151,12 +150,9 @@ export function ScriptOverview(props: { script: Script }): JSX.Element {
                 <span class="info">{pluralize(scriptInfo().textCues, 'Einsatz', 'Einsätze')}</span>
                 <span class="info">{scriptInfo().actors.join(', ')}</span>
             </div>
-            {
-                mapArray(
-                    () => props.script.divisions,
-                    (_, idx) => <DivisionItem script={props.script} idx={idx()} />,
-                ) as any
-            }
+            <For each={props.script.divisions}>
+                { (_, idx) => <DivisionItem script={props.script} idx={idx()} /> }
+            </For>
         </div>
     );
 }

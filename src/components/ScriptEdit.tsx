@@ -942,24 +942,18 @@ function ScriptView(props: { script: Script }): JSX.Element {
 }
 
 export function ScriptPage(props: { script: Script }): JSX.Element {
-    const params = useParams();
     const location = useLocation();
 
-    type CurrentRoute = { type: 'view' } | { type: 'train'; division: number };
-    const currentRoute = createMemo<CurrentRoute>(() => {
-        if (location.pathname.startsWith('/train')) {
-            return {
-                type: 'train',
-                division: parseInt(params.division),
-            };
-        }
-        return { type: 'view' };
+    const currentRoute = createMemo(() => {
+        if (location.pathname.startsWith('/train'))
+            return 'train';
+        return 'view';
     });
 
     return (
         <div class="desktop-view">
             <ScriptOverview script={props.script} />
-            {currentRoute().type == 'view' ? (
+            {currentRoute() === 'view' ? (
                 <ScriptView script={props.script} />
             ) : (
                 <TrainingRunWrapper script={props.script} />
