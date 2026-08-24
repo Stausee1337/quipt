@@ -1,31 +1,32 @@
-import { JSX, onMount, useContext } from "solid-js";
+import { JSX, onMount } from "solid-js";
 import { useAuthentication } from "../client";
-import { Navigate } from "@solidjs/router";
-import { IsMobileContext } from "../App";
-import QuiptQ from "../components/Quipt-Q";
+import { Navigate, A } from "@solidjs/router";
 
 function LandingPage(): JSX.Element {
     return (
         <div class="landing-page">
-            <QuiptQ/>
+            <h1>TODO: advertise Quipt</h1>
+            <p>
+                <A href="/signin">Login</A>
+            </p>
+            <p>
+                <A href="/signup">Register</A>
+            </p>
         </div>
     );
 }
 
 export function Root(): JSX.Element {
     const authentication = useAuthentication()!;
-    const isMobile = useContext(IsMobileContext)!;
     onMount(() => {
         document.title = "Quipt";
     })
     return (
         <>
             {
-                !authentication.isLoggedIn() 
-                    ? <Navigate href="/signin"/>
-                    : (isMobile()
-                        ? <Navigate href="/script"/>
-                        : <LandingPage/>)
+                authentication.isLoggedIn() 
+                    ? <Navigate href="/dashboard"/>
+                    : <LandingPage/>
             }
         </>
     );

@@ -6,7 +6,6 @@ import { PartialScript, ScriptContextObj } from "../script";
 import QuiptLogo from "./Quipt-Logo";
 import { DialogManager } from "../dialog";
 import { NewScriptFileChooser } from "./NewScriptFileChooser";
-import { IsMobileContext } from "../App";
 import { installPopoverMenuHandler, toggleMenu } from "../popover-menu";
 import { schemas } from "qrpc-js";
 import { useQuery } from "@tanstack/solid-query";
@@ -132,7 +131,6 @@ export function MenuElement(
     }
 ): JSX.Element {
     const owner = getOwner()!;
-    const isMobile = useContext(IsMobileContext)!;
     const authentication = useAuthentication()!;
     const scriptContext = useContext(ScriptContextObj)!;
 
@@ -217,8 +215,7 @@ export function MenuElement(
                     }
                 </div>
 
-                <ListElement icon="pencil-square"
-                    {...(isMobile() ? { href: '/new-script' } : { onClick: createNewScript })}>
+                <ListElement icon="pencil-square" onClick={createNewScript}>
                     Neues Skript
                 </ListElement>
 

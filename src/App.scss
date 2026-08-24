@@ -15,15 +15,14 @@
   min-height: 0;
   overflow: auto;
   display: grid;
-  grid-template-columns: 1fr;
   position: relative;
 
-  &.sidebar-visible {
+  &:has(> nav.side-menu) {
     grid-template-columns: auto 1fr;
   }
 }
 
-@media (max-width: 768px) {
+@media (width < 768px) {
   #root {
     display: flex;
     flex-direction: column;
@@ -214,9 +213,10 @@ nav.side-menu {
   }
 }
 
-@media (max-width: 768px) {
+@media (width < 768px) {
   nav.side-menu {
     flex: 1;
+    max-width: 30rem;
   }
 }
 
@@ -269,7 +269,7 @@ a.list-element:has(button.icon-menu-button) {
   }
 }
 
-@media (max-width: 768px) {
+@media (width < 768px) {
   button.icon-menu-button {
     display: block !important;
   }
@@ -365,11 +365,20 @@ div.desktop-view {
   grid-template-areas: "cues overview";
   gap: 0 1rem;
 
+
   div.grid-layout-filler {
     &.overview {
       grid-area: overview;
       width: 40rem;
+
     }
+  }
+
+  @media (width < 96.8rem) {
+   grid-template-columns: minmax(auto, calc(94.8rem + 2rem));
+   div.grid-layout-filler.overview {
+     display: none;
+   }
   }
 
   div.readable-content-view {
@@ -1243,14 +1252,11 @@ div.routing-contents:has(form.auth-box) {
 
 div.landing-page {
   flex: 1;
-  color: $color-accent2;
+  // color: $color-accent2;
   position: relative;
 
-  svg {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+  h1 {
+    text-align: center;
   }
 }
 
@@ -1440,7 +1446,7 @@ div.zoomed-in-page {
   }
 }
 
-@media (max-width: 768px) {
+@media (width < 768px) {
   div.routing-contents:has(form.auth-box) form.auth-box {
     width: 100%;
     padding: 2rem 2rem 2rem 2rem;
