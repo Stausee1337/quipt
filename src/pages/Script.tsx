@@ -1,12 +1,11 @@
 import { JSX, createMemo, onMount } from "solid-js";
 import { useNavigate, useLocation, Navigate } from "@solidjs/router";
-import { ScriptViewer } from "../components/ScriptEdit";
-import { MobileScriptRedirect } from "../components/ScriptTraining";
+import { ScriptPage } from "../components/ScriptEdit";
 import PersonConfused from "../components/Person-Confused";
 import { StateScriptTransferObject } from "../components/NewScriptFileChooser";
 import { DocumentView } from "../components/DocumentView";
 import { useQuery } from "@tanstack/solid-query";
-import { PartialScript } from "../script";
+import { DelayedScriptInstantiator, PartialScript } from "../script";
 
 // function Computer(): JSX.Element {
 //     return (
@@ -16,8 +15,17 @@ import { PartialScript } from "../script";
 //     );
 // }
 
+// I don't know about how script route is supposed to work
+//  - On Mobile: Script Overview and Viewing/Training have to be distinct
+//  - On Desktop: The Script Overview is displayed simultaneously with Viewing/Training
+// Principially, this can be solved by the Views *forcing* a section to be prsent. So even when 
+// you hit `/script/<uuid>` on desktop the `ScriptView` will make it navigate to 
+// `/script/<uuid>/<sectionID>` forcefully.
+// Training then lives on `/train/<uuid>/<sectionID>` with `/train/<uuid>` redirecting to 
+// `/script/...`
+
 export function ScriptRoute(): JSX.Element {
-    return <ScriptViewer/>;
+    return <DelayedScriptInstantiator component={ScriptPage}/>;
 }
 
 

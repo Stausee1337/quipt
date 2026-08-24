@@ -6,9 +6,9 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { Division, Script, TextCue, TextCuePair } from '../schemas';
 import { TextCueDataView, TextCuePairView } from './TextCueView';
-import { DelayedScriptInstantiator, ScriptContextObj } from '../script';
+import { ScriptContextObj } from '../script';
 import { DivisionInfoView } from './DivisionInfoView';
-import { useNavigate, useParams } from '@solidjs/router';
+import { useLocation, useParams } from '@solidjs/router';
 import { Dynamic, insert } from 'solid-js/web';
 import { ScriptInfo, computeScriptInfo, formatActorsArray, formatMarkdown } from './common';
 import { ActorPill } from './ActorPill';
@@ -18,6 +18,7 @@ import { useMutation } from '@tanstack/solid-query';
 import { AuthenticationContextObj, queryClient } from '../client';
 import { MakeEditableContent } from './MakeEditableContent';
 import { ScriptOverview } from './ScriptOverview';
+import { TrainingRunWrapper } from './ScriptTraining';
 
 const myTheme = EditorView.theme({}, {dark: true})
 
@@ -744,7 +745,7 @@ const ScriptEditContextObj = createContext<ScriptEditContext>();
 
 
 // FIXME: ScriptCue's don't exist, but TextCueView is obviously already taken, so we'll need to figure out what this doing
-function ScriptCueView(
+function ScriptView(
     props: {
         script: Script
     }
@@ -906,47 +907,6 @@ function ScriptCueView(
         };
     }
 
-
-
-    // const [divisionIdx, setDivisionIdx] = createSignal<number>(0);
-    // 
-    let contentElement: HTMLDivElement = undefined!;
-    // const scrollingElement = document.querySelector("div.routing-contents")! as HTMLDivElement;
-    // function onScroll() {
-    //     const rect = scrollingElement.getBoundingClientRect();
-    //     const element = document.elementFromPoint(
-    //         rect.left + contentElement.offsetWidth / 2,
-    //         rect.top + 10
-    //     );
-
-    //     let currentElement: Element|null = element;
-    //     while (currentElement !== null) {
-    //         if (currentElement.classList.contains('script-divsion')
-    //                 && (currentElement instanceof HTMLElement)) {
-    //             const divisionIdx = Number(currentElement.dataset.division)
-    //             setDivisionIdx(divisionIdx);
-    //             break;
-    //         }
-
-    //         currentElement = currentElement.parentElement;
-    //     }
-    // }
-
-    // function jumpToDivision(event: MouseEvent & { currentTarget: HTMLSpanElement }) {
-    //     const target = event.currentTarget;
-    //     const divisionIdx = Number(target.dataset.idx);
-    //     const element = document.getElementById(`division${divisionIdx}`)!;
-    //     scrollingElement.scrollTo({ top: element.offsetTop });
-    // }
-
-    // onMount(() => {
-    //     scrollingElement.addEventListener('scroll', onScroll);
-    // })
-
-    // onCleanup(() => {
-    //     scrollingElement.removeEventListener('scroll', onScroll);
-    // })
-
     const [isEditing, setIsEditing] = createSignal<boolean>(false);
     const [currentName, setCurrentName] = createSignal<string>(props.script.name);
     const renameMutation = useMutation(() => ({
@@ -968,8 +928,7 @@ function ScriptCueView(
     }
 
     return (
-        <div ref={contentElement} class="desktop-view">
-            <ScriptOverview script={props.script}/>
+        <>
             <div class="readable-content-view">
                 <MakeEditableContent component={HeadingWithEditButton}
                     isEditable={isEditing()}
@@ -991,20 +950,37 @@ function ScriptCueView(
                     }
                 </For>
             </div>
-        </div>
+        </>
     );
 }
 
-export function ScriptViewer(): JSX.Element {
+
+export function ScriptPage(props: { script: Script }): JSX.Element {
     const params = useParams();
-    const navigate = useNavigate();
+    const location = useLocation();
 
-    onMount(() => {
-        if (params.uuid === undefined) {
-            navigate('/');
+    type CurrentRoute = { type: 'view' }|{ type: 'train', division: number };
+    const currentRoute = createMemo<CurrentRoute>(() => {
+        if (location.pathname.startsWith('/train')) {
+            return {
+                type: 'train',
+                division: parseInt(params.division)
+            };
         }
-    })
+        return { type: 'view' };
+    });
 
-    return <DelayedScriptInstantiator component={ScriptCueView}/>;
+
+    return (
+
+        <div class="desktop-view">
+            <ScriptOverview script={props.script}/>
+            {
+                currentRoute().type == 'view'
+                    ? <ScriptView script={props.script}/>
+                    : <TrainingRunWrapper script={props.script}/>
+            }
+        </div>
+    );
 }
 

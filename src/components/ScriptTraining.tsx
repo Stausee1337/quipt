@@ -1,16 +1,13 @@
-import { createSignal, onMount, onCleanup, JSX, createEffect, Accessor, useContext, createMemo, Switch, Match, getOwner, runWithOwner } from 'solid-js';
+import { createSignal, onMount, onCleanup, JSX, createEffect, Accessor, useContext, createMemo, For, getOwner, runWithOwner } from 'solid-js';
 import { useNavigate, useParams, Params } from '@solidjs/router';
 import { ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
 import { Division, Script, TextCue } from '../schemas';
-import { ScriptContextObj, ScriptContext, PartialScript, DelayedScriptInstantiator } from '../script';
+import { ScriptContextObj, ScriptContext } from '../script';
 import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, createInvalidatable, SimpleChart, leftPad } from './common';
 import { TextCueView as BaseTextCueView } from './TextCueView';
 import { DivisionInfoView } from './DivisionInfoView';
 import { ConfidenceReportView, OnConfidenceReportHandler } from './ConfidenceReportView';
-import { useQuery } from '@tanstack/solid-query';
-import { ScriptOverview } from './ScriptOverview';
-import { For } from 'solid-js';
 
 function TextCueView(props: {
     textCue: TextCue | undefined,
@@ -22,7 +19,7 @@ function TextCueView(props: {
         <BaseTextCueView textCue={props.textCue}
             type={props.type}
             classList={{last: props.isLast}}
-            beforeExtra={
+            afterExtra={
                 props.type === "response" 
                 && <ConfidenceReportView confidenceReport={props.onConfidenceReport}/>
             }/>
@@ -613,50 +610,6 @@ function TrainingRunCompletedView(
     );
 }
 
-// NOTE: this is probably just incorrect, any component similar to this should proably already be wrapped in a delayed
-// instantiator
-export function MobileScriptRedirect(): JSX.Element {
-    const params = useParams()
-    const navigate = useNavigate()
-    const scriptsQuery = useQuery<PartialScript[]>(() => ({ queryKey: ['scripts'] }));
-
-    // match ((params.uuid, params.division, scriptQuery)) {
-    //      (Some(uuid), Some(division),    _) => return Some(<TrainingRunWrapper/>),
-    //      (Some(uuid), None,              _) => return Some(<ScriptOverview/>),
-    //      (None,       _,    Query::Pending) => return None,
-    //      (None,       _,    Query::Resolved(data)) if data.is_empty() => return Some(Redirect("/no-script")),
-    //      (None,       _,    Query::Resolved(data)) => return Some(Redirect("/script/{latest_script(data).uuid}"))
-    //  }
-
-    const x = createMemo(() => {
-        if (params.uuid !== undefined && params.division !== undefined)
-            return "training-run";
-        else if (params.uuid !== undefined)
-            return "script-overview";
-        if (scriptsQuery.status === "pending")
-            return "loading-redirect";
-        const scripts = scriptsQuery.data;
-        if (scripts === undefined || scripts.length === 0) {
-            navigate(`/no-script`);
-            return;
-        }
-        const script = params.uuid ?? scripts
-            .reduce((a, b) => a.createdAt > b.createdAt ? a : b)
-            .uuid!;
-        navigate(`/script/${script}`);
-    });
-
-    return (
-        <Switch fallback={null}>
-            <Match when={x() === "training-run"}>
-                <DelayedScriptInstantiator component={TrainingRunWrapper}/>
-            </Match>
-            <Match when={x() === "script-overview"}>
-                <DelayedScriptInstantiator component={ScriptOverview}/>
-            </Match>
-        </Switch>
-    );
-}
 
 function calculatePointsForStreak(streak: number): number {
     return 0.5 * (streak**2 + streak);
@@ -781,7 +734,14 @@ function createTrainingRunManager(
     return [manager, division];
 }
 
-function TrainingRunWrapper(
+// FIXME: pretty much everything is a problem here.
+//  - The archticture is still quite imperative, while it clearly shouldn't
+//  - Dependencies are not managed correctly (why does this component even so much as touch params)
+//  - The entire training view is written into one big function, which doesn't care a bit about
+//    separation of concerns.
+// This will clearly have to go through a MAJOR refactoring, akin to a rewrite, just to get 
+// everything sorted out.
+export function TrainingRunWrapper(
     props: {
         script: Script
     }

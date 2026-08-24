@@ -1,5 +1,5 @@
 import './App.scss'
-import { createSignal, onCleanup, JSX, createEffect, createContext, onMount } from 'solid-js';
+import { createSignal, onCleanup, JSX, onMount } from 'solid-js';
 import { HeaderElement } from './components/HeaderElement';
 import { MenuElement } from './components/MenuElement';
 import { Router, Route, Navigate, useNavigate } from '@solidjs/router';
@@ -14,7 +14,6 @@ import { NewScriptRoute, ScriptRoute } from './pages/Script';
 function App(props: { children?: JSX.Element }): JSX.Element {
     const authenticationContext = useAuthentication()!;
     const navigate = useNavigate();
-    // const [isMobile, _] = createSignal(detectMobileStatically());
     const scriptContext = createScriptContext(authenticationContext);
 
     const unsubscribe = authenticationContext.onLogout.subscribe(() => navigate('/'));
@@ -22,6 +21,7 @@ function App(props: { children?: JSX.Element }): JSX.Element {
         unsubscribe();
     });
 
+    // TODO: provide media query result via a context
     const query = window.matchMedia('(width < 768px)');
     const [isSmallWidth, setIsSmallWidth] = createSignal(query.matches);
     onMount(() => {
@@ -54,7 +54,12 @@ export default function() {
                         : (
                             <>
                                 <Route path="/new-script" component={NewScriptRoute} />
-                                <Route path={["/script", "/script/:uuid", "/script/:uuid/:division"]} component={ScriptRoute} />
+                                <Route path={[
+                                        "/script/:uuid",
+                                        "/script/:uuid/:division",
+                                        "/train/:uuid/:division",
+                                    ]} 
+                                    component={ScriptRoute}/>
                                 <Route path="/dashboard"/>
                             </>
                         )
