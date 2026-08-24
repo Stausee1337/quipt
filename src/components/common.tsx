@@ -1,4 +1,4 @@
-import { Accessor, JSX, createEffect, createMemo, createSignal, untrack } from 'solid-js';
+import { Accessor, For, JSX, createEffect, createMemo, createSignal, untrack } from 'solid-js';
 
 import { Chart, ChartConfiguration } from 'chart.js/auto';
 import { decode } from 'html-entities';
@@ -17,18 +17,18 @@ export type FormattedStringElement = {
 };
 export type FormattedString = FormattedStringElement[];
 
-export function formatString(string: FormattedString): JSX.Element {
-    const result: JSX.ArrayElement = [];
-
-    for (let item of string) {
-        if (item.style === null) {
-            result.push(decode(item.string));
-        } else {
-            result.push(<span style={item.style}>{decode(item.string)}</span>);
-        }
-    }
-
-    return result;
+export function FormattedStringView(props: { string: FormattedString }): JSX.Element {
+    return (
+        <For each={props.string}>
+            {item =>
+                item.style ? (
+                    <span style={item.style}>{decode(item.string)}</span>
+                ) : (
+                    decode(item.string)
+                )
+            }
+        </For>
+    );
 }
 
 // function generateSunflowerColor(idx: number, saturation = 95, value = 70): string {

@@ -2,9 +2,9 @@ import { JSX, children, createMemo, splitProps } from 'solid-js';
 
 import {
     FormattedString,
+    FormattedStringView,
     formatActorsArray,
     formatMarkdown,
-    formatString,
 } from 'quipt/components/common';
 import { TextCue, TextCuePair } from 'quipt/schemas';
 
@@ -32,8 +32,16 @@ export function TextCueDataView(props: TextCueDataViewProps) {
         <div class="cue-wrapper">
             {props.beforeExtra}
             <div class={`cue ${props.type}`} {...rest}>
-                {props.actorsInfo !== null ? <h3>{formatString(props.actorsInfo)}</h3> : null}
-                {getChildren() ?? <span class="content">{formatString(props.text)}</span>}
+                {props.actorsInfo !== null ? (
+                    <h3>
+                        <FormattedStringView string={props.actorsInfo} />
+                    </h3>
+                ) : null}
+                {getChildren() ?? (
+                    <span class="content">
+                        <FormattedStringView string={props.text} />
+                    </span>
+                )}
             </div>
             {props.afterExtra}
         </div>

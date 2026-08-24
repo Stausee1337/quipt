@@ -4,6 +4,7 @@ import {
     JSX,
     createEffect,
     createMemo,
+    createRoot,
     createSignal,
     getOwner,
     onCleanup,
@@ -11,6 +12,7 @@ import {
     runWithOwner,
     useContext,
 } from 'solid-js';
+import { insert } from 'solid-js/web';
 
 import { Params, useNavigate, useParams } from '@solidjs/router';
 import confetti from 'canvas-confetti';
@@ -23,9 +25,10 @@ import {
 import { DivisionInfoView } from 'quipt/components/DivisionInfoView';
 import { TextCueView as BaseTextCueView } from 'quipt/components/TextCueView';
 import {
+    FormattedString,
+    FormattedStringView,
     SimpleChart,
     createInvalidatable,
-    formatString,
     leftPad,
     progressBarGreen,
     progressBarOrange,
@@ -53,6 +56,21 @@ function TextCueView(props: {
             }
         />
     );
+}
+
+/**
+ * HACK: This renders a component into a temporary element correctly, while the code still relies
+ * on such shenanigans.
+ */
+function renderFormattedString(string: FormattedString): Element {
+    const tmpElement = document.createElement('div');
+    createRoot(dispose => {
+        insert(tmpElement, () => <FormattedStringView string={string} />);
+        dispose();
+    });
+    const result = tmpElement.firstElementChild!;
+    result.remove();
+    return result;
 }
 
 function easeOut(x: number) {
@@ -355,9 +373,7 @@ function TrainingRunView(props: { division: Division; manager: TrainingRunManage
             );
         }
 
-        const x = formatString([
-            { style: { color: indicatorColor }, string: `+${diff}` },
-        ])[0] as any;
+        const x = renderFormattedString([{ style: { color: indicatorColor }, string: `+${diff}` }]);
         parent.insertBefore(x, parent.firstChild);
 
         let sourceRect = x.getBoundingClientRect();

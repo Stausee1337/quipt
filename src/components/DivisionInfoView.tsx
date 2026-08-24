@@ -2,9 +2,9 @@ import { JSX, createMemo, splitProps } from 'solid-js';
 import { children } from 'solid-js';
 
 import {
+    FormattedStringView,
     computeDivisionInfo,
     formatMarkdown,
-    formatString,
     pluralize,
 } from 'quipt/components/common';
 import { Division } from 'quipt/schemas';
@@ -29,7 +29,7 @@ export function DivisionInfoView(props: DivisionInfoViewProps): JSX.Element {
                 </span>
                 {props.external ?? (
                     <span class="content">
-                        {formatString(formatMarkdown(props.division.description))}
+                        <FormattedStringView string={formatMarkdown(props.division.description)} />
                     </span>
                 )}
             </div>
