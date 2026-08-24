@@ -10,6 +10,7 @@ import { installPopoverMenuHandler, toggleMenu } from "../popover-menu";
 import { schemas } from "qrpc-js";
 import { useQuery } from "@tanstack/solid-query";
 import { MakeEditableContent } from "./MakeEditableContent";
+import { For } from "solid-js";
 
 function Fragment(
     props: { children: JSX.Element }
@@ -124,6 +125,45 @@ function ScriptMenuButton(
     return button;
 }
 
+function ScriptElement(props: {
+    script: PartialScript
+}): JSX.Element {
+    const [isEditing, setIsEditing] = createSignal<boolean>(false);
+    const [currentContent, setCurrentContent] = createSignal<string>(props.script.name);
+    const scriptContext = useContext(ScriptContextObj)!;
+
+    async function deleteScript() {
+        const deleteUuid = await DialogManager.openDialog<schemas.UUID>(
+            ({ closer }) => <DeleteScriptDialog closer={closer} script={props.script}/>);
+        if (deleteUuid !== undefined)
+            scriptContext.deleteScript(deleteUuid);
+    }
+
+    async function renameScript() {
+        setIsEditing(true);
+    }
+
+    function onRenameDone() {
+        setIsEditing(false);
+        const newName = currentContent();
+        if (newName === props.script.name || newName.length === 0)
+            return;
+        scriptContext.renameScript(props.script.uuid!, newName);
+    }
+
+    return (
+        <MakeEditableContent component={ListElement}
+            isEditable={isEditing()}
+            onContentChange={setCurrentContent}
+            onEditEnd={onRenameDone}
+
+            href={`/script/${props.script.uuid}`}
+            menuButton={<ScriptMenuButton deleteScript={deleteScript} renameScript={renameScript}/>}
+            current={props.script.uuid === scriptContext.currentScript}>
+            { currentContent() }
+        </MakeEditableContent>
+    );
+}
 
 export function MenuElement(
     props: {
@@ -132,7 +172,6 @@ export function MenuElement(
 ): JSX.Element {
     const owner = getOwner()!;
     const authentication = useAuthentication()!;
-    const scriptContext = useContext(ScriptContextObj)!;
 
     const closer = props.closer;
 
@@ -163,45 +202,6 @@ export function MenuElement(
         )
     }
 
-    function renderScriptElement(script: PartialScript): JSX.Element {
-        return createMemo(() => {
-            const [isEditing, setIsEditing] = createSignal<boolean>(false);
-            const [currentContent, setCurrentContent] = createSignal<string>(script.name);
-
-            async function deleteScript() {
-                const deleteUuid = await DialogManager.openDialog<schemas.UUID>(
-                    ({ closer }) => <DeleteScriptDialog closer={closer} script={script}/>);
-                if (deleteUuid !== undefined)
-                    scriptContext.deleteScript(deleteUuid);
-            }
-
-            async function renameScript() {
-                setIsEditing(true);
-            }
-
-            function onRenameDone() {
-                setIsEditing(false);
-                const newName = currentContent();
-                if (newName === script.name || newName.length === 0)
-                    return;
-                scriptContext.renameScript(script.uuid!, newName);
-            }
-
-            return (
-                <MakeEditableContent component={ListElement}
-                    isEditable={isEditing()}
-                    onContentChange={setCurrentContent}
-                    onEditEnd={onRenameDone}
-
-                    href={`/script/${script.uuid}`}
-                    menuButton={<ScriptMenuButton deleteScript={deleteScript} renameScript={renameScript}/>}
-                    current={script.uuid === scriptContext.currentScript}>
-                    { currentContent() }
-                </MakeEditableContent>
-            );
-        }) as any;
-    }
-
     return (
         <nav class="side-menu">
             <div class="header">
@@ -225,11 +225,12 @@ export function MenuElement(
             <div style={{'min-width': '0', 'max-width': '100%'}}>
                  {
                      scriptsQuery.status === "success" && (
-                         scriptsQuery.data
-                            .toSorted((a, b) => b.createdAt - a.createdAt)
-                            .map(renderScriptElement)
+                         <For each={scriptsQuery.data.toSorted((a, b) => b.createdAt - a.createdAt)}>
+                            { (script) => <ScriptElement script={script}/> }
+                         </For>
                      )
                  }
+                 
             </div>
 
             {

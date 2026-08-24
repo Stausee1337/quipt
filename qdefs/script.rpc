@@ -6,6 +6,7 @@ record Script {
     divisions: Division[];
 }
 
+// FIXME: Division -> Section
 record Division {
     name: string;
     description: string;

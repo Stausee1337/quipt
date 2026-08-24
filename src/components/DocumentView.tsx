@@ -3,13 +3,16 @@ import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from "mupdf"
 import { createInvalidatable, pluralize } from "./common";
 import * as s from "../schemas";
 import { DialogManager } from "../dialog";
-import { renderCuePair } from "./TextCueView";
 import { DivisionInfoView } from "./DivisionInfoView";
 import { ScriptContextObj } from "../script";
 import { useNavigate } from "@solidjs/router";
 import { ToggleMenuEvent, installPopoverMenuHandler, toggleMenu } from "../popover-menu";
 import { ActorPill } from "./ActorPill";
 import { schemas } from "qrpc-js";
+
+function renderCuePair() {
+
+}
 
 type MupdfLib = typeof import("mupdf");
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0]

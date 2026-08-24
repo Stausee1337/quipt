@@ -1,18 +1,17 @@
-import { JSX, createContext, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, splitProps, useContext, createRoot, runWithOwner, indexArray, mapArray, Owner, Accessor, children } from 'solid-js';
+import { JSX, createContext, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, splitProps, useContext, createRoot, Owner, Accessor, children, For } from 'solid-js';
 import { EditorView, minimalSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { placeholder } from "@codemirror/view";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { Division, Script, TextCue, TextCuePair } from '../schemas';
-import { ExposedComponentType, TextCueView, renderCuePair as renderCuePairSimple } from './TextCueView';
+import { TextCueDataView, TextCuePairView } from './TextCueView';
 import { DelayedScriptInstantiator, ScriptContextObj } from '../script';
-import { DivisionInfoComponent, DivisionInfoView } from './DivisionInfoView';
+import { DivisionInfoView } from './DivisionInfoView';
 import { useNavigate, useParams } from '@solidjs/router';
 import { Dynamic, insert } from 'solid-js/web';
-import { ScriptInfo, computeScriptInfo, formatActorsArray, formatMarkdown, pluralize } from './common';
+import { ScriptInfo, computeScriptInfo, formatActorsArray, formatMarkdown } from './common';
 import { ActorPill } from './ActorPill';
-import { ExposedComponent } from '../exposed-component';
 import { installPopoverMenuHandler, contextMenu } from '../popover-menu';
 import { DialogManager } from '../dialog';
 import { useMutation } from '@tanstack/solid-query';
@@ -109,7 +108,7 @@ function DeleteCueDialog(
             <h3>Einsatz Löschen?</h3>
             <span>Möchten sie diesen Einsatz <strong>unwiederruflich</strong> löschen?</span>
             <div class="single-cue-viewer">
-                { renderCuePairSimple(props.cuePair) } 
+                <TextCuePairView textCuePair={props.cuePair}/>
             </div>
             <div class="bottom-line">
                 <button class="secondary-button" onClick={() => props.closer(undefined)}>
@@ -135,35 +134,32 @@ function EditableTextCue(
 
     const owner = getOwner()!;
 
-    let revoker: ((res: TextCue|undefined) => void)|undefined;
+    // let revoker: ((res: TextCue|undefined) => void)|undefined;
     const [content, setContent] = createSignal<string>(textCue()?.text ?? '');
     const [currentActors, setCurrentActors] = createSignal<string[]>(textCue()?.actors ?? []);
+    const [isEditing, setIsEditing] = createSignal(false);
 
     createEffect(() => {
         setContent(textCue()?.text ?? '');
         setCurrentActors(textCue()?.actors ?? []);
     })
 
-    const cueComponent = <TextCueView
-        type={props.type}
-        actorsInfo={
-            formatActorsArray((props.type === "response" && currentActors().length === 1) ? null : currentActors())
-        }
-        text={formatMarkdown(textCue()?.text ?? '_Du bist der erste in diesem Abschnitt_')}/> as ExposedComponentType;
-
-    installPopoverMenuHandler(
-        cueComponent.cueElement,
-        "auto",
-        CueEditMenu,
-        { onEdit, onDelete }
-    );
+    let cueElement: HTMLElement|undefined = undefined;
+    onMount(() => {
+        cueElement && installPopoverMenuHandler(
+            cueElement,
+            "auto",
+            CueEditMenu,
+            { onEdit, onDelete }
+        );
+    })
 
     onMount(() => {
-        cueComponent.cueElement.addEventListener('contextmenu', contextMenu);
+        cueElement?.addEventListener('contextmenu', contextMenu);
     })
 
     onCleanup(() => {
-        cueComponent.cueElement.removeEventListener('contextmenu', contextMenu);
+        cueElement?.removeEventListener('contextmenu', contextMenu);
     })
 
     const deleteMutation = useMutation(() => ({
@@ -199,38 +195,8 @@ function EditableTextCue(
         deleteMutation.mutate();
     }
 
-    function createAsyncEditor(): Promise<TextCue|undefined> {
-        if (revoker !== undefined)
-            return Promise.resolve(undefined);
-
-        let resolve: (x: TextCue|undefined) => void;
-        let promise = new Promise<TextCue|undefined>(resolve1 => resolve = resolve1);
-
-        cueComponent.cueElement.classList.add('editing');
-        const revoker1 = cueComponent.injectContent(
-            runWithOwner(owner, () =>
-                <Editor content={content()} onChange={setContent} autofocus/>
-            )
-        )!;
-        cueComponent.addExtension(CreateEditCommitView);
-        cueComponent.addExtension(CreateActorsSelector, "before");
-
-        revoker = res => {
-            revoker1();
-            resolve(res);
-        };
-
-        return promise;
-    }
-
-    async function onEdit() {
-        const editorResult = await createAsyncEditor();
-        if (editorResult === undefined) {
-            setContent(textCue()?.text ?? '');
-            setCurrentActors(textCue()?.actors ?? []);
-            return;
-        }
-        editMutation.mutate(editorResult);
+    function onEdit() {
+        setIsEditing(true);
     }
 
     function CreateEditCommitView(): JSX.Element {
@@ -257,26 +223,42 @@ function EditableTextCue(
     }
 
     function closeEditor(res: "dismiss"|"accept") {
-        if (revoker !== undefined) {
-            const newTextCue = { actors: currentActors(), text: content() };
+        setIsEditing(false);
 
-            if (!(newTextCue.actors.length > 0 && newTextCue.text.trim().length > 0) && res === "accept")
-                return;
+        const newTextCue = { actors: currentActors(), text: content() };
 
-            cueComponent.cueElement.classList.remove('editing');
-            cueComponent.removeExtension(CreateEditCommitView);
-            cueComponent.removeExtension(CreateActorsSelector);
+        if (!(newTextCue.actors.length > 0 && newTextCue.text.trim().length > 0) && res === "accept")
+            return;
 
-            if (res === "dismiss")
-                revoker(undefined);
-            else
-                revoker(newTextCue);
-
-            revoker = undefined;
+        if (res === "dismiss") {
+            setContent(textCue()?.text ?? '');
+            setCurrentActors(textCue()?.actors ?? []);
+            return;
         }
+
+        editMutation.mutate(newTextCue);
     }
 
-    return <>{ cueComponent }</>;
+    return (
+        <TextCueDataView
+            type={props.type}
+            actorsInfo={
+                formatActorsArray((props.type === "response" && currentActors().length === 1) ? null : currentActors())
+            }
+            text={formatMarkdown(textCue()?.text ?? '_Du bist der erste in diesem Abschnitt_')}
+            classList={{editing: isEditing()}}
+            beforeExtra={isEditing() && <CreateActorsSelector/>}
+            afterExtra={isEditing() && <CreateEditCommitView/>}
+            ref={cueElement}>
+            {
+                isEditing() 
+                    ? <Editor content={content()}
+                        onChange={setContent}
+                        autofocus/> 
+                    : undefined
+            }
+        </TextCueDataView>
+    );
 }
 
 function GapInjectHandle(
@@ -316,13 +298,16 @@ function GapInjectHandle(
     );
 }
 
-function renderCuePair(textCuePair: Accessor<TextCuePair>, idx: number): JSX.Element {
+function CuePair(props: {
+    textCuePair: TextCuePair,
+    idx: number
+}): JSX.Element {
     return (
         <>
-            <EditableTextCue index={idx} cuePair={textCuePair()} type="request"/>
+            <EditableTextCue index={props.idx} cuePair={props.textCuePair} type="request"/>
             <GapInjectHandle static/>
-            <EditableTextCue index={idx} cuePair={textCuePair()} type="response"/>
-            <GapInjectHandle data-index={idx}/>
+            <EditableTextCue index={props.idx} cuePair={props.textCuePair} type="response"/>
+            <GapInjectHandle data-index={props.idx}/>
         </>
     )
 }
@@ -376,7 +361,7 @@ function ActorsSelector(
                     .map(
                         actor => (
                             <ActorPill
-                                classList={{'selected': props.selectedActors.includes(actor)}}
+                                classList={{selected: props.selectedActors.includes(actor)}}
                                 onClick={() => toggleSelection(actor)}>
                                 {actor}
                             </ActorPill>
@@ -450,16 +435,6 @@ function NewTextCueView(
     const [selectedActors, setSelectedActors] = createSignal<string[]>([]);
     const [content, setContent] = createSignal<string>("");
 
-    const component = <TextCueView
-        type={props.type}
-        actorsInfo={null}
-        text={[]}/> as ExposedComponentType;
-    component.injectContent(<Editor onChange={setContent} autofocus={props.type === "request"}/>);
-    component.addExtension(() => <ActorsSelector
-                           self={props.self}
-                           actors={props.actors}
-                           selectedActors={selectedActors()}
-                           onSelectionChange={setSelectedActors}/>, "before");
     createEffect(() => {
         props.onChange({
             text: content(),
@@ -469,7 +444,25 @@ function NewTextCueView(
         });
     })
 
-    return component;
+    function CreateActorsSelector(): JSX.Element {
+        return (
+            <ActorsSelector self={props.self}
+               actors={props.actors}
+               selectedActors={selectedActors()}
+               onSelectionChange={setSelectedActors}/>
+        );
+    }
+
+    return (
+        <TextCueDataView type={props.type}
+            actorsInfo={null}
+            text={[]}
+            beforeExtra={<CreateActorsSelector/>}>
+            <Editor content={content()}
+                onChange={setContent}
+                autofocus={props.type === "request"}/>
+        </TextCueDataView>
+    );
 }
 
 
@@ -596,22 +589,14 @@ function EditableDivisionInfoView(
     }
 ): JSX.Element {
     const editContext = useContext(ScriptEditContextObj)!;
-
     const [isEditing, setIsEditing] = createSignal<boolean>(false);
+    let infoElement: HTMLDivElement|undefined = undefined;
 
-    const infoComponent = createMemo(() => { 
-        const component = (
-            <DivisionInfoView division={props.division}>
-                {
-                    isEditing() && (
-                        <EditCommitView close={closeEditor}/>
-                    )
-                }
-            </DivisionInfoView>
-        ) as ExposedComponent<DivisionInfoComponent>;
 
-        installPopoverMenuHandler(
-            component.infoElement,
+    onMount(() => {
+        infoElement?.addEventListener('contextmenu', contextMenu);
+        infoElement && installPopoverMenuHandler(
+            infoElement,
             "auto",
             DivisionEditMenu,
             { 
@@ -621,45 +606,19 @@ function EditableDivisionInfoView(
                 }
             }
         );
-
-        onMount(() => {
-            component.infoElement.addEventListener('contextmenu', contextMenu);
-        })
-
-        onCleanup(() => {
-            component.infoElement.removeEventListener('contextmenu', contextMenu);
-        })
-
-        return component;
-    });
-
-    let revoker: (() => void)|undefined;
-    const owner = getOwner()!;
-    const description = createMemo(() => props.division.description);
-
-    const [currentContent, setCurrentContent] = createSignal<string>(description());
-
-    createEffect(() => {
-        const component = infoComponent();
-        const editing = isEditing();
-
-        if (editing)
-            component.infoElement.classList.add('editing');
-        else
-            component.infoElement.classList.remove('editing');
     })
 
-    function onEdit() {
-        if (revoker === undefined) {
-            const component = infoComponent();
+    onCleanup(() => {
+        infoElement?.removeEventListener('contextmenu', contextMenu);
+    })
 
-            revoker = component.injectContent(
-                runWithOwner(owner, () =>
-                    <Editor content={description()} onChange={setCurrentContent} autofocus/>
-                )
-            );
-            setIsEditing(true);
-        }
+    const description = createMemo(() => props.division.description);
+
+    // TODO: what exactly is this contraption?
+    const [currentContent, setCurrentContent] = createSignal<string>(description());
+
+    function onEdit() {
+        setIsEditing(true);
     }
 
     const descriptionMutation = useMutation(() => ({
@@ -667,9 +626,7 @@ function EditableDivisionInfoView(
     }));
 
     function closeEditor(res: "dismiss"|"accept") {
-        if (revoker !== undefined) {
-
-            revoker();
+        if (isEditing()) {
             setIsEditing(false);
 
             if (res === "dismiss")
@@ -677,12 +634,26 @@ function EditableDivisionInfoView(
             else {
                 descriptionMutation.mutate(currentContent());
             }
-
-            revoker = undefined;
         }
     }
 
-    return <>{ infoComponent() }</>;
+    return (
+        <DivisionInfoView division={props.division}
+            classList={{editing: isEditing()}}
+            external={isEditing()
+                ? <Editor 
+                content={description()}
+                onChange={setCurrentContent} 
+                autofocus/>
+                : undefined}
+            ref={infoElement}>
+            {
+                isEditing() && (
+                    <EditCommitView close={closeEditor}/>
+                )
+            }
+        </DivisionInfoView>
+    );
 }
 
 function HeadingWithEditButton(
@@ -710,6 +681,56 @@ function HeadingWithEditButton(
     );
 }
 
+function DivisionView(props: {
+    division: Division,
+    idx: number
+}): JSX.Element {
+    const editContext = useContext(ScriptEditContextObj)!;
+
+
+    const [isEditing, setIsEditing] = createSignal<boolean>(false);
+
+    // FIXME: Is this really the best we can do here?
+    //        Lets come back and clearly state the goal of this contraption
+    const [currentName, setCurrentName] = createSignal<string>(props.division.name);
+    createEffect(() => setCurrentName(props.division.name))
+
+    const renameMutation = useMutation(() => ({
+        mutationFn: editContext.renameDivision 
+    }))
+
+    function onRename() {
+        setIsEditing(true);
+    }
+
+    function onRenameDone() {
+        setIsEditing(false);
+        const newName = currentName();
+        if (newName === props.division.name || newName.length === 0)
+            return
+        renameMutation.mutate(newName);
+    }
+
+    return (
+        <div class="script-divsion" id={`division${props.idx}`} data-division={props.idx}>
+            <MakeEditableContent component={HeadingWithEditButton}
+                isEditable={isEditing()}
+                onContentChange={setCurrentName}
+                onEditEnd={onRenameDone}
+
+                headingSize={2}
+                onEditClick={onRename}>
+                { currentName() }
+            </MakeEditableContent>
+            <EditableDivisionInfoView division={props.division} onRename={onRename}/>
+            <GapInjectHandle data-index={-1}/>
+            <For each={props.division.textCues}>
+                { (pair, idx) => <CuePair textCuePair={pair} idx={idx()} />}
+            </For>
+        </div>
+    );
+}
+
 interface ScriptEditContext {
     readonly scriptInfo: ScriptInfo;
     updateDescription(newDescription: string): Promise<{ prev: Script }>;
@@ -721,6 +742,8 @@ interface ScriptEditContext {
 
 const ScriptEditContextObj = createContext<ScriptEditContext>();
 
+
+// FIXME: ScriptCue's don't exist, but TextCueView is obviously already taken, so we'll need to figure out what this doing
 function ScriptCueView(
     props: {
         script: Script
@@ -738,11 +761,8 @@ function ScriptCueView(
     })
 
     const scriptInfo = createMemo(() => computeScriptInfo(props.script));
-
-    function renderDivision(division: Accessor<Division>, index: number): JSX.Element {
-        const idx = () => index;
-
-        const editContext: ScriptEditContext = {
+    function createScriptEditContext(idx: Accessor<number>): ScriptEditContext {
+        return  {
             get scriptInfo() {
                 return scriptInfo();
             },
@@ -884,87 +904,48 @@ function ScriptCueView(
                 return { prev };
             },
         };
-
-        const [isEditing, setIsEditing] = createSignal<boolean>(false);
-        const [currentName, setCurrentName] = createSignal<string>(division().name);
-
-        createEffect(() => setCurrentName(division().name))
-        const renameMutation = useMutation(() => ({
-            mutationFn: editContext.renameDivision 
-        }))
-
-        function onRename() {
-            setIsEditing(true);
-        }
-
-        function onRenameDone() {
-            setIsEditing(false);
-            const newName = currentName();
-            if (newName === division().name || newName.length === 0)
-                return
-            renameMutation.mutate(newName);
-        }
-
-        return (
-            <div class="script-divsion" id={`division${idx()}`} data-division={idx()}>
-                <ScriptEditContextObj.Provider value={editContext}>
-                    <MakeEditableContent component={HeadingWithEditButton}
-                        isEditable={isEditing()}
-                        onContentChange={setCurrentName}
-                        onEditEnd={onRenameDone}
-
-                        headingSize={2}
-                        onEditClick={onRename}>
-                        { currentName() }
-                    </MakeEditableContent>
-                    <EditableDivisionInfoView division={division()} onRename={onRename}/>
-                    <GapInjectHandle data-index={-1}/>
-                    {
-                        indexArray(() => division().textCues, renderCuePair) as unknown as JSX.Element
-                    }
-                </ScriptEditContextObj.Provider>
-            </div>
-        );
     }
 
-    const [divisionIdx, setDivisionIdx] = createSignal<number>(0);
-    
+
+
+    // const [divisionIdx, setDivisionIdx] = createSignal<number>(0);
+    // 
     let contentElement: HTMLDivElement = undefined!;
-    const scrollingElement = document.querySelector("div.routing-contents")! as HTMLDivElement;
-    function onScroll() {
-        const rect = scrollingElement.getBoundingClientRect();
-        const element = document.elementFromPoint(
-            rect.left + contentElement.offsetWidth / 2,
-            rect.top + 10
-        );
+    // const scrollingElement = document.querySelector("div.routing-contents")! as HTMLDivElement;
+    // function onScroll() {
+    //     const rect = scrollingElement.getBoundingClientRect();
+    //     const element = document.elementFromPoint(
+    //         rect.left + contentElement.offsetWidth / 2,
+    //         rect.top + 10
+    //     );
 
-        let currentElement: Element|null = element;
-        while (currentElement !== null) {
-            if (currentElement.classList.contains('script-divsion')
-                    && (currentElement instanceof HTMLElement)) {
-                const divisionIdx = Number(currentElement.dataset.division)
-                setDivisionIdx(divisionIdx);
-                break;
-            }
+    //     let currentElement: Element|null = element;
+    //     while (currentElement !== null) {
+    //         if (currentElement.classList.contains('script-divsion')
+    //                 && (currentElement instanceof HTMLElement)) {
+    //             const divisionIdx = Number(currentElement.dataset.division)
+    //             setDivisionIdx(divisionIdx);
+    //             break;
+    //         }
 
-            currentElement = currentElement.parentElement;
-        }
-    }
+    //         currentElement = currentElement.parentElement;
+    //     }
+    // }
 
-    function jumpToDivision(event: MouseEvent & { currentTarget: HTMLSpanElement }) {
-        const target = event.currentTarget;
-        const divisionIdx = Number(target.dataset.idx);
-        const element = document.getElementById(`division${divisionIdx}`)!;
-        scrollingElement.scrollTo({ top: element.offsetTop });
-    }
+    // function jumpToDivision(event: MouseEvent & { currentTarget: HTMLSpanElement }) {
+    //     const target = event.currentTarget;
+    //     const divisionIdx = Number(target.dataset.idx);
+    //     const element = document.getElementById(`division${divisionIdx}`)!;
+    //     scrollingElement.scrollTo({ top: element.offsetTop });
+    // }
 
-    onMount(() => {
-        scrollingElement.addEventListener('scroll', onScroll);
-    })
+    // onMount(() => {
+    //     scrollingElement.addEventListener('scroll', onScroll);
+    // })
 
-    onCleanup(() => {
-        scrollingElement.removeEventListener('scroll', onScroll);
-    })
+    // onCleanup(() => {
+    //     scrollingElement.removeEventListener('scroll', onScroll);
+    // })
 
     const [isEditing, setIsEditing] = createSignal<boolean>(false);
     const [currentName, setCurrentName] = createSignal<string>(props.script.name);
@@ -1000,9 +981,15 @@ function ScriptCueView(
                     onEditClick={() => setIsEditing(true)}>
                     { currentName() }
                 </MakeEditableContent>
-                {
-                    indexArray(() => props.script.divisions, renderDivision) as unknown as JSX.Element
-                }
+                <For each={props.script.divisions}>
+                    {
+                        (division, idx) => (
+                            <ScriptEditContextObj.Provider value={createScriptEditContext(idx)}>
+                                <DivisionView division={division} idx={idx()} />
+                            </ScriptEditContextObj.Provider>
+                        )
+                    }
+                </For>
             </div>
         </div>
     );
@@ -1020,3 +1007,4 @@ export function ScriptViewer(): JSX.Element {
 
     return <DelayedScriptInstantiator component={ScriptCueView}/>;
 }
+

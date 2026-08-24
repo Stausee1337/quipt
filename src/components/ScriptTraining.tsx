@@ -1,38 +1,32 @@
-import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, useContext, createMemo, Switch, Match, getOwner, runWithOwner } from 'solid-js';
+import { createSignal, onMount, onCleanup, JSX, createEffect, Accessor, useContext, createMemo, Switch, Match, getOwner, runWithOwner } from 'solid-js';
 import { useNavigate, useParams, Params } from '@solidjs/router';
 import { ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
 import { Division, Script, TextCue } from '../schemas';
 import { ScriptContextObj, ScriptContext, PartialScript, DelayedScriptInstantiator } from '../script';
 import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, createInvalidatable, SimpleChart, leftPad } from './common';
-import { renderCue as renderCueImpl } from './TextCueView';
+import { TextCueView as BaseTextCueView } from './TextCueView';
 import { DivisionInfoView } from './DivisionInfoView';
-import { ConfidenceReportView, ConfidenceReporter } from './ConfidenceReportView';
+import { ConfidenceReportView, OnConfidenceReportHandler } from './ConfidenceReportView';
 import { useQuery } from '@tanstack/solid-query';
 import { ScriptOverview } from './ScriptOverview';
+import { For } from 'solid-js';
 
-function renderCue(
+function TextCueView(props: {
     textCue: TextCue | undefined,
     type: "request"|"response",
-    last: Accessor<boolean>,
-    confidenceReport: Accessor<ConfidenceReporter|undefined>,
-): JSX.Element {
-    const textCueComponent = renderCueImpl(textCue, type);
-    if (type === "response")
-        textCueComponent.addExtension(
-            () => <ConfidenceReportView confidenceReport={confidenceReport()}/>);
-
-    function updateLastClass() {
-        if (last())
-            textCueComponent.cueElement.classList.add('last');
-        else
-            textCueComponent.cueElement.classList.remove('last');
-    }
-
-    createEffect(updateLastClass);
-    updateLastClass();
-
-    return textCueComponent;
+    isLast: boolean,
+    onConfidenceReport?: OnConfidenceReportHandler
+}): JSX.Element {
+    return (
+        <BaseTextCueView textCue={props.textCue}
+            type={props.type}
+            classList={{last: props.isLast}}
+            beforeExtra={
+                props.type === "response" 
+                && <ConfidenceReportView confidenceReport={props.onConfidenceReport}/>
+            }/>
+    );
 }
 
 function easeOut(x: number) {
@@ -377,17 +371,15 @@ function TrainingRunView(
         return promise;
     }
 
-    function renderQuote(n: number): JSX.Element {
-        const type = n % 2 === 0 ? "request" : "response";
-        const textCue = textCues[Math.floor(n / 2)];
-        return renderCue(
-            textCue[type],
-            type,
-            () => checkIsLast(n, currentIndex()),
-            () => (n === currentIndex() && !reachedEnd()) 
-                    ? reportConfidence
-                    : undefined
-        );
+    function CreateTextCueView(props: { idx: number }): JSX.Element {
+        const type = createMemo(() => props.idx % 2 === 0 ? "request" : "response");
+        return <TextCueView
+            textCue={textCues[Math.floor(props.idx / 2)][type()]}
+            type={type()}
+            isLast={checkIsLast(props.idx, currentIndex())}
+            onConfidenceReport={(props.idx === currentIndex()
+                                    ? reportConfidence
+                                    : undefined)}/>;
     }
 
     async function visualViewReset(target: "next"|"top") {
@@ -426,15 +418,12 @@ function TrainingRunView(
                 <h2>{ props.division.name }</h2>
                 <DivisionInfoView division={props.division}/>
                 <div style={{flex: 1, "min-height": "2.5rem"}}/>
-                { renderQuote(0) }
+                <CreateTextCueView idx={0}/>
             </div>
             <div class="main-content">
-                { 
-                    mapArray<number, JSX.Element>(
-                        () => Array.from({ length: currentIndex() }, (_, index) => index + 1),
-                        renderQuote
-                    ) as unknown as JSX.Element
-                }
+                <For each={Array.from({ length: currentIndex() }, (_, index) => index + 1)}>
+                    { (idx) => <CreateTextCueView idx={idx}/> }
+                </For>
             </div>
             { currentIndex() % 2 === 0
                 ? (

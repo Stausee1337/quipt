@@ -4,6 +4,7 @@ import { Division, Script, TextCue } from "../schemas";
 import { decode } from 'html-entities';
 import { Chart, ChartConfiguration } from 'chart.js/auto';
 import { onMount } from "solid-js";
+import { createEffect } from "solid-js";
 
 export const progressBarGreen = '#5d9948';
 export const progressBarYellow = '#fad541';
@@ -196,7 +197,7 @@ export function SimpleChart(
     const chartJSCanvas = <canvas class="chart-js"/> as HTMLCanvasElement;
     let chart: Chart|undefined;
 
-    onMount(() => {
+    createEffect(() => {
         const ctx = chartJSCanvas.getContext("2d")!;
         chart = new Chart(ctx, props.onConfig(ctx));
     })

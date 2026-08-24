@@ -14,18 +14,18 @@ const confidenceIconMap = [
     },
 ];
 
-export type ConfidenceReporter = (source: EventTarget & Element, confidence: "low"|"medium"|"high") => void;
+export type OnConfidenceReportHandler = (source: EventTarget & Element, confidence: "low"|"medium"|"high") => void;
 
 export function ConfidenceReportButton(
     props: {
         confidence: "low"|"medium"|"high",
-        reporter?: ConfidenceReporter
+        onConfidenceReport?: OnConfidenceReportHandler
     }
 ): JSX.Element {
     const [clicked, setClicked] = createSignal<boolean>(false);
 
     function onClick(event: MouseEvent & { currentTarget: HTMLSpanElement }) {
-        const reporter = props.reporter;
+        const reporter = props.onConfidenceReport;
         if (reporter === undefined) return;
         setClicked(true);
         reporter(event.currentTarget, props.confidence);
@@ -48,15 +48,15 @@ export function ConfidenceReportButton(
 
 export function ConfidenceReportView(
     props: {
-        confidenceReport?: ConfidenceReporter
+        confidenceReport?: OnConfidenceReportHandler
     }
 ): JSX.Element {
 
     return (
         <div class="confidence-rating">
-            <ConfidenceReportButton confidence="low" reporter={props.confidenceReport}/>
-            <ConfidenceReportButton confidence="medium" reporter={props.confidenceReport}/>
-            <ConfidenceReportButton confidence="high" reporter={props.confidenceReport}/>
+            <ConfidenceReportButton confidence="low" onConfidenceReport={props.confidenceReport}/>
+            <ConfidenceReportButton confidence="medium" onConfidenceReport={props.confidenceReport}/>
+            <ConfidenceReportButton confidence="high" onConfidenceReport={props.confidenceReport}/>
         </div>
     );
 }
