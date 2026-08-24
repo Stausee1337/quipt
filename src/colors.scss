@@ -1,4 +1,4 @@
-@use "sass:color";
+@use 'sass:color';
 
 // $background: #111115;
 $primary: #039d5b;
@@ -19,12 +19,11 @@ $font-weights: 400, 800, 900;
 $text-body-font-size: 1.6rem;
 
 @each $weight in $font-weights {
-  .roboto-b#{$weight} {
-    font-family: "Roboto", sans-serif;
-    font-optical-sizing: auto;
-    font-weight: #{$weight};
-    font-style: normal;
-    font-variation-settings:
-      "wdth" 100;
-  }
+    .roboto-b#{$weight} {
+        font-family: 'Roboto', sans-serif;
+        font-optical-sizing: auto;
+        font-weight: #{$weight};
+        font-style: normal;
+        font-variation-settings: 'wdth' 100;
+    }
 }

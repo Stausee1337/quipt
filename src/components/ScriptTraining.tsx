@@ -1,28 +1,57 @@
-import { createSignal, onMount, onCleanup, JSX, createEffect, Accessor, useContext, createMemo, For, getOwner, runWithOwner } from 'solid-js';
-import { useNavigate, useParams, Params } from '@solidjs/router';
-import { ChartConfiguration, ChartData } from 'chart.js/auto';
+import {
+    Accessor,
+    For,
+    JSX,
+    createEffect,
+    createMemo,
+    createSignal,
+    getOwner,
+    onCleanup,
+    onMount,
+    runWithOwner,
+    useContext,
+} from 'solid-js';
+
+import { Params, useNavigate, useParams } from '@solidjs/router';
 import confetti from 'canvas-confetti';
-import { Division, Script, TextCue } from '../schemas';
-import { ScriptContextObj, ScriptContext } from '../script';
-import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, createInvalidatable, SimpleChart, leftPad } from './common';
-import { TextCueView as BaseTextCueView } from './TextCueView';
-import { DivisionInfoView } from './DivisionInfoView';
-import { ConfidenceReportView, OnConfidenceReportHandler } from './ConfidenceReportView';
+import { ChartConfiguration, ChartData } from 'chart.js/auto';
+
+import {
+    ConfidenceReportView,
+    OnConfidenceReportHandler,
+} from 'quipt/components/ConfidenceReportView';
+import { DivisionInfoView } from 'quipt/components/DivisionInfoView';
+import { TextCueView as BaseTextCueView } from 'quipt/components/TextCueView';
+import {
+    SimpleChart,
+    createInvalidatable,
+    formatString,
+    leftPad,
+    progressBarGreen,
+    progressBarOrange,
+    progressBarRed,
+    progressBarYellow,
+} from 'quipt/components/common';
+import { Division, Script, TextCue } from 'quipt/schemas';
+import { ScriptContext, ScriptContextObj } from 'quipt/script';
 
 function TextCueView(props: {
-    textCue: TextCue | undefined,
-    type: "request"|"response",
-    isLast: boolean,
-    onConfidenceReport?: OnConfidenceReportHandler
+    textCue: TextCue | undefined;
+    type: 'request' | 'response';
+    isLast: boolean;
+    onConfidenceReport?: OnConfidenceReportHandler;
 }): JSX.Element {
     return (
-        <BaseTextCueView textCue={props.textCue}
+        <BaseTextCueView
+            textCue={props.textCue}
             type={props.type}
-            classList={{last: props.isLast}}
+            classList={{ last: props.isLast }}
             afterExtra={
-                props.type === "response" 
-                && <ConfidenceReportView confidenceReport={props.onConfidenceReport}/>
-            }/>
+                props.type === 'response' && (
+                    <ConfidenceReportView confidenceReport={props.onConfidenceReport} />
+                )
+            }
+        />
     );
 }
 
@@ -33,16 +62,16 @@ function easeOut(x: number) {
 
 function animateScroll(element: HTMLElement, top: number, duration: number): Promise<void> {
     let resolve: () => void;
-    const promise: Promise<void> = new Promise(resolve1 => { resolve = resolve1; });
+    const promise: Promise<void> = new Promise(resolve1 => {
+        resolve = resolve1;
+    });
     const from = element.scrollTop;
     const to = top;
 
     function doAnimation(dt: number, start: number, current: number) {
         const progress = Math.min(current - start, duration) / duration;
-        if (progress >= 1.0)
-            setTimeout(resolve, 0);
-        else
-            requestAnimationFrame(timestamp => doAnimation(timestamp - current, start, timestamp));
+        if (progress >= 1.0) setTimeout(resolve, 0);
+        else requestAnimationFrame(timestamp => doAnimation(timestamp - current, start, timestamp));
         element.scrollTop = easeOut(progress) * (to - from) + from;
     }
 
@@ -55,21 +84,23 @@ function animateScroll(element: HTMLElement, top: number, duration: number): Pro
 function createFlyingScoreAnimation(
     view: HTMLDivElement,
     scoreString: Accessor<string>,
-    progressBarColor: Accessor<string>
+    progressBarColor: Accessor<string>,
 ): Promise<void> {
     let resolve: () => void;
-    const promise: Promise<void> = new Promise(resolve1 => { resolve = resolve1; });
+    const promise: Promise<void> = new Promise(resolve1 => {
+        resolve = resolve1;
+    });
 
     function calculateTranslationTo(sourceRect: DOMRect, targetRect: DOMRect): string {
-        const relY = targetRect.top + (targetRect.height / 2) - (sourceRect.height / 2);
-        const relX = targetRect.left  + (targetRect.width / 2) - (sourceRect.width / 2);
+        const relY = targetRect.top + targetRect.height / 2 - sourceRect.height / 2;
+        const relX = targetRect.left + targetRect.width / 2 - sourceRect.width / 2;
 
         return `translate(${relX}px, ${relY}px)`;
     }
     // const view = document.querySelector("div.script-view")!;
     const score = view.querySelector('h1.score')! as HTMLElement;
     const scoreBox = view.querySelector('div.scorebox')! as HTMLElement;
-    
+
     const flyingScore = (<h2 class="flying-score">{scoreString()}</h2>) as HTMLHeadingElement;
     document.body.append(flyingScore);
 
@@ -83,10 +114,17 @@ function createFlyingScoreAnimation(
     flyingScore.style.transform = `${finalTranslation} scale(10)`;
     flyingScore.style.color = progressBarColor();
 
-    const animation = flyingScore.animate([
-        { transform: initialTranslation, offset: 0 },
-        { transform: `${finalTranslation} scale(4.5)`, color: progressBarColor(), offset: 1 },
-    ], { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' });
+    const animation = flyingScore.animate(
+        [
+            { transform: initialTranslation, offset: 0 },
+            {
+                transform: `${finalTranslation} scale(4.5)`,
+                color: progressBarColor(),
+                offset: 1,
+            },
+        ],
+        { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' },
+    );
 
     animation.addEventListener('finish', () => {
         scoreBox.classList.remove('hidden');
@@ -100,16 +138,16 @@ function createFlyingScoreAnimation(
 interface TrainingRunManager {
     addConfidenceRating(
         cueIdx: number,
-        confidence: "low"|"medium"|"high"
+        confidence: 'low' | 'medium' | 'high',
     ): {
-        diff: number,
-        streak: number,
-        trend: "dd"|"d"|"u"|"uu"|undefined
+        diff: number;
+        streak: number;
+        trend: 'dd' | 'd' | 'u' | 'uu' | undefined;
     };
 
-    commitRun(): { 
-        scoreHistory: number[],
-        hasBorkenRecord: boolean,
+    commitRun(): {
+        scoreHistory: number[];
+        hasBorkenRecord: boolean;
     };
     readonly isLastDivision: boolean;
 
@@ -118,25 +156,20 @@ interface TrainingRunManager {
 }
 
 const trendIcons = {
-    'uu': 'chevron-double-up',
-    'u': 'chevron-up',
-    'd': 'chevron-down',
-    'dd': 'chevron-double-down',
+    uu: 'chevron-double-up',
+    u: 'chevron-up',
+    d: 'chevron-down',
+    dd: 'chevron-double-down',
 };
 
 const trendColors = {
-    'uu': progressBarGreen,
-    'u': progressBarGreen,
-    'd': progressBarRed,
-    'dd': progressBarRed,
+    uu: progressBarGreen,
+    u: progressBarGreen,
+    d: progressBarRed,
+    dd: progressBarRed,
 };
 
-function TrainingRunView(
-    props: {
-        division: Division,
-        manager: TrainingRunManager
-    }
-) {
+function TrainingRunView(props: { division: Division; manager: TrainingRunManager }) {
     const textCues = props.division.textCues;
 
     const [stickyDivisionVisible, setStickyDivisionVisible] = createSignal<boolean>(false);
@@ -151,42 +184,44 @@ function TrainingRunView(
     const highScore = Math.max(maxScore, ...props.division.previousTotals);
     const [currentBarTotal, setCurrentBarTotal] = createSignal<number>(maxScore);
 
-    const root = document.querySelector("div.routing-contents")! as HTMLElement;
+    const root = document.querySelector('div.routing-contents')! as HTMLElement;
     let view: HTMLDivElement = undefined!;
 
     let scrollLocked = false;
     function append() {
         const prev = root.scrollTop;
         const currentIdx = currentIndex();
-        if (currentIdx < textCues.length * 2 - 1)
-            setCurrentIndex(currentIdx + 1);
-        else
-            setReachedEnd(true);
+        if (currentIdx < textCues.length * 2 - 1) setCurrentIndex(currentIdx + 1);
+        else setReachedEnd(true);
 
         root.scrollTop = prev;
 
         scrollLocked = true;
-        animateScroll(root, root.scrollHeight - root.offsetHeight, 250)
-            .then(() => {
-                scrollLocked = false;
+        animateScroll(root, root.scrollHeight - root.offsetHeight, 250).then(() => {
+            scrollLocked = false;
 
-                if (reachedEnd())
-                    setScoreboxAnimationPromise(createFlyingScoreAnimation(view, scoreString, progressBarColor));
-            });
+            if (reachedEnd())
+                setScoreboxAnimationPromise(
+                    createFlyingScoreAnimation(view, scoreString, progressBarColor),
+                );
+        });
     }
 
     function scrollListener() {
         if (scrollLocked) return;
-        if (root.scrollTop < (root.scrollHeight - root.offsetHeight)) {
+        if (root.scrollTop < root.scrollHeight - root.offsetHeight) {
             view.classList.add('free-scrolling');
         } else {
             view.classList.remove('free-scrolling');
         }
     }
 
-    const observer = new IntersectionObserver(entries => {
-        setStickyDivisionVisible(!entries[0].isIntersecting);
-    }, { root });
+    const observer = new IntersectionObserver(
+        entries => {
+            setStickyDivisionVisible(!entries[0].isIntersecting);
+        },
+        { root },
+    );
 
     onMount(() => {
         // const view = document.querySelector("div.script-view")!;
@@ -217,12 +252,9 @@ function TrainingRunView(
 
     function calculateBarColor(score: number): string {
         const p = score / maxScore;
-        if (p > 1)
-            return progressBarGreen;
-        else if (p > 0.5)
-            return progressBarYellow;
-        else if (p > 0.25)
-            return progressBarOrange;
+        if (p > 1) return progressBarGreen;
+        else if (p > 0.5) return progressBarYellow;
+        else if (p > 0.25) return progressBarOrange;
         return progressBarRed;
     }
 
@@ -230,21 +262,37 @@ function TrainingRunView(
         targetRect: DOMRect,
         sourceRect: DOMRect,
         diff: number,
-        indicatorColor: string
+        indicatorColor: string,
     ): Animation {
         let flyingIcon = (
             <span
                 class="flying-icon"
-                style={{ top: `${sourceRect.top}px`, left: `${sourceRect.left}px`, color: indicatorColor }}>
+                style={{
+                    top: `${sourceRect.top}px`,
+                    left: `${sourceRect.left}px`,
+                    color: indicatorColor,
+                }}>
                 +{diff}
-            </span>) as HTMLSpanElement;
+            </span>
+        ) as HTMLSpanElement;
 
         document.body.appendChild(flyingIcon);
 
-        const animation = flyingIcon.animate([
-            { top: `${sourceRect.top}px`, left: `${sourceRect.left}px`, offset: 0 },
-            { top: `${targetRect.top}px`, left: `${targetRect.left}px`, offset: 1 },
-        ], { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' });
+        const animation = flyingIcon.animate(
+            [
+                {
+                    top: `${sourceRect.top}px`,
+                    left: `${sourceRect.left}px`,
+                    offset: 0,
+                },
+                {
+                    top: `${targetRect.top}px`,
+                    left: `${targetRect.left}px`,
+                    offset: 1,
+                },
+            ],
+            { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' },
+        );
 
         animation.addEventListener('finish', () => {
             flyingIcon.remove();
@@ -257,16 +305,23 @@ function TrainingRunView(
 
             const color = calculateBarColor(currentScore1);
 
-            const centerX = targetRect.left + (targetRect.width / 2);
-            const centerY = targetRect.top  + (targetRect.height / 2);
+            const centerX = targetRect.left + targetRect.width / 2;
+            const centerY = targetRect.top + targetRect.height / 2;
 
             const size = window.innerWidth;
             const coordX = centerX - size / 2;
             const coordY = centerY - size / 2;
 
-            const bubble = <span
-                class="score-ripple-bubble"
-                style={{ top: `${coordY}px`, left: `${coordX}px`, '--bubble-color': color }}/> as HTMLSpanElement;
+            const bubble = (
+                <span
+                    class="score-ripple-bubble"
+                    style={{
+                        top: `${coordY}px`,
+                        left: `${coordX}px`,
+                        '--bubble-color': color,
+                    }}
+                />
+            ) as HTMLSpanElement;
             bubble.addEventListener('animationend', () => {
                 bubble.remove();
             });
@@ -276,9 +331,11 @@ function TrainingRunView(
         return animation;
     }
 
-    async function reportConfidence(source: Element, confidence: "low"|"medium"|"high") {
+    async function reportConfidence(source: Element, confidence: 'low' | 'medium' | 'high') {
         const { diff, streak, trend } = props.manager.addConfidenceRating(
-            Math.floor(currentIndex() / 2), confidence);
+            Math.floor(currentIndex() / 2),
+            confidence,
+        );
         append();
 
         // const view = document.querySelector("div.script-view")!;
@@ -291,36 +348,33 @@ function TrainingRunView(
         if (trend !== undefined) {
             const trendColor = trendColors[trend];
             parent.insertBefore(
-                <i style={{ color: trendColor }} class={`bi bi-${trendIcons[trend]}`}/> as HTMLElement,
-                parent.firstChild
+                (
+                    <i style={{ color: trendColor }} class={`bi bi-${trendIcons[trend]}`} />
+                ) as HTMLElement,
+                parent.firstChild,
             );
         }
 
-        const x = formatString([{ style: { color: indicatorColor }, string: `+${diff}` }])[0] as any;
-        parent.insertBefore(
-            x,
-            parent.firstChild);
-
+        const x = formatString([
+            { style: { color: indicatorColor }, string: `+${diff}` },
+        ])[0] as any;
+        parent.insertBefore(x, parent.firstChild);
 
         let sourceRect = x.getBoundingClientRect();
 
         let streakIndicator;
         if (streak > 0) {
-            streakIndicator = (
+            ((streakIndicator = (
                 <span style={{ color: progressBarOrange }}>
-                    <i class="bi bi-fire"/> { streak }
+                    <i class="bi bi-fire" /> {streak}
                 </span>
-            ) as HTMLElement,
-            parent.insertBefore(
-                streakIndicator,
-                parent.firstChild
-            );
+            ) as HTMLElement),
+                parent.insertBefore(streakIndicator, parent.firstChild));
         }
 
         let animation = doTheFlyingIconThing(targetRect, sourceRect, diff, indicatorColor);
 
-        if (streak === 0)
-            return;
+        if (streak === 0) return;
         const streakPoints = calculatePointsForStreak(streak);
 
         await animation.finished;
@@ -334,11 +388,13 @@ function TrainingRunView(
         setProgressBarColor(calculateBarColor(current));
         createScoreAnimation(prev, current);
         return current;
-    }, currentScore())
+    }, currentScore());
 
     function createScoreAnimation(start: number, end: number): Promise<void> {
         let resolve: () => void;
-        const promise: Promise<void> = new Promise(resolve1 => { resolve = resolve1; });
+        const promise: Promise<void> = new Promise(resolve1 => {
+            resolve = resolve1;
+        });
 
         const effect: string[] = [];
         for (let c = start; c <= end; c++) {
@@ -357,32 +413,31 @@ function TrainingRunView(
 
         let interval = 0;
         advance();
-        if (effect.length == 1)
-            return promise;
+        if (effect.length == 1) return promise;
 
         let delta = 75;
-        if (effect.length - 1 > 4)
-            delta = 300 /* ms */ / (effect.length - 1);
+        if (effect.length - 1 > 4) delta = 300 /* ms */ / (effect.length - 1);
 
         interval = setInterval(advance, delta);
         return promise;
     }
 
     function CreateTextCueView(props: { idx: number }): JSX.Element {
-        const type = createMemo(() => props.idx % 2 === 0 ? "request" : "response");
-        return <TextCueView
-            textCue={textCues[Math.floor(props.idx / 2)][type()]}
-            type={type()}
-            isLast={checkIsLast(props.idx, currentIndex())}
-            onConfidenceReport={(props.idx === currentIndex()
-                                    ? reportConfidence
-                                    : undefined)}/>;
+        const type = createMemo(() => (props.idx % 2 === 0 ? 'request' : 'response'));
+        return (
+            <TextCueView
+                textCue={textCues[Math.floor(props.idx / 2)][type()]}
+                type={type()}
+                isLast={checkIsLast(props.idx, currentIndex())}
+                onConfidenceReport={props.idx === currentIndex() ? reportConfidence : undefined}
+            />
+        );
     }
 
-    async function visualViewReset(target: "next"|"top") {
-        if (target === "top") {
+    async function visualViewReset(target: 'next' | 'top') {
+        if (target === 'top') {
             // const view = document.querySelector("div.script-view")!;
-            const mainContent = view.querySelector("div.main-content")!;
+            const mainContent = view.querySelector('div.main-content')!;
             for (const childElement of mainContent.children) {
                 const child = childElement as HTMLElement;
                 child.style.visibility = 'hidden';
@@ -396,8 +451,7 @@ function TrainingRunView(
             props.manager.reset();
         } else {
             const hasNext = await props.manager.next();
-            if (!hasNext)
-                return;
+            if (!hasNext) return;
             await animateScroll(root, root.scrollHeight - root.offsetHeight, 350);
             view.remove();
             previousElement = null;
@@ -408,50 +462,58 @@ function TrainingRunView(
 
     return (
         <div ref={view} class="script-view">
-            <span class="sticky-division" classList={{"visible": stickyDivisionVisible()}}>
-                { props.division.name }
+            <span class="sticky-division" classList={{ visible: stickyDivisionVisible() }}>
+                {props.division.name}
             </span>
             <div class="division-preamble">
-                <h2>{ props.division.name }</h2>
-                <DivisionInfoView division={props.division}/>
-                <div style={{flex: 1, "min-height": "2.5rem"}}/>
-                <CreateTextCueView idx={0}/>
+                <h2>{props.division.name}</h2>
+                <DivisionInfoView division={props.division} />
+                <div style={{ flex: 1, 'min-height': '2.5rem' }} />
+                <CreateTextCueView idx={0} />
             </div>
             <div class="main-content">
                 <For each={Array.from({ length: currentIndex() }, (_, index) => index + 1)}>
-                    { (idx) => <CreateTextCueView idx={idx}/> }
+                    {idx => <CreateTextCueView idx={idx} />}
                 </For>
             </div>
-            { currentIndex() % 2 === 0
-                ? (
-                    <div class="button-container" style={{"padding-top": (currentIndex() > 0) ? "2.5rem" : undefined}}>
-                        <button class="primary-button" onClick={append}>Aufdecken</button>
-                    </div>
-                )
-                : null
-            }
-            { !reachedEnd() 
-                ? <div class="scroll-padding"/>
-                : <TrainingRunCompletedView maxScore={maxScore}
+            {currentIndex() % 2 === 0 ? (
+                <div
+                    class="button-container"
+                    style={{
+                        'padding-top': currentIndex() > 0 ? '2.5rem' : undefined,
+                    }}>
+                    <button class="primary-button" onClick={append}>
+                        Aufdecken
+                    </button>
+                </div>
+            ) : null}
+            {!reachedEnd() ? (
+                <div class="scroll-padding" />
+            ) : (
+                <TrainingRunCompletedView
+                    maxScore={maxScore}
                     visualTransitionTo={visualViewReset}
                     currentScoreString={scoreString()}
                     manager={props.manager}
                     progressBarColor={progressBarColor()}
-                    scoreboxAnimation={scoreboxAnimationPromise()}/>
-            }
+                    scoreboxAnimation={scoreboxAnimationPromise()}
+                />
+            )}
             <div class="controls">
                 <div class="horizontal">
-                    <h1 class="score">{ scoreString() }</h1>
-                    <div style="flex: 1;"/>
+                    <h1 class="score">{scoreString()}</h1>
+                    <div style="flex: 1;" />
                     <span>
                         {Math.floor(currentIndex() / 2) + 1} / {props.division.textCues.length}
                     </span>
                 </div>
-                <div 
+                <div
                     class="progress"
-                    style={{'--progress-width': Math.min(currentScore() / currentBarTotal(), 1),
-                        '--progress-color': progressBarColor()}}>
-                    <div class="inner"/>
+                    style={{
+                        '--progress-width': Math.min(currentScore() / currentBarTotal(), 1),
+                        '--progress-color': progressBarColor(),
+                    }}>
+                    <div class="inner" />
                 </div>
             </div>
         </div>
@@ -461,45 +523,37 @@ function TrainingRunView(
 function createSubscribablePromise<T>(promise: Promise<T>, then: (x: T) => void): () => void {
     let canceled = false;
     promise.then(v => {
-        if (!canceled)
-            then(v);
+        if (!canceled) then(v);
     });
-    return () => canceled = true;
+    return () => (canceled = true);
 }
 
-function TrainingRunCompletedView(
-    props: {
-        maxScore: number,
-        currentScoreString: string,
-        progressBarColor: string,
-        manager: TrainingRunManager,
-        scoreboxAnimation: Promise<void>|undefined,
-        visualTransitionTo: (target: "next"|"top") => void
-    }
-) {
+function TrainingRunCompletedView(props: {
+    maxScore: number;
+    currentScoreString: string;
+    progressBarColor: string;
+    manager: TrainingRunManager;
+    scoreboxAnimation: Promise<void> | undefined;
+    visualTransitionTo: (target: 'next' | 'top') => void;
+}) {
     const { scoreHistory, hasBorkenRecord } = props.manager.commitRun();
     const highScore = Math.max(props.maxScore, ...scoreHistory);
     const [animationsDone, setAnimationsDone] = createSignal<boolean>(false);
 
-    let unsubscribe: (() => void)|undefined;
+    let unsubscribe: (() => void) | undefined;
     createEffect(() => {
-        if (unsubscribe !== undefined)
-            unsubscribe();
-        if (props.scoreboxAnimation === undefined)
-            return;
-        unsubscribe = createSubscribablePromise(
-            props.scoreboxAnimation,
-            () => {
-                setAnimationsDone(true);
-            }
-        );
-    })
+        if (unsubscribe !== undefined) unsubscribe();
+        if (props.scoreboxAnimation === undefined) return;
+        unsubscribe = createSubscribablePromise(props.scoreboxAnimation, () => {
+            setAnimationsDone(true);
+        });
+    });
 
     createEffect(() => {
         if (!animationsDone() || !hasBorkenRecord) return;
         const creater = confetti.create(confettiCanvas, { resize: true });
         creater();
-    })
+    });
 
     function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
         const scores = scoreHistory.slice(-7);
@@ -517,9 +571,9 @@ function TrainingRunCompletedView(
                     data,
                     borderColor: '#e3e3e3',
                     backgroundColor: gradient,
-                    fill: true
-                }
-            ]
+                    fill: true,
+                },
+            ],
         };
 
         return {
@@ -540,21 +594,21 @@ function TrainingRunCompletedView(
                             label(context) {
                                 // Just return the value
                                 return context.formattedValue;
-                            }
-                        }
-                    },   
+                            },
+                        },
+                    },
                 },
                 clip: 5,
                 interaction: {
                     mode: 'nearest',
-                    intersect: false
+                    intersect: false,
                 },
                 scales: {
                     x: {
                         grid: {
-                            display: false
+                            display: false,
                         },
-                        clip: false
+                        clip: false,
                     },
                     y: {
                         min: 0,
@@ -564,55 +618,56 @@ function TrainingRunCompletedView(
                         },
                         grid: {
                             color: '#252525',
-                        }
-                    }
-                }
+                        },
+                    },
+                },
             },
         };
     }
 
-    const confettiCanvas = <canvas id="confettiCanvas"/> as HTMLCanvasElement;
+    const confettiCanvas = (<canvas id="confettiCanvas" />) as HTMLCanvasElement;
 
     return (
         <div class="division-training-end">
-            <div class="scorebox hidden"
-                style={{'--score-color': props.progressBarColor, '--max-score': `"${highScore}"`}}>
-                { props.currentScoreString }
+            <div
+                class="scorebox hidden"
+                style={{
+                    '--score-color': props.progressBarColor,
+                    '--max-score': `"${highScore}"`,
+                }}>
+                {props.currentScoreString}
             </div>
-            { animationsDone() ? <SimpleChart onConfig={chartConfigFactory}/> : null }
-            { 
-                animationsDone() && hasBorkenRecord
-                    ? <h3><i class="bi bi-trophy-fill" style={{ color: progressBarYellow }}/> Neuer High Score!</h3>
-                    : null
-            }
-            {
-                !animationsDone() ?
-                    null : (
-                        <>
-                            <div style={{'flex': 1}}/>
-                            <div class="continuation-buttons">
-                                <button class="primary-button" onClick={() => props.visualTransitionTo('next')}>
-                                    {
-                                        !props.manager.isLastDivision
-                                            ? "Weiter"
-                                            : "Zurück zur Übersicht"
-                                    }
-                                </button>
-                                <button class="secondary-button" onClick={() => props.visualTransitionTo('top')}>
-                                    Nochmal
-                                </button>
-                            </div>
-                        </>
-                    )
-            }
-            { confettiCanvas }
+            {animationsDone() ? <SimpleChart onConfig={chartConfigFactory} /> : null}
+            {animationsDone() && hasBorkenRecord ? (
+                <h3>
+                    <i class="bi bi-trophy-fill" style={{ color: progressBarYellow }} /> Neuer High
+                    Score!
+                </h3>
+            ) : null}
+            {!animationsDone() ? null : (
+                <>
+                    <div style={{ flex: 1 }} />
+                    <div class="continuation-buttons">
+                        <button
+                            class="primary-button"
+                            onClick={() => props.visualTransitionTo('next')}>
+                            {!props.manager.isLastDivision ? 'Weiter' : 'Zurück zur Übersicht'}
+                        </button>
+                        <button
+                            class="secondary-button"
+                            onClick={() => props.visualTransitionTo('top')}>
+                            Nochmal
+                        </button>
+                    </div>
+                </>
+            )}
+            {confettiCanvas}
         </div>
     );
 }
 
-
 function calculatePointsForStreak(streak: number): number {
-    return 0.5 * (streak**2 + streak);
+    return 0.5 * (streak ** 2 + streak);
 }
 
 function calculateStreakFromPoints(points: number): number {
@@ -620,9 +675,8 @@ function calculateStreakFromPoints(points: number): number {
     const b = 0.5;
     const c = -points;
 
-    const discriminant = b**2 - 4 * a * c;
-    if (discriminant < 0)
-        throw 'unreachable';
+    const discriminant = b ** 2 - 4 * a * c;
+    if (discriminant < 0) throw 'unreachable';
 
     const s = Math.sqrt(discriminant);
 
@@ -638,7 +692,7 @@ function createTrainingRunManager(
     params: Params,
     scriptContext: ScriptContext,
     script: Script,
-    resetState: () => void
+    resetState: () => void,
 ): [TrainingRunManager, Division] {
     const navigate = useNavigate();
     const index = Number(params.division) - 1;
@@ -650,40 +704,36 @@ function createTrainingRunManager(
     const manager: TrainingRunManager = {
         addConfidenceRating(cueIdx, confidence) {
             let newScore = 0;
-            switch(confidence) {
+            switch (confidence) {
                 case 'low':
                     newScore = 1;
-                break;
+                    break;
                 case 'medium':
                     newScore = 2;
-                break;
+                    break;
                 case 'high':
                     newScore = 4;
-                break;
+                    break;
             }
             const diff = newScore;
 
             let streak = 0;
-            let trend: "dd"|"d"|"u"|"uu"|undefined;
+            let trend: 'dd' | 'd' | 'u' | 'uu' | undefined;
             const previousScore = division.textCues[cueIdx].previousScores.at(-1);
             if (previousScore === undefined) {
                 newConfidences[cueIdx] = newScore;
-                return { diff: newScore, streak: 0, trend }
+                return { diff: newScore, streak: 0, trend };
             }
 
             const delta = newScore - previousScore;
             if (previousScore >= 4 && newScore === 4) {
                 streak = calculateStreakFromPoints(previousScore - 4) + 1;
                 newScore = 4 + calculatePointsForStreak(streak);
-                trend = "uu";
-            } else if (delta > 0 && delta <= 2)
-                trend = "u";
-            else if (delta < 0 && delta >= -2)
-                trend = "d";
-            else if (delta >= 3)
-                trend = "uu";
-            else if (delta <= -3)
-                trend = "dd";
+                trend = 'uu';
+            } else if (delta > 0 && delta <= 2) trend = 'u';
+            else if (delta < 0 && delta >= -2) trend = 'd';
+            else if (delta >= 3) trend = 'uu';
+            else if (delta <= -3) trend = 'dd';
             newConfidences[cueIdx] = newScore;
 
             return { diff, streak, trend };
@@ -698,7 +748,7 @@ function createTrainingRunManager(
             const scoreHistory = [...division.previousTotals, newScore];
             return {
                 scoreHistory,
-                hasBorkenRecord: newScore > previousHighScore
+                hasBorkenRecord: newScore > previousHighScore,
             };
         },
         reset() {
@@ -710,19 +760,23 @@ function createTrainingRunManager(
                 return Promise.resolve(false);
             }
             let resolve: (x: boolean) => void;
-            const promise = new Promise<boolean>(resolve1 => resolve = resolve1);
+            const promise = new Promise<boolean>(resolve1 => (resolve = resolve1));
 
             previousElement = document.querySelector('div.script-view');
             const nextDivision = index + 2;
             let didResetState = false;
-            navigate(`/script/${script.uuid}/${nextDivision}`, { replace: true });
-            runWithOwner(computationOwner, () => createEffect(() => {
-                if (Number(params.division) === nextDivision && !didResetState) {
-                    didResetState = true;
-                    resetState(); 
-                    resolve(true);
-                }
-            }));
+            navigate(`/script/${script.uuid}/${nextDivision}`, {
+                replace: true,
+            });
+            runWithOwner(computationOwner, () =>
+                createEffect(() => {
+                    if (Number(params.division) === nextDivision && !didResetState) {
+                        didResetState = true;
+                        resetState();
+                        resolve(true);
+                    }
+                }),
+            );
 
             return promise;
         },
@@ -739,13 +793,9 @@ function createTrainingRunManager(
 //  - Dependencies are not managed correctly (why does this component even so much as touch params)
 //  - The entire training view is written into one big function, which doesn't care a bit about
 //    separation of concerns.
-// This will clearly have to go through a MAJOR refactoring, akin to a rewrite, just to get 
+// This will clearly have to go through a MAJOR refactoring, akin to a rewrite, just to get
 // everything sorted out.
-export function TrainingRunWrapper(
-    props: {
-        script: Script
-    }
-): JSX.Element {
+export function TrainingRunWrapper(props: { script: Script }): JSX.Element {
     const params = useParams();
     const scriptContext = useContext(ScriptContextObj)!;
 
@@ -754,28 +804,23 @@ export function TrainingRunWrapper(
             params,
             scriptContext,
             props.script,
-            () => invalidate()
+            () => invalidate(),
         );
         return (
             <>
-                { previousElement }
+                {previousElement}
                 <TrainingRunView division={division} manager={manager} />
             </>
         );
     });
 
     onMount(() => {
-        document.title = `${props.script.name} - Quipt`
-    })
+        document.title = `${props.script.name} - Quipt`;
+    });
 
     createEffect(() => {
-        document.title = `${props.script.name} - Quipt`
-    })
+        document.title = `${props.script.name} - Quipt`;
+    });
 
-    return (
-        <>
-            { element() }
-        </>
-    );
+    return <>{element()}</>;
 }
-

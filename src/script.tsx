@@ -1,18 +1,20 @@
-import { createSignal, JSX, createEffect, createContext, untrack, Component } from 'solid-js';
-import { useParams } from '@solidjs/router';
-import { schemas } from 'qrpc-js';
-import { AuthenticationContext, queryClient } from './client';
-import { Script } from './schemas';
-import { UseQueryResult, useQuery } from '@tanstack/solid-query';
+import { Component, JSX, createContext, createEffect, createSignal, untrack } from 'solid-js';
 import { useContext } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
+import { useParams } from '@solidjs/router';
+import { UseQueryResult, useQuery } from '@tanstack/solid-query';
+import { schemas } from 'qrpc-js';
+
+import { AuthenticationContext, queryClient } from 'quipt/client';
+import { Script } from 'quipt/schemas';
+
 export const ScriptContextObj = createContext<ScriptContext>();
 
-export type PartialScript = Omit<Script, "divisions">
+export type PartialScript = Omit<Script, 'divisions'>;
 
 export interface ScriptContext {
-    readonly currentScript: schemas.UUID|undefined;
+    readonly currentScript: schemas.UUID | undefined;
     scriptQuery(): UseQueryResult<Script>;
     createNewScript(script: Script): Promise<Script>;
     commitNewConfidences(divisionIdx: number, newScores: number[]): void;
@@ -21,22 +23,22 @@ export interface ScriptContext {
 }
 
 export function DelayedScriptInstantiator<C extends Component<{ script: Script }>>(props: {
-    component: C
+    component: C;
 }): JSX.Element {
     const scriptContext = useContext(ScriptContextObj)!;
-    const scriptQuery = useQuery(() => ({ queryKey: ['script', scriptContext.currentScript] }));
+    const scriptQuery = useQuery(() => ({
+        queryKey: ['script', scriptContext.currentScript],
+    }));
 
-        // const isError = createMemo(() => scriptQuery.status === "error");
-        // if (isError()) onError();
-        // return null;
+    // const isError = createMemo(() => scriptQuery.status === "error");
+    // if (isError()) onError();
+    // return null;
 
     return (
         <>
-            {
-                scriptQuery.status === "success" 
-                    ? <Dynamic component={props.component} script={scriptQuery.data}/>
-                    : null
-            }
+            {scriptQuery.status === 'success' ? (
+                <Dynamic component={props.component} script={scriptQuery.data} />
+            ) : null}
         </>
     );
 }
@@ -47,22 +49,23 @@ const STALE_TIME: number = Infinity;
 export function createScriptContext(authenticationContext: AuthenticationContext): ScriptContext {
     const location = useParams();
 
-    const [currentScriptId, setCurrentScriptId] = createSignal<schemas.UUID|undefined>(undefined);
+    const [currentScriptId, setCurrentScriptId] = createSignal<schemas.UUID | undefined>(undefined);
     useQuery(() => ({
         queryKey: ['scripts'],
         queryFn: () => authenticationContext.services!.script.list(),
-        staleTime: STALE_TIME
-    }))
+        staleTime: STALE_TIME,
+    }));
     // const scriptCache: Map<schemas.UUID, Script> = new Map();
 
-
     createEffect(async () => {
-        let notValidatedScriptId: string|undefined = location.uuid;
+        let notValidatedScriptId: string | undefined = location.uuid;
         if (notValidatedScriptId === undefined) {
             setCurrentScriptId(undefined);
             return;
         }
-        const scripts = await queryClient.ensureQueryData<Script[]>({ queryKey: ['scripts'] });
+        const scripts = await queryClient.ensureQueryData<Script[]>({
+            queryKey: ['scripts'],
+        });
         const script = scripts.find(s => s.uuid === notValidatedScriptId);
         if (script === undefined) {
             setCurrentScriptId(undefined);
@@ -75,11 +78,12 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         queryKey: ['script', currentScriptId()],
         async queryFn() {
             const scriptUuid = untrack(currentScriptId);
-            if (scriptUuid === undefined)
-                throw 'unknown script'
-            return await authenticationContext.services!.script.get({ uuid: scriptUuid });
+            if (scriptUuid === undefined) throw 'unknown script';
+            return await authenticationContext.services!.script.get({
+                uuid: scriptUuid,
+            });
         },
-        staleTime: STALE_TIME
+        staleTime: STALE_TIME,
     }));
 
     return {
@@ -93,7 +97,7 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         async commitNewConfidences(divisionIdx, newScores) {
             const scriptId = currentScriptId()!;
 
-            await queryClient.cancelQueries({ queryKey: ['script', scriptId] })
+            await queryClient.cancelQueries({ queryKey: ['script', scriptId] });
             queryClient.setQueryData<Script>(['script', scriptId], old => {
                 if (!old) return old;
 
@@ -106,24 +110,33 @@ export function createScriptContext(authenticationContext: AuthenticationContext
                             ...old.divisions[divisionIdx],
                             textCues: division.textCues.map((pair, idx) => ({
                                 ...pair,
-                                previousScores: [...pair.previousScores, newScores[idx]]
+                                previousScores: [...pair.previousScores, newScores[idx]],
                             })),
-                            previousTotals: [...division.previousTotals, newScores.reduce((acc, n) => acc + n)]
+                            previousTotals: [
+                                ...division.previousTotals,
+                                newScores.reduce((acc, n) => acc + n),
+                            ],
                         },
-                        length: old.divisions.length
-                    })
+                        length: old.divisions.length,
+                    }),
                 };
-            })
+            });
 
-            await authenticationContext.services!.division.saveScores({ scriptId: scriptId, divisionIdx, newScores });
+            await authenticationContext.services!.division.saveScores({
+                scriptId: scriptId,
+                divisionIdx,
+                newScores,
+            });
         },
         async createNewScript(script) {
             const newScript = window.structuredClone(script);
-            newScript.uuid = "00000000-0000-0000-0000-000000000000" as schemas.UUID;
+            newScript.uuid = '00000000-0000-0000-0000-000000000000' as schemas.UUID;
 
             let uuid: schemas.UUID;
             try {
-                uuid = await authenticationContext.services!.script.create({ script: newScript });
+                uuid = await authenticationContext.services!.script.create({
+                    script: newScript,
+                });
             } catch (error) {
                 throw `could not create new script: ${error}`;
             }
@@ -137,8 +150,8 @@ export function createScriptContext(authenticationContext: AuthenticationContext
 
             return newScript;
         },
-        async deleteScript(uuid) {  
-            await queryClient.cancelQueries({ queryKey: ['scripts'] })
+        async deleteScript(uuid) {
+            await queryClient.cancelQueries({ queryKey: ['scripts'] });
             queryClient.setQueryData<PartialScript[]>(['scripts'], old => {
                 if (!old) return old;
 
@@ -154,14 +167,14 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             }
         },
         async renameScript(uuid, name) {
-            await queryClient.cancelQueries({ queryKey: ['scripts'] })
+            await queryClient.cancelQueries({ queryKey: ['scripts'] });
             queryClient.setQueryData<PartialScript[]>(['scripts'], old => {
                 if (!old) return old;
 
-                return old.map(s => s.uuid !== uuid ? s : { ...s, name });
+                return old.map(s => (s.uuid !== uuid ? s : { ...s, name }));
             });
 
-            await queryClient.cancelQueries({ queryKey: ['script', uuid] })
+            await queryClient.cancelQueries({ queryKey: ['script', uuid] });
             queryClient.setQueryData<Script>(['script', uuid], old => {
                 if (!old) return old;
 
@@ -169,7 +182,10 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             });
 
             try {
-                await authenticationContext.services!.script.rename({ uuid, name });
+                await authenticationContext.services!.script.rename({
+                    uuid,
+                    name,
+                });
             } catch (error) {
                 throw `could not rename script: ${error}`;
             }

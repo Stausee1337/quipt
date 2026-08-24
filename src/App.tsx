@@ -1,15 +1,22 @@
-import './App.scss'
-import { createSignal, onCleanup, JSX, onMount } from 'solid-js';
-import { HeaderElement } from './components/HeaderElement';
-import { MenuElement } from './components/MenuElement';
-import { Router, Route, Navigate, useNavigate } from '@solidjs/router';
-import { QueryClientProvider } from '@tanstack/solid-query';
-import { AuthenticationContextObj, queryClient, createAuthenticationContext, useAuthentication } from './client';
-import { ScriptContextObj, createScriptContext } from './script';
-import { UserAuthenticate } from './pages/UserAuthenticate';
-import { Root } from './pages/Root';
-import { NewScriptRoute, ScriptRoute } from './pages/Script';
+import { JSX, createSignal, onCleanup, onMount } from 'solid-js';
 
+import { Navigate, Route, Router, useNavigate } from '@solidjs/router';
+import { QueryClientProvider } from '@tanstack/solid-query';
+
+import {
+    AuthenticationContextObj,
+    createAuthenticationContext,
+    queryClient,
+    useAuthentication,
+} from 'quipt/client';
+import { HeaderElement } from 'quipt/components/HeaderElement';
+import { MenuElement } from 'quipt/components/MenuElement';
+import { Root } from 'quipt/pages/Root';
+import { NewScriptRoute, ScriptRoute } from 'quipt/pages/Script';
+import { UserAuthenticate } from 'quipt/pages/UserAuthenticate';
+import { ScriptContextObj, createScriptContext } from 'quipt/script';
+
+import './App.scss';
 
 function App(props: { children?: JSX.Element }): JSX.Element {
     const authenticationContext = useAuthentication()!;
@@ -26,51 +33,45 @@ function App(props: { children?: JSX.Element }): JSX.Element {
     const [isSmallWidth, setIsSmallWidth] = createSignal(query.matches);
     onMount(() => {
         query.addEventListener('change', () => {
-            setIsSmallWidth(query.matches)
-        })
-    })
+            setIsSmallWidth(query.matches);
+        });
+    });
 
     return (
         <ScriptContextObj.Provider value={scriptContext}>
-            { isSmallWidth() && <HeaderElement/> }
-            { (!isSmallWidth() && authenticationContext.isLoggedIn()) && <MenuElement/> }
-            <div class="routing-contents">
-                {props.children}
-            </div>
+            {isSmallWidth() && <HeaderElement />}
+            {!isSmallWidth() && authenticationContext.isLoggedIn() && <MenuElement />}
+            <div class="routing-contents">{props.children}</div>
         </ScriptContextObj.Provider>
     );
 }
 
-export default function() {
+export default function () {
     const authenticationContext = createAuthenticationContext();
     return (
         <QueryClientProvider client={queryClient}>
-        <AuthenticationContextObj.Provider value={authenticationContext}>
-            <Router root={App}>
-                <Route path="/" component={Root}/>
-                {
-                    !authenticationContext.isLoggedIn()
-                        ? <Route path={["/signin", "/signup"]} component={UserAuthenticate}/>
-                        : (
-                            <>
-                                <Route path="/new-script" component={NewScriptRoute} />
-                                <Route path={[
-                                        "/script/:uuid",
-                                        "/script/:uuid/:division",
-                                        "/train/:uuid/:division",
-                                    ]} 
-                                    component={ScriptRoute}/>
-                                <Route path="/dashboard"/>
-                            </>
-                        )
-                }
-                <Route
-                    path="*paramName"
-                    component={() => <Navigate href="/"/>}/>
-            </Router>
-        </AuthenticationContextObj.Provider>
+            <AuthenticationContextObj.Provider value={authenticationContext}>
+                <Router root={App}>
+                    <Route path="/" component={Root} />
+                    {!authenticationContext.isLoggedIn() ? (
+                        <Route path={['/signin', '/signup']} component={UserAuthenticate} />
+                    ) : (
+                        <>
+                            <Route path="/new-script" component={NewScriptRoute} />
+                            <Route
+                                path={[
+                                    '/script/:uuid',
+                                    '/script/:uuid/:division',
+                                    '/train/:uuid/:division',
+                                ]}
+                                component={ScriptRoute}
+                            />
+                            <Route path="/dashboard" />
+                        </>
+                    )}
+                    <Route path="*paramName" component={() => <Navigate href="/" />} />
+                </Router>
+            </AuthenticationContextObj.Provider>
         </QueryClientProvider>
     );
 }
-
-

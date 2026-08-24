@@ -1,11 +1,13 @@
-import { JSX, createMemo, onMount } from "solid-js";
-import { useNavigate, useLocation, Navigate } from "@solidjs/router";
-import { ScriptPage } from "../components/ScriptEdit";
-import PersonConfused from "../components/Person-Confused";
-import { StateScriptTransferObject } from "../components/NewScriptFileChooser";
-import { DocumentView } from "../components/DocumentView";
-import { useQuery } from "@tanstack/solid-query";
-import { DelayedScriptInstantiator, PartialScript } from "../script";
+import { JSX, createMemo, onMount } from 'solid-js';
+
+import { Navigate, useLocation, useNavigate } from '@solidjs/router';
+import { useQuery } from '@tanstack/solid-query';
+
+import { DocumentView } from 'quipt/components/DocumentView';
+import { StateScriptTransferObject } from 'quipt/components/NewScriptFileChooser';
+import PersonConfused from 'quipt/components/Person-Confused';
+import { ScriptPage } from 'quipt/components/ScriptEdit';
+import { DelayedScriptInstantiator, PartialScript } from 'quipt/script';
 
 // function Computer(): JSX.Element {
 //     return (
@@ -18,23 +20,22 @@ import { DelayedScriptInstantiator, PartialScript } from "../script";
 // I don't know about how script route is supposed to work
 //  - On Mobile: Script Overview and Viewing/Training have to be distinct
 //  - On Desktop: The Script Overview is displayed simultaneously with Viewing/Training
-// Principially, this can be solved by the Views *forcing* a section to be prsent. So even when 
-// you hit `/script/<uuid>` on desktop the `ScriptView` will make it navigate to 
+// Principially, this can be solved by the Views *forcing* a section to be prsent. So even when
+// you hit `/script/<uuid>` on desktop the `ScriptView` will make it navigate to
 // `/script/<uuid>/<sectionID>` forcefully.
-// Training then lives on `/train/<uuid>/<sectionID>` with `/train/<uuid>` redirecting to 
+// Training then lives on `/train/<uuid>/<sectionID>` with `/train/<uuid>` redirecting to
 // `/script/...`
 
 export function ScriptRoute(): JSX.Element {
-    return <DelayedScriptInstantiator component={ScriptPage}/>;
+    return <DelayedScriptInstantiator component={ScriptPage} />;
 }
-
 
 export function NewScriptRoute(): JSX.Element {
     const location = useLocation();
 
     onMount(() => {
-        document.title = "Neues Skript - Quipt"
-    })
+        document.title = 'Neues Skript - Quipt';
+    });
 
     const reneredElement = createMemo(() => {
         // if (isMobile()) {
@@ -54,15 +55,12 @@ export function NewScriptRoute(): JSX.Element {
         // }
 
         const transferObject = StateScriptTransferObject.retreive(location.state);
-        if (transferObject === undefined)
-            return <Navigate href="/"/>
+        if (transferObject === undefined) return <Navigate href="/" />;
 
         const { mupdf, document: pdfDoc, name, deletedPages } = transferObject;
-        return <DocumentView
-            mupdf={mupdf}
-            pdfDoc={pdfDoc}
-            name={name}
-            deletedPages={deletedPages}/>
+        return (
+            <DocumentView mupdf={mupdf} pdfDoc={pdfDoc} name={name} deletedPages={deletedPages} />
+        );
     });
 
     return reneredElement();
@@ -70,15 +68,16 @@ export function NewScriptRoute(): JSX.Element {
 
 export function NoScriptRoute(): JSX.Element {
     const navigate = useNavigate();
-    const scriptsQuery = useQuery<PartialScript[]>(() => ({ queryKey: ['scripts'] }));
+    const scriptsQuery = useQuery<PartialScript[]>(() => ({
+        queryKey: ['scripts'],
+    }));
 
     onMount(() => {
-        document.title = "Kein Skript - Quipt"
-    })
-    
+        document.title = 'Kein Skript - Quipt';
+    });
+
     const x = createMemo(() => {
-        if (scriptsQuery.status === "pending")
-            return;
+        if (scriptsQuery.status === 'pending') return;
         const scripts = scriptsQuery.data;
         if (scripts !== undefined && scripts.length > 0) {
             navigate(`/script/${scripts[0].uuid!}`);
@@ -86,7 +85,7 @@ export function NoScriptRoute(): JSX.Element {
         }
         return (
             <div class="no-script">
-                <PersonConfused/>
+                <PersonConfused />
                 <h2>Hmm ... Nichts Gefunden</h2>
                 <div class="text">
                     Wie es Aussieht hast du noch keine Skripte. So kannst du eins hinzufügen:
@@ -100,10 +99,5 @@ export function NoScriptRoute(): JSX.Element {
         );
     });
 
-    return (
-        <>
-            { x() }
-        </>
-    );
+    return <>{x()}</>;
 }
-

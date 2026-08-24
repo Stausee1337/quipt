@@ -1,6 +1,8 @@
-import { JSX, onMount } from "solid-js";
-import { useAuthentication } from "../client";
-import { Navigate, A } from "@solidjs/router";
+import { JSX, onMount } from 'solid-js';
+
+import { A, Navigate } from '@solidjs/router';
+
+import { useAuthentication } from 'quipt/client';
 
 function LandingPage(): JSX.Element {
     return (
@@ -19,16 +21,7 @@ function LandingPage(): JSX.Element {
 export function Root(): JSX.Element {
     const authentication = useAuthentication()!;
     onMount(() => {
-        document.title = "Quipt";
-    })
-    return (
-        <>
-            {
-                authentication.isLoggedIn() 
-                    ? <Navigate href="/dashboard"/>
-                    : <LandingPage/>
-            }
-        </>
-    );
+        document.title = 'Quipt';
+    });
+    return <>{authentication.isLoggedIn() ? <Navigate href="/dashboard" /> : <LandingPage />}</>;
 }
-

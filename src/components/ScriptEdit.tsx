@@ -1,40 +1,66 @@
-import { JSX, createContext, createEffect, createMemo, createSignal, getOwner, onCleanup, onMount, splitProps, useContext, createRoot, Owner, Accessor, children, For } from 'solid-js';
-import { EditorView, minimalSetup } from 'codemirror';
-import { markdown } from '@codemirror/lang-markdown';
-import { placeholder } from "@codemirror/view";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { tags } from "@lezer/highlight";
-import { Division, Script, TextCue, TextCuePair } from '../schemas';
-import { TextCueDataView, TextCuePairView } from './TextCueView';
-import { ScriptContextObj } from '../script';
-import { DivisionInfoView } from './DivisionInfoView';
-import { useLocation, useParams } from '@solidjs/router';
+import {
+    Accessor,
+    For,
+    JSX,
+    Owner,
+    children,
+    createContext,
+    createEffect,
+    createMemo,
+    createRoot,
+    createSignal,
+    getOwner,
+    onCleanup,
+    onMount,
+    splitProps,
+    useContext,
+} from 'solid-js';
 import { Dynamic, insert } from 'solid-js/web';
-import { ScriptInfo, computeScriptInfo, formatActorsArray, formatMarkdown } from './common';
-import { ActorPill } from './ActorPill';
-import { installPopoverMenuHandler, contextMenu } from '../popover-menu';
-import { DialogManager } from '../dialog';
-import { useMutation } from '@tanstack/solid-query';
-import { AuthenticationContextObj, queryClient } from '../client';
-import { MakeEditableContent } from './MakeEditableContent';
-import { ScriptOverview } from './ScriptOverview';
-import { TrainingRunWrapper } from './ScriptTraining';
 
-const myTheme = EditorView.theme({}, {dark: true})
+import { markdown } from '@codemirror/lang-markdown';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { placeholder } from '@codemirror/view';
+import { tags } from '@lezer/highlight';
+import { useLocation, useParams } from '@solidjs/router';
+import { useMutation } from '@tanstack/solid-query';
+import { EditorView, minimalSetup } from 'codemirror';
+
+import { AuthenticationContextObj, queryClient } from 'quipt/client';
+import { ActorPill } from 'quipt/components/ActorPill';
+import { DivisionInfoView } from 'quipt/components/DivisionInfoView';
+import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
+import { ScriptOverview } from 'quipt/components/ScriptOverview';
+import { TrainingRunWrapper } from 'quipt/components/ScriptTraining';
+import { TextCueDataView, TextCuePairView } from 'quipt/components/TextCueView';
+import {
+    ScriptInfo,
+    computeScriptInfo,
+    formatActorsArray,
+    formatMarkdown,
+} from 'quipt/components/common';
+import { DialogManager } from 'quipt/dialog';
+import { contextMenu, installPopoverMenuHandler } from 'quipt/popover-menu';
+import { Division, Script, TextCue, TextCuePair } from 'quipt/schemas';
+import { ScriptContextObj } from 'quipt/script';
+
+const myTheme = EditorView.theme({}, { dark: true });
 
 const customMarkdownStyle = HighlightStyle.define([
     // Color for the Markdown formatting markers (e.g., **, _, #)
-    { tag: tags.processingInstruction, color: "rgb(167.4375, 167.4375, 167.4375)" },
-    { tag: tags.meta, color: "#ff6b81" },
-    { tag: tags.strong, fontWeight: "bold" },
-    { tag: tags.emphasis, fontStyle: "italic" },
-    { tag: tags.strikethrough, textDecoration: "line-through" },
+    {
+        tag: tags.processingInstruction,
+        color: 'rgb(167.4375, 167.4375, 167.4375)',
+    },
+    { tag: tags.meta, color: '#ff6b81' },
+    { tag: tags.strong, fontWeight: 'bold' },
+    { tag: tags.emphasis, fontStyle: 'italic' },
+    { tag: tags.strikethrough, textDecoration: 'line-through' },
 ]);
 
 function Editor(props: {
-    content?: string,
-    onChange?: (content: string) => void,
-    autofocus?: boolean
+    content?: string;
+    onChange?: (content: string) => void;
+    autofocus?: boolean;
 }): JSX.Element {
     const view = new EditorView({
         doc: props.content,
@@ -42,13 +68,12 @@ function Editor(props: {
             myTheme,
             minimalSetup,
             EditorView.lineWrapping,
-            placeholder("Text einfügen ..."),
+            placeholder('Text einfügen ...'),
             markdown(),
             syntaxHighlighting(customMarkdownStyle),
             EditorView.updateListener.of(update => {
-                if (update.docChanged)
-                    props.onChange?.(update.state.doc.toString());
-            })
+                if (update.docChanged) props.onChange?.(update.state.doc.toString());
+            }),
         ],
     });
 
@@ -62,30 +87,26 @@ function Editor(props: {
     }
 
     onMount(() => {
-        if (props.autofocus)
-            setTimeout(focusView)
-    })
+        if (props.autofocus) setTimeout(focusView);
+    });
 
     return view.dom;
 }
 
-function EditCommitView(props: { close: (res: "dismiss"|"accept") => void }): JSX.Element {
+function EditCommitView(props: { close: (res: 'dismiss' | 'accept') => void }): JSX.Element {
     return (
         <div class="edit-commit-container">
-            <button class="icon-button" onClick={() => props.close("dismiss")}>
+            <button class="icon-button" onClick={() => props.close('dismiss')}>
                 &#xF62A;
             </button>
-            <button class="icon-button" onClick={() => props.close("accept")}>
+            <button class="icon-button" onClick={() => props.close('accept')}>
                 &#xF272;
             </button>
         </div>
     );
 }
 
-function CueEditMenu(props: {
-    onEdit: () => void,
-    onDelete: () => void,
-}): JSX.Element {
+function CueEditMenu(props: { onEdit: () => void; onDelete: () => void }): JSX.Element {
     return (
         <ul class="menu-options">
             <li onClick={props.onDelete}>Löschen</li>
@@ -94,22 +115,21 @@ function CueEditMenu(props: {
     );
 }
 
-function DeleteCueDialog(
-    props: {
-        cuePair: TextCuePair,
-        closer: (res: undefined|true) => void
-    }
-): JSX.Element {
-
+function DeleteCueDialog(props: {
+    cuePair: TextCuePair;
+    closer: (res: undefined | true) => void;
+}): JSX.Element {
     return (
         <>
             <button class="close" onClick={() => props.closer(undefined)}>
-                <i class="bi bi-x"/>
+                <i class="bi bi-x" />
             </button>
             <h3>Einsatz Löschen?</h3>
-            <span>Möchten sie diesen Einsatz <strong>unwiederruflich</strong> löschen?</span>
+            <span>
+                Möchten sie diesen Einsatz <strong>unwiederruflich</strong> löschen?
+            </span>
             <div class="single-cue-viewer">
-                <TextCuePairView textCuePair={props.cuePair}/>
+                <TextCuePairView textCuePair={props.cuePair} />
             </div>
             <div class="bottom-line">
                 <button class="secondary-button" onClick={() => props.closer(undefined)}>
@@ -123,13 +143,11 @@ function DeleteCueDialog(
     );
 }
 
-function EditableTextCue(
-    props: {
-        index: number,
-        cuePair: TextCuePair,
-        type: "request"|"response",
-    }
-): JSX.Element {
+function EditableTextCue(props: {
+    index: number;
+    cuePair: TextCuePair;
+    type: 'request' | 'response';
+}): JSX.Element {
     const editContext = useContext(ScriptEditContextObj)!;
     const textCue = createMemo(() => props.cuePair[props.type]);
 
@@ -143,54 +161,48 @@ function EditableTextCue(
     createEffect(() => {
         setContent(textCue()?.text ?? '');
         setCurrentActors(textCue()?.actors ?? []);
-    })
+    });
 
-    let cueElement: HTMLElement|undefined = undefined;
+    let cueElement: HTMLElement | undefined = undefined;
     onMount(() => {
-        cueElement && installPopoverMenuHandler(
-            cueElement,
-            "auto",
-            CueEditMenu,
-            { onEdit, onDelete }
-        );
-    })
+        cueElement &&
+            installPopoverMenuHandler(cueElement, 'auto', CueEditMenu, {
+                onEdit,
+                onDelete,
+            });
+    });
 
     onMount(() => {
         cueElement?.addEventListener('contextmenu', contextMenu);
-    })
+    });
 
     onCleanup(() => {
         cueElement?.removeEventListener('contextmenu', contextMenu);
-    })
+    });
 
     const deleteMutation = useMutation(() => ({
         mutationFn: () => editContext.deleteCue(props.index),
         onError(error, variables, onMutateResult, context) {
             console.log(error, variables, onMutateResult, context);
         },
-    }))
+    }));
 
     const editMutation = useMutation(() => ({
         mutationFn(newCue: TextCue) {
-            return editContext.updateCue(
-                props.index,
-                {
-                    ...props.cuePair,
-                    [props.type]: newCue
-                }
-            );
+            return editContext.updateCue(props.index, {
+                ...props.cuePair,
+                [props.type]: newCue,
+            });
         },
         onError(error, variables, onMutateResult, context) {
             console.log(error, variables, onMutateResult, context);
         },
-    }))
+    }));
 
     async function onDelete() {
         const res = await DialogManager.openDialog<true>(
-            ({closer}) => <DeleteCueDialog 
-                cuePair={props.cuePair}
-                closer={closer}/>,
-            owner
+            ({ closer }) => <DeleteCueDialog cuePair={props.cuePair} closer={closer} />,
+            owner,
         );
         if (res === undefined) return;
         deleteMutation.mutate();
@@ -201,7 +213,7 @@ function EditableTextCue(
     }
 
     function CreateEditCommitView(): JSX.Element {
-        return <EditCommitView close={closeEditor}/>;
+        return <EditCommitView close={closeEditor} />;
     }
 
     function CreateActorsSelector(): JSX.Element {
@@ -212,26 +224,32 @@ function EditableTextCue(
 
         return (
             <ActorsSelector
-                self={props.type === "response" ? editContext.scriptInfo.self : undefined}
+                self={props.type === 'response' ? editContext.scriptInfo.self : undefined}
                 actors={
-                    props.type === "response"
+                    props.type === 'response'
                         ? editContext.scriptInfo.actors
-                        : editContext.scriptInfo.actors.filter(s => s !== editContext.scriptInfo.self)
+                        : editContext.scriptInfo.actors.filter(
+                              s => s !== editContext.scriptInfo.self,
+                          )
                 }
                 selectedActors={currentActors()}
-                onSelectionChange={actorsChange}/>
+                onSelectionChange={actorsChange}
+            />
         );
     }
 
-    function closeEditor(res: "dismiss"|"accept") {
+    function closeEditor(res: 'dismiss' | 'accept') {
         setIsEditing(false);
 
         const newTextCue = { actors: currentActors(), text: content() };
 
-        if (!(newTextCue.actors.length > 0 && newTextCue.text.trim().length > 0) && res === "accept")
+        if (
+            !(newTextCue.actors.length > 0 && newTextCue.text.trim().length > 0) &&
+            res === 'accept'
+        )
             return;
 
-        if (res === "dismiss") {
+        if (res === 'dismiss') {
             setContent(textCue()?.text ?? '');
             setCurrentActors(textCue()?.actors ?? []);
             return;
@@ -243,39 +261,33 @@ function EditableTextCue(
     return (
         <TextCueDataView
             type={props.type}
-            actorsInfo={
-                formatActorsArray((props.type === "response" && currentActors().length === 1) ? null : currentActors())
-            }
+            actorsInfo={formatActorsArray(
+                props.type === 'response' && currentActors().length === 1 ? null : currentActors(),
+            )}
             text={formatMarkdown(textCue()?.text ?? '_Du bist der erste in diesem Abschnitt_')}
-            classList={{editing: isEditing()}}
-            beforeExtra={isEditing() && <CreateActorsSelector/>}
-            afterExtra={isEditing() && <CreateEditCommitView/>}
+            classList={{ editing: isEditing() }}
+            beforeExtra={isEditing() && <CreateActorsSelector />}
+            afterExtra={isEditing() && <CreateEditCommitView />}
             ref={cueElement}>
-            {
-                isEditing() 
-                    ? <Editor content={content()}
-                        onChange={setContent}
-                        autofocus/> 
-                    : undefined
-            }
+            {isEditing() ? (
+                <Editor content={content()} onChange={setContent} autofocus />
+            ) : undefined}
         </TextCueDataView>
     );
 }
 
 function GapInjectHandle(
-    props: { static?: boolean } & JSX.HTMLAttributes<HTMLDivElement>
+    props: { static?: boolean } & JSX.HTMLAttributes<HTMLDivElement>,
 ): JSX.Element {
     const owner = getOwner();
     const editContext = useContext(ScriptEditContextObj)!;
-    const [, rest] = splitProps(props, [
-        "static", "classList", "style", "children"
-    ]);
+    const [, rest] = splitProps(props, ['static', 'classList', 'style', 'children']);
 
     const insertMutation = useMutation(() => ({
-        mutationFn({ index, newCue }: { index: number, newCue: TextCuePair }) {
+        mutationFn({ index, newCue }: { index: number; newCue: TextCuePair }) {
             return editContext.insertCue(index, newCue);
-        }
-    }))
+        },
+    }));
 
     let handle: HTMLDivElement = undefined!;
     async function onClick() {
@@ -284,43 +296,43 @@ function GapInjectHandle(
 
         insertMutation.mutate({
             index: newCue.index,
-            newCue: { 
+            newCue: {
                 request: newCue.request,
                 response: newCue.response,
-                previousScores: []
-            }
+                previousScores: [],
+            },
         });
     }
 
     return (
-        <div ref={handle} class="gap-inject-handle" onClick={onClick} classList={{ static: props.static }} {...rest}>
-            { props.static ? null : <i class="bi bi-plus-circle"/> }
+        <div
+            ref={handle}
+            class="gap-inject-handle"
+            onClick={onClick}
+            classList={{ static: props.static }}
+            {...rest}>
+            {props.static ? null : <i class="bi bi-plus-circle" />}
         </div>
     );
 }
 
-function CuePair(props: {
-    textCuePair: TextCuePair,
-    idx: number
-}): JSX.Element {
+function CuePair(props: { textCuePair: TextCuePair; idx: number }): JSX.Element {
     return (
         <>
-            <EditableTextCue index={props.idx} cuePair={props.textCuePair} type="request"/>
-            <GapInjectHandle static/>
-            <EditableTextCue index={props.idx} cuePair={props.textCuePair} type="response"/>
-            <GapInjectHandle data-index={props.idx}/>
+            <EditableTextCue index={props.idx} cuePair={props.textCuePair} type="request" />
+            <GapInjectHandle static />
+            <EditableTextCue index={props.idx} cuePair={props.textCuePair} type="response" />
+            <GapInjectHandle data-index={props.idx} />
         </>
-    )
+    );
 }
 
-function ActorsSelector(
-    props: {
-        self?: string,
-        actors: string[],
-        selectedActors: string[],
-        onSelectionChange: (selected: string[]) => void
-    }
-): JSX.Element {
+function ActorsSelector(props: {
+    self?: string;
+    actors: string[];
+    selectedActors: string[];
+    onSelectionChange: (selected: string[]) => void;
+}): JSX.Element {
     const [newActors, setNewActors] = createSignal<string[]>([]);
     // const [selected, setSelected] = createSignal<string[]>([]);
 
@@ -330,72 +342,56 @@ function ActorsSelector(
 
         props.onSelectionChange([
             ...(isSelected ? prev : prev.filter(x => x !== actor)),
-            ...(isSelected ? [actor] : [])
-        ])
+            ...(isSelected ? [actor] : []),
+        ]);
     }
 
     function onAddActor(newActor: string) {
         newActor = newActor.trim();
-        if (!props.actors.includes(newActor))
-            setNewActors(prev => [...prev, newActor])
-        props.onSelectionChange([
-            ...props.selectedActors,
-            newActor,
-        ])
+        if (!props.actors.includes(newActor)) setNewActors(prev => [...prev, newActor]);
+        props.onSelectionChange([...props.selectedActors, newActor]);
     }
- 
+
     return (
         <div class="actors-selector">
-            {
-                props.self === undefined ? null : (
+            {props.self === undefined ? null : (
+                <ActorPill actorForColor={props.self} classList={{ selected: true }} static>
+                    Ich
+                </ActorPill>
+            )}
+            {[...props.actors, ...newActors()]
+                .filter(actor => actor !== props.self)
+                .map(actor => (
                     <ActorPill
-                        actorForColor={props.self}
-                        classList={{ selected: true }}
-                        static>
-                        Ich
+                        classList={{
+                            selected: props.selectedActors.includes(actor),
+                        }}
+                        onClick={() => toggleSelection(actor)}>
+                        {actor}
                     </ActorPill>
-                )
-            }
-            {
-                [...props.actors, ...newActors()]
-                    .filter(actor => actor !== props.self)
-                    .map(
-                        actor => (
-                            <ActorPill
-                                classList={{selected: props.selectedActors.includes(actor)}}
-                                onClick={() => toggleSelection(actor)}>
-                                {actor}
-                            </ActorPill>
-                        )
-                    )
-            }
-            <AddActorButton onAddActor={onAddActor}/>
+                ))}
+            <AddActorButton onAddActor={onAddActor} />
         </div>
     );
 }
 
-function AddActorButton(
-    props: {
-        onAddActor: (actor: string) => void
-    }
-): JSX.Element {
+function AddActorButton(props: { onAddActor: (actor: string) => void }): JSX.Element {
     const [currentContent, setCurrentContent] = createSignal<string>();
     const [isEditing, setIsEditing] = createSignal<boolean>(false);
 
     const ocanvas = new OffscreenCanvas(1, 1);
-    const ctx = ocanvas.getContext("2d")!;
+    const ctx = ocanvas.getContext('2d')!;
     let spanElement: HTMLSpanElement = undefined!;
 
     function onContentChange(newText: string) {
-        if (newText.trim().length === 0)
-            setCurrentContent(undefined);
-        else
-            setCurrentContent(newText);
+        if (newText.trim().length === 0) setCurrentContent(undefined);
+        else setCurrentContent(newText);
 
         const inputElement = spanElement.querySelector('input')! as HTMLInputElement;
-            
+
         const computedStyle = window.getComputedStyle(spanElement);
-        const { fontStyle, fontVariant, fontWeight, fontSize, lineHeight, fontFamily } = computedStyle; 
+        const { fontStyle, fontVariant, fontWeight, fontSize, lineHeight, fontFamily } =
+            computedStyle;
         ctx.font = `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize}/${lineHeight} ${fontFamily}`;
 
         const textMetrics = ctx.measureText(newText);
@@ -405,81 +401,83 @@ function AddActorButton(
     function editDone() {
         setIsEditing(false);
         const newName = currentContent();
-        if (newName === undefined)
-            return;
+        if (newName === undefined) return;
         setCurrentContent(undefined);
         props.onAddActor(newName);
     }
 
     return (
-        <MakeEditableContent component={ActorPill}
+        <MakeEditableContent
+            component={ActorPill}
             isEditable={isEditing()}
             onContentChange={onContentChange}
             onEditEnd={editDone}
 
             ref={spanElement}
-            onClick={!isEditing() ? (() => setIsEditing(true)) : undefined}
+            onClick={!isEditing() ? () => setIsEditing(true) : undefined}
             actorForColor={currentContent()}
             extra="+"
-            children=""/>
+            children=""
+        />
     );
 }
 
-function NewTextCueView(
-    props: {
-        type: "request"|"response",
-        actors: string[],
-        self?: string,
-        onChange: (cue: TextCue) => void
-    }
-): JSX.Element {
+function NewTextCueView(props: {
+    type: 'request' | 'response';
+    actors: string[];
+    self?: string;
+    onChange: (cue: TextCue) => void;
+}): JSX.Element {
     const [selectedActors, setSelectedActors] = createSignal<string[]>([]);
-    const [content, setContent] = createSignal<string>("");
+    const [content, setContent] = createSignal<string>('');
 
     createEffect(() => {
         props.onChange({
             text: content(),
-            actors: props.self === undefined
-                ? selectedActors()
-                : [...selectedActors(), props.self]
+            actors: props.self === undefined ? selectedActors() : [...selectedActors(), props.self],
         });
-    })
+    });
 
     function CreateActorsSelector(): JSX.Element {
         return (
-            <ActorsSelector self={props.self}
-               actors={props.actors}
-               selectedActors={selectedActors()}
-               onSelectionChange={setSelectedActors}/>
+            <ActorsSelector
+                self={props.self}
+                actors={props.actors}
+                selectedActors={selectedActors()}
+                onSelectionChange={setSelectedActors}
+            />
         );
     }
 
     return (
-        <TextCueDataView type={props.type}
+        <TextCueDataView
+            type={props.type}
             actorsInfo={null}
             text={[]}
-            beforeExtra={<CreateActorsSelector/>}>
-            <Editor content={content()}
+            beforeExtra={<CreateActorsSelector />}>
+            <Editor
+                content={content()}
                 onChange={setContent}
-                autofocus={props.type === "request"}/>
+                autofocus={props.type === 'request'}
+            />
         </TextCueDataView>
     );
 }
 
-
-function NewCueInserter(
-    props: {
-        self: string|undefined,
-        actors: string[],
-        ref?: HTMLDivElement | ((el: HTMLDivElement) => void)
-    }
-): JSX.Element {
+function NewCueInserter(props: {
+    self: string | undefined;
+    actors: string[];
+    ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
+}): JSX.Element {
     const cueInsertContext = useContext(CueInsertionContextObj)!;
 
-    const [request, setRequest] = createSignal<TextCue>({ text: '', actors: [] });
+    const [request, setRequest] = createSignal<TextCue>({
+        text: '',
+        actors: [],
+    });
     const [response, setResponse] = createSignal<TextCue>({
         text: '',
-        actors: props.self === undefined ? [] : [props.self]
+        actors: props.self === undefined ? [] : [props.self],
     });
 
     const isValidCue = (cue: TextCue) => cue.actors.length > 0 && cue.text.length > 0;
@@ -492,24 +490,28 @@ function NewCueInserter(
         return {
             request: request(),
             response: response(),
-        }
+        };
     }
 
     return (
         <div ref={props.ref} class="cue-insert-container">
-            <NewTextCueView type="request" 
+            <NewTextCueView
+                type="request"
                 onChange={setRequest}
-                actors={props.actors.filter(a => a !== props.self)}/>
-            <NewTextCueView type="response" 
+                actors={props.actors.filter(a => a !== props.self)}
+            />
+            <NewTextCueView
+                type="response"
                 onChange={setResponse}
                 actors={props.actors}
-                self={props.self}/>
+                self={props.self}
+            />
             <div class="bottom-line">
-                <button class="secondary-button"
-                    onClick={() => cueInsertContext.cancel()}>
+                <button class="secondary-button" onClick={() => cueInsertContext.cancel()}>
                     Abbrechen
                 </button>
-                <button class="primary-button" 
+                <button
+                    class="primary-button"
                     onClick={() => cueInsertContext.confirmWithCue(buildCuePair())}
                     disabled={!isValid()}>
                     Hinzufügen
@@ -521,21 +523,21 @@ function NewCueInserter(
 
 interface CueInsertionContext {
     cancel(): void;
-    confirmWithCue(cue: Omit<TextCuePair, "previousScores">): void;
+    confirmWithCue(cue: Omit<TextCuePair, 'previousScores'>): void;
 }
 
 const CueInsertionContextObj = createContext<CueInsertionContext>();
-type InsertedCue = Omit<TextCuePair, "previousScores"> & {
-    index: number,
+type InsertedCue = Omit<TextCuePair, 'previousScores'> & {
+    index: number;
 };
 
 function createCueInserter(
     handle: HTMLDivElement,
     scriptInfo: ScriptInfo,
-    detachedOwner: typeof Owner
-): Promise<InsertedCue|undefined> {
-    let resolve: (res: InsertedCue|undefined) => void;
-    const promise = new Promise<InsertedCue|undefined>(resolve1 => resolve = resolve1);
+    detachedOwner: typeof Owner,
+): Promise<InsertedCue | undefined> {
+    let resolve: (res: InsertedCue | undefined) => void;
+    const promise = new Promise<InsertedCue | undefined>(resolve1 => (resolve = resolve1));
 
     createRoot(dispose => {
         const divisionElement = handle.parentElement!;
@@ -559,7 +561,11 @@ function createCueInserter(
         let insertContainer: HTMLDivElement = undefined!;
         const content = (
             <CueInsertionContextObj.Provider value={context}>
-                <NewCueInserter ref={insertContainer} actors={scriptInfo.actors} self={scriptInfo.self}/>
+                <NewCueInserter
+                    ref={insertContainer}
+                    actors={scriptInfo.actors}
+                    self={scriptInfo.self}
+                />
             </CueInsertionContextObj.Provider>
         );
         insert(divisionElement, content, handle);
@@ -569,12 +575,7 @@ function createCueInserter(
     return promise;
 }
 
-function DivisionEditMenu(
-    props: {
-        onEdit: () => void,
-        onRename: () => void
-    }
-): JSX.Element {
+function DivisionEditMenu(props: { onEdit: () => void; onRename: () => void }): JSX.Element {
     return (
         <ul class="menu-options">
             <li onClick={props.onEdit}>Bearbeiten</li>
@@ -583,35 +584,28 @@ function DivisionEditMenu(
     );
 }
 
-function EditableDivisionInfoView(
-    props: {
-        division: Division,
-        onRename: () => void
-    }
-): JSX.Element {
+function EditableDivisionInfoView(props: {
+    division: Division;
+    onRename: () => void;
+}): JSX.Element {
     const editContext = useContext(ScriptEditContextObj)!;
     const [isEditing, setIsEditing] = createSignal<boolean>(false);
-    let infoElement: HTMLDivElement|undefined = undefined;
-
+    let infoElement: HTMLDivElement | undefined = undefined;
 
     onMount(() => {
         infoElement?.addEventListener('contextmenu', contextMenu);
-        infoElement && installPopoverMenuHandler(
-            infoElement,
-            "auto",
-            DivisionEditMenu,
-            { 
-                onEdit, 
+        infoElement &&
+            installPopoverMenuHandler(infoElement, 'auto', DivisionEditMenu, {
+                onEdit,
                 get onRename() {
                     return props.onRename;
-                }
-            }
-        );
-    })
+                },
+            });
+    });
 
     onCleanup(() => {
         infoElement?.removeEventListener('contextmenu', contextMenu);
-    })
+    });
 
     const description = createMemo(() => props.division.description);
 
@@ -623,15 +617,14 @@ function EditableDivisionInfoView(
     }
 
     const descriptionMutation = useMutation(() => ({
-        mutationFn: editContext.updateDescription
+        mutationFn: editContext.updateDescription,
     }));
 
-    function closeEditor(res: "dismiss"|"accept") {
+    function closeEditor(res: 'dismiss' | 'accept') {
         if (isEditing()) {
             setIsEditing(false);
 
-            if (res === "dismiss")
-                setCurrentContent(description());
+            if (res === 'dismiss') setCurrentContent(description());
             else {
                 descriptionMutation.mutate(currentContent());
             }
@@ -639,66 +632,56 @@ function EditableDivisionInfoView(
     }
 
     return (
-        <DivisionInfoView division={props.division}
-            classList={{editing: isEditing()}}
-            external={isEditing()
-                ? <Editor 
-                content={description()}
-                onChange={setCurrentContent} 
-                autofocus/>
-                : undefined}
-            ref={infoElement}>
-            {
-                isEditing() && (
-                    <EditCommitView close={closeEditor}/>
-                )
+        <DivisionInfoView
+            division={props.division}
+            classList={{ editing: isEditing() }}
+            external={
+                isEditing() ? (
+                    <Editor content={description()} onChange={setCurrentContent} autofocus />
+                ) : undefined
             }
+            ref={infoElement}>
+            {isEditing() && <EditCommitView close={closeEditor} />}
         </DivisionInfoView>
     );
 }
 
 function HeadingWithEditButton(
     props: {
-        children: JSX.Element,
-        headingSize: 1|2|3|4|5|6,
-        onEditClick: () => void
-    } & JSX.HTMLAttributes<HTMLHeadingElement>
+        children: JSX.Element;
+        headingSize: 1 | 2 | 3 | 4 | 5 | 6;
+        onEditClick: () => void;
+    } & JSX.HTMLAttributes<HTMLHeadingElement>,
 ): JSX.Element {
-    const [_, rest] = splitProps(props, ["children", "headingSize", "onEditClick"]);
+    const [_, rest] = splitProps(props, ['children', 'headingSize', 'onEditClick']);
     const getChildren = children(() => props.children);
-    const isSimpleContent = createMemo(() => typeof getChildren() === "string")
+    const isSimpleContent = createMemo(() => typeof getChildren() === 'string');
 
     return (
         <Dynamic component={`h${props.headingSize}`} {...rest}>
-            { props.children }
-            {
-                isSimpleContent() && (
-                    <button class="icon-button" onClick={() => props.onEditClick()}>
-                        &#xF4CB;
-                    </button>
-                )
-            }
+            {props.children}
+            {isSimpleContent() && (
+                <button class="icon-button" onClick={() => props.onEditClick()}>
+                    &#xF4CB;
+                </button>
+            )}
         </Dynamic>
     );
 }
 
-function DivisionView(props: {
-    division: Division,
-    idx: number
-}): JSX.Element {
+function DivisionView(props: { division: Division; idx: number }): JSX.Element {
     const editContext = useContext(ScriptEditContextObj)!;
-
 
     const [isEditing, setIsEditing] = createSignal<boolean>(false);
 
     // FIXME: Is this really the best we can do here?
     //        Lets come back and clearly state the goal of this contraption
     const [currentName, setCurrentName] = createSignal<string>(props.division.name);
-    createEffect(() => setCurrentName(props.division.name))
+    createEffect(() => setCurrentName(props.division.name));
 
     const renameMutation = useMutation(() => ({
-        mutationFn: editContext.renameDivision 
-    }))
+        mutationFn: editContext.renameDivision,
+    }));
 
     function onRename() {
         setIsEditing(true);
@@ -707,26 +690,26 @@ function DivisionView(props: {
     function onRenameDone() {
         setIsEditing(false);
         const newName = currentName();
-        if (newName === props.division.name || newName.length === 0)
-            return
+        if (newName === props.division.name || newName.length === 0) return;
         renameMutation.mutate(newName);
     }
 
     return (
         <div class="script-divsion" id={`division${props.idx}`} data-division={props.idx}>
-            <MakeEditableContent component={HeadingWithEditButton}
+            <MakeEditableContent
+                component={HeadingWithEditButton}
                 isEditable={isEditing()}
                 onContentChange={setCurrentName}
                 onEditEnd={onRenameDone}
 
                 headingSize={2}
                 onEditClick={onRename}>
-                { currentName() }
+                {currentName()}
             </MakeEditableContent>
-            <EditableDivisionInfoView division={props.division} onRename={onRename}/>
-            <GapInjectHandle data-index={-1}/>
+            <EditableDivisionInfoView division={props.division} onRename={onRename} />
+            <GapInjectHandle data-index={-1} />
             <For each={props.division.textCues}>
-                { (pair, idx) => <CuePair textCuePair={pair} idx={idx()} />}
+                {(pair, idx) => <CuePair textCuePair={pair} idx={idx()} />}
             </For>
         </div>
     );
@@ -743,32 +726,29 @@ interface ScriptEditContext {
 
 const ScriptEditContextObj = createContext<ScriptEditContext>();
 
-
 // FIXME: ScriptCue's don't exist, but TextCueView is obviously already taken, so we'll need to figure out what this doing
-function ScriptView(
-    props: {
-        script: Script
-    }
-): JSX.Element {
+function ScriptView(props: { script: Script }): JSX.Element {
     const scriptContext = useContext(ScriptContextObj)!;
     const authContext = useContext(AuthenticationContextObj)!;
 
     onMount(() => {
-        document.title = `${props.script.name} - Quipt`
-    })
-    
+        document.title = `${props.script.name} - Quipt`;
+    });
+
     createEffect(() => {
-        document.title = `${props.script.name} - Quipt`
-    })
+        document.title = `${props.script.name} - Quipt`;
+    });
 
     const scriptInfo = createMemo(() => computeScriptInfo(props.script));
     function createScriptEditContext(idx: Accessor<number>): ScriptEditContext {
-        return  {
+        return {
             get scriptInfo() {
                 return scriptInfo();
             },
             async renameDivision(newName) {
-                await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
+                await queryClient.cancelQueries({
+                    queryKey: ['script', props.script.uuid],
+                });
                 const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
 
                 queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
@@ -780,22 +760,24 @@ function ScriptView(
                             ...old.divisions,
                             [idx()]: {
                                 ...old.divisions[idx()],
-                                name: newName
+                                name: newName,
                             },
-                            length: old.divisions.length
-                        })
+                            length: old.divisions.length,
+                        }),
                     };
                 });
 
                 await authContext.services!.division.rename({
                     scriptId: props.script.uuid,
                     divisionIdx: idx(),
-                    name: newName
+                    name: newName,
                 });
                 return { prev };
             },
             async updateDescription(newDescription) {
-                await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
+                await queryClient.cancelQueries({
+                    queryKey: ['script', props.script.uuid],
+                });
                 const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
                 queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
                     if (!old) return old;
@@ -806,21 +788,23 @@ function ScriptView(
                             ...old.divisions,
                             [idx()]: {
                                 ...old.divisions[idx()],
-                                description: newDescription
+                                description: newDescription,
                             },
-                            length: old.divisions.length
-                        })
+                            length: old.divisions.length,
+                        }),
                     };
                 });
                 await authContext.services!.division.updateDescription({
                     scriptId: props.script.uuid,
                     divisionIdx: idx(),
-                    description: newDescription
+                    description: newDescription,
                 });
                 return { prev };
             },
             async updateCue(index, newCuePair) {
-                await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
+                await queryClient.cancelQueries({
+                    queryKey: ['script', props.script.uuid],
+                });
                 const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
                 queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
                     if (!old) return old;
@@ -832,23 +816,26 @@ function ScriptView(
                             ...old.divisions,
                             [idx()]: {
                                 ...old.divisions[idx()],
-                                textCues: old.divisions[idx()].textCues
-                                    .map(p => p !== target ? p : newCuePair)
+                                textCues: old.divisions[idx()].textCues.map(p =>
+                                    p !== target ? p : newCuePair,
+                                ),
                             },
-                            length: old.divisions.length
-                        })
+                            length: old.divisions.length,
+                        }),
                     };
-                })
+                });
                 await authContext.services!.cue.update({
                     uuid: props.script.uuid,
                     divisionIdx: idx(),
                     cueIdx: index,
-                    newCue: newCuePair
+                    newCue: newCuePair,
                 });
                 return { prev };
             },
             async insertCue(index, newCue) {
-                await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
+                await queryClient.cancelQueries({
+                    queryKey: ['script', props.script.uuid],
+                });
                 const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
                 queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
                     if (!old) return old;
@@ -864,22 +851,24 @@ function ScriptView(
                                     ...textCues.slice(0, index),
                                     newCue,
                                     ...textCues.slice(index),
-                                ]
+                                ],
                             },
-                            length: old.divisions.length
-                        })
+                            length: old.divisions.length,
+                        }),
                     };
-                })
+                });
                 await authContext.services!.cue.insert({
                     uuid: props.script.uuid,
                     divisionIdx: idx(),
                     cueIdx: index,
-                    cue: newCue
+                    cue: newCue,
                 });
                 return { prev };
             },
             async deleteCue(index) {
-                await queryClient.cancelQueries({ queryKey: ['script', props.script.uuid] })
+                await queryClient.cancelQueries({
+                    queryKey: ['script', props.script.uuid],
+                });
                 const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
                 queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
                     if (!old) return old;
@@ -891,12 +880,12 @@ function ScriptView(
                             ...old.divisions,
                             [idx()]: {
                                 ...old.divisions[idx()],
-                                textCues: old.divisions[idx()].textCues.filter(p => p !== toRemove)
+                                textCues: old.divisions[idx()].textCues.filter(p => p !== toRemove),
                             },
-                            length: old.divisions.length
-                        })
+                            length: old.divisions.length,
+                        }),
                     };
-                })
+                });
                 await authContext.services!.cue.delete({
                     uuid: props.script.uuid,
                     divisionIdx: idx(),
@@ -912,25 +901,25 @@ function ScriptView(
     const renameMutation = useMutation(() => ({
         mutationFn(newName: string) {
             return scriptContext.renameScript(props.script.uuid, newName);
-        }
-    }))
+        },
+    }));
 
     createEffect(() => {
-        setCurrentName(props.script.name)
-    })
+        setCurrentName(props.script.name);
+    });
 
     function onRenameDone() {
         setIsEditing(false);
         const newName = currentName();
-        if (newName === props.script.name || newName.length === 0)
-            return
+        if (newName === props.script.name || newName.length === 0) return;
         renameMutation.mutate(newName);
     }
 
     return (
         <>
             <div class="readable-content-view">
-                <MakeEditableContent component={HeadingWithEditButton}
+                <MakeEditableContent
+                    component={HeadingWithEditButton}
                     isEditable={isEditing()}
                     onContentChange={setCurrentName}
                     onEditEnd={onRenameDone}
@@ -938,49 +927,43 @@ function ScriptView(
                     class="script-info"
                     headingSize={1}
                     onEditClick={() => setIsEditing(true)}>
-                    { currentName() }
+                    {currentName()}
                 </MakeEditableContent>
                 <For each={props.script.divisions}>
-                    {
-                        (division, idx) => (
-                            <ScriptEditContextObj.Provider value={createScriptEditContext(idx)}>
-                                <DivisionView division={division} idx={idx()} />
-                            </ScriptEditContextObj.Provider>
-                        )
-                    }
+                    {(division, idx) => (
+                        <ScriptEditContextObj.Provider value={createScriptEditContext(idx)}>
+                            <DivisionView division={division} idx={idx()} />
+                        </ScriptEditContextObj.Provider>
+                    )}
                 </For>
             </div>
         </>
     );
 }
 
-
 export function ScriptPage(props: { script: Script }): JSX.Element {
     const params = useParams();
     const location = useLocation();
 
-    type CurrentRoute = { type: 'view' }|{ type: 'train', division: number };
+    type CurrentRoute = { type: 'view' } | { type: 'train'; division: number };
     const currentRoute = createMemo<CurrentRoute>(() => {
         if (location.pathname.startsWith('/train')) {
             return {
                 type: 'train',
-                division: parseInt(params.division)
+                division: parseInt(params.division),
             };
         }
         return { type: 'view' };
     });
 
-
     return (
-
         <div class="desktop-view">
-            <ScriptOverview script={props.script}/>
-            {
-                currentRoute().type == 'view'
-                    ? <ScriptView script={props.script}/>
-                    : <TrainingRunWrapper script={props.script}/>
-            }
+            <ScriptOverview script={props.script} />
+            {currentRoute().type == 'view' ? (
+                <ScriptView script={props.script} />
+            ) : (
+                <TrainingRunWrapper script={props.script} />
+            )}
         </div>
     );
 }
-

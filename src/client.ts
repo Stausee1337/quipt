@@ -1,7 +1,16 @@
-import { JSX, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
-import { runtime, createSimpleExecutor } from "qrpc-js"
-import { AuthService, AuthSuccess, CueService, DivisionService, ScriptService, UserService } from "./schemas"
-import { QueryClient } from "@tanstack/solid-query";
+import { createContext, createEffect, createResource, createSignal, useContext } from 'solid-js';
+
+import { QueryClient } from '@tanstack/solid-query';
+import { createSimpleExecutor, runtime } from 'qrpc-js';
+
+import {
+    AuthService,
+    AuthSuccess,
+    CueService,
+    DivisionService,
+    ScriptService,
+    UserService,
+} from 'quipt/schemas';
 
 export const queryClient = new QueryClient({
     // defaultOptions: {
@@ -9,7 +18,7 @@ export const queryClient = new QueryClient({
     //         experimental_prefetchInRender: true,
     //     },
     // },
-})
+});
 
 const apiURL = import.meta.env.VITE_API_HOST;
 const qrpcURL = `${apiURL}/qrpc`;
@@ -27,13 +36,17 @@ function createAuthorizedExecutor(ctx: AuthorizedContext): runtime.Executor {
     return async (url: string, body: string): Promise<Response> => {
         const accessToken = await ctx.ensureToken();
         const headers = {
-            'Authorization': `Bearer ${accessToken}`
+            Authorization: `Bearer ${accessToken}`,
         };
         let didRefresh = false;
         do {
-            const response = await fetch(`${qrpcURL}${url}`, { method: "POST", body, headers });
+            const response = await fetch(`${qrpcURL}${url}`, {
+                method: 'POST',
+                body,
+                headers,
+            });
             if (response.status === 401 && !didRefresh) {
-                await ctx.refreshLogin()
+                await ctx.refreshLogin();
                 didRefresh = true;
                 continue;
             } else if (response.status === 401 && didRefresh) {
@@ -42,7 +55,7 @@ function createAuthorizedExecutor(ctx: AuthorizedContext): runtime.Executor {
             return response;
         } while (false);
         throw 'unreachable';
-    }
+    };
 }
 
 export interface OnLogoutLifecylce {
@@ -50,16 +63,16 @@ export interface OnLogoutLifecylce {
 }
 
 type AuthenticatedServices = {
-    user: UserService,
-    script: ScriptService,
-    division: DivisionService,
-    cue: CueService
+    user: UserService;
+    script: ScriptService;
+    division: DivisionService;
+    cue: CueService;
 };
 
 export interface AuthenticationContext {
     onLogout: OnLogoutLifecylce;
-    services: AuthenticatedServices|undefined;
-    logout(): void,
+    services: AuthenticatedServices | undefined;
+    logout(): void;
     isLoggedIn(): boolean;
     loginUser(data: AuthSuccess): any;
 }
@@ -69,10 +82,10 @@ function createOnLogout(): OnLogoutLifecylce & { trigger(): void } {
     return {
         subscribe(listener) {
             listeners.add(listener);
-            return () => listeners.delete(listener)
+            return () => listeners.delete(listener);
         },
         trigger() {
-            listeners.forEach(listener => listener())
+            listeners.forEach(listener => listener());
         },
     };
 }
@@ -86,12 +99,10 @@ export function createAuthenticationContext(): AuthenticationContext {
         let value = localStorage.getItem('refreshToken') ?? undefined;
         return [() => value, updater];
 
-        function updater(token: string|undefined) {
+        function updater(token: string | undefined) {
             if (token === value) return;
-            if (token === undefined)
-                localStorage.removeItem('refreshToken');
-            else
-                localStorage.setItem('refreshToken', token)
+            if (token === undefined) localStorage.removeItem('refreshToken');
+            else localStorage.setItem('refreshToken', token);
             value = token;
         }
     })();
@@ -104,14 +115,14 @@ export function createAuthenticationContext(): AuthenticationContext {
                         createEffect(() => {
                             if (!accessToken.loading && accessToken() !== undefined)
                                 resolve(accessToken());
-                        })
-                    })
+                        });
+                    });
                 }
                 return Promise.resolve(accessToken()!);
             },
             async refreshLogin() {
                 await refetchAccessToken();
-            }
+            },
         };
         const executor = createAuthorizedExecutor(ctx);
         const script = new ScriptService(executor);
@@ -122,15 +133,14 @@ export function createAuthenticationContext(): AuthenticationContext {
             script,
             user,
             division,
-            cue
-        }
+            cue,
+        };
     }
 
     const [accessToken, { refetch: refetchAccessToken, mutate: mutateAccessToken }] =
-        createResource<string|undefined>(async () => {
+        createResource<string | undefined>(async () => {
             const token = refreshToken();
-            if (token === undefined)
-                return undefined;
+            if (token === undefined) return undefined;
             let data;
             try {
                 data = await authService.refresh({ refreshToken: token });
@@ -150,7 +160,7 @@ export function createAuthenticationContext(): AuthenticationContext {
 
     function logout() {
         setIsLoggedIn(false);
-        ctx.services = undefined; 
+        ctx.services = undefined;
         setRefreshToken(undefined);
         mutateAccessToken(undefined);
         onLogout.trigger();
@@ -167,7 +177,7 @@ export function createAuthenticationContext(): AuthenticationContext {
         logout() {
             const currentRefreshToken = refreshToken();
             if (currentRefreshToken !== undefined)
-                authService.logout({ refreshToken: currentRefreshToken })
+                authService.logout({ refreshToken: currentRefreshToken });
             logout();
         },
         loginUser(data) {
@@ -183,12 +193,10 @@ export function createAuthenticationContext(): AuthenticationContext {
     return ctx;
 }
 
-export function useAuthentication(): AuthenticationContext|undefined {
+export function useAuthentication(): AuthenticationContext | undefined {
     const value = useContext(AuthenticationContextObj);
     if (value === null) {
         throw new Error('useAuthentication can only be used inside an AuthenticationContext');
     }
     return value;
 }
-
-

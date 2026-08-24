@@ -1,47 +1,54 @@
-import { JSX, createSignal, createMemo, onMount, createEffect } from 'solid-js';
-import { RouteSectionProps, A, useNavigate } from '@solidjs/router';
-import { useAuthentication, authService } from '../client';
-import { QuiptFormEvent, quiptForm, quiptValidator, validators, createReactiveFormData } from '../forms';
-import Logo from '../components/Quipt-Logo'
-import { AuthError } from '../schemas';
+import { JSX, createEffect, createMemo, createSignal, onMount } from 'solid-js';
+
+import { A, RouteSectionProps, useNavigate } from '@solidjs/router';
+
+import { authService, useAuthentication } from 'quipt/client';
+import Logo from 'quipt/components/Quipt-Logo';
+import {
+    QuiptFormEvent,
+    createReactiveFormData,
+    quiptForm,
+    quiptValidator,
+    validators,
+} from 'quipt/forms';
+import { AuthError } from 'quipt/schemas';
 
 function convertErrorToMessage(error: AuthError): string {
     switch (error) {
         case 'INVALID_CREDENTIALS':
-            return 'Benuzername order Passwort ist falsch'
+            return 'Benuzername order Passwort ist falsch';
         case 'USERNAME_MALFORMED':
-            return 'Benuzername kann nicht vergeben werden'
+            return 'Benuzername kann nicht vergeben werden';
         case 'USERNAME_ALREADY_EXISTS':
-            return 'Der Benuzername exsitiert bereits'
+            return 'Der Benuzername exsitiert bereits';
         case 'WEAK_PASSWORD':
-            return 'Das Passwort ist zu schwach'
+            return 'Das Passwort ist zu schwach';
     }
-    throw 'unreachable'
+    throw 'unreachable';
 }
 
-const passwordRegex = /^(?=.*[0-9])(?=.*[A-Z])(?=.*[a-z])(?=.*[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]).+$/;
-const regexError = 'Passwort muss mindestens einen Groß- sowie Kleinbuchstaben, eine Zahl und ein Sonderzeichen enthalten';
+const passwordRegex =
+    /^(?=.*[0-9])(?=.*[A-Z])(?=.*[a-z])(?=.*[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]).+$/;
+const regexError =
+    'Passwort muss mindestens einen Groß- sowie Kleinbuchstaben, eine Zahl und ein Sonderzeichen enthalten';
 
-export function UserAuthenticate(
-    props: RouteSectionProps
-): JSX.Element {
+export function UserAuthenticate(props: RouteSectionProps): JSX.Element {
     const navigate = useNavigate()!;
     const authentication = useAuthentication()!;
     const [loading, setLoading] = createSignal(false);
 
-
     const keys: Record<string, string> = {
         '/signin': 'Anmelden',
-        '/signup': 'Quipt Konto erstellen'
+        '/signup': 'Quipt Konto erstellen',
     };
 
     onMount(() => {
         document.title = keys[props.location.pathname] + ' - Quipt';
-    })
+    });
 
     createEffect(() => {
         document.title = keys[props.location.pathname] + ' - Quipt';
-    })
+    });
 
     async function onSubmit(e: QuiptFormEvent) {
         if (!e.valid) {
@@ -52,22 +59,21 @@ export function UserAuthenticate(
         setLoading(true);
         currentFormData.blur();
 
-        const endpoint = props.location.pathname === '/signin'
-            ? authService.signin.bind(authService)
-            : authService.signup.bind(authService);
+        const endpoint =
+            props.location.pathname === '/signin'
+                ? authService.signin.bind(authService)
+                : authService.signup.bind(authService);
 
         const result = await endpoint({
             username: e.formData['username'] ?? '',
-            password: e.formData['password'] ?? ''
-        })
+            password: e.formData['password'] ?? '',
+        });
 
         setLoading(false);
 
         if (AuthError.isSchema(result)) {
             currentFormData.postErrorMessage(convertErrorToMessage(result));
-            const input = props.location.pathname === '/signin'
-                ? 'password'
-                : 'username';
+            const input = props.location.pathname === '/signin' ? 'password' : 'username';
             currentFormData.resetInput(input);
             currentFormData.focus(input);
             return;
@@ -87,24 +93,31 @@ export function UserAuthenticate(
             return (
                 <>
                     <div class="input-box">
-                        <input type="text"
+                        <input
+                            type="text"
                             name="username"
                             placeholder="Benutzername"
                             onQuiptValidationChange={e => setUserMeessage(e.message)}
-                            use:quiptValidator={[validators.required]}/>
-                        <span class="error-message">{ userMessage() }</span>
+                            use:quiptValidator={[validators.required]}
+                        />
+                        <span class="error-message">{userMessage()}</span>
                     </div>
                     <div class="input-box">
-                        <input type="password"
+                        <input
+                            type="password"
                             name="password"
                             placeholder="Passwort"
                             onQuiptValidationChange={e => setPasswordMessage(e.message)}
-                            use:quiptValidator={[validators.required]}/>
-                        <span class="error-message">{ passwordMessage() }</span>
+                            use:quiptValidator={[validators.required]}
+                        />
+                        <span class="error-message">{passwordMessage()}</span>
                     </div>
-                    <span class="error-message">{ formData().error }</span>
-                    <p>Du hat noch kein Konto? <A href="/signup">Jetzt eins erstellen!</A></p>
-                    <button class="primary-button"
+                    <span class="error-message">{formData().error}</span>
+                    <p>
+                        Du hat noch kein Konto? <A href="/signup">Jetzt eins erstellen!</A>
+                    </p>
+                    <button
+                        class="primary-button"
                         disabled={!formData().valid && formData().submitted}>
                         Anmelden
                     </button>
@@ -117,32 +130,47 @@ export function UserAuthenticate(
             return (
                 <>
                     <div class="input-box">
-                        <input type="text"
+                        <input
+                            type="text"
                             placeholder="Benutzername"
                             name="username"
                             onQuiptValidationChange={e => setUserMeessage(e.message)}
-                            use:quiptValidator={[validators.required, validators.minLength(3)]}/>
-                        <span class="error-message">{ userMessage() }</span>
+                            use:quiptValidator={[validators.required, validators.minLength(3)]}
+                        />
+                        <span class="error-message">{userMessage()}</span>
                     </div>
                     <div class="input-box">
-                        <input type="password"
+                        <input
+                            type="password"
                             placeholder="Passwort"
                             name="password"
                             onQuiptValidationChange={e => setPasswordMessage(e.message)}
-                            use:quiptValidator={[validators.required, validators.lengthRange(8, 72), validators.regex(passwordRegex, regexError)]}/>
-                        <span class="error-message">{ passwordMessage() }</span>
+                            use:quiptValidator={[
+                                validators.required,
+                                validators.lengthRange(8, 72),
+                                validators.regex(passwordRegex, regexError),
+                            ]}
+                        />
+                        <span class="error-message">{passwordMessage()}</span>
                     </div>
                     <div class="input-box">
-                        <input type="password"
+                        <input
+                            type="password"
                             placeholder="Passwort wiederholen"
                             name="password2"
                             onQuiptValidationChange={e => setPassword2Message(e.message)}
-                            use:quiptValidator={[validators.equal(() => formData().data['password'], 'Passwort')]}/>
-                        <span class="error-message">{ password2Message() }</span>
+                            use:quiptValidator={[
+                                validators.equal(() => formData().data['password'], 'Passwort'),
+                            ]}
+                        />
+                        <span class="error-message">{password2Message()}</span>
                     </div>
-                    <span class="error-message">{ formData().error }</span>
-                    <p>Du bist bereits bei Quipt? <A href="/signin">Anmelden!</A></p>
-                    <button class="primary-button"
+                    <span class="error-message">{formData().error}</span>
+                    <p>
+                        Du bist bereits bei Quipt? <A href="/signin">Anmelden!</A>
+                    </p>
+                    <button
+                        class="primary-button"
                         disabled={!formData().valid && formData().submitted}>
                         Registrieren
                     </button>
@@ -152,13 +180,14 @@ export function UserAuthenticate(
     });
 
     return (
-        <form class="auth-box"
-            classList={{'interactable': !loading()}}
+        <form
+            class="auth-box"
+            classList={{ interactable: !loading() }}
             use:quiptForm={formData()}
             onQuiptSubmit={onSubmit}>
-            <Logo/>
-            <h2>{ keys[props.location.pathname] }</h2>
-            { content() }
+            <Logo />
+            <h2>{keys[props.location.pathname]}</h2>
+            {content()}
         </form>
     );
 }
