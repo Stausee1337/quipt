@@ -1,4 +1,4 @@
-import { JSX, createMemo, onMount, useContext } from "solid-js";
+import { JSX, createMemo, onMount } from "solid-js";
 import { useNavigate, useLocation, Navigate } from "@solidjs/router";
 import { ScriptViewer } from "../components/ScriptEdit";
 import { MobileScriptRedirect } from "../components/ScriptTraining";
@@ -8,11 +8,6 @@ import { DocumentView } from "../components/DocumentView";
 import { useQuery } from "@tanstack/solid-query";
 import { PartialScript } from "../script";
 
-export function ScriptRoute(): JSX.Element {
-
-    return <ScriptViewer/>;
-}
-
 // function Computer(): JSX.Element {
 //     return (
 //         <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" fill="currentColor" class="bi bi-laptop" viewBox="0 0 16 16">
@@ -20,6 +15,11 @@ export function ScriptRoute(): JSX.Element {
 //         </svg>
 //     );
 // }
+
+export function ScriptRoute(): JSX.Element {
+    return <ScriptViewer/>;
+}
+
 
 export function NewScriptRoute(): JSX.Element {
     const location = useLocation();

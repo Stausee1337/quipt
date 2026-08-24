@@ -6,7 +6,7 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { Division, Script, TextCue, TextCuePair } from '../schemas';
 import { ExposedComponentType, TextCueView, renderCuePair as renderCuePairSimple } from './TextCueView';
-import { ScriptContextObj } from '../script';
+import { DelayedScriptInstantiator, ScriptContextObj } from '../script';
 import { DivisionInfoComponent, DivisionInfoView } from './DivisionInfoView';
 import { useNavigate, useParams } from '@solidjs/router';
 import { Dynamic, insert } from 'solid-js/web';
@@ -18,6 +18,7 @@ import { DialogManager } from '../dialog';
 import { useMutation } from '@tanstack/solid-query';
 import { AuthenticationContextObj, queryClient } from '../client';
 import { MakeEditableContent } from './MakeEditableContent';
+import { ScriptOverview } from './ScriptOverview';
 
 const myTheme = EditorView.theme({}, {dark: true})
 
@@ -987,6 +988,7 @@ function ScriptCueView(
 
     return (
         <div ref={contentElement} class="desktop-view">
+            <ScriptOverview script={props.script}/>
             <div class="readable-content-view">
                 <MakeEditableContent component={HeadingWithEditButton}
                     isEditable={isEditing()}
@@ -1002,27 +1004,6 @@ function ScriptCueView(
                     indexArray(() => props.script.divisions, renderDivision) as unknown as JSX.Element
                 }
             </div>
-            <div class="grid-layout-filler overview">
-                <div class="division-overview">
-                    <h4>Info</h4>
-                    <section class="script-info">
-                        <span class="info">{ pluralize(scriptInfo().textCues, 'Einsatz', 'Einsätze') }</span>
-                        <span class="info">{ scriptInfo().actors.join(', ') }</span>
-                    </section>
-                    <h4>Abschnitte</h4>
-                    <section class="divisions">
-                        <ul>
-                            {
-                                mapArray(() => props.script.divisions, (d, idx) => 
-                                    <li classList={{ current: idx() === divisionIdx() }} onClick={jumpToDivision} data-idx={idx()}>
-                                        { d.name }
-                                    </li>
-                                ) as unknown as JSX.Element
-                            }
-                        </ul>
-                    </section>
-                </div>
-            </div>
         </div>
     );
 }
@@ -1031,19 +1012,11 @@ export function ScriptViewer(): JSX.Element {
     const params = useParams();
     const navigate = useNavigate();
 
-    const scriptContext = useContext(ScriptContextObj)!;
-
     onMount(() => {
         if (params.uuid === undefined) {
             navigate('/');
         }
     })
 
-    return (
-        <>
-            {
-                scriptContext.instantiateDelayed(ScriptCueView, () => navigate('/'))
-            }
-        </>
-    );
+    return <DelayedScriptInstantiator component={ScriptCueView}/>;
 }

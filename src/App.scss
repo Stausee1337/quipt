@@ -279,6 +279,7 @@ div.script-overview {
   flex: 1;
   display: flex;
   flex-direction: column;
+  background-color: $color-accent1;
 
   div.script-info {
     padding: 1rem;
@@ -361,8 +362,8 @@ div.routing-contents:has(div.document-view) {
 div.desktop-view {
   display: grid;
   grid-template-rows: 1fr;
-  grid-template-columns: minmax(auto, calc(94.8rem + 2rem)) 40rem;
-  grid-template-areas: "cues overview";
+  grid-template-columns: auto minmax(auto, calc(94.8rem + 2rem));
+  grid-template-areas: "overview cues";
   gap: 0 1rem;
 
 
@@ -375,8 +376,7 @@ div.desktop-view {
   }
 
   @media (width < 96.8rem) {
-   grid-template-columns: minmax(auto, calc(94.8rem + 2rem));
-   div.grid-layout-filler.overview {
+   div.script-overview {
      display: none;
    }
   }

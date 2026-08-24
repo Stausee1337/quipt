@@ -1,14 +1,15 @@
 import { createSignal, onMount, onCleanup, JSX, createEffect, mapArray, Accessor, useContext, createMemo, Switch, Match, getOwner, runWithOwner } from 'solid-js';
-import { useNavigate, A, useParams, Params } from '@solidjs/router';
-import { Chart, ChartConfiguration, ChartData } from 'chart.js/auto';
+import { useNavigate, useParams, Params } from '@solidjs/router';
+import { ChartConfiguration, ChartData } from 'chart.js/auto';
 import confetti from 'canvas-confetti';
 import { Division, Script, TextCue } from '../schemas';
-import { ScriptContextObj, ScriptContext, PartialScript } from '../script';
-import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, computeDivisionInfo, pluralize, computeScriptInfo, createInvalidatable } from './common';
+import { ScriptContextObj, ScriptContext, PartialScript, DelayedScriptInstantiator } from '../script';
+import { progressBarGreen, progressBarYellow, progressBarOrange, progressBarRed, formatString, createInvalidatable, SimpleChart, leftPad } from './common';
 import { renderCue as renderCueImpl } from './TextCueView';
 import { DivisionInfoView } from './DivisionInfoView';
 import { ConfidenceReportView, ConfidenceReporter } from './ConfidenceReportView';
 import { useQuery } from '@tanstack/solid-query';
+import { ScriptOverview } from './ScriptOverview';
 
 function renderCue(
     textCue: TextCue | undefined,
@@ -471,13 +472,6 @@ function TrainingRunView(
     );
 }
 
-function leftPad(data: number[], length: number): number[] {
-    if (data.length >= length)
-        return [...data];
-    const padding = Array(length - data.length).fill(0);
-    return [...padding, ...data];
-}
-
 function createSubscribablePromise<T>(promise: Promise<T>, then: (x: T) => void): () => void {
     let canceled = false;
     promise.then(v => {
@@ -630,170 +624,20 @@ function TrainingRunCompletedView(
     );
 }
 
-function ScriptOverview(
-    props: {
-        script: Script
-    }
-): JSX.Element { 
-    const scriptInfo = createMemo(() => computeScriptInfo(props.script));
-
-    function renderDivision(division: Division, idx: Accessor<number>) {
-        const { actors, textCues } = computeDivisionInfo(division);
-        const highScore = Math.max(0, ...division.previousTotals);
-        const maxScore = Math.max(division.textCues.length * 4, highScore);
-        
-        const previousTotals = division.previousTotals;
-        const p1 = previousTotals.at(-1) ?? 0;
-        const p2 = previousTotals.at(-2) ?? 0;
-
-        let trendIcon: string;
-        let trendColor: string|undefined;
-        const delta = p1 - p2;
-        const deltaString = `${Math.abs(delta)} pts`;
-        if (delta < 0) {
-            trendColor = progressBarRed;
-            trendIcon = 'chevron-double-down'
-        } else if (delta > 0) {
-            trendColor = progressBarGreen;
-            trendIcon = 'chevron-double-up'
-        } else
-            trendIcon = 'plus-slash-minus'
-
-        function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration { 
-            const data = leftPad(division.previousTotals, 3);
-            const p1 = data.at(-1)!;
-            const p2 = data.at(-2)!;
-
-            let baseRBG;
-            if (p1 < p2) {
-                baseRBG = '250, 116, 44';
-            } else {
-                baseRBG = '93, 153, 72';
-            }
-
-            const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
-            gradient.addColorStop(0, `rgba(${baseRBG}, 0.5)`);
-            gradient.addColorStop(0.3, `rgba(${baseRBG}, 0)`);
-
-            const chartData: ChartData = {
-                labels: data.map((_, idx) => idx),
-                datasets: [
-                    {
-                        data: data,
-                        borderColor: `rgb(${baseRBG})`,
-                        backgroundColor: gradient,
-                        fill: true, 
-                        borderWidth: 1
-                    }
-                ]
-            };
-
-            return {
-                type: 'line',
-                data: chartData,
-                options: {
-                    responsive: false,
-                    maintainAspectRatio: false,
-                    elements: {
-                        point: { radius: 0 },
-                    },
-                    plugins: {
-                        legend: {
-                            display: false,
-                        },
-                        title: {
-                            display: false,
-                        },
-                        tooltip: {
-                            enabled: false
-                        },
-                    },
-                    interaction: undefined,
-                    hover: { mode: undefined },
-                    scales: {
-                        x: {
-                            display: false
-                        },
-                        y: {
-                            display: false,
-                            max: maxScore
-                        }
-                    }
-                },
-            };
-        }
-
-        return (
-            <A class="division-info" href={`/script/${props.script.uuid}/${idx() + 1}`}>
-                <div class="general-info">
-                    <h3>{ division.name }</h3>
-                    <span class="info">{ actors.length } Spieler</span>
-                    <span class="info">{ pluralize(textCues, 'Einsatz', 'Einsätze') }</span>
-                </div>
-                <SimpleChart onConfig={chartConfigFactory}/>
-                <div class="score-info">
-                    <span class="row" style={{ color: progressBarYellow }}>
-                        <i class="bi bi-trophy-fill"/> { highScore }
-                    </span>
-                    <span class="row" style={{ color: trendColor }}>
-                        <i class={`bi bi-${trendIcon}`}/> { deltaString }
-                    </span>
-                    {
-                        division.previousTotals.length === 0 ? null : (
-                            <span class="row">
-                                <i class="bi bi-arrow-repeat"/> { division.previousTotals.length } x
-                            </span>
-                        )
-                    }
-                </div>
-            </A>
-        );
-    }
-
-    onMount(() => {
-        document.title = `${props.script.name} - Quipt`
-    })
-
-    createEffect(() => {
-        document.title = `${props.script.name} - Quipt`
-    })
-
-    return (
-        <div class="script-overview">
-            <div class="script-info">
-                <h2>{ props.script.name }</h2>
-                <span class="info">{ pluralize(scriptInfo().textCues, 'Einsatz', 'Einsätze') }</span>
-                <span class="info">{ scriptInfo().actors.join(', ') }</span>
-            </div>
-            {
-                mapArray(() => props.script.divisions, renderDivision) as any
-            }
-        </div> 
-    );
-}
-
-function SimpleChart(
-    props: {
-        onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration
-    }
-): JSX.Element {
-
-    const chartJSCanvas = <canvas class="chart-js"/> as HTMLCanvasElement;
-    let chart: Chart|undefined;
-
-    onMount(() => {
-        const ctx = chartJSCanvas.getContext("2d")!;
-        chart = new Chart(ctx, props.onConfig(ctx));
-    })
-
-    return <>{ chartJSCanvas }</>
-}
-
+// NOTE: this is probably just incorrect, any component similar to this should proably already be wrapped in a delayed
+// instantiator
 export function MobileScriptRedirect(): JSX.Element {
     const params = useParams()
     const navigate = useNavigate()
-    const scriptContext = useContext(ScriptContextObj)!;
     const scriptsQuery = useQuery<PartialScript[]>(() => ({ queryKey: ['scripts'] }));
+
+    // match ((params.uuid, params.division, scriptQuery)) {
+    //      (Some(uuid), Some(division),    _) => return Some(<TrainingRunWrapper/>),
+    //      (Some(uuid), None,              _) => return Some(<ScriptOverview/>),
+    //      (None,       _,    Query::Pending) => return None,
+    //      (None,       _,    Query::Resolved(data)) if data.is_empty() => return Some(Redirect("/no-script")),
+    //      (None,       _,    Query::Resolved(data)) => return Some(Redirect("/script/{latest_script(data).uuid}"))
+    //  }
 
     const x = createMemo(() => {
         if (params.uuid !== undefined && params.division !== undefined)
@@ -816,10 +660,10 @@ export function MobileScriptRedirect(): JSX.Element {
     return (
         <Switch fallback={null}>
             <Match when={x() === "training-run"}>
-                { scriptContext.instantiateDelayed(TrainingRunWrapper, () => navigate('/script')) }
+                <DelayedScriptInstantiator component={TrainingRunWrapper}/>
             </Match>
             <Match when={x() === "script-overview"}>
-                { scriptContext.instantiateDelayed(ScriptOverview, () => navigate('/script')) }
+                <DelayedScriptInstantiator component={ScriptOverview}/>
             </Match>
         </Switch>
     );

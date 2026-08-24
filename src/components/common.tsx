@@ -2,6 +2,8 @@ import { Accessor, JSX, createMemo, createSignal, untrack } from "solid-js";
 import { Lexer, MarkedToken } from 'marked';
 import { Division, Script, TextCue } from "../schemas";
 import { decode } from 'html-entities';
+import { Chart, ChartConfiguration } from 'chart.js/auto';
+import { onMount } from "solid-js";
 
 export const progressBarGreen = '#5d9948';
 export const progressBarYellow = '#fad541';
@@ -183,4 +185,28 @@ export function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => voi
     });
 
     return [read, () => setSignal({})];
+}
+
+export function SimpleChart(
+    props: {
+        onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration
+    }
+): JSX.Element {
+
+    const chartJSCanvas = <canvas class="chart-js"/> as HTMLCanvasElement;
+    let chart: Chart|undefined;
+
+    onMount(() => {
+        const ctx = chartJSCanvas.getContext("2d")!;
+        chart = new Chart(ctx, props.onConfig(ctx));
+    })
+
+    return <>{ chartJSCanvas }</>
+}
+
+export function leftPad(data: number[], length: number): number[] {
+    if (data.length >= length)
+        return [...data];
+    const padding = Array(length - data.length).fill(0);
+    return [...padding, ...data];
 }

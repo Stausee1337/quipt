@@ -1,10 +1,11 @@
-import { createSignal, JSX, createEffect, createContext, Component, createMemo, untrack } from 'solid-js';
-import { createComponent } from 'solid-js/web';
+import { createSignal, JSX, createEffect, createContext, untrack, Component } from 'solid-js';
 import { useParams } from '@solidjs/router';
 import { schemas } from 'qrpc-js';
 import { AuthenticationContext, queryClient } from './client';
 import { Script } from './schemas';
-import { useQuery } from '@tanstack/solid-query';
+import { UseQueryResult, useQuery } from '@tanstack/solid-query';
+import { useContext } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 
 export const ScriptContextObj = createContext<ScriptContext>();
 
@@ -12,14 +13,32 @@ export type PartialScript = Omit<Script, "divisions">
 
 export interface ScriptContext {
     readonly currentScript: schemas.UUID|undefined;
+    scriptQuery(): UseQueryResult<Script>;
     createNewScript(script: Script): Promise<Script>;
-    instantiateDelayed(
-        component: Component<{ script: Script }>,
-        onError: () => void
-    ): JSX.Element;
     commitNewConfidences(divisionIdx: number, newScores: number[]): void;
     deleteScript(uuid: schemas.UUID): void;
     renameScript(uuid: schemas.UUID, name: string): void;
+}
+
+export function DelayedScriptInstantiator<C extends Component<{ script: Script }>>(props: {
+    component: C
+}): JSX.Element {
+    const scriptContext = useContext(ScriptContextObj)!;
+    const scriptQuery = useQuery(() => ({ queryKey: ['script', scriptContext.currentScript] }));
+
+        // const isError = createMemo(() => scriptQuery.status === "error");
+        // if (isError()) onError();
+        // return null;
+
+    return (
+        <>
+            {
+                scriptQuery.status === "success" 
+                    ? <Dynamic component={props.component} script={scriptQuery.data}/>
+                    : null
+            }
+        </>
+    );
 }
 
 // const STALE_TIME: number = 10 * 60_000; // 10 Minutes
@@ -52,37 +71,6 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         setCurrentScriptId(script.uuid);
     });
 
-    // const [currentScript, { refetch, mutate }] = createResource(async () => {
-    //     const currentId = notValidatedScriptId;
-    //     if (currentId === undefined) {
-    //         setCurrentScriptId(undefined);
-    //         return undefined;
-    //     }
-    //     let currentScript = scriptCache.get(currentId);
-    //     if (currentScript !== undefined) {
-    //         setCurrentScriptId(currentScript.uuid);
-    //         return currentScript;
-    //     }
-
-    //     let script: Script;
-    //     try {
-    //         script = await authenticationContext.services!.script.get({ uuid: currentId })
-    //     } catch (error) {
-    //         notValidatedScriptId = undefined;
-    //         setCurrentScriptId(undefined);
-    //         throw `could not get script: ${error}`;
-    //     }
-    //     setCurrentScriptId(script.uuid);
-    //     currentScript = script as Script;
-    //     scriptCache.set(currentId, currentScript);
-    //     return currentScript;
-    // });
-
-
-    // createMemo(() => {
-    //     <Test id={currentScriptId()}/>
-    // })
-
     const scriptQuery = useQuery(() => ({
         queryKey: ['script', currentScriptId()],
         async queryFn() {
@@ -98,25 +86,9 @@ export function createScriptContext(authenticationContext: AuthenticationContext
         get currentScript() {
             return currentScriptId();
         },
-        instantiateDelayed(Component, onError) {
-            const renderedElement = createMemo(() => {
-
-                const condition = createMemo(() => scriptQuery.status === "success");
-                if (condition())
-                    return createComponent(
-                        Component,
-                        {
-                            get script() {
-                                return scriptQuery.data!;
-                            }
-                        }
-                    );
-                const isError = createMemo(() => scriptQuery.status === "error");
-                if (isError()) onError();
-                return null;
-            });
-
-            return renderedElement as unknown as JSX.Element;
+        scriptQuery() {
+            // FIXME: I think the correct approach is to have multiple queries, actually
+            return scriptQuery;
         },
         async commitNewConfidences(divisionIdx, newScores) {
             const scriptId = currentScriptId()!;
