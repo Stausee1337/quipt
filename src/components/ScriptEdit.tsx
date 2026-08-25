@@ -10,7 +10,6 @@ import {
     createRoot,
     createSignal,
     getOwner,
-    onCleanup,
     onMount,
     splitProps,
     useContext,
@@ -29,6 +28,7 @@ import { AuthenticationContextObj, queryClient } from 'quipt/client';
 import { ActorPill } from 'quipt/components/ActorPill';
 import { DivisionInfoView } from 'quipt/components/DivisionInfoView';
 import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
+import { Popover } from 'quipt/components/Popover';
 import { ScriptOverview } from 'quipt/components/ScriptOverview';
 import { TrainingRunWrapper } from 'quipt/components/ScriptTraining';
 import { TextCueDataView, TextCuePairView } from 'quipt/components/TextCueView';
@@ -39,7 +39,6 @@ import {
     formatMarkdown,
 } from 'quipt/components/common';
 import { useModal, useModalContext } from 'quipt/modals';
-import { contextMenu, installPopoverMenuHandler } from 'quipt/popover-menu';
 import { Division, Script, TextCue, TextCuePair } from 'quipt/schemas';
 import { ScriptContextObj } from 'quipt/script';
 
@@ -106,7 +105,7 @@ function EditCommitView(props: { close: (res: 'dismiss' | 'accept') => void }): 
     );
 }
 
-function CueEditMenu(props: { onEdit: () => void; onDelete: () => void }): JSX.Element {
+function TextCueEditMenu(props: { onEdit: () => void; onDelete: () => void }): JSX.Element {
     return (
         <ul class="menu-options">
             <li onClick={props.onDelete}>Löschen</li>
@@ -159,23 +158,6 @@ function EditableTextCue(props: {
         setCurrentActors(textCue()?.actors ?? []);
     });
 
-    let cueElement: HTMLElement | undefined = undefined;
-    onMount(() => {
-        cueElement &&
-            installPopoverMenuHandler(cueElement, 'auto', CueEditMenu, {
-                onEdit,
-                onDelete,
-            });
-    });
-
-    onMount(() => {
-        cueElement?.addEventListener('contextmenu', contextMenu);
-    });
-
-    onCleanup(() => {
-        cueElement?.removeEventListener('contextmenu', contextMenu);
-    });
-
     const deleteMutation = useMutation(() => ({
         mutationFn: () => editContext.deleteCue(props.index),
         onError(error, variables, onMutateResult, context) {
@@ -199,10 +181,6 @@ function EditableTextCue(props: {
         const res = await openModal(() => <DeleteCueModal cuePair={props.cuePair} />);
         if (res.type === 'dismiss') return;
         deleteMutation.mutate();
-    }
-
-    function onEdit() {
-        setIsEditing(true);
     }
 
     function CreateEditCommitView(): JSX.Element {
@@ -251,21 +229,30 @@ function EditableTextCue(props: {
         editMutation.mutate(newTextCue);
     }
 
+    // FIXME: The popover currently applies to the entire cue wrapper, not just the smaller element
+    // provided by ref. There might need to be a way to `usePopover` on target element refs in the
+    // future.
     return (
-        <TextCueDataView
-            type={props.type}
-            actorsInfo={formatActorsArray(
-                props.type === 'response' && currentActors().length === 1 ? null : currentActors(),
-            )}
-            text={formatMarkdown(textCue()?.text ?? '_Du bist der erste in diesem Abschnitt_')}
-            classList={{ editing: isEditing() }}
-            beforeExtra={isEditing() && <CreateActorsSelector />}
-            afterExtra={isEditing() && <CreateEditCommitView />}
-            ref={cueElement}>
-            {isEditing() ? (
-                <Editor content={content()} onChange={setContent} autofocus />
-            ) : undefined}
-        </TextCueDataView>
+        <Popover
+            trigger="contextmenu"
+            placement="auto"
+            content={<TextCueEditMenu onEdit={() => setIsEditing(true)} onDelete={onDelete} />}>
+            <TextCueDataView
+                type={props.type}
+                actorsInfo={formatActorsArray(
+                    props.type === 'response' && currentActors().length === 1
+                        ? null
+                        : currentActors(),
+                )}
+                text={formatMarkdown(textCue()?.text ?? '_Du bist der erste in diesem Abschnitt_')}
+                classList={{ editing: isEditing() }}
+                beforeExtra={isEditing() && <CreateActorsSelector />}
+                afterExtra={isEditing() && <CreateEditCommitView />}>
+                {isEditing() ? (
+                    <Editor content={content()} onChange={setContent} autofocus />
+                ) : undefined}
+            </TextCueDataView>
+        </Popover>
     );
 }
 
@@ -352,7 +339,7 @@ function ActorsSelector(props: {
                     Ich
                 </ActorPill>
             )}
-            {[...props.actors, ...newActors()]
+            {[...props.actors, ...newActors()] // FIXME: Should probably still use <For/>
                 .filter(actor => actor !== props.self)
                 .map(actor => (
                     <ActorPill
@@ -372,6 +359,8 @@ function AddActorButton(props: { onAddActor: (actor: string) => void }): JSX.Ele
     const [currentContent, setCurrentContent] = createSignal<string>();
     const [isEditing, setIsEditing] = createSignal<boolean>(false);
 
+    // FIXME: use properly configured contenteditable element, instead of dynamically resizing
+    // input elements
     const ocanvas = new OffscreenCanvas(1, 1);
     const ctx = ocanvas.getContext('2d')!;
     let spanElement: HTMLSpanElement = undefined!;
@@ -585,29 +574,8 @@ function EditableDivisionInfoView(props: {
     const [isEditing, setIsEditing] = createSignal<boolean>(false);
     let infoElement: HTMLDivElement | undefined = undefined;
 
-    onMount(() => {
-        infoElement?.addEventListener('contextmenu', contextMenu);
-        infoElement &&
-            installPopoverMenuHandler(infoElement, 'auto', DivisionEditMenu, {
-                onEdit,
-                get onRename() {
-                    return props.onRename;
-                },
-            });
-    });
-
-    onCleanup(() => {
-        infoElement?.removeEventListener('contextmenu', contextMenu);
-    });
-
-    const description = createMemo(() => props.division.description);
-
     // TODO: what exactly is this contraption?
-    const [currentContent, setCurrentContent] = createSignal<string>(description());
-
-    function onEdit() {
-        setIsEditing(true);
-    }
+    const [currentContent, setCurrentContent] = createSignal<string>(props.division.description);
 
     const descriptionMutation = useMutation(() => ({
         mutationFn: editContext.updateDescription,
@@ -617,7 +585,7 @@ function EditableDivisionInfoView(props: {
         if (isEditing()) {
             setIsEditing(false);
 
-            if (res === 'dismiss') setCurrentContent(description());
+            if (res === 'dismiss') setCurrentContent(props.division.description);
             else {
                 descriptionMutation.mutate(currentContent());
             }
@@ -625,17 +593,28 @@ function EditableDivisionInfoView(props: {
     }
 
     return (
-        <DivisionInfoView
-            division={props.division}
-            classList={{ editing: isEditing() }}
-            external={
-                isEditing() ? (
-                    <Editor content={description()} onChange={setCurrentContent} autofocus />
-                ) : undefined
-            }
-            ref={infoElement}>
-            {isEditing() && <EditCommitView close={closeEditor} />}
-        </DivisionInfoView>
+        <Popover
+            trigger="contextmenu"
+            placement="auto"
+            content={
+                <DivisionEditMenu onEdit={() => setIsEditing(true)} onRename={props.onRename} />
+            }>
+            <DivisionInfoView
+                division={props.division}
+                classList={{ editing: isEditing() }}
+                external={
+                    isEditing() ? (
+                        <Editor
+                            content={props.division.description}
+                            onChange={setCurrentContent}
+                            autofocus
+                        />
+                    ) : undefined
+                }
+                ref={infoElement}>
+                {isEditing() && <EditCommitView close={closeEditor} />}
+            </DivisionInfoView>
+        </Popover>
     );
 }
 

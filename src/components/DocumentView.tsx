@@ -11,6 +11,7 @@ import {
     useContext,
 } from 'solid-js';
 
+import Popper from '@popperjs/core';
 import { useNavigate } from '@solidjs/router';
 import type { Font, PDFDocument, PDFPage, Rect, StructuredText } from 'mupdf';
 import { schemas } from 'qrpc-js';
@@ -18,7 +19,6 @@ import { schemas } from 'qrpc-js';
 import { ActorPill } from 'quipt/components/ActorPill';
 import { DivisionInfoView } from 'quipt/components/DivisionInfoView';
 import { createInvalidatable, pluralize } from 'quipt/components/common';
-import { ToggleMenuEvent, installPopoverMenuHandler, toggleMenu } from 'quipt/popover-menu';
 import * as s from 'quipt/schemas';
 import { ScriptContextObj } from 'quipt/script';
 
@@ -29,6 +29,21 @@ declare function openDialog<T>(
 
 type MupdfLib = typeof import('mupdf');
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0];
+
+export class ToggleMenuEvent extends Event {
+    constructor(public reference: HTMLElement) {
+        super('еееPopoverMenu');
+    }
+}
+
+declare function installPopoverMenuHandler<P extends Record<string, any>>(
+    target: HTMLElement,
+    placement: Popper.Placement,
+    Component: Component<P>,
+    props: P,
+): void;
+
+declare function toggleMenu(event: MouseEvent & { currentTarget: HTMLElement }): void;
 
 type ViewLine = {
     x: number;

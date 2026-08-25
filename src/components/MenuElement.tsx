@@ -19,9 +19,9 @@ import { schemas } from 'qrpc-js';
 import { useAuthentication } from 'quipt/client';
 import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
 import { NewScriptFileChooser } from 'quipt/components/NewScriptFileChooser';
+import { Popover } from 'quipt/components/Popover';
 import QuiptLogo from 'quipt/components/Quipt-Logo';
 import { useModal, useModalContext } from 'quipt/modals';
-import { installPopoverMenuHandler, toggleMenu } from 'quipt/popover-menu';
 import { PartialScript, ScriptContextObj } from 'quipt/script';
 
 function Fragment(props: { children: JSX.Element }): JSX.Element {
@@ -80,7 +80,7 @@ function DeleteScriptModal(props: { script: PartialScript }): JSX.Element {
     );
 }
 
-function ScriptContextMenu(props: {
+function ScriptListItemPopoverMenu(props: {
     deleteScript: () => void;
     renameScript: () => void;
 }): JSX.Element {
@@ -96,16 +96,15 @@ function ScriptListItemMenuButton(props: {
     deleteScript: () => void;
     renameScript: () => void;
 }): JSX.Element {
-    let button: HTMLButtonElement | undefined = undefined;
-
-    onMount(() => {
-        button && installPopoverMenuHandler(button, 'bottom-start', ScriptContextMenu, props);
-    });
-
     return (
-        <button ref={button} class="icon-menu-button" onClick={toggleMenu}>
-            <i class="bi bi-three-dots" />
-        </button>
+        <Popover
+            trigger="click"
+            placement="bottom-start"
+            content={<ScriptListItemPopoverMenu {...props} />}>
+            <button class="icon-menu-button">
+                <i class="bi bi-three-dots" />
+            </button>
+        </Popover>
     );
 }
 
