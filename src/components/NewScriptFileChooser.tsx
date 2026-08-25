@@ -18,6 +18,8 @@ import Popper, { createPopper } from '@popperjs/core';
 import { useNavigate } from '@solidjs/router';
 import { Document as MupdfDocument, PDFDocument, Rect } from 'mupdf';
 
+import { useModalContext } from 'quipt/modals';
+
 type MupdfLib = typeof import('mupdf');
 
 export class StateScriptTransferObject {
@@ -419,12 +421,13 @@ type CBRComponent = Component<{
     closer: () => void;
 }>;
 
-export function NewScriptFileChooser(props: { closer: () => void }): JSX.Element {
+export function NewScriptFileChooser(): JSX.Element {
+    const { dismiss } = useModalContext()!;
     const [currentStep, setCurrentStep] = createSignal<[CBRComponent]>([FileUpload]);
 
     const renderedElement = createMemo(() => {
         const [Child] = currentStep();
-        return <Child routeTo={comp => setCurrentStep([comp])} {...props} />;
+        return <Child routeTo={comp => setCurrentStep([comp])} closer={dismiss} />;
     });
 
     return (

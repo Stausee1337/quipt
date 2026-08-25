@@ -16,7 +16,7 @@ type EditableProps<T extends ContentComponent, P = ComponentProps<T>> = {
 export function MakeEditableContent<T extends ContentComponent>(
     props: EditableProps<T>,
 ): JSX.Element {
-    const [inputElement, setInputElement] = createSignal<HTMLInputElement|undefined>(undefined);
+    const [inputElement, setInputElement] = createSignal<HTMLInputElement | undefined>(undefined);
     const [, rest] = splitProps(props, ['component', 'children']);
 
     createEffect(() => {
@@ -29,15 +29,17 @@ export function MakeEditableContent<T extends ContentComponent>(
 
     return (
         <Dynamic component={props.component} {...rest}>
-            {props.isEditable 
-                ? <input
+            {props.isEditable ? (
+                <input
                     ref={setInputElement}
                     class="injected-input"
                     value={props.children}
                     onBlur={() => props.onEditEnd()}
                     onInput={e => props.onContentChange(e.currentTarget.value)}
                 />
-                : props.children}
+            ) : (
+                props.children
+            )}
         </Dynamic>
     );
 }

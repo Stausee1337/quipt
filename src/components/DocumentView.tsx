@@ -1,4 +1,5 @@
 import {
+    Component,
     JSX,
     Setter,
     batch,
@@ -17,12 +18,14 @@ import { schemas } from 'qrpc-js';
 import { ActorPill } from 'quipt/components/ActorPill';
 import { DivisionInfoView } from 'quipt/components/DivisionInfoView';
 import { createInvalidatable, pluralize } from 'quipt/components/common';
-import { DialogManager } from 'quipt/dialog';
 import { ToggleMenuEvent, installPopoverMenuHandler, toggleMenu } from 'quipt/popover-menu';
 import * as s from 'quipt/schemas';
 import { ScriptContextObj } from 'quipt/script';
 
-function renderCuePair() {}
+declare function renderCuePair(p: s.TextCuePair): JSX.Element;
+declare function openDialog<T>(
+    content: Component<{ closer: (x: T | undefined) => void }>,
+): Promise<T | undefined>;
 
 type MupdfLib = typeof import('mupdf');
 type StructuredTextWalker = Parameters<StructuredText['walk']>[0];
@@ -561,7 +564,7 @@ function ActorMenu({
     actorsContext: ActorsContext;
 }): JSX.Element {
     async function openDistributionDialog() {
-        const distributeTo = await DialogManager.openDialog<string[]>(({ closer }) => (
+        const distributeTo = await openDialog<string[]>(({ closer }) => (
             <DistributionDialog closer={closer} actors={actorsContext.actors} target={actor} />
         ));
         if (distributeTo === undefined) return;
@@ -1438,7 +1441,7 @@ export function DocumentView(props: {
 
     async function commmitScript() {
         const semiDivisions = buildSemiQuiptCueData(pageInfos(), actors, actorsMapping);
-        const divisions = await DialogManager.openDialog<s.Division[]>(({ closer }) => (
+        const divisions = await openDialog<s.Division[]>(({ closer }) => (
             <FinalizeScriptView closer={closer} actorsMap={actors} semiDivisions={semiDivisions} />
         ));
         if (divisions === undefined) return;

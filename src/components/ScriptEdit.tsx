@@ -21,7 +21,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { placeholder } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
-import { useLocation, useParams } from '@solidjs/router';
+import { useLocation } from '@solidjs/router';
 import { useMutation } from '@tanstack/solid-query';
 import { EditorView, minimalSetup } from 'codemirror';
 
@@ -38,7 +38,7 @@ import {
     formatActorsArray,
     formatMarkdown,
 } from 'quipt/components/common';
-import { DialogManager } from 'quipt/dialog';
+import { useModal, useModalContext } from 'quipt/modals';
 import { contextMenu, installPopoverMenuHandler } from 'quipt/popover-menu';
 import { Division, Script, TextCue, TextCuePair } from 'quipt/schemas';
 import { ScriptContextObj } from 'quipt/script';
@@ -115,13 +115,11 @@ function CueEditMenu(props: { onEdit: () => void; onDelete: () => void }): JSX.E
     );
 }
 
-function DeleteCueDialog(props: {
-    cuePair: TextCuePair;
-    closer: (res: undefined | true) => void;
-}): JSX.Element {
+function DeleteCueModal(props: { cuePair: TextCuePair }): JSX.Element {
+    const { dismiss, accept } = useModalContext<void>()!;
     return (
         <>
-            <button class="close" onClick={() => props.closer(undefined)}>
+            <button class="close" onClick={dismiss}>
                 <i class="bi bi-x" />
             </button>
             <h3>Einsatz Löschen?</h3>
@@ -132,10 +130,10 @@ function DeleteCueDialog(props: {
                 <TextCuePairView textCuePair={props.cuePair} />
             </div>
             <div class="bottom-line">
-                <button class="secondary-button" onClick={() => props.closer(undefined)}>
+                <button class="secondary-button" onClick={dismiss}>
                     Abbrechen
                 </button>
-                <button class="red-button" onClick={() => props.closer(true)}>
+                <button class="red-button" onClick={accept}>
                     Löschen
                 </button>
             </div>
@@ -149,11 +147,9 @@ function EditableTextCue(props: {
     type: 'request' | 'response';
 }): JSX.Element {
     const editContext = useContext(ScriptEditContextObj)!;
+    const openModal = useModal<void>();
     const textCue = createMemo(() => props.cuePair[props.type]);
 
-    const owner = getOwner()!;
-
-    // let revoker: ((res: TextCue|undefined) => void)|undefined;
     const [content, setContent] = createSignal<string>(textCue()?.text ?? '');
     const [currentActors, setCurrentActors] = createSignal<string[]>(textCue()?.actors ?? []);
     const [isEditing, setIsEditing] = createSignal(false);
@@ -200,11 +196,8 @@ function EditableTextCue(props: {
     }));
 
     async function onDelete() {
-        const res = await DialogManager.openDialog<true>(
-            ({ closer }) => <DeleteCueDialog cuePair={props.cuePair} closer={closer} />,
-            owner,
-        );
-        if (res === undefined) return;
+        const res = await openModal(() => <DeleteCueModal cuePair={props.cuePair} />);
+        if (res.type === 'dismiss') return;
         deleteMutation.mutate();
     }
 
@@ -945,8 +938,7 @@ export function ScriptPage(props: { script: Script }): JSX.Element {
     const location = useLocation();
 
     const currentRoute = createMemo(() => {
-        if (location.pathname.startsWith('/train'))
-            return 'train';
+        if (location.pathname.startsWith('/train')) return 'train';
         return 'view';
     });
 

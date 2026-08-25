@@ -1,4 +1,4 @@
-import { JSX, For, createMemo, createEffect, onMount } from 'solid-js';
+import { For, JSX, createEffect, createMemo, onMount } from 'solid-js';
 
 import { A } from '@solidjs/router';
 import { ChartConfiguration, ChartData } from 'chart.js/auto';
@@ -151,7 +151,7 @@ export function ScriptOverview(props: { script: Script }): JSX.Element {
                 <span class="info">{scriptInfo().actors.join(', ')}</span>
             </div>
             <For each={props.script.divisions}>
-                { (_, idx) => <DivisionItem script={props.script} idx={idx()} /> }
+                {(_, idx) => <DivisionItem script={props.script} idx={idx()} />}
             </For>
         </div>
     );

@@ -4,7 +4,6 @@ import {
     createMemo,
     createResource,
     createSignal,
-    getOwner,
     onCleanup,
     onMount,
     useContext,
@@ -20,7 +19,7 @@ import { useAuthentication } from 'quipt/client';
 import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
 import { NewScriptFileChooser } from 'quipt/components/NewScriptFileChooser';
 import QuiptLogo from 'quipt/components/Quipt-Logo';
-import { DialogManager } from 'quipt/dialog';
+import { useModal, useModalContext } from 'quipt/modals';
 import { installPopoverMenuHandler, toggleMenu } from 'quipt/popover-menu';
 import { PartialScript, ScriptContextObj } from 'quipt/script';
 
@@ -59,27 +58,22 @@ function ListElement(props: {
     );
 }
 
-function DeleteScriptDialog({
-    script,
-    closer,
-}: {
-    script: PartialScript;
-    closer: (res: schemas.UUID | undefined) => void;
-}): JSX.Element {
+function DeleteScriptModal(props: { script: PartialScript }): JSX.Element {
+    const { dismiss, accept } = useModalContext()!;
     return (
         <>
-            <button class="close" onClick={() => closer(undefined)}>
+            <button class="close" onClick={() => dismiss()}>
                 <i class="bi bi-x" />
             </button>
             <h2>Skript löschen?</h2>
             <span>
-                Dadurch wird <strong>{script.name}</strong> unwiederruflich gelöscht
+                Dadurch wird <strong>{props.script.name}</strong> unwiederruflich gelöscht
             </span>
             <div class="bottom-line">
-                <button class="secondary-button" onClick={() => closer(undefined)}>
+                <button class="secondary-button" onClick={() => dismiss()}>
                     Abbrechen
                 </button>
-                <button class="red-button" onClick={() => closer(script.uuid)}>
+                <button class="red-button" onClick={() => accept(props.script.uuid)}>
                     Löschen
                 </button>
             </div>
@@ -103,7 +97,7 @@ function ScriptMenuButton(props: {
     deleteScript: () => void;
     renameScript: () => void;
 }): JSX.Element {
-    let button: HTMLButtonElement|undefined = undefined;
+    let button: HTMLButtonElement | undefined = undefined;
 
     onMount(() => {
         button && installPopoverMenuHandler(button, 'bottom-start', ScriptContextMenu, props);
@@ -120,12 +114,11 @@ function ScriptElement(props: { script: PartialScript }): JSX.Element {
     const [isEditing, setIsEditing] = createSignal<boolean>(false);
     const [currentContent, setCurrentContent] = createSignal<string>(props.script.name);
     const scriptContext = useContext(ScriptContextObj)!;
+    const openModal = useModal<schemas.UUID>();
 
     async function deleteScript() {
-        const deleteUuid = await DialogManager.openDialog<schemas.UUID>(({ closer }) => (
-            <DeleteScriptDialog closer={closer} script={props.script} />
-        ));
-        if (deleteUuid !== undefined) scriptContext.deleteScript(deleteUuid);
+        const modalResult = await openModal(() => <DeleteScriptModal script={props.script} />);
+        if (modalResult.type === 'accept') scriptContext.deleteScript(modalResult.result);
     }
 
     async function renameScript() {
@@ -157,30 +150,30 @@ function ScriptElement(props: { script: PartialScript }): JSX.Element {
 }
 
 export function MenuElement(props: { closer?: () => void }): JSX.Element {
-    const owner = getOwner()!;
     const authentication = useAuthentication()!;
-
-    const closer = props.closer;
+    const openModal = useModal();
 
     const [user] = createResource(() => authentication.services!.user.get());
     const scriptsQuery = useQuery<PartialScript[]>(() => ({
         queryKey: ['scripts'],
     }));
 
-    if (closer !== undefined) {
-        useBeforeLeave(() => {
-            closer();
+    useBeforeLeave(() => {
+        props.closer?.();
+    });
+
+    let unsubscribe: (() => void) | undefined = undefined;
+    onMount(() => {
+        unsubscribe = authentication.onLogout.subscribe(() => {
+            props.closer?.();
         });
-        const unsubscribe = authentication.onLogout.subscribe(() => {
-            closer();
-        });
-        onCleanup(() => {
-            unsubscribe();
-        });
-    }
+    });
+    onCleanup(() => {
+        unsubscribe?.();
+    });
 
     function createNewScript() {
-        DialogManager.openDialog<void>(NewScriptFileChooser, owner);
+        openModal(NewScriptFileChooser);
     }
 
     function closeButton(): JSX.Element {
@@ -195,7 +188,7 @@ export function MenuElement(props: { closer?: () => void }): JSX.Element {
         <nav class="side-menu">
             <div class="header">
                 <div class="top-line">
-                    {closer !== undefined ? (
+                    {props.closer !== undefined ? (
                         closeButton()
                     ) : (
                         <A href="/" style={{ color: 'inherit' }}>

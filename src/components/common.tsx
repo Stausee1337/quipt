@@ -206,7 +206,7 @@ export function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => voi
 export function SimpleChart(props: {
     onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration;
 }): JSX.Element {
-    let chartJSCanvas: HTMLCanvasElement|undefined = undefined;
+    let chartJSCanvas: HTMLCanvasElement | undefined = undefined;
     let chart: Chart | undefined;
 
     createEffect(() => {
