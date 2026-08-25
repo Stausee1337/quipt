@@ -66,7 +66,7 @@ export function Modal<T>(props: {
     const [modalRoot, setModalRoot] = createSignal<HTMLDivElement>();
 
     function onKeydown(event: KeyboardEvent) {
-        if (event.key === 'Escape') props.onClose({ type: 'dismiss' });
+        if (event.key === 'Escape' && props.isOpen) props.onClose({ type: 'dismiss' });
     }
 
     onMount(() => {
@@ -78,6 +78,7 @@ export function Modal<T>(props: {
     });
 
     createEffect(() => {
+        // FIXME: ideally, giving the div an id is unnecessary
         const root = modalRoot();
         if (root !== undefined && root.isConnected) root.id = 'dialog-root';
     });

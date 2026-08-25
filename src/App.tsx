@@ -9,8 +9,8 @@ import {
     queryClient,
     useAuthentication,
 } from 'quipt/client';
-import { HeaderElement } from 'quipt/components/HeaderElement';
-import { MenuElement } from 'quipt/components/MenuElement';
+import { Header } from 'quipt/components/HeaderElement';
+import { SideMenu } from 'quipt/components/MenuElement';
 import { Root } from 'quipt/pages/Root';
 import { NewScriptRoute, ScriptRoute } from 'quipt/pages/Script';
 import { UserAuthenticate } from 'quipt/pages/UserAuthenticate';
@@ -39,8 +39,8 @@ function App(props: { children?: JSX.Element }): JSX.Element {
 
     return (
         <ScriptContextObj.Provider value={scriptContext}>
-            {isSmallWidth() && <HeaderElement />}
-            {!isSmallWidth() && authenticationContext.isLoggedIn() && <MenuElement />}
+            {isSmallWidth() && <Header />}
+            {!isSmallWidth() && authenticationContext.isLoggedIn() && <SideMenu />}
             <div class="routing-contents">{props.children}</div>
         </ScriptContextObj.Provider>
     );
