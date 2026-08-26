@@ -5,8 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/stausee1337/quipt/internal/service"
 	"github.com/stausee1337/quipt/internal/qmodel"
+	"github.com/stausee1337/quipt/internal/service"
 )
 
 type AuthMutationHandler struct {

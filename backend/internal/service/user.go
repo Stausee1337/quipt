@@ -71,6 +71,7 @@ func (s *UserService) CreateUser(ctx context.Context, user *User) error {
 	if error != nil {
 		return fmt.Errorf("could not create uuid: %w", error)
 	}
+	user.Uuid = uuid
 
 	repoUser := &repository.User{
 		Uuid: uuid,

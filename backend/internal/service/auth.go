@@ -70,7 +70,7 @@ func (s *AuthService) Signin(
 	if errors.Is(err, repository.ErrUnknownUser) {
 		// compare hash and password here anyways, to not have a difference
 		// in response time between username and password invalid	
-		bcrypt.CompareHashAndPassword([]byte(user.password), passwordBytes)
+		bcrypt.CompareHashAndPassword([]byte("hello, world"), passwordBytes)
 		return nil, AuthError(qmodel.AuthErrorINVALIDCREDENTIALS);
 	} else if err != nil {
 		return nil, err
