@@ -1169,10 +1169,10 @@ span.error-message {
     }
 }
 
-div.routing-contents:has(form.auth-box) {
+div.routing-contents:has(div.auth-box) {
     display: grid;
 
-    form.auth-box {
+    div.auth-box {
         justify-self: center;
         align-self: center;
         background-color: white;
@@ -1187,6 +1187,20 @@ div.routing-contents:has(form.auth-box) {
         display: flex;
         flex-direction: column;
         text-align: center;
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 3rem;
+
+            &.submitted div.input-box:has(input.invalid) span.error-message {
+                display: inline;
+            }
+
+            &.error > span.error-message {
+                display: inline;
+            }
+        }
 
         svg#quiptLogo {
             position: absolute;
@@ -1237,14 +1251,6 @@ div.routing-contents:has(form.auth-box) {
             &:has(input.touched.invalid) span.error-message {
                 display: inline;
             }
-        }
-
-        &.submitted div.input-box:has(input.invalid) span.error-message {
-            display: inline;
-        }
-
-        &.error > span.error-message {
-            display: inline;
         }
     }
 }
@@ -1453,7 +1459,7 @@ div.zoomed-in-page {
 }
 
 @media (width < 768px) {
-    div.routing-contents:has(form.auth-box) form.auth-box {
+    div.routing-contents:has(div.auth-box) div.auth-box {
         width: 100%;
         padding: 2rem 2rem 2rem 2rem;
         border-radius: 2rem;

@@ -1,16 +1,11 @@
-import { JSX, createEffect, createMemo, createSignal, onMount } from 'solid-js';
+import { JSX, createEffect, createSignal, onMount, splitProps } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 
 import { A, RouteSectionProps, useNavigate } from '@solidjs/router';
 
 import { authService, useAuthentication } from 'quipt/client';
 import Logo from 'quipt/components/Quipt-Logo';
-import {
-    QuiptFormEvent,
-    createReactiveFormData,
-    quiptForm,
-    quiptValidator,
-    validators,
-} from 'quipt/forms';
+import { FormEvent, Validity, useForm, validators } from 'quipt/forms';
 import { AuthError } from 'quipt/schemas';
 
 function convertErrorToMessage(error: AuthError): string {
@@ -32,6 +27,159 @@ const passwordRegex =
 const regexError =
     'Passwort muss mindestens einen Groß- sowie Kleinbuchstaben, eine Zahl und ein Sonderzeichen enthalten';
 
+export interface FormInputProps extends JSX.InputHTMLAttributes<HTMLInputElement> {
+    errorMessage: string | undefined;
+}
+
+function FormInput(props: FormInputProps): JSX.Element {
+    const [, rest] = splitProps(props, ['errorMessage']);
+    return (
+        <div class="input-box">
+            <input {...rest} />
+            <span class="error-message">{props.errorMessage}</span>
+        </div>
+    );
+}
+
+type SubmitFn = (event: FormEvent<['username', 'password']>) => Promise<string | undefined>;
+
+function Signin(props: { onSubmit: SubmitFn }): JSX.Element {
+    const [formSubmitted, setFormSubmitted] = createSignal(false);
+    const [formValidity, setFormValidity] = createSignal<Validity>('valid');
+    const [formErrorMessage, setFormErrorMessage] = createSignal<string>();
+
+    const { username, password, form, validationMessages } = useForm(['username', 'password'], {
+        onSubmit,
+        onChange,
+    });
+
+    function onChange(event: FormEvent<['username', 'password']>) {
+        setFormValidity(event.validity);
+    }
+
+    async function onSubmit(event: FormEvent<['username', 'password']>) {
+        setFormSubmitted(true);
+        const errorMessage = await props.onSubmit(event);
+        if (errorMessage === undefined) return;
+        setFormValidity('invalid');
+        setFormErrorMessage(errorMessage);
+        const passwordElement = event.elements.password;
+        if (passwordElement !== undefined) {
+            passwordElement.value = '';
+            passwordElement.dispatchEvent(new Event('change', { bubbles: true }));
+            passwordElement.focus();
+        }
+    }
+
+    return (
+        <>
+            <h2>Anmelden</h2>
+            <form
+                classList={{ submitted: formSubmitted(), error: formErrorMessage() !== undefined }}
+                {...form}>
+                <FormInput
+                    type="text"
+                    placeholder="Benutzername"
+                    errorMessage={validationMessages.username}
+                    {...username({ validators: [validators.required] })}
+                />
+                <FormInput
+                    type="password"
+                    placeholder="Passwort"
+                    errorMessage={validationMessages.password}
+                    {...password({ validators: [validators.required] })}
+                />
+                <span class="error-message">{formErrorMessage()}</span>
+                <p>
+                    Du hat noch kein Konto? <A href="/signup">Jetzt eins erstellen!</A>
+                </p>
+                <button
+                    class="primary-button"
+                    disabled={formValidity() == 'invalid' && formSubmitted()}>
+                    Anmelden
+                </button>
+            </form>
+        </>
+    );
+}
+
+function Signup(props: { onSubmit: SubmitFn }) {
+    const [formSubmitted, setFormSubmitted] = createSignal(false);
+    const [formValidity, setFormValidity] = createSignal<Validity>('valid');
+    const [formData, setFormData] = createSignal({ username: '', password: '', password2: '' });
+    const [formErrorMessage, setFormErrorMessage] = createSignal<string>();
+
+    const { username, password, password2, form, validationMessages } = useForm(
+        ['username', 'password', 'password2'],
+        { onSubmit, onChange },
+    );
+
+    function onChange(event: FormEvent<['username', 'password', 'password2']>) {
+        setFormValidity(event.validity);
+        setFormData(event.formData);
+    }
+
+    async function onSubmit(event: FormEvent<['username', 'password', 'password2']>) {
+        setFormSubmitted(true);
+        const errorMessage = await props.onSubmit(event);
+        if (errorMessage === undefined) return;
+        setFormValidity('invalid');
+        setFormErrorMessage(errorMessage);
+        const usernameElement = event.elements.username;
+        if (usernameElement !== undefined) {
+            usernameElement.value = '';
+            usernameElement.dispatchEvent(new Event('change', { bubbles: true }));
+            usernameElement.focus();
+        }
+    }
+
+    return (
+        <>
+            <h2>Quipt Konto erstellen</h2>
+            <form
+                classList={{ submitted: formSubmitted(), error: formErrorMessage() !== undefined }}
+                {...form}>
+                <FormInput
+                    type="text"
+                    placeholder="Benutzername"
+                    {...username({ validators: [validators.required, validators.minLength(3)] })}
+                    errorMessage={validationMessages.username}
+                    autofocus
+                />
+                <FormInput
+                    type="password"
+                    placeholder="Passwort"
+                    {...password({
+                        validators: [
+                            validators.required,
+                            validators.lengthRange(8, 72),
+                            validators.regex(passwordRegex, regexError),
+                        ],
+                    })}
+                    errorMessage={validationMessages.password}
+                />
+                <FormInput
+                    type="password"
+                    placeholder="Passwort wiederholen"
+                    {...password2({
+                        validators: [validators.equal(() => formData().password, 'Passwort')],
+                    })}
+                    errorMessage={validationMessages.password2}
+                />
+                <span class="error-message">{formErrorMessage()}</span>
+                <p>
+                    Du bist bereits bei Quipt? <A href="/signin">Anmelden!</A>
+                </p>
+                <button
+                    class="primary-button"
+                    disabled={formValidity() == 'invalid' && formSubmitted()}>
+                    Registrieren
+                </button>
+            </form>
+        </>
+    );
+}
+
 export function UserAuthenticate(props: RouteSectionProps): JSX.Element {
     const navigate = useNavigate()!;
     const authentication = useAuthentication()!;
@@ -50,14 +198,17 @@ export function UserAuthenticate(props: RouteSectionProps): JSX.Element {
         document.title = keys[props.location.pathname] + ' - Quipt';
     });
 
-    async function onSubmit(e: QuiptFormEvent) {
-        if (!e.valid) {
-            return;
-        }
+    function blur(event: FormEvent<['username', 'password']>) {
+        Object.values(event.elements).forEach(element => element?.blur());
+    }
 
-        const currentFormData = formData();
+    async function onSubmit(
+        event: FormEvent<['username', 'password']>,
+    ): Promise<string | undefined> {
+        if (event.validity === 'invalid') return;
+
         setLoading(true);
-        currentFormData.blur();
+        blur(event);
 
         const endpoint =
             props.location.pathname === '/signin'
@@ -65,129 +216,25 @@ export function UserAuthenticate(props: RouteSectionProps): JSX.Element {
                 : authService.signup.bind(authService);
 
         const result = await endpoint({
-            username: e.formData['username'] ?? '',
-            password: e.formData['password'] ?? '',
+            username: event.formData.username ?? '',
+            password: event.formData.password ?? '',
         });
 
         setLoading(false);
 
-        if (AuthError.isSchema(result)) {
-            currentFormData.postErrorMessage(convertErrorToMessage(result));
-            const input = props.location.pathname === '/signin' ? 'password' : 'username';
-            currentFormData.resetInput(input);
-            currentFormData.focus(input);
-            return;
-        }
+        if (AuthError.isSchema(result)) return convertErrorToMessage(result);
 
         authentication.loginUser(result);
-        navigate('/');
+        navigate('/dashboard');
     }
 
-    const [formData, setFormData] = createSignal(createReactiveFormData());
-
-    const content = createMemo<JSX.Element>(() => {
-        setFormData(createReactiveFormData());
-        if (props.location.pathname === '/signin') {
-            const [userMessage, setUserMeessage] = createSignal<string>();
-            const [passwordMessage, setPasswordMessage] = createSignal<string>();
-            return (
-                <>
-                    <div class="input-box">
-                        <input
-                            type="text"
-                            name="username"
-                            placeholder="Benutzername"
-                            onQuiptValidationChange={e => setUserMeessage(e.message)}
-                            use:quiptValidator={[validators.required]}
-                        />
-                        <span class="error-message">{userMessage()}</span>
-                    </div>
-                    <div class="input-box">
-                        <input
-                            type="password"
-                            name="password"
-                            placeholder="Passwort"
-                            onQuiptValidationChange={e => setPasswordMessage(e.message)}
-                            use:quiptValidator={[validators.required]}
-                        />
-                        <span class="error-message">{passwordMessage()}</span>
-                    </div>
-                    <span class="error-message">{formData().error}</span>
-                    <p>
-                        Du hat noch kein Konto? <A href="/signup">Jetzt eins erstellen!</A>
-                    </p>
-                    <button
-                        class="primary-button"
-                        disabled={!formData().valid && formData().submitted}>
-                        Anmelden
-                    </button>
-                </>
-            );
-        } else {
-            const [userMessage, setUserMeessage] = createSignal<string>();
-            const [passwordMessage, setPasswordMessage] = createSignal<string>();
-            const [password2Message, setPassword2Message] = createSignal<string>();
-            return (
-                <>
-                    <div class="input-box">
-                        <input
-                            type="text"
-                            placeholder="Benutzername"
-                            name="username"
-                            onQuiptValidationChange={e => setUserMeessage(e.message)}
-                            use:quiptValidator={[validators.required, validators.minLength(3)]}
-                        />
-                        <span class="error-message">{userMessage()}</span>
-                    </div>
-                    <div class="input-box">
-                        <input
-                            type="password"
-                            placeholder="Passwort"
-                            name="password"
-                            onQuiptValidationChange={e => setPasswordMessage(e.message)}
-                            use:quiptValidator={[
-                                validators.required,
-                                validators.lengthRange(8, 72),
-                                validators.regex(passwordRegex, regexError),
-                            ]}
-                        />
-                        <span class="error-message">{passwordMessage()}</span>
-                    </div>
-                    <div class="input-box">
-                        <input
-                            type="password"
-                            placeholder="Passwort wiederholen"
-                            name="password2"
-                            onQuiptValidationChange={e => setPassword2Message(e.message)}
-                            use:quiptValidator={[
-                                validators.equal(() => formData().data['password'], 'Passwort'),
-                            ]}
-                        />
-                        <span class="error-message">{password2Message()}</span>
-                    </div>
-                    <span class="error-message">{formData().error}</span>
-                    <p>
-                        Du bist bereits bei Quipt? <A href="/signin">Anmelden!</A>
-                    </p>
-                    <button
-                        class="primary-button"
-                        disabled={!formData().valid && formData().submitted}>
-                        Registrieren
-                    </button>
-                </>
-            );
-        }
-    });
-
     return (
-        <form
-            class="auth-box"
-            classList={{ interactable: !loading() }}
-            use:quiptForm={formData()}
-            onQuiptSubmit={onSubmit}>
+        <div class="auth-box" classList={{ interactable: !loading() }}>
             <Logo />
-            <h2>{keys[props.location.pathname]}</h2>
-            {content()}
-        </form>
+            <Dynamic
+                component={props.location.pathname === '/signin' ? Signin : Signup}
+                onSubmit={onSubmit}
+            />
+        </div>
     );
 }

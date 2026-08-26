@@ -1,244 +1,160 @@
-import { Accessor, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
-
-export class QuiptFormEvent extends Event {
-    constructor(
-        public valid: boolean,
-        public formData: Record<string, string>,
-    ) {
-        super('quiptsubmit');
-    }
-}
-
-export class QuiptInputEvent extends Event {
-    constructor(
-        public kind: 'quiptvalidationchange',
-        public value: string,
-        public valid: boolean,
-        public message: string | undefined,
-    ) {
-        super(kind);
-    }
-}
-
-export interface FormData {
-    data: Record<string, string>;
-    valid: boolean;
-    submitted: boolean;
-    readonly error: string | undefined;
-    blur(name?: string): void;
-    focus(name: string): void;
-    resetInput(name?: string): void;
-    postErrorMessage(message: string): void;
-}
-
-export function createReactiveFormData(): FormData {
-    const [data, setData] = createSignal<Record<string, string>>({});
-    const [valid, setValid] = createSignal<boolean>(false);
-    const [submitted, setSubmitted] = createSignal<boolean>(false);
-    const [formError, setFormError] = createSignal<string>();
-
-    return {
-        get data() {
-            return data();
-        },
-        set data(value) {
-            setData(value);
-        },
-        get valid() {
-            return valid();
-        },
-        set valid(value) {
-            setValid(value);
-        },
-        get submitted() {
-            return submitted();
-        },
-        set submitted(value) {
-            setSubmitted(value);
-        },
-        get error() {
-            return formError();
-        },
-        blur() {},
-        focus() {},
-        resetInput() {},
-        postErrorMessage(message) {
-            setFormError(message);
-        },
-    };
-}
-
-export function quiptForm(element: HTMLFormElement, formData: Accessor<FormData>) {
-    let valueBinding: Record<string, string> = {};
-    let validBinding: Record<string, boolean> = {};
-    let elementBinding: Record<string, HTMLInputElement> = {};
-
-    createEffect(() => {
-        const currentFormData = formData();
-        if (currentFormData.submitted) {
-            element.classList.add('submitted');
-        } else {
-            element.classList.remove('submitted');
-        }
-
-        if (currentFormData.error) {
-            element.classList.add('error');
-        } else {
-            element.classList.remove('error');
-        }
-
-        currentFormData.resetInput = name => {
-            if (name !== undefined) {
-                const element = elementBinding[name];
-                if (element !== undefined) element.value = '';
-                return;
-            }
-            for (const element of Object.values(elementBinding)) element.value = '';
-        };
-
-        currentFormData.focus = name => {
-            const element = elementBinding[name];
-            if (element !== undefined) element.focus();
-            return;
-        };
-
-        currentFormData.blur = name => {
-            if (name !== undefined) {
-                const element = elementBinding[name];
-                if (element !== undefined) element.blur();
-                return;
-            }
-            for (const element of Object.values(elementBinding)) element.blur();
-        };
-    });
-
-    function onSubmit(e: SubmitEvent) {
-        e.preventDefault();
-
-        const currentFormData = formData();
-        currentFormData.submitted = true;
-
-        const event = new QuiptFormEvent(currentFormData.valid, valueBinding);
-        element.dispatchEvent(event);
-    }
-
-    function onInputChange(e: Event & { еееValue: string; еееValid: boolean }) {
-        if (!(e.target instanceof HTMLInputElement)) return;
-        valueBinding[e.target.name] = e.еееValue;
-        validBinding[e.target.name] = e.еееValid;
-        const currentFormData = formData();
-        currentFormData.data = { ...valueBinding };
-        currentFormData.valid = Object.values(validBinding).every(x => x);
-    }
-
-    element.addEventListener('submit', onSubmit);
-    element.addEventListener('еееInputChange', onInputChange);
-    const observer = new MutationObserver(createBinding);
-
-    function createBinding() {
-        valueBinding = {};
-        validBinding = {};
-        elementBinding = {};
-        for (const input of Array.from(element)) {
-            if (!(input instanceof HTMLInputElement)) continue;
-            valueBinding[input.name] = input.value;
-            validBinding[input.name] = input.classList.contains('valid');
-            elementBinding[input.name] = input;
-        }
-        const currentFormData = formData();
-        currentFormData.data = valueBinding;
-        currentFormData.valid = Object.values(validBinding).every(x => x);
-    }
-
-    onMount(() => {
-        createBinding();
-        observer.observe(element, { childList: true, subtree: true });
-    });
-
-    onCleanup(() => {
-        element.removeEventListener('submit', onSubmit);
-        observer.disconnect();
-    });
-}
+import { createMemo } from 'solid-js';
+import { Accessor, createEffect, createSignal, onMount } from 'solid-js';
 
 export interface Validator {
     validate(v: string): boolean;
     message: string;
 }
 
-export function quiptValidator(
-    element: HTMLInputElement,
-    validataors: Accessor<Validator | Validator[]>,
-) {
-    type Pristineness = 'pristine' | 'dirty';
-    type Touchedness = 'untouched' | 'touched';
-    type Validity = 'invalid' | 'valid';
+export type Pristineness = 'pristine' | 'dirty';
+export type Touchedness = 'untouched' | 'touched';
+export type Validity = 'invalid' | 'valid';
 
-    const [value, setValue] = createSignal<string>(element.value);
-    const [validity, setValidity] = createSignal<Validity>('invalid');
+export type InputCreateOptions = {
+    defaultValue?: string;
+    validators?: Validator[];
+};
+
+type InputChangeEvent = {
+    name: string;
+    value: string;
+    validity: Validity;
+    pristineness: Pristineness;
+    touchedness: Touchedness;
+    message: string | undefined;
+};
+type InputChangeHandler = (event: InputChangeEvent) => void;
+
+type InputHookProps = InputCreateOptions & {
+    name: string;
+    onInputChange: InputChangeHandler;
+    onInputMount: (name: string, element: HTMLInputElement) => void;
+};
+
+export type InputCreateFn = (options?: InputCreateOptions) => Record<string, any>;
+type Inputs<T extends readonly string[]> = { [K in T[number]]: InputCreateFn };
+
+type VailationMessages<T extends readonly string[]> = { [K in T[number]]: string | undefined };
+
+type UseFormHook<T extends readonly string[]> = Inputs<T> & {
+    form: Record<string, any>;
+    validationMessages: VailationMessages<T>;
+};
+
+export type FormEvent<T extends readonly string[]> = {
+    elements: { [K in T[number]]: HTMLInputElement | undefined };
+    validity: Validity;
+    formData: { [K in T[number]]: string };
+    validationMessages: { [K in T[number]]: string | undefined };
+};
+
+export type FormOptions<T extends readonly string[]> = {
+    onSubmit: (event: FormEvent<T>) => void;
+    onChange?: (event: FormEvent<T>) => void;
+};
+
+export function useForm<const T extends readonly string[]>(
+    keys: T,
+    options: FormOptions<T>,
+): UseFormHook<T> {
+    const inputHooks: Record<string, InputCreateFn> = {};
+    const validationMessageProviders = {};
+    const [inputElements, setInputElements] = createSignal<
+        Record<string, HTMLInputElement | undefined>
+    >(Object.fromEntries(keys.map(k => [k, undefined])));
+    const [validationMessages, setValidationMessages] = createSignal<
+        Record<string, string | undefined>
+    >(Object.fromEntries(keys.map(k => [k, undefined])));
+    const [inputValues, setInputValues] = createSignal<Record<string, string>>(
+        Object.fromEntries(keys.map(k => [k, ''])),
+    );
+    const [validities, setInputValidities] = createSignal<Record<string, Validity>>(
+        Object.fromEntries(keys.map(k => [k, 'valid'])),
+    );
+
+    const formValidity = createMemo<Validity>(() => {
+        for (let validity of Object.values(validities()))
+            if (validity === 'invalid') return 'invalid';
+        return 'valid';
+    });
+
+    function createInputHook(props: {
+        name: string;
+        onInputMount: (name: string, element: HTMLInputElement) => void;
+        onInputChange: InputChangeHandler;
+    }): InputCreateFn {
+        return options => inputHook({ ...props, ...options });
+    }
+
+    function onInputMount(name: string, element: HTMLInputElement) {
+        setInputElements(r => ({ ...r, [name]: element }));
+    }
+
+    function onInputChange(event: InputChangeEvent) {
+        setValidationMessages(r => ({ ...r, [event.name]: event.message }));
+        setInputValues(r => ({ ...r, [event.name]: event.value }));
+        setInputValidities(r => ({ ...r, [event.name]: event.validity }));
+    }
+
+    keys.forEach(key => {
+        inputHooks[key] = createInputHook({ name: key, onInputMount, onInputChange });
+        Object.defineProperty(validationMessageProviders, key, {
+            get() {
+                return validationMessages()[key];
+            },
+        });
+    });
+
+    function makeFormEvent(): FormEvent<any> {
+        return {
+            elements: inputElements(),
+            validity: formValidity(),
+            validationMessages: validationMessages(),
+            formData: inputValues(),
+        };
+    }
+
+    function onSubmit(event: SubmitEvent) {
+        event.preventDefault();
+        options.onSubmit(makeFormEvent());
+    }
+
+    createEffect(() => {
+        const formEvent = makeFormEvent();
+        options?.onChange?.(formEvent);
+    });
+
+    return {
+        form: {
+            onSubmit,
+        },
+        validationMessages: validationMessageProviders,
+        ...inputHooks,
+    } as unknown as UseFormHook<T>;
+}
+
+function inputHook(props: InputHookProps) {
+    const [element, setElement] = createSignal<HTMLInputElement>();
+    const [value, setValue] = createSignal<string>(props?.defaultValue ?? '');
+    const [validity, setValidity] = createSignal<Validity>('valid');
     const [touchedness, setTouchedness] = createSignal<Touchedness>('untouched');
     const [pristineness, setPristineness] = createSignal<Pristineness>('pristine');
+    const [validationMessage, setValidationMessage] = createSignal<string>();
 
-    onMount(() => {
-        const [message, validity] = runValidators();
-        setValidity(validity);
-        element.dispatchEvent(
-            new QuiptInputEvent('quiptvalidationchange', value(), validity === 'valid', message),
-        );
-    });
+    function runValidators(): { validity: Validity; message: string | undefined } {
+        const currentValue = value();
+        const validatorsArray = props?.validators ?? [];
 
-    createEffect<Pristineness>(prev => {
-        const current = pristineness();
-        element.classList.remove(prev);
-        element.classList.add(current);
-        return current;
-    }, pristineness());
+        for (const validator of validatorsArray) {
+            if (!validator.validate(currentValue))
+                return { validity: 'invalid', message: validator.message };
+        }
 
-    createEffect<Touchedness>(prev => {
-        const current = touchedness();
-        element.classList.remove(prev);
-        element.classList.add(current);
-        return current;
-    }, touchedness());
-
-    createEffect<Validity>(prev => {
-        const current = validity();
-        element.classList.remove(prev);
-        element.classList.add(current);
-        return current;
-    }, validity());
-
-    createEffect(() => {
-        const event = new Event('еееInputChange', {
-            bubbles: true,
-        }) as Event & {
-            еееValue: string;
-            еееValid: boolean;
-        };
-        event.еееValue = value();
-        event.еееValid = validity() === 'valid';
-        element.dispatchEvent(event);
-    });
-
-    element.classList.add(pristineness());
-    element.classList.add(touchedness());
-    element.classList.add(validity());
-
-    element.addEventListener('change', valueChange);
-    element.addEventListener('input', valueChange);
-
-    element.addEventListener('blur', focusChange);
-
-    createEffect(() => {
-        const [message, validity] = runValidators();
-        setValidity(validity);
-        element.dispatchEvent(
-            new QuiptInputEvent('quiptvalidationchange', value(), validity === 'valid', message),
-        );
-    });
+        return { validity: 'valid', message: undefined };
+    }
 
     function valueChange() {
-        setValue(element.value);
+        setValue(element()?.value ?? '');
         setPristineness('dirty');
     }
 
@@ -246,19 +162,43 @@ export function quiptValidator(
         setTouchedness('touched');
     }
 
-    function runValidators(): [undefined, 'valid'] | [string, 'invalid'] {
-        const currentValidators = validataors();
-        const validatorsArray = Array.isArray(currentValidators)
-            ? currentValidators
-            : [currentValidators];
+    createEffect(() => {
+        const validationResult = runValidators();
+        setValidity(validationResult.validity);
+        setValidationMessage(validationResult.message);
+    });
 
-        const currentValue = value();
-        for (const validator of validatorsArray) {
-            if (!validator.validate(currentValue)) return [validator.message, 'invalid'];
-        }
+    onMount(() => {
+        const inputElement = element();
+        inputElement && props.onInputMount(props.name, inputElement);
+    });
 
-        return [undefined, 'valid'];
-    }
+    createEffect(() => {
+        props.onInputChange({
+            name: props.name,
+            value: value(),
+            message: validationMessage(),
+            validity: validity(),
+            pristineness: pristineness(),
+            touchedness: touchedness(),
+        });
+    });
+
+    return {
+        ref: setElement,
+        name: props.name,
+        onInput: valueChange,
+        onChange: valueChange,
+        onBlur: focusChange,
+        get value() {
+            return value();
+        },
+        get classList() {
+            return Object.fromEntries(
+                [pristineness(), touchedness(), validity()].map(k => [k, true]),
+            );
+        },
+    };
 }
 
 export namespace validators {
@@ -303,26 +243,5 @@ export namespace validators {
             },
             message: `Feld stimmt nicht mit ${name} überein`,
         };
-    }
-}
-
-declare global {
-    interface HTMLElementEventMap {
-        quiptsubmit: QuiptFormEvent;
-        еееInputChange: Event & { еееValue: string; еееValid: boolean };
-    }
-}
-
-declare module 'solid-js' {
-    namespace JSX {
-        interface DirectiveFunctions {
-            quiptForm: typeof quiptForm;
-            quiptValidator: typeof quiptValidator;
-        }
-
-        interface CustomEventHandlersCamelCase<T> {
-            onQuiptSubmit?: EventHandlerUnion<T, QuiptFormEvent> | undefined;
-            onQuiptValidationChange?: EventHandlerUnion<T, QuiptInputEvent> | undefined;
-        }
     }
 }
