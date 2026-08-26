@@ -49,7 +49,7 @@ export function TextCueDataView(props: TextCueDataViewProps) {
 }
 
 export interface TextCueViewProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>, 'class'> {
-    textCue: TextCue | undefined;
+    textCue: Partial<TextCue> | undefined;
     type: 'request' | 'response';
     beforeExtra?: JSX.Element;
     afterExtra?: JSX.Element;
@@ -66,7 +66,7 @@ export function TextCueView(props: TextCueViewProps): JSX.Element {
               }
             : {
                   actors: formatActorsArray(
-                      props.textCue!.actors.length === 1 ? null : props.textCue!.actors,
+                      props.textCue!.actors!.length === 1 ? null : props.textCue!.actors!,
                   ),
                   text: props.textCue!.text!,
               },

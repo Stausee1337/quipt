@@ -22,11 +22,11 @@ export interface ScriptContext {
     renameScript(uuid: schemas.UUID, name: string): void;
 }
 
-export function DelayedScriptInstantiator<C extends Component<{ script: Script }>>(props: {
+export function DelayedScriptInstantiator<C extends Component<{ scriptID: schemas.UUID }>>(props: {
     component: C;
 }): JSX.Element {
     const scriptContext = useContext(ScriptContextObj)!;
-    const scriptQuery = useQuery(() => ({
+    const scriptQuery = useQuery<Script>(() => ({
         queryKey: ['script', scriptContext.currentScript],
     }));
 
@@ -37,7 +37,7 @@ export function DelayedScriptInstantiator<C extends Component<{ script: Script }
     return (
         <>
             {scriptQuery.status === 'success' ? (
-                <Dynamic component={props.component} script={scriptQuery.data} />
+                <Dynamic component={props.component} scriptID={scriptQuery.data.uuid} />
             ) : null}
         </>
     );

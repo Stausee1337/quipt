@@ -114,9 +114,13 @@ export function formatMarkdown(markdown: string): FormattedString {
     return Array.from(mapToken(tokens));
 }
 
-export interface CueContainerInfo {
+export interface DivisionInfo {
     actors: string[];
     textCues: number;
+    name: string;
+    description: string;
+    highScore: number;
+    scoreHistory: number[];
 }
 
 function commonElements<T>(arrays: T[][]): T[] {
@@ -129,15 +133,15 @@ function commonElements<T>(arrays: T[][]): T[] {
     return Array.from(currentSet) as T[];
 }
 
-function computeDivisionInfoImpl(division: Division): CueContainerInfo;
+function computeDivisionInfoImpl(division: Division): DivisionInfo;
 function computeDivisionInfoImpl(
     division: Division,
     responseActorCollection: string[][],
-): CueContainerInfo;
+): DivisionInfo;
 function computeDivisionInfoImpl(
     division: Division,
     responseActorCollection?: string[][],
-): CueContainerInfo {
+): DivisionInfo {
     const actorsCollection: Set<string> = new Set();
     const addActors = (textCue: TextCue) =>
         textCue.actors.forEach(actorsCollection.add.bind(actorsCollection));
@@ -153,14 +157,18 @@ function computeDivisionInfoImpl(
     return {
         actors,
         textCues: division.textCues.length,
+        description: division.description,
+        name: division.name,
+        scoreHistory: division.previousTotals,
+        highScore: Math.max(...division.previousTotals),
     };
 }
 
-export function computeDivisionInfo(division: Division): CueContainerInfo {
+export function computeDivisionInfo(division: Division): DivisionInfo {
     return computeDivisionInfoImpl(division);
 }
 
-export interface ScriptInfo extends CueContainerInfo {
+export interface ScriptInfo extends DivisionInfo {
     self: string | undefined;
 }
 

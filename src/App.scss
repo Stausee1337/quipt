@@ -765,18 +765,6 @@ div.script-view {
     // display: grid;
     // grid-template-rows: 3.5rem 1fr 2rem 2rem 5.5rem 1rem;
 
-    &.free-scrolling {
-        div.cue-wrapper {
-            opacity: 1 !important;
-        }
-    }
-
-    div.cue-wrapper {
-        &:not(:has(div.last)) {
-            opacity: 0.3;
-        }
-    }
-
     span.content {
         white-space: pre-wrap;
         position: relative;

@@ -2,6 +2,7 @@ import {
     Accessor,
     For,
     JSX,
+    Owner,
     createEffect,
     createMemo,
     createRoot,
@@ -9,572 +10,238 @@ import {
     getOwner,
     onCleanup,
     onMount,
-    runWithOwner,
-    useContext,
 } from 'solid-js';
-import { insert } from 'solid-js/web';
 
-import { Params, useNavigate, useParams } from '@solidjs/router';
+import { useQuery } from '@tanstack/solid-query';
 import confetti from 'canvas-confetti';
 import { ChartConfiguration, ChartData } from 'chart.js/auto';
+import { schemas } from 'qrpc-js';
 
-import {
-    ConfidenceReportView,
-    OnConfidenceReportHandler,
-} from 'quipt/components/ConfidenceReportView';
 import { DivisionInfoView } from 'quipt/components/DivisionInfoView';
 import { TextCueView as BaseTextCueView } from 'quipt/components/TextCueView';
 import {
-    FormattedString,
+    DivisionInfo,
     FormattedStringView,
     SimpleChart,
-    createInvalidatable,
+    computeDivisionInfo,
     leftPad,
     progressBarGreen,
     progressBarOrange,
     progressBarRed,
     progressBarYellow,
 } from 'quipt/components/common';
-import { Division, Script, TextCue } from 'quipt/schemas';
-import { ScriptContext, ScriptContextObj } from 'quipt/script';
+import { Script } from 'quipt/schemas';
 
-function TextCueView(props: {
-    textCue: TextCue | undefined;
+const confidenceIconMap = [
+    {
+        low: '\uF31D',
+        medium: '\uF323',
+        high: '\uF327',
+    },
+    {
+        low: '\uF31C',
+        medium: '\uF322',
+        high: '\uF324',
+    },
+];
+
+type Confidence = 'low' | 'medium' | 'high';
+type OnConfidenceReportHandler = (confidence: Confidence) => void;
+type Trend = 'uu' | 'u' | 'd' | 'dd';
+
+type ConfidenceInfo = {
+    diff: number;
+    streak: number;
+    trend: Trend | undefined;
+};
+
+// I think TextCue is small enough to mirror it here for now
+interface TextCueBase {
+    text?: string;
+    actors?: string[];
     type: 'request' | 'response';
-    isLast: boolean;
-    onConfidenceReport?: OnConfidenceReportHandler;
+}
+interface RequestTextCue extends TextCueBase {
+    type: 'request';
+}
+
+interface ResponseTextCue extends TextCueBase {
+    text: string;
+    actors: string[];
+    previousScores: number[];
+    type: 'response';
+}
+
+type TextCue = RequestTextCue | ResponseTextCue;
+
+function ConfidenceReportButton(props: {
+    confidence: Confidence;
+    onConfidenceReport: OnConfidenceReportHandler;
+    isActive: boolean;
 }): JSX.Element {
+    const confidenceIconColor = {
+        low: progressBarRed,
+        medium: progressBarYellow,
+        high: progressBarGreen,
+    };
+
     return (
-        <BaseTextCueView
-            textCue={props.textCue}
-            type={props.type}
-            classList={{ last: props.isLast }}
-            afterExtra={
-                props.type === 'response' && (
-                    <ConfidenceReportView confidenceReport={props.onConfidenceReport} />
-                )
-            }
-        />
+        <span
+            class="smiley"
+            onClick={() => props.onConfidenceReport(props.confidence)}
+            style={{ color: confidenceIconColor[props.confidence] }}>
+            {confidenceIconMap[Number(props.isActive)][props.confidence]}
+        </span>
     );
 }
 
-/**
- * HACK: This renders a component into a temporary element correctly, while the code still relies
- * on such shenanigans.
- */
-function renderFormattedString(string: FormattedString): Element {
-    const tmpElement = document.createElement('div');
-    createRoot(dispose => {
-        insert(tmpElement, () => <FormattedStringView string={string} />);
-        dispose();
-    });
-    const result = tmpElement.firstElementChild!;
-    result.remove();
-    return result;
-}
-
-function easeOut(x: number) {
-    return Math.sin((x * Math.PI) / 2);
-    // return 1 - Math.pow(1 - t, 3); // close approximation
-}
-
-function animateScroll(element: HTMLElement, top: number, duration: number): Promise<void> {
-    let resolve: () => void;
-    const promise: Promise<void> = new Promise(resolve1 => {
-        resolve = resolve1;
-    });
-    const from = element.scrollTop;
-    const to = top;
-
-    function doAnimation(dt: number, start: number, current: number) {
-        const progress = Math.min(current - start, duration) / duration;
-        if (progress >= 1.0) setTimeout(resolve, 0);
-        else requestAnimationFrame(timestamp => doAnimation(timestamp - current, start, timestamp));
-        element.scrollTop = easeOut(progress) * (to - from) + from;
-    }
-
-    requestAnimationFrame(current => {
-        requestAnimationFrame(timestamp => doAnimation(timestamp - current, current, timestamp));
-    });
-    return promise;
-}
-
-function createFlyingScoreAnimation(
-    view: HTMLDivElement,
-    scoreString: Accessor<string>,
-    progressBarColor: Accessor<string>,
-): Promise<void> {
-    let resolve: () => void;
-    const promise: Promise<void> = new Promise(resolve1 => {
-        resolve = resolve1;
-    });
-
-    function calculateTranslationTo(sourceRect: DOMRect, targetRect: DOMRect): string {
-        const relY = targetRect.top + targetRect.height / 2 - sourceRect.height / 2;
-        const relX = targetRect.left + targetRect.width / 2 - sourceRect.width / 2;
-
-        return `translate(${relX}px, ${relY}px)`;
-    }
-    // const view = document.querySelector("div.script-view")!;
-    const score = view.querySelector('h1.score')! as HTMLElement;
-    const scoreBox = view.querySelector('div.scorebox')! as HTMLElement;
-
-    const flyingScore = (<h2 class="flying-score">{scoreString()}</h2>) as HTMLHeadingElement;
-    document.body.append(flyingScore);
-
-    const initalTargetRect = score.getBoundingClientRect();
-    const finalTargetRect = scoreBox.getBoundingClientRect();
-
-    const sourceRect = flyingScore.getBoundingClientRect();
-    const initialTranslation = calculateTranslationTo(sourceRect, initalTargetRect);
-    const finalTranslation = calculateTranslationTo(sourceRect, finalTargetRect);
-
-    flyingScore.style.transform = `${finalTranslation} scale(10)`;
-    flyingScore.style.color = progressBarColor();
-
-    const animation = flyingScore.animate(
-        [
-            { transform: initialTranslation, offset: 0 },
-            {
-                transform: `${finalTranslation} scale(4.5)`,
-                color: progressBarColor(),
-                offset: 1,
-            },
-        ],
-        { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' },
-    );
-
-    animation.addEventListener('finish', () => {
-        scoreBox.classList.remove('hidden');
-        flyingScore.remove();
-        resolve();
-    });
-
-    return promise;
-}
-
-interface TrainingRunManager {
-    addConfidenceRating(
-        cueIdx: number,
-        confidence: 'low' | 'medium' | 'high',
-    ): {
-        diff: number;
-        streak: number;
-        trend: 'dd' | 'd' | 'u' | 'uu' | undefined;
-    };
-
-    commitRun(): {
-        scoreHistory: number[];
-        hasBorkenRecord: boolean;
-    };
-    readonly isLastDivision: boolean;
-
-    reset(): void;
-    next(): Promise<boolean>;
-}
-
-const trendIcons = {
+const TREND_ICONS = {
     uu: 'chevron-double-up',
     u: 'chevron-up',
     d: 'chevron-down',
     dd: 'chevron-double-down',
 };
 
-const trendColors = {
+const TREND_COLORS = {
     uu: progressBarGreen,
     u: progressBarGreen,
     d: progressBarRed,
     dd: progressBarRed,
 };
 
-function TrainingRunView(props: { division: Division; manager: TrainingRunManager }) {
-    const textCues = props.division.textCues;
+function ConfidenceReportView(props: {
+    diff: number | undefined;
+    trend: Trend | undefined;
+    streak: number | undefined;
+    onConfidenceReport: OnConfidenceReportHandler;
+}): JSX.Element {
+    const [currentConfidence, setCurrentConfidence] = createSignal<Confidence>();
 
-    const [stickyDivisionVisible, setStickyDivisionVisible] = createSignal<boolean>(false);
-    const [currentIndex, setCurrentIndex] = createSignal<number>(0);
-    const [currentScore, setCurrentScore] = createSignal<number>(0);
-    const [scoreString, setScoreString] = createSignal<string>(String(currentScore()));
-    const [progressBarColor, setProgressBarColor] = createSignal<string>(progressBarGreen);
-    const [reachedEnd, setReachedEnd] = createSignal<boolean>(false);
-    const [scoreboxAnimationPromise, setScoreboxAnimationPromise] = createSignal<Promise<void>>();
-
-    const maxScore = textCues.length * 4;
-    const highScore = Math.max(maxScore, ...props.division.previousTotals);
-    const [currentBarTotal, setCurrentBarTotal] = createSignal<number>(maxScore);
-
-    const root = document.querySelector('div.routing-contents')! as HTMLElement;
-    let view: HTMLDivElement = undefined!;
-
-    let scrollLocked = false;
-    function append() {
-        const prev = root.scrollTop;
-        const currentIdx = currentIndex();
-        if (currentIdx < textCues.length * 2 - 1) setCurrentIndex(currentIdx + 1);
-        else setReachedEnd(true);
-
-        root.scrollTop = prev;
-
-        scrollLocked = true;
-        animateScroll(root, root.scrollHeight - root.offsetHeight, 250).then(() => {
-            scrollLocked = false;
-
-            if (reachedEnd())
-                setScoreboxAnimationPromise(
-                    createFlyingScoreAnimation(view, scoreString, progressBarColor),
-                );
-        });
+    function onConfidenceReport(confidence: Confidence) {
+        if (currentConfidence()) return;
+        setCurrentConfidence(confidence);
+        props.onConfidenceReport(confidence);
     }
 
-    function scrollListener() {
-        if (scrollLocked) return;
-        if (root.scrollTop < root.scrollHeight - root.offsetHeight) {
-            view.classList.add('free-scrolling');
-        } else {
-            view.classList.remove('free-scrolling');
-        }
-    }
-
-    const observer = new IntersectionObserver(
-        entries => {
-            setStickyDivisionVisible(!entries[0].isIntersecting);
-        },
-        { root },
+    const indicatorColor = createMemo(() =>
+        props.diff ? calculateIndicatorColor(props.diff) : undefined,
     );
 
-    onMount(() => {
-        // const view = document.querySelector("div.script-view")!;
-        observer.observe(view.querySelector('h2')!);
-        root.addEventListener('scroll', scrollListener);
-    });
-
-    onCleanup(() => {
-        // const view = document.querySelector("div.script-view")!;
-        observer.unobserve(view.querySelector('h2')!);
-        root.removeEventListener('scroll', scrollListener);
-    });
-
-    function checkIsLast(n: number, lastIndex: number): boolean {
-        return Math.floor(n / 2) === Math.floor(lastIndex / 2);
-    }
-
-    function calculateIndicatorColor(score: number): string {
-        switch (score) {
-            case 1:
-                return progressBarRed;
-            case 2:
-                return progressBarYellow;
-            default:
-                return progressBarGreen;
-        }
-    }
-
-    function calculateBarColor(score: number): string {
-        const p = score / maxScore;
-        if (p > 1) return progressBarGreen;
-        else if (p > 0.5) return progressBarYellow;
-        else if (p > 0.25) return progressBarOrange;
-        return progressBarRed;
-    }
-
-    function doTheFlyingIconThing(
-        targetRect: DOMRect,
-        sourceRect: DOMRect,
-        diff: number,
-        indicatorColor: string,
-    ): Animation {
-        let flyingIcon = (
-            <span
-                class="flying-icon"
-                style={{
-                    top: `${sourceRect.top}px`,
-                    left: `${sourceRect.left}px`,
-                    color: indicatorColor,
-                }}>
-                +{diff}
-            </span>
-        ) as HTMLSpanElement;
-
-        document.body.appendChild(flyingIcon);
-
-        const animation = flyingIcon.animate(
-            [
-                {
-                    top: `${sourceRect.top}px`,
-                    left: `${sourceRect.left}px`,
-                    offset: 0,
-                },
-                {
-                    top: `${targetRect.top}px`,
-                    left: `${targetRect.left}px`,
-                    offset: 1,
-                },
-            ],
-            { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' },
-        );
-
-        animation.addEventListener('finish', () => {
-            flyingIcon.remove();
-            setCurrentScore(p => p + diff);
-
-            const currentScore1 = currentScore();
-            const currentBarTotal1 = currentBarTotal();
-            if (currentScore1 > currentBarTotal1 && currentBarTotal1 < highScore)
-                setCurrentBarTotal(highScore);
-
-            const color = calculateBarColor(currentScore1);
-
-            const centerX = targetRect.left + targetRect.width / 2;
-            const centerY = targetRect.top + targetRect.height / 2;
-
-            const size = window.innerWidth;
-            const coordX = centerX - size / 2;
-            const coordY = centerY - size / 2;
-
-            const bubble = (
-                <span
-                    class="score-ripple-bubble"
-                    style={{
-                        top: `${coordY}px`,
-                        left: `${coordX}px`,
-                        '--bubble-color': color,
-                    }}
-                />
-            ) as HTMLSpanElement;
-            bubble.addEventListener('animationend', () => {
-                bubble.remove();
-            });
-            document.body.appendChild(bubble);
-        });
-
-        return animation;
-    }
-
-    async function reportConfidence(source: Element, confidence: 'low' | 'medium' | 'high') {
-        const { diff, streak, trend } = props.manager.addConfidenceRating(
-            Math.floor(currentIndex() / 2),
-            confidence,
-        );
-        append();
-
-        // const view = document.querySelector("div.script-view")!;
-        const score = view.querySelector('h1.score')!;
-        const targetRect = score.getBoundingClientRect();
-        const indicatorColor = calculateIndicatorColor(diff);
-
-        const parent = source.parentElement!;
-
-        if (trend !== undefined) {
-            const trendColor = trendColors[trend];
-            parent.insertBefore(
-                (
-                    <i style={{ color: trendColor }} class={`bi bi-${trendIcons[trend]}`} />
-                ) as HTMLElement,
-                parent.firstChild,
-            );
-        }
-
-        const x = renderFormattedString([{ style: { color: indicatorColor }, string: `+${diff}` }]);
-        parent.insertBefore(x, parent.firstChild);
-
-        let sourceRect = x.getBoundingClientRect();
-
-        let streakIndicator;
-        if (streak > 0) {
-            ((streakIndicator = (
-                <span style={{ color: progressBarOrange }}>
-                    <i class="bi bi-fire" /> {streak}
-                </span>
-            ) as HTMLElement),
-                parent.insertBefore(streakIndicator, parent.firstChild));
-        }
-
-        let animation = doTheFlyingIconThing(targetRect, sourceRect, diff, indicatorColor);
-
-        if (streak === 0) return;
-        const streakPoints = calculatePointsForStreak(streak);
-
-        await animation.finished;
-        sourceRect = streakIndicator!.getBoundingClientRect();
-
-        doTheFlyingIconThing(targetRect, sourceRect, streakPoints, progressBarOrange);
-    }
-
-    createEffect<number>(prev => {
-        const current = currentScore();
-        setProgressBarColor(calculateBarColor(current));
-        createScoreAnimation(prev, current);
-        return current;
-    }, currentScore());
-
-    function createScoreAnimation(start: number, end: number): Promise<void> {
-        let resolve: () => void;
-        const promise: Promise<void> = new Promise(resolve1 => {
-            resolve = resolve1;
-        });
-
-        const effect: string[] = [];
-        for (let c = start; c <= end; c++) {
-            effect.push(String(c));
-        }
-
-        let currentIndex = 0;
-        function advance() {
-            if (currentIndex === effect.length - 1) {
-                clearInterval(interval);
-                resolve();
-            }
-            setScoreString(effect[currentIndex]);
-            currentIndex++;
-        }
-
-        let interval = 0;
-        advance();
-        if (effect.length == 1) return promise;
-
-        let delta = 75;
-        if (effect.length - 1 > 4) delta = 300 /* ms */ / (effect.length - 1);
-
-        interval = setInterval(advance, delta);
-        return promise;
-    }
-
-    function CreateTextCueView(props: { idx: number }): JSX.Element {
-        const type = createMemo(() => (props.idx % 2 === 0 ? 'request' : 'response'));
-        return (
-            <TextCueView
-                textCue={textCues[Math.floor(props.idx / 2)][type()]}
-                type={type()}
-                isLast={checkIsLast(props.idx, currentIndex())}
-                onConfidenceReport={props.idx === currentIndex() ? reportConfidence : undefined}
-            />
-        );
-    }
-
-    async function visualViewReset(target: 'next' | 'top') {
-        if (target === 'top') {
-            // const view = document.querySelector("div.script-view")!;
-            const mainContent = view.querySelector('div.main-content')!;
-            for (const childElement of mainContent.children) {
-                const child = childElement as HTMLElement;
-                child.style.visibility = 'hidden';
-            }
-
-            await animateScroll(root, 0, 350);
-
-            setReachedEnd(false);
-            setCurrentIndex(0);
-
-            props.manager.reset();
-        } else {
-            const hasNext = await props.manager.next();
-            if (!hasNext) return;
-            await animateScroll(root, root.scrollHeight - root.offsetHeight, 350);
-            view.remove();
-            previousElement = null;
-        }
-    }
-
-    // <button class="icon-button" onClick={append}>&#xF268;</button>
-
     return (
-        <div ref={view} class="script-view">
-            <span class="sticky-division" classList={{ visible: stickyDivisionVisible() }}>
-                {props.division.name}
-            </span>
-            <div class="division-preamble">
-                <h2>{props.division.name}</h2>
-                <DivisionInfoView division={props.division} />
-                <div style={{ flex: 1, 'min-height': '2.5rem' }} />
-                <CreateTextCueView idx={0} />
-            </div>
-            <div class="main-content">
-                <For each={Array.from({ length: currentIndex() }, (_, index) => index + 1)}>
-                    {idx => <CreateTextCueView idx={idx} />}
-                </For>
-            </div>
-            {currentIndex() % 2 === 0 ? (
-                <div
-                    class="button-container"
-                    style={{
-                        'padding-top': currentIndex() > 0 ? '2.5rem' : undefined,
-                    }}>
-                    <button class="primary-button" onClick={append}>
-                        Aufdecken
-                    </button>
-                </div>
-            ) : null}
-            {!reachedEnd() ? (
-                <div class="scroll-padding" />
-            ) : (
-                <TrainingRunCompletedView
-                    maxScore={maxScore}
-                    visualTransitionTo={visualViewReset}
-                    currentScoreString={scoreString()}
-                    manager={props.manager}
-                    progressBarColor={progressBarColor()}
-                    scoreboxAnimation={scoreboxAnimationPromise()}
+        <div class="confidence-rating">
+            {props.streak && (
+                <span style={{ color: progressBarOrange }}>
+                    <i class="bi bi-fire" /> {props.streak}
+                </span>
+            )}
+            {props.trend && (
+                <i
+                    class={`bi bi-${TREND_ICONS[props.trend]}`}
+                    style={{ color: TREND_COLORS[props.trend] }}
                 />
             )}
-            <div class="controls">
-                <div class="horizontal">
-                    <h1 class="score">{scoreString()}</h1>
-                    <div style="flex: 1;" />
-                    <span>
-                        {Math.floor(currentIndex() / 2) + 1} / {props.division.textCues.length}
-                    </span>
-                </div>
-                <div
-                    class="progress"
-                    style={{
-                        '--progress-width': Math.min(currentScore() / currentBarTotal(), 1),
-                        '--progress-color': progressBarColor(),
-                    }}>
-                    <div class="inner" />
-                </div>
-            </div>
+            {props.diff && (
+                <FormattedStringView
+                    string={[
+                        {
+                            style: { color: indicatorColor() },
+                            string: `+${props.diff}`,
+                        },
+                    ]}
+                />
+            )}
+            <ConfidenceReportButton
+                confidence="low"
+                isActive={currentConfidence() === 'low'}
+                onConfidenceReport={onConfidenceReport}
+            />
+            <ConfidenceReportButton
+                confidence="medium"
+                isActive={currentConfidence() === 'medium'}
+                onConfidenceReport={onConfidenceReport}
+            />
+            <ConfidenceReportButton
+                confidence="high"
+                isActive={currentConfidence() === 'high'}
+                onConfidenceReport={onConfidenceReport}
+            />
         </div>
     );
 }
 
-function createSubscribablePromise<T>(promise: Promise<T>, then: (x: T) => void): () => void {
-    let canceled = false;
-    promise.then(v => {
-        if (!canceled) then(v);
-    });
-    return () => (canceled = true);
+function TextCueView(props: {
+    idx: number;
+    currentIdx: number;
+    textCues: TextCue[];
+    onConfidenceUpdate?: (info: ConfidenceInfo) => void;
+}): JSX.Element {
+    const [diff, setDiff] = createSignal<number>();
+    const [trend, setTrend] = createSignal<Trend>();
+    const [streak, setStreak] = createSignal<number>();
+
+    const textCue = createMemo(() => props.textCues[props.idx]);
+
+    function reportConfidence(confidence: Confidence) {
+        const textCue = props.textCues[props.currentIdx];
+        if (textCue.type !== 'response') return;
+        const confidenceInfo = computeConfidenceInfo(textCue, confidence);
+        setDiff(confidenceInfo.diff);
+        setTrend(confidenceInfo.trend);
+        setStreak(confidenceInfo.streak);
+        props?.onConfidenceUpdate?.(confidenceInfo);
+    }
+
+    return (
+        <BaseTextCueView
+            textCue={textCue()}
+            type={textCue().type}
+            afterExtra={
+                textCue().type === 'response' && (
+                    <ConfidenceReportView
+                        diff={diff()}
+                        trend={trend()}
+                        streak={streak()}
+                        onConfidenceReport={reportConfidence}
+                    />
+                )
+            }
+        />
+    );
 }
 
-function TrainingRunCompletedView(props: {
-    maxScore: number;
-    currentScoreString: string;
-    progressBarColor: string;
-    manager: TrainingRunManager;
-    scoreboxAnimation: Promise<void> | undefined;
-    visualTransitionTo: (target: 'next' | 'top') => void;
-}) {
-    const { scoreHistory, hasBorkenRecord } = props.manager.commitRun();
-    const highScore = Math.max(props.maxScore, ...scoreHistory);
-    const [animationsDone, setAnimationsDone] = createSignal<boolean>(false);
+function ConfettiCanvas(): JSX.Element {
+    let confettiCanvas: HTMLCanvasElement | undefined = undefined;
 
-    let unsubscribe: (() => void) | undefined;
-    createEffect(() => {
-        if (unsubscribe !== undefined) unsubscribe();
-        if (props.scoreboxAnimation === undefined) return;
-        unsubscribe = createSubscribablePromise(props.scoreboxAnimation, () => {
-            setAnimationsDone(true);
-        });
-    });
-
-    createEffect(() => {
-        if (!animationsDone() || !hasBorkenRecord) return;
+    onMount(() => {
         const creater = confetti.create(confettiCanvas, { resize: true });
         creater();
     });
 
+    return <canvas ref={confettiCanvas} id="confettiCanvas" />;
+}
+
+function TrainingRunCompletedView(props: {
+    // FIXME: these props feel like not good capsulation
+    divisionInfo: DivisionInfo;
+    score: number;
+    currentScoreString: string;
+    progressBarColor: string;
+    animationsSetteled: boolean;
+    onNext: () => void;
+    onReset: () => void;
+}): JSX.Element {
+    // FIXME: this is not how we do state
+    const scoreHistory = [...props.divisionInfo.scoreHistory, props.score];
+    const hasBrokenRecord = props.score > props.divisionInfo.highScore;
+
+    const maxScore = props.divisionInfo.textCues * 4; // FIXME: maxScore is pretty arbitrary
+    const highScore = Math.max(maxScore, props.divisionInfo.highScore, props.score);
+    const isLastDivision = false; // FIXME: getting THIS information won't be trivial
+
     function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
         const scores = scoreHistory.slice(-7);
         const data = leftPad(scores, 7);
-        const hightestRelativeScore = Math.max(props.maxScore, ...data);
+        const hightestRelativeScore = Math.max(maxScore, ...data);
 
         const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
         gradient.addColorStop(0.35, 'rgba(227, 227, 227, 0)');
@@ -630,7 +297,7 @@ function TrainingRunCompletedView(props: {
                         min: 0,
                         max: hightestRelativeScore,
                         ticks: {
-                            stepSize: props.maxScore / 4,
+                            stepSize: maxScore / 4,
                         },
                         grid: {
                             color: '#252525',
@@ -640,8 +307,6 @@ function TrainingRunCompletedView(props: {
             },
         };
     }
-
-    const confettiCanvas = (<canvas id="confettiCanvas" />) as HTMLCanvasElement;
 
     return (
         <div class="division-training-end">
@@ -653,33 +318,130 @@ function TrainingRunCompletedView(props: {
                 }}>
                 {props.currentScoreString}
             </div>
-            {animationsDone() ? <SimpleChart onConfig={chartConfigFactory} /> : null}
-            {animationsDone() && hasBorkenRecord ? (
+            {props.animationsSetteled ? <SimpleChart onConfig={chartConfigFactory} /> : null}
+            {props.animationsSetteled && hasBrokenRecord ? (
                 <h3>
                     <i class="bi bi-trophy-fill" style={{ color: progressBarYellow }} /> Neuer High
                     Score!
                 </h3>
             ) : null}
-            {!animationsDone() ? null : (
+            {!props.animationsSetteled ? null : (
                 <>
                     <div style={{ flex: 1 }} />
                     <div class="continuation-buttons">
-                        <button
-                            class="primary-button"
-                            onClick={() => props.visualTransitionTo('next')}>
-                            {!props.manager.isLastDivision ? 'Weiter' : 'Zurück zur Übersicht'}
+                        <button class="primary-button" onClick={() => props.onNext()}>
+                            {!isLastDivision ? 'Weiter' : 'Zurück zur Übersicht'}
                         </button>
-                        <button
-                            class="secondary-button"
-                            onClick={() => props.visualTransitionTo('top')}>
+                        <button class="secondary-button" onClick={() => props.onReset()}>
                             Nochmal
                         </button>
                     </div>
                 </>
             )}
-            {confettiCanvas}
+            {props.animationsSetteled && hasBrokenRecord && <ConfettiCanvas />}
         </div>
     );
+}
+
+function easeOut(x: number) {
+    return Math.sin((x * Math.PI) / 2);
+}
+
+function scrollAnimation(element: HTMLElement, top: number, duration: number): Promise<void> {
+    let resolve: () => void;
+    const promise: Promise<void> = new Promise(resolve1 => {
+        resolve = resolve1;
+    });
+    const from = element.scrollTop;
+    const to = top;
+
+    function doAnimation(start: number, current: number) {
+        const progress = Math.min(current - start, duration) / duration;
+        if (progress >= 1.0) setTimeout(resolve, 0);
+        else requestAnimationFrame(timestamp => doAnimation(start, timestamp));
+        element.scrollTop = easeOut(progress) * (to - from) + from;
+    }
+
+    requestAnimationFrame(current => {
+        requestAnimationFrame(timestamp => doAnimation(current, timestamp));
+    });
+    return promise;
+}
+
+function flyingScoreAnimation(
+    view: HTMLDivElement,
+    scoreString: Accessor<string>,
+    progressBarColor: Accessor<string>,
+    onAnimationFinished: () => void,
+    owner: Owner,
+) {
+    function calculateTranslationTo(sourceRect: DOMRect, targetRect: DOMRect): string {
+        const relY = targetRect.top + targetRect.height / 2 - sourceRect.height / 2;
+        const relX = targetRect.left + targetRect.width / 2 - sourceRect.width / 2;
+
+        return `translate(${relX}px, ${relY}px)`;
+    }
+
+    const score = view.querySelector('h1.score')! as HTMLElement;
+    const scoreBox = view.querySelector('div.scorebox')! as HTMLElement;
+
+    const flyingScore = document.createElement('h2');
+    flyingScore.className = 'flying-score';
+    const dispsoseFlyingScoreUpdate = createRoot(dispose => {
+        createEffect(() => {
+            flyingScore.textContent = scoreString();
+        });
+        return dispose;
+    }, owner);
+    document.body.append(flyingScore);
+
+    const initalTargetRect = score.getBoundingClientRect();
+    const finalTargetRect = scoreBox.getBoundingClientRect();
+
+    const sourceRect = flyingScore.getBoundingClientRect();
+    const initialTranslation = calculateTranslationTo(sourceRect, initalTargetRect);
+    const finalTranslation = calculateTranslationTo(sourceRect, finalTargetRect);
+
+    flyingScore.style.transform = `${finalTranslation} scale(10)`;
+    flyingScore.style.color = progressBarColor();
+
+    const animation = flyingScore.animate(
+        [
+            { transform: initialTranslation, offset: 0 },
+            {
+                transform: `${finalTranslation} scale(4.5)`,
+                color: progressBarColor(),
+                offset: 1,
+            },
+        ],
+        { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' },
+    );
+
+    animation.addEventListener('finish', () => {
+        scoreBox.classList.remove('hidden');
+        flyingScore.remove();
+        dispsoseFlyingScoreUpdate();
+        onAnimationFinished();
+    });
+}
+
+function calculateBarColor(score: number, maxScore: number): string {
+    const p = score / maxScore;
+    if (p > 1) return progressBarGreen;
+    else if (p > 0.5) return progressBarYellow;
+    else if (p > 0.25) return progressBarOrange;
+    return progressBarRed;
+}
+
+function calculateIndicatorColor(score: number): string {
+    switch (score) {
+        case 1:
+            return progressBarRed;
+        case 2:
+            return progressBarYellow;
+        default:
+            return progressBarGreen;
+    }
 }
 
 function calculatePointsForStreak(streak: number): number {
@@ -702,141 +464,320 @@ function calculateStreakFromPoints(points: number): number {
     return Math.max(x1, x2);
 }
 
-let previousElement: JSX.Element = null;
+function computeConfidenceInfo(textCue: ResponseTextCue, confidence: Confidence): ConfidenceInfo {
+    let newScore = 0;
+    switch (confidence) {
+        case 'low':
+            newScore = 1;
+            break;
+        case 'medium':
+            newScore = 2;
+            break;
+        case 'high':
+            newScore = 4;
+            break;
+    }
+    const diff = newScore;
 
-function createTrainingRunManager(
-    params: Params,
-    scriptContext: ScriptContext,
-    script: Script,
-    resetState: () => void,
-): [TrainingRunManager, Division] {
-    const navigate = useNavigate();
-    const index = Number(params.division) - 1;
-    const division = script.divisions[index];
-    const newConfidences: number[] = Array(division.textCues.length).fill(0);
-    let didCommitNewConfidences = false;
-    const computationOwner = getOwner()!;
+    let streak = 0;
+    let trend: Trend | undefined;
+    const previousScore = textCue.previousScores.at(-1);
+    if (previousScore === undefined) {
+        return { diff: newScore, streak: 0, trend };
+    }
 
-    const manager: TrainingRunManager = {
-        addConfidenceRating(cueIdx, confidence) {
-            let newScore = 0;
-            switch (confidence) {
-                case 'low':
-                    newScore = 1;
-                    break;
-                case 'medium':
-                    newScore = 2;
-                    break;
-                case 'high':
-                    newScore = 4;
-                    break;
-            }
-            const diff = newScore;
+    const delta = newScore - previousScore;
+    if (previousScore >= 4 && newScore === 4) {
+        streak = calculateStreakFromPoints(previousScore - 4) + 1;
+        newScore = 4 + calculatePointsForStreak(streak);
+        trend = 'uu';
+    } else if (delta > 0 && delta <= 2) trend = 'u';
+    else if (delta < 0 && delta >= -2) trend = 'd';
+    else if (delta >= 3) trend = 'uu';
+    else if (delta <= -3) trend = 'dd';
 
-            let streak = 0;
-            let trend: 'dd' | 'd' | 'u' | 'uu' | undefined;
-            const previousScore = division.textCues[cueIdx].previousScores.at(-1);
-            if (previousScore === undefined) {
-                newConfidences[cueIdx] = newScore;
-                return { diff: newScore, streak: 0, trend };
-            }
-
-            const delta = newScore - previousScore;
-            if (previousScore >= 4 && newScore === 4) {
-                streak = calculateStreakFromPoints(previousScore - 4) + 1;
-                newScore = 4 + calculatePointsForStreak(streak);
-                trend = 'uu';
-            } else if (delta > 0 && delta <= 2) trend = 'u';
-            else if (delta < 0 && delta >= -2) trend = 'd';
-            else if (delta >= 3) trend = 'uu';
-            else if (delta <= -3) trend = 'dd';
-            newConfidences[cueIdx] = newScore;
-
-            return { diff, streak, trend };
-        },
-        commitRun() {
-            if (!didCommitNewConfidences) {
-                didCommitNewConfidences = true;
-                scriptContext.commitNewConfidences(index, newConfidences);
-            }
-            const newScore = newConfidences.reduce((a, b) => a + b);
-            const previousHighScore = Math.max(...division.previousTotals);
-            const scoreHistory = [...division.previousTotals, newScore];
-            return {
-                scoreHistory,
-                hasBorkenRecord: newScore > previousHighScore,
-            };
-        },
-        reset() {
-            resetState();
-        },
-        next() {
-            if (this.isLastDivision) {
-                window.history.back();
-                return Promise.resolve(false);
-            }
-            let resolve: (x: boolean) => void;
-            const promise = new Promise<boolean>(resolve1 => (resolve = resolve1));
-
-            previousElement = document.querySelector('div.script-view');
-            const nextDivision = index + 2;
-            let didResetState = false;
-            navigate(`/script/${script.uuid}/${nextDivision}`, {
-                replace: true,
-            });
-            runWithOwner(computationOwner, () =>
-                createEffect(() => {
-                    if (Number(params.division) === nextDivision && !didResetState) {
-                        didResetState = true;
-                        resetState();
-                        resolve(true);
-                    }
-                }),
-            );
-
-            return promise;
-        },
-        get isLastDivision() {
-            return index === script.divisions.length - 1;
-        },
-    };
-
-    return [manager, division];
+    return { diff, streak, trend };
 }
 
-// FIXME: pretty much everything is a problem here.
-//  - The archticture is still quite imperative, while it clearly shouldn't
-//  - Dependencies are not managed correctly (why does this component even so much as touch params)
-//  - The entire training view is written into one big function, which doesn't care a bit about
-//    separation of concerns.
-// This will clearly have to go through a MAJOR refactoring, akin to a rewrite, just to get
-// everything sorted out.
-export function TrainingRunWrapper(props: { script: Script }): JSX.Element {
-    const params = useParams();
-    const scriptContext = useContext(ScriptContextObj)!;
+// Remember, `TrainingRunView` (at least theoretically) is resettable. I don't really know how this
+// is supposed to be done, its just clear to me that this should normally be considered quite early
+// in the architecture (LOL).
+function TrainingRunView(props: {
+    divisionInfo: DivisionInfo;
+    textCues: TextCue[];
+    onTrainingRunCompleted: () => void;
+    onNext: () => void;
+}) {
+    // FIXME: this is not how we do state
+    const owner = getOwner()!;
+    const maxScore = props.divisionInfo.textCues * 4; // FIXME: maxScore is pretty arbitrary
+    const root = document.querySelector('div.routing-contents')! as HTMLElement;
+    const observer = new IntersectionObserver(
+        entries => setStickyDivisionVisible(!entries[0].isIntersecting),
+        { root },
+    );
 
-    const [element, invalidate] = createInvalidatable(() => {
-        const [manager, division] = createTrainingRunManager(
-            params,
-            scriptContext,
-            props.script,
-            () => invalidate(),
-        );
-        return (
-            <>
-                {previousElement}
-                <TrainingRunView division={division} manager={manager} />
-            </>
-        );
-    });
+    let viewElement: HTMLDivElement | undefined = undefined;
+    let scoreElement: HTMLHeadingElement | undefined = undefined;
+    let divisionNameElement: HTMLHeadingElement | undefined = undefined;
+
+    const [stickyDivisionVisible, setStickyDivisionVisible] = createSignal<boolean>(false);
+    const [currentIndex, setCurrentIndex] = createSignal<number>(0);
+    const [currentScore, setCurrentScore] = createSignal<number>(0);
+    const [scoreString, setScoreString] = createSignal<string>(String(currentScore()));
+    const [reachedEnd, setReachedEnd] = createSignal<boolean>(false);
+    const [animationsSetteled, setAnimationsSetteled] = createSignal(false);
+    const [currentBarTotal, setCurrentBarTotal] = createSignal<number>(maxScore);
+
+    const progressBarColor = createMemo<string>(() => calculateBarColor(currentScore(), maxScore));
 
     onMount(() => {
-        document.title = `${props.script.name} - Quipt`;
+        divisionNameElement && observer.observe(divisionNameElement);
     });
+
+    onCleanup(() => {
+        divisionNameElement && observer.unobserve(divisionNameElement);
+    });
+
+    createEffect<number>(prev => {
+        const current = currentScore();
+        scoreCountAnimation(prev, current);
+        return current;
+    }, currentScore());
+
+    function scoreCountAnimation(start: number, end: number) {
+        const effect: string[] = [];
+        for (let c = start; c <= end; c++) {
+            effect.push(String(c));
+        }
+
+        let currentIndex = 0;
+        function advance() {
+            if (currentIndex === effect.length - 1) {
+                clearInterval(interval);
+            }
+            setScoreString(effect[currentIndex]);
+            currentIndex++;
+        }
+
+        let interval = 0;
+        advance();
+        if (effect.length == 1) return;
+
+        let delta = 75;
+        if (effect.length - 1 > 4) delta = 300 /* ms */ / (effect.length - 1);
+
+        interval = setInterval(advance, delta);
+    }
+
+    function revealNextCue() {
+        const prev = root.scrollTop;
+        const nextIdx = currentIndex() + 1;
+        if (nextIdx >= props.textCues.length) {
+            setReachedEnd(true);
+            setAnimationsSetteled(false);
+            props.onTrainingRunCompleted();
+        } else {
+            setCurrentIndex(nextIdx);
+        }
+
+        root.scrollTop = prev;
+
+        scrollAnimation(root, root.scrollHeight - root.offsetHeight, 250).then(() => {
+            if (reachedEnd()) {
+                setAnimationsSetteled(true);
+
+                if (viewElement === undefined) return;
+                flyingScoreAnimation(
+                    viewElement,
+                    scoreString,
+                    progressBarColor,
+                    () => setAnimationsSetteled(true),
+                    owner,
+                );
+            }
+        });
+    }
+
+    function updateScore(diff: number) {
+        setCurrentScore(p => p + diff);
+
+        const currentScore1 = currentScore();
+        const currentBarTotal1 = currentBarTotal();
+        if (currentScore1 > currentBarTotal1 && currentBarTotal1 < props.divisionInfo.highScore)
+            setCurrentBarTotal(props.divisionInfo.highScore);
+    }
+
+    function onConfidenceUpdate(info: ConfidenceInfo) {
+        // TODO: mutateTextCue(cueIdx, diff);
+        updateScore(info.diff + calculatePointsForStreak(info.streak));
+        revealNextCue();
+
+        // TODO: Animations where staggered:
+        //  - [
+        //      FlyingIndicatorAnimation(info.diff, scoreElement),
+        //      info.streak && FlyingIndicatorAnimation(pointsForStreak(info.streak), streakElement)
+        //  ]
+        //
+        //  FlyingIndicatorAnimation(diff, element) timeline:
+        //   - flyingIcon = copy(element)
+        //   - Animate {
+        //        target: flyingIcon,
+        //        start { position: positionOf(element) },
+        //        end { position: positionOf(scoreElement) },
+        //        duration: 500,
+        //        easing: 'cubic-bezier(0.7, 0, 0.84, 0)'
+        //     }
+        //   - score = currentScore()
+        //   - setCurrentScore(score + diff);
+        //   - InParallel {
+        //        + CountingScoreAnimation {
+        //             from: score,
+        //             to: score + info.diff,
+        //             duration: 300
+        //          }
+        //        + BubbleAnimation
+        //     }
+        //
+        //  BubbleAnimation timeline:
+        //   - bubble = <span/>
+        //   - setColor(bubble, progressBarColor())
+        //   - setPosition(bubble, positionOf(scoreElement), 'center')
+        //   - Animate {
+        //        target: bubble,
+        //        start: { size: [0, 0], opacity: 0.2 },
+        //        end: { size: [window.width, window.height], opacity: 0 },
+        //        duration: 250,
+        //        easing: 'ease-out'
+        //     }
+        //
+        // TODO:
+        //  - translate FlyingScoreAnimation into timeline
+        //  - build timeline animation tool
+    }
+
+    function onReset() {}
+
+    return (
+        <div ref={viewElement} class="script-view">
+            <span class="sticky-division" classList={{ visible: stickyDivisionVisible() }}>
+                {props.divisionInfo.name}
+            </span>
+            <div class="division-preamble">
+                <h2 ref={divisionNameElement}>{props.divisionInfo.name}</h2>
+                <DivisionInfoView info={props.divisionInfo} />
+                <div style={{ flex: 1, 'min-height': '2.5rem' }} />
+                <TextCueView
+                    idx={0}
+                    currentIdx={currentIndex()}
+                    textCues={props.textCues}
+                    onConfidenceUpdate={undefined}
+                />
+            </div>
+            <div class="main-content">
+                <For each={Array.from({ length: currentIndex() }, (_, index) => index + 1)}>
+                    {idx => (
+                        <TextCueView
+                            idx={idx}
+                            currentIdx={currentIndex()}
+                            textCues={props.textCues}
+                            onConfidenceUpdate={onConfidenceUpdate}
+                        />
+                    )}
+                </For>
+            </div>
+            {currentIndex() % 2 === 0 ? (
+                <div
+                    class="button-container"
+                    style={{
+                        'padding-top': currentIndex() > 0 ? '2.5rem' : undefined,
+                    }}>
+                    <button class="primary-button" onClick={revealNextCue}>
+                        Aufdecken
+                    </button>
+                </div>
+            ) : null}
+            {!reachedEnd() ? (
+                <div class="scroll-padding" />
+            ) : (
+                <TrainingRunCompletedView
+                    divisionInfo={props.divisionInfo}
+                    score={currentScore()}
+                    currentScoreString={scoreString()}
+                    progressBarColor={progressBarColor()}
+                    animationsSetteled={animationsSetteled()}
+                    onNext={props.onNext}
+                    onReset={onReset}
+                />
+            )}
+            <div class="controls">
+                <div class="horizontal">
+                    <h1 ref={scoreElement} class="score">
+                        {scoreString()}
+                    </h1>
+                    <div style="flex: 1;" />
+                    <span>
+                        {Math.floor(currentIndex() / 2) + 1} / {props.divisionInfo.textCues}
+                    </span>
+                </div>
+                <div
+                    class="progress"
+                    style={{
+                        '--progress-width': Math.min(currentScore() / currentBarTotal(), 1),
+                        '--progress-color': progressBarColor(),
+                    }}>
+                    <div class="inner" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export function TrainingRunWrapper(props: {
+    scriptID: schemas.UUID;
+    divisionIdx: number;
+}): JSX.Element {
+    const scriptQuery = useQuery<Script>(() => ({ queryKey: ['script', props.scriptID] }));
+
+    type CapturedDivision = {
+        info: DivisionInfo;
+        textCues: TextCue[];
+    };
+
+    const [capturedDivision, setCapturedDivision] = createSignal<CapturedDivision>();
 
     createEffect(() => {
-        document.title = `${props.script.name} - Quipt`;
+        if (capturedDivision() !== undefined) return; // FIXME: update the training view here
+        if (scriptQuery.status === 'success') {
+            const script = scriptQuery.data;
+            const division = script.divisions[props.divisionIdx];
+            document.title = `${script.name} - Quipt`;
+            const textCues = division.textCues.flatMap(pair => [
+                { ...pair.request, type: 'request' } as RequestTextCue,
+                {
+                    ...pair.response,
+                    previousScores: [...pair.previousScores],
+                    type: 'response',
+                } as ResponseTextCue,
+            ]);
+
+            setCapturedDivision({
+                info: computeDivisionInfo(division),
+                textCues,
+            });
+        }
     });
 
-    return <>{element()}</>;
+    return (
+        <>
+            {capturedDivision() && (
+                <TrainingRunView
+                    divisionInfo={capturedDivision()!.info}
+                    textCues={capturedDivision()!.textCues}
+                    onTrainingRunCompleted={() => {}}
+                    onNext={() => {}}
+                />
+            )}
+        </>
+    );
 }

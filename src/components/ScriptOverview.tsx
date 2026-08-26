@@ -1,7 +1,9 @@
-import { For, JSX, createEffect, createMemo, onMount } from 'solid-js';
+import { For, JSX, createEffect, createMemo } from 'solid-js';
 
 import { A } from '@solidjs/router';
+import { useQuery } from '@tanstack/solid-query';
 import { ChartConfiguration, ChartData } from 'chart.js/auto';
+import { schemas } from 'qrpc-js';
 
 import {
     SimpleChart,
@@ -132,26 +134,24 @@ function DivisionItem(props: { script: Script; idx: number }): JSX.Element {
     );
 }
 
-export function ScriptOverview(props: { script: Script }): JSX.Element {
-    const scriptInfo = createMemo(() => computeScriptInfo(props.script));
-
-    onMount(() => {
-        document.title = `${props.script.name} - Quipt`;
-    });
+export function ScriptOverview(props: { scriptID: schemas.UUID }): JSX.Element {
+    const scriptQuery = useQuery<Script>(() => ({ queryKey: ['script', props.scriptID] }));
+    const script = createMemo(() => scriptQuery.data!);
+    const scriptInfo = createMemo(() => computeScriptInfo(script()));
 
     createEffect(() => {
-        document.title = `${props.script.name} - Quipt`;
+        document.title = `${script().name} - Quipt`;
     });
 
     return (
         <div class="script-overview">
             <div class="script-info">
-                <h2>{props.script.name}</h2>
+                <h2>{script().name}</h2>
                 <span class="info">{pluralize(scriptInfo().textCues, 'Einsatz', 'Einsätze')}</span>
                 <span class="info">{scriptInfo().actors.join(', ')}</span>
             </div>
-            <For each={props.script.divisions}>
-                {(_, idx) => <DivisionItem script={props.script} idx={idx()} />}
+            <For each={script().divisions}>
+                {(_, idx) => <DivisionItem script={script()} idx={idx()} />}
             </For>
         </div>
     );

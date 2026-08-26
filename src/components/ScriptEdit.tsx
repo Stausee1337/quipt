@@ -20,13 +20,14 @@ import { markdown } from '@codemirror/lang-markdown';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { placeholder } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
-import { useLocation } from '@solidjs/router';
-import { useMutation } from '@tanstack/solid-query';
+import { useLocation, useParams } from '@solidjs/router';
+import { useMutation, useQuery } from '@tanstack/solid-query';
 import { EditorView, minimalSetup } from 'codemirror';
+import { schemas } from 'qrpc-js';
 
 import { AuthenticationContextObj, queryClient } from 'quipt/client';
 import { ActorPill } from 'quipt/components/ActorPill';
-import { DivisionInfoView } from 'quipt/components/DivisionInfoView';
+import { CreateDivisionInfoView } from 'quipt/components/DivisionInfoView';
 import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
 import { Popover } from 'quipt/components/Popover';
 import { ScriptOverview } from 'quipt/components/ScriptOverview';
@@ -599,7 +600,7 @@ function EditableDivisionInfoView(props: {
             content={
                 <DivisionEditMenu onEdit={() => setIsEditing(true)} onRename={props.onRename} />
             }>
-            <DivisionInfoView
+            <CreateDivisionInfoView
                 division={props.division}
                 classList={{ editing: isEditing() }}
                 external={
@@ -613,7 +614,7 @@ function EditableDivisionInfoView(props: {
                 }
                 ref={infoElement}>
                 {isEditing() && <EditCommitView close={closeEditor} />}
-            </DivisionInfoView>
+            </CreateDivisionInfoView>
         </Popover>
     );
 }
@@ -698,20 +699,17 @@ interface ScriptEditContext {
 
 const ScriptEditContextObj = createContext<ScriptEditContext>();
 
-// FIXME: ScriptCue's don't exist, but TextCueView is obviously already taken, so we'll need to figure out what this doing
-function ScriptView(props: { script: Script }): JSX.Element {
+function ScriptView(props: { scriptID: schemas.UUID }): JSX.Element {
     const scriptContext = useContext(ScriptContextObj)!;
     const authContext = useContext(AuthenticationContextObj)!;
-
-    onMount(() => {
-        document.title = `${props.script.name} - Quipt`;
-    });
+    const scriptQuery = useQuery<Script>(() => ({ queryKey: ['script', props.scriptID] }));
+    const script = createMemo(() => scriptQuery.data!);
 
     createEffect(() => {
-        document.title = `${props.script.name} - Quipt`;
+        document.title = `${script().name} - Quipt`;
     });
 
-    const scriptInfo = createMemo(() => computeScriptInfo(props.script));
+    const scriptInfo = createMemo(() => computeScriptInfo(script()));
     function createScriptEditContext(idx: Accessor<number>): ScriptEditContext {
         return {
             get scriptInfo() {
@@ -719,11 +717,11 @@ function ScriptView(props: { script: Script }): JSX.Element {
             },
             async renameDivision(newName) {
                 await queryClient.cancelQueries({
-                    queryKey: ['script', props.script.uuid],
+                    queryKey: ['script', script().uuid],
                 });
-                const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
+                const prev = queryClient.getQueryData<Script>(['script', script().uuid])!;
 
-                queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
+                queryClient.setQueryData<Script>(['script', script().uuid], old => {
                     if (!old) return old;
 
                     return {
@@ -740,7 +738,7 @@ function ScriptView(props: { script: Script }): JSX.Element {
                 });
 
                 await authContext.services!.division.rename({
-                    scriptId: props.script.uuid,
+                    scriptId: script().uuid,
                     divisionIdx: idx(),
                     name: newName,
                 });
@@ -748,10 +746,10 @@ function ScriptView(props: { script: Script }): JSX.Element {
             },
             async updateDescription(newDescription) {
                 await queryClient.cancelQueries({
-                    queryKey: ['script', props.script.uuid],
+                    queryKey: ['script', script().uuid],
                 });
-                const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
-                queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
+                const prev = queryClient.getQueryData<Script>(['script', script().uuid])!;
+                queryClient.setQueryData<Script>(['script', script().uuid], old => {
                     if (!old) return old;
 
                     return {
@@ -767,7 +765,7 @@ function ScriptView(props: { script: Script }): JSX.Element {
                     };
                 });
                 await authContext.services!.division.updateDescription({
-                    scriptId: props.script.uuid,
+                    scriptId: script().uuid,
                     divisionIdx: idx(),
                     description: newDescription,
                 });
@@ -775,10 +773,10 @@ function ScriptView(props: { script: Script }): JSX.Element {
             },
             async updateCue(index, newCuePair) {
                 await queryClient.cancelQueries({
-                    queryKey: ['script', props.script.uuid],
+                    queryKey: ['script', script().uuid],
                 });
-                const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
-                queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
+                const prev = queryClient.getQueryData<Script>(['script', script().uuid])!;
+                queryClient.setQueryData<Script>(['script', script().uuid], old => {
                     if (!old) return old;
 
                     const target = old.divisions[idx()].textCues[index];
@@ -797,7 +795,7 @@ function ScriptView(props: { script: Script }): JSX.Element {
                     };
                 });
                 await authContext.services!.cue.update({
-                    uuid: props.script.uuid,
+                    uuid: script().uuid,
                     divisionIdx: idx(),
                     cueIdx: index,
                     newCue: newCuePair,
@@ -806,10 +804,10 @@ function ScriptView(props: { script: Script }): JSX.Element {
             },
             async insertCue(index, newCue) {
                 await queryClient.cancelQueries({
-                    queryKey: ['script', props.script.uuid],
+                    queryKey: ['script', script().uuid],
                 });
-                const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
-                queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
+                const prev = queryClient.getQueryData<Script>(['script', script().uuid])!;
+                queryClient.setQueryData<Script>(['script', script().uuid], old => {
                     if (!old) return old;
 
                     const textCues = old.divisions[idx()].textCues;
@@ -830,7 +828,7 @@ function ScriptView(props: { script: Script }): JSX.Element {
                     };
                 });
                 await authContext.services!.cue.insert({
-                    uuid: props.script.uuid,
+                    uuid: script().uuid,
                     divisionIdx: idx(),
                     cueIdx: index,
                     cue: newCue,
@@ -839,10 +837,10 @@ function ScriptView(props: { script: Script }): JSX.Element {
             },
             async deleteCue(index) {
                 await queryClient.cancelQueries({
-                    queryKey: ['script', props.script.uuid],
+                    queryKey: ['script', script().uuid],
                 });
-                const prev = queryClient.getQueryData<Script>(['script', props.script.uuid])!;
-                queryClient.setQueryData<Script>(['script', props.script.uuid], old => {
+                const prev = queryClient.getQueryData<Script>(['script', script().uuid])!;
+                queryClient.setQueryData<Script>(['script', script().uuid], old => {
                     if (!old) return old;
 
                     const toRemove = old.divisions[idx()].textCues[index];
@@ -859,7 +857,7 @@ function ScriptView(props: { script: Script }): JSX.Element {
                     };
                 });
                 await authContext.services!.cue.delete({
-                    uuid: props.script.uuid,
+                    uuid: script().uuid,
                     divisionIdx: idx(),
                     cueIdx: index,
                 });
@@ -869,21 +867,21 @@ function ScriptView(props: { script: Script }): JSX.Element {
     }
 
     const [isEditing, setIsEditing] = createSignal<boolean>(false);
-    const [currentName, setCurrentName] = createSignal<string>(props.script.name);
+    const [currentName, setCurrentName] = createSignal<string>(script().name);
     const renameMutation = useMutation(() => ({
         mutationFn(newName: string) {
-            return scriptContext.renameScript(props.script.uuid, newName);
+            return scriptContext.renameScript(script().uuid, newName);
         },
     }));
 
     createEffect(() => {
-        setCurrentName(props.script.name);
+        setCurrentName(script().name);
     });
 
     function onRenameDone() {
         setIsEditing(false);
         const newName = currentName();
-        if (newName === props.script.name || newName.length === 0) return;
+        if (newName === script().name || newName.length === 0) return;
         renameMutation.mutate(newName);
     }
 
@@ -901,7 +899,7 @@ function ScriptView(props: { script: Script }): JSX.Element {
                     onEditClick={() => setIsEditing(true)}>
                     {currentName()}
                 </MakeEditableContent>
-                <For each={props.script.divisions}>
+                <For each={script().divisions}>
                     {(division, idx) => (
                         <ScriptEditContextObj.Provider value={createScriptEditContext(idx)}>
                             <DivisionView division={division} idx={idx()} />
@@ -913,8 +911,9 @@ function ScriptView(props: { script: Script }): JSX.Element {
     );
 }
 
-export function ScriptPage(props: { script: Script }): JSX.Element {
+export function ScriptPage(props: { scriptID: schemas.UUID }): JSX.Element {
     const location = useLocation();
+    const params = useParams();
 
     const currentRoute = createMemo(() => {
         if (location.pathname.startsWith('/train')) return 'train';
@@ -923,11 +922,16 @@ export function ScriptPage(props: { script: Script }): JSX.Element {
 
     return (
         <div class="desktop-view">
-            <ScriptOverview script={props.script} />
+            <ScriptOverview scriptID={props.scriptID} />
             {currentRoute() === 'view' ? (
-                <ScriptView script={props.script} />
+                <ScriptView scriptID={props.scriptID} />
             ) : (
-                <TrainingRunWrapper script={props.script} />
+                // FIXME: params.division is absolutely not enforced (existance and validtiy) and
+                // using params directly isn't exactly a great source of truth
+                <TrainingRunWrapper
+                    scriptID={props.scriptID}
+                    divisionIdx={parseInt(params.division!) - 1}
+                />
             )}
         </div>
     );
