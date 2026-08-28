@@ -1,4 +1,4 @@
-import { JSX, createEffect, createSignal, onMount, splitProps } from 'solid-js';
+import { JSX, createEffect, createMemo, createSignal, onMount, splitProps } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
 import { A, RouteSectionProps, useNavigate } from '@solidjs/router';
@@ -27,16 +27,46 @@ const passwordRegex =
 const regexError =
     'Passwort muss mindestens einen Groß- sowie Kleinbuchstaben, eine Zahl und ein Sonderzeichen enthalten';
 
+function ErrorMessage(props: JSX.HTMLAttributes<HTMLSpanElement>): JSX.Element {
+    return (
+        <span class="text-qpt-red text-left" {...props}>
+            <i class="bi bi-exclamation-circle-fill mr-1" />
+            {props.children}
+        </span>
+    );
+}
+
+function Button(props: JSX.ButtonHTMLAttributes<HTMLButtonElement>): JSX.Element {
+    return (
+        <button
+            class="bg-primary cursor-pointer rounded-full py-4 active:bg-[#03b66a] disabled:cursor-not-allowed disabled:bg-[#03844c] disabled:text-[#73b398]"
+            {...props}>
+            {props.children}
+        </button>
+    );
+}
+
 export interface FormInputProps extends JSX.InputHTMLAttributes<HTMLInputElement> {
     errorMessage: string | undefined;
+    formSubmitted: boolean;
 }
 
 function FormInput(props: FormInputProps): JSX.Element {
-    const [, rest] = splitProps(props, ['errorMessage']);
+    const [, rest] = splitProps(props, ['errorMessage', 'class', 'classList']);
+
+    // FXIME: classList hack
+    const isError = createMemo(
+        () => (props?.classList?.touched || props.formSubmitted) && props?.classList?.invalid,
+    );
+
     return (
-        <div class="input-box">
-            <input {...rest} />
-            <span class="error-message">{props.errorMessage}</span>
+        <div class="flex flex-col gap-2">
+            <input
+                class="border-lighter1 outline-lighter2 bg-accent2 rounded-full border border-solid px-5 py-4 outline-offset-1 focus:outline"
+                classList={{ 'border-qpt-red': isError() }}
+                {...rest}
+            />
+            {isError() && <ErrorMessage>{props.errorMessage}</ErrorMessage>}
         </div>
     );
 }
@@ -73,31 +103,30 @@ function Signin(props: { onSubmit: SubmitFn }): JSX.Element {
 
     return (
         <>
-            <h2>Anmelden</h2>
-            <form
-                classList={{ submitted: formSubmitted(), error: formErrorMessage() !== undefined }}
-                {...form}>
+            <h1 class="text-heading-1">Anmelden</h1>
+            <form class="flex flex-col gap-8" {...form}>
                 <FormInput
                     type="text"
                     placeholder="Benutzername"
                     errorMessage={validationMessages.username}
+                    formSubmitted={formSubmitted()}
                     {...username({ validators: [validators.required] })}
                 />
                 <FormInput
                     type="password"
                     placeholder="Passwort"
                     errorMessage={validationMessages.password}
+                    formSubmitted={formSubmitted()}
                     {...password({ validators: [validators.required] })}
                 />
-                <span class="error-message">{formErrorMessage()}</span>
+                {formErrorMessage() && <ErrorMessage>{formErrorMessage()}</ErrorMessage>}
                 <p>
-                    Du hat noch kein Konto? <A href="/signup">Jetzt eins erstellen!</A>
+                    Du hat noch kein Konto?{' '}
+                    <A href="/signup" class="text-link font-medium underline">
+                        Jetzt eins erstellen!
+                    </A>
                 </p>
-                <button
-                    class="primary-button"
-                    disabled={formValidity() == 'invalid' && formSubmitted()}>
-                    Anmelden
-                </button>
+                <Button disabled={formValidity() == 'invalid' && formSubmitted()}>Anmelden</Button>
             </form>
         </>
     );
@@ -135,15 +164,14 @@ function Signup(props: { onSubmit: SubmitFn }) {
 
     return (
         <>
-            <h2>Quipt Konto erstellen</h2>
-            <form
-                classList={{ submitted: formSubmitted(), error: formErrorMessage() !== undefined }}
-                {...form}>
+            <h1 class="text-heading-1">Quipt Konto erstellen</h1>
+            <form class="flex flex-col gap-8" {...form}>
                 <FormInput
                     type="text"
                     placeholder="Benutzername"
                     {...username({ validators: [validators.required, validators.minLength(3)] })}
                     errorMessage={validationMessages.username}
+                    formSubmitted={formSubmitted()}
                     autofocus
                 />
                 <FormInput
@@ -156,6 +184,7 @@ function Signup(props: { onSubmit: SubmitFn }) {
                             validators.regex(passwordRegex, regexError),
                         ],
                     })}
+                    formSubmitted={formSubmitted()}
                     errorMessage={validationMessages.password}
                 />
                 <FormInput
@@ -164,17 +193,19 @@ function Signup(props: { onSubmit: SubmitFn }) {
                     {...password2({
                         validators: [validators.equal(() => formData().password, 'Passwort')],
                     })}
+                    formSubmitted={formSubmitted()}
                     errorMessage={validationMessages.password2}
                 />
-                <span class="error-message">{formErrorMessage()}</span>
+                {formErrorMessage() && <ErrorMessage>{formErrorMessage()}</ErrorMessage>}
                 <p>
-                    Du bist bereits bei Quipt? <A href="/signin">Anmelden!</A>
+                    Du bist bereits bei Quipt?{' '}
+                    <A href="/signin" class="text-link font-medium underline">
+                        Jetzt eins erstellen!
+                    </A>
                 </p>
-                <button
-                    class="primary-button"
-                    disabled={formValidity() == 'invalid' && formSubmitted()}>
+                <Button disabled={formValidity() == 'invalid' && formSubmitted()}>
                     Registrieren
-                </button>
+                </Button>
             </form>
         </>
     );
@@ -229,8 +260,10 @@ export function UserAuthenticate(props: RouteSectionProps): JSX.Element {
     }
 
     return (
-        <div class="auth-box" classList={{ interactable: !loading() }}>
-            <Logo />
+        <div
+            class="sm:bg-accent1 relative sm:mx-auto flex w-full sm:w-120 flex-col gap-8 sm:self-center overflow-hidden sm:rounded-4xl p-8 text-center"
+            classList={{ interactable: !loading() }}>
+            <Logo class="h-12 hidden md:block" />
             <Dynamic
                 component={props.location.pathname === '/signin' ? Signin : Signup}
                 onSubmit={onSubmit}

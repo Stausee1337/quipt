@@ -106,6 +106,7 @@ button.primary-button {
 
     &:active {
         background-color: color.adjust($primary, $lightness: 5%);
+        @debug (color.mix(#03844c, #e3e3e3));
     }
 
     &:disabled {

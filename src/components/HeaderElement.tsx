@@ -11,13 +11,13 @@ export function Header() {
 
     return (
         <>
-            <div class="header-element">
+            <div class="relative z-10 p-4 flex border-b border-lighter1 h-15 items-center">
                 {authentication.isLoggedIn() ? (
-                    <button onClick={() => setIsSideMenuOpen(true)}>
+                    <button class="h-10 w-10 text-2xl cursor-pointer" onClick={() => setIsSideMenuOpen(true)}>
                         <i class="bi bi-list" />
                     </button>
                 ) : null}
-                <QuiptLogo />
+                <QuiptLogo class="mx-auto"/>
             </div>
             <SideMenuModal isOpen={isSideMenuOpen()} onClose={() => setIsSideMenuOpen(false)} />
         </>

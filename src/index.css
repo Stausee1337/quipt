@@ -1,0 +1,52 @@
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+@import 'tailwindcss';
+
+:root {
+    /* FIXME: handle this via tailwind correctly */
+    color-scheme: dark;
+    background-color: black;
+
+    font-feature-settings:
+        'liga' 1,
+        'calt' 1; /* fix for Chrome */
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+}
+
+@theme {
+    --font-sans: Inter, sans-serif;
+    --color-primary: #039d5b;
+    --color-link: #06f990;
+    --color-qpt-blue: #008eff;
+    --color-qpt-red: #ef5347;
+    --color-background: #181818;
+    --color-foreground: #e3e3e3;
+    --color-accent1: #252525;
+    --color-accent2: #101010;
+    --color-lighter1: #585858;
+    --color-lighter2: #a7a7a7;
+    --color-lighter3: #d7d7d7;
+    --text-heading-1: 1.875rem;
+    --text-heading-2: 1.5rem;
+}
+
+@supports (font-variation-settings: normal) {
+    @theme {
+        --font-sans: InterVariable, sans-serif;
+    }
+}
+
+html,
+body {
+    height: 100svh; /* or 100dvh depending on your needs */
+}
+
+body {
+    margin: 0;
+    /* width: 100vw;
+    height: 100svh;*/
+}

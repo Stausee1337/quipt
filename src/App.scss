@@ -28,10 +28,6 @@
     }
 }
 
-svg#quiptLogo {
-    height: 3rem;
-}
-
 div.routing-contents {
     flex: 1;
     padding: 1rem;
@@ -1078,11 +1074,6 @@ div.script-divsion {
     }
 }
 
-a {
-    color: #06f990;
-    font-weight: 500;
-}
-
 a:has(svg#quiptLogo) {
     position: absolute;
     display: flex;
@@ -1154,92 +1145,6 @@ span.error-message {
         vertical-align: -0.125em;
         content: '\f332';
         margin-right: 0.5rem;
-    }
-}
-
-div.routing-contents:has(div.auth-box) {
-    display: grid;
-
-    div.auth-box {
-        justify-self: center;
-        align-self: center;
-        background-color: white;
-        padding: 9rem 3rem 3rem 3rem;
-        border-radius: 3rem;
-        gap: 3rem;
-        background-color: $color-accent1;
-        width: 50rem;
-        position: relative;
-        overflow: hidden;
-
-        display: flex;
-        flex-direction: column;
-        text-align: center;
-
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 3rem;
-
-            &.submitted div.input-box:has(input.invalid) span.error-message {
-                display: inline;
-            }
-
-            &.error > span.error-message {
-                display: inline;
-            }
-        }
-
-        svg#quiptLogo {
-            position: absolute;
-            left: 50%;
-            top: 4.5rem;
-            height: 4.8rem;
-            transform: translate(-50%, -50%);
-        }
-
-        button {
-            padding: 1rem 2rem;
-        }
-
-        &:not(.interactable)::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(black, 0.3);
-            z-index: 100;
-        }
-
-        input {
-            padding: 1.5rem 2rem;
-            font-size: 1.6rem;
-            border: 0.1rem solid $lighter1;
-            border-radius: 0.5rem;
-            background-color: inherit;
-            outline: 0;
-
-            &:focus {
-                border: 0.1rem solid $lighter2;
-            }
-        }
-
-        div.button-line {
-            display: flex;
-            align-self: flex-end;
-        }
-
-        div.input-box {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-
-            &:has(input.touched.invalid) span.error-message {
-                display: inline;
-            }
-        }
     }
 }
 
@@ -1443,6 +1348,89 @@ div.zoomed-in-page {
         visibility: visible;
         content: '';
         transform: rotate(45deg);
+    }
+}
+
+div.auth-box {
+    justify-self: center;
+    align-self: center;
+    padding: 90px 30px 30px 30px;
+    border-radius: 30px;
+    gap: 30px;
+    background-color: $color-accent1;
+    width: 500px;
+    position: relative;
+    overflow: hidden;
+
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 3rem;
+
+        &.submitted div.input-box:has(input.invalid) span.error-message {
+            display: inline;
+        }
+
+        &.error > span.error-message {
+            display: inline;
+        }
+    }
+
+    svg#quiptLogo {
+        position: absolute;
+        left: 50%;
+        top: 4.5rem;
+        height: 4.8rem;
+        transform: translate(-50%, -50%);
+    }
+
+    button {
+        padding: 1rem 2rem;
+    }
+
+    &:not(.interactable)::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(black, 0.3);
+        z-index: 100;
+    }
+
+    input {
+        padding: 1.5rem 2rem;
+        font-size: 1.6rem;
+        border: 0.1rem solid $lighter1;
+        border-radius: 0.5rem;
+        background-color: inherit;
+        outline: 0;
+
+        // px-5 py-4 border border-solid border-lighter1 rounded-md outline-none
+
+        &:focus {
+            border: 0.1rem solid $lighter2;
+        }
+    }
+
+    div.button-line {
+        display: flex;
+        align-self: flex-end;
+    }
+
+    div.input-box {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+
+        &:has(input.touched.invalid) span.error-message {
+            display: inline;
+        }
     }
 }
 

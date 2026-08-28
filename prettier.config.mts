@@ -1,8 +1,9 @@
 import type { Config } from 'prettier';
-import plugin from '@trivago/prettier-plugin-sort-imports';
+import pluginSortImports from '@trivago/prettier-plugin-sort-imports';
+import * as pluginTailwindcss from 'prettier-plugin-tailwindcss';
 
 const config: Config = {
-    plugins: [plugin],
+    plugins: [pluginSortImports, pluginTailwindcss],
     tabWidth: 4,
     singleQuote: true,
     printWidth: 100,

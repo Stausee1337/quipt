@@ -38,10 +38,14 @@ function App(props: { children?: JSX.Element }): JSX.Element {
     });
 
     return (
-        <ScriptContextObj.Provider value={scriptContext}>
-            {isSmallWidth() && <Header />}
-            {!isSmallWidth() && authenticationContext.isLoggedIn() && <SideMenu />}
-            <div class="routing-contents">{props.children}</div>
+        <ScriptContextObj.Provider value={scriptContext}> 
+            <div class="relative z-0 flex flex-col min-h-0 w-full flex-1">
+                {isSmallWidth() && <Header />}
+                <div class="relative z-0 flex min-h-0 w-full flex-1">
+                    {!isSmallWidth() && authenticationContext.isLoggedIn() && <SideMenu />}
+                    {props.children}
+                </div>
+            </div>
         </ScriptContextObj.Provider>
     );
 }

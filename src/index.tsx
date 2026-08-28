@@ -3,7 +3,10 @@ import { render } from 'solid-js/web';
 
 import App from 'quipt/App';
 
-import './index.scss';
+import './index.css';
 
-const root = document.getElementById('root');
+const root = document.createElement('div');
+// root.id = 'root';
+root.className = 'h-svh w-svw overflow-auto flex relative text-foreground bg-background';
+document.body.prepend(root);
 render(() => <App />, root!);
