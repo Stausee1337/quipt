@@ -3,7 +3,7 @@ import { createSignal } from 'solid-js';
 import { useAuthentication } from 'quipt/client';
 import { SideMenuModal } from 'quipt/components/MenuElement';
 import QuiptLogo from 'quipt/components/Quipt-Logo';
-import { IconButton } from './basics';
+import { IconButton } from 'quipt/components/basics';
 
 export function Header() {
     const authentication = useAuthentication()!;

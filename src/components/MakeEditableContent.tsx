@@ -17,7 +17,7 @@ export function MakeEditableContent<T extends ContentComponent>(
     props: EditableProps<T>,
 ): JSX.Element {
     const [inputElement, setInputElement] = createSignal<HTMLInputElement | undefined>(undefined);
-    const [, rest] = splitProps(props, ['component', 'children']);
+    const [, rest] = splitProps(props, ['component', 'children', 'isEditable']);
 
     createEffect(() => {
         const element = inputElement();

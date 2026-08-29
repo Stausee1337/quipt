@@ -17,6 +17,7 @@ export type FormattedStringElement = {
 };
 export type FormattedString = FormattedStringElement[];
 
+// FIXME: maybe formatted string should be formatted via tailwindcss
 export function FormattedStringView(props: { string: FormattedString }): JSX.Element {
     return (
         <For each={props.string}>
@@ -211,9 +212,11 @@ export function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => voi
     return [read, () => setSignal({})];
 }
 
-export function SimpleChart(props: JSX.HTMLAttributes<HTMLCanvasElement> & {
-    onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration;
-}): JSX.Element {
+export function SimpleChart(
+    props: JSX.HTMLAttributes<HTMLCanvasElement> & {
+        onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration;
+    },
+): JSX.Element {
     let chartJSCanvas: HTMLCanvasElement | undefined = undefined;
     let chart: Chart | undefined;
 
@@ -223,7 +226,7 @@ export function SimpleChart(props: JSX.HTMLAttributes<HTMLCanvasElement> & {
         chart = new Chart(ctx, props.onConfig(ctx));
     });
 
-    return <canvas ref={chartJSCanvas} {...props}/>;
+    return <canvas ref={chartJSCanvas} {...props} />;
 }
 
 export function leftPad(data: number[], length: number): number[] {

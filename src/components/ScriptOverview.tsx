@@ -13,21 +13,21 @@ import {
     pluralize,
 } from 'quipt/components/common';
 import { Script } from 'quipt/schemas';
-import { InfoText } from './basics';
+import { InfoText } from 'quipt/components/basics';
 
-function IconScore(props: JSX.HTMLAttributes<HTMLSpanElement> & {
-    icon: string
-}): JSX.Element {
+function IconScore(
+    props: JSX.HTMLAttributes<HTMLSpanElement> & {
+        icon: string;
+    },
+): JSX.Element {
     const [, rest] = splitProps(props, ['icon', 'class', 'children']);
 
     return (
-        <span 
-            class={`text-sm font-semibold text-center ${props.class ?? ''}`}
-            {...rest}>
+        <span class={`text-center text-sm font-semibold ${props.class ?? ''}`} {...rest}>
             <i class={`bi bi-${props.icon} mr-1`} />
             {props.children}
         </span>
-    )
+    );
 }
 
 function DivisionItem(props: { script: Script; idx: number }): JSX.Element {
@@ -121,17 +121,16 @@ function DivisionItem(props: { script: Script; idx: number }): JSX.Element {
     }
 
     return (
-        <A class="p-2 flex relative after:absolute after:bottom-0 after:left-1/2 after:w-[calc(100%-var(--spacing)*8)] after:-translate-x-1/2 after:border-b after:border-lighter1 last:after:content-none" 
+        <A
+            class="after:border-lighter1 relative flex p-2 after:absolute after:bottom-0 after:left-1/2 after:w-[calc(100%-var(--spacing)*8)] after:-translate-x-1/2 after:border-b last:after:content-none"
             href={`/script/${props.script.uuid}/${props.idx + 1}`}>
-            <div class="flex flex-col flex-1 justify-between gap-1 min-w-0 max-w-full">
-                <h3>{division().name}</h3>
+            <div class="flex max-w-full min-w-0 flex-1 flex-col justify-between gap-1">
+                <h3 class="overflow-hidden text-ellipsis whitespace-nowrap">{division().name}</h3>
                 <InfoText>{divisionInfo().actors.length} Spieler</InfoText>
-                <InfoText>
-                    {pluralize(divisionInfo().textCues, 'Einsatz', 'Einsätze')}
-                </InfoText>
+                <InfoText>{pluralize(divisionInfo().textCues, 'Einsatz', 'Einsätze')}</InfoText>
             </div>
-            <SimpleChart class="w-25 my-auto" onConfig={chartConfigFactory} />
-            <div class="flex flex-col justify-evenly w-18 ml-1">
+            <SimpleChart class="my-auto w-25" onConfig={chartConfigFactory} />
+            <div class="ml-1 flex w-18 flex-col justify-evenly">
                 <IconScore icon="trophy-fill" class="text-pgb-yellow">
                     {highScore()}
                 </IconScore>
@@ -139,9 +138,7 @@ function DivisionItem(props: { script: Script; idx: number }): JSX.Element {
                     {displayInfo().deltaString}
                 </IconScore>
                 {division().previousTotals.length === 0 ? null : (
-                    <IconScore icon="arrow-repeat">
-                        {division().previousTotals.length} x
-                    </IconScore>
+                    <IconScore icon="arrow-repeat">{division().previousTotals.length} x</IconScore>
                 )}
             </div>
         </A>
@@ -158,11 +155,13 @@ export function ScriptOverview(props: { scriptID: schemas.UUID }): JSX.Element {
     });
 
     return (
-        <div class="w-full flex-1 flex flex-col">
-            <div class="p-2 flex flex-col gap-1">
+        <div class="flex w-full flex-1 flex-col">
+            <div class="flex flex-col gap-1 p-2">
                 <h2 class="text-heading-2">{script().name}</h2>
                 <InfoText>{pluralize(scriptInfo().textCues, 'Einsatz', 'Einsätze')}</InfoText>
-                <InfoText>{scriptInfo().actors.join(', ')}</InfoText>
+                <InfoText class="overflow-hidden text-ellipsis whitespace-nowrap">
+                    {scriptInfo().actors.join(', ')}
+                </InfoText>
             </div>
             <For each={script().divisions}>
                 {(_, idx) => <DivisionItem script={script()} idx={idx()} />}

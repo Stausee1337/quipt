@@ -3,22 +3,14 @@ import { JSX, children, createMemo, splitProps } from 'solid-js';
 
 import { getActorColor } from 'quipt/components/common';
 
-export interface PillProps extends Omit<JSX.HTMLAttributes<HTMLSpanElement>, 'class'> {
+export interface PillProps extends JSX.HTMLAttributes<HTMLSpanElement> {
     extra?: string;
-    static?: boolean;
     actorForColor?: string;
     children?: JSX.Element;
 }
 
 export function ActorPill(props: PillProps): JSX.Element {
-    const [, rest] = splitProps(props, [
-        'children',
-        'extra',
-        'static',
-        'actorForColor',
-        'classList',
-        'style',
-    ]);
+    const [, rest] = splitProps(props, ['children', 'extra', 'actorForColor', 'style', 'class']);
 
     const getChildren = children(() => props.children);
     const actorColor = createMemo(() => {
@@ -33,8 +25,7 @@ export function ActorPill(props: PillProps): JSX.Element {
 
     return (
         <span
-            class="actor-pill"
-            classList={{ ...props.classList, static: props.static }}
+            class={`shrink-0 grow-0 basis-auto rounded-full bg-[var(--actor-color)]/10 px-4 py-2 text-sm font-medium text-[var(--actor-color)] ${props.class ?? ''}`}
             style={{ '--actor-color': actorColor() }}
             {...rest}>
             {props.children}

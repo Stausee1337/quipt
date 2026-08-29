@@ -2,19 +2,15 @@ import {
     Accessor,
     For,
     JSX,
-    Owner,
     children,
     createContext,
     createEffect,
     createMemo,
-    createRoot,
     createSignal,
-    getOwner,
     onMount,
     splitProps,
     useContext,
 } from 'solid-js';
-import { Dynamic, insert } from 'solid-js/web';
 
 import { markdown } from '@codemirror/lang-markdown';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
@@ -26,7 +22,7 @@ import { EditorView, minimalSetup } from 'codemirror';
 import { schemas } from 'qrpc-js';
 
 import { AuthenticationContextObj, queryClient } from 'quipt/client';
-import { ActorPill } from 'quipt/components/ActorPill';
+import { ActorPill as BaseActorPill, PillProps } from 'quipt/components/ActorPill';
 import { CreateDivisionInfoView } from 'quipt/components/DivisionInfoView';
 import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
 import { Popover } from 'quipt/components/Popover';
@@ -41,7 +37,7 @@ import {
 } from 'quipt/components/common';
 import { useModal, useModalContext } from 'quipt/modals';
 import { Division, Script, TextCue, TextCuePair } from 'quipt/schemas';
-import { ScriptContextObj } from 'quipt/script';
+import { Button, IconButton } from 'quipt/components/basics';
 
 const myTheme = EditorView.theme({}, { dark: true });
 
@@ -62,22 +58,30 @@ function Editor(props: {
     onChange?: (content: string) => void;
     autofocus?: boolean;
 }): JSX.Element {
-    const view = new EditorView({
-        doc: props.content,
-        extensions: [
-            myTheme,
-            minimalSetup,
-            EditorView.lineWrapping,
-            placeholder('Text einfügen ...'),
-            markdown(),
-            syntaxHighlighting(customMarkdownStyle),
-            EditorView.updateListener.of(update => {
-                if (update.docChanged) props.onChange?.(update.state.doc.toString());
-            }),
-        ],
+    let editorContainer: HTMLDivElement | undefined = undefined;
+
+    let view: EditorView | undefined = undefined;
+    onMount(() => {
+        view = new EditorView({
+            parent: editorContainer,
+            doc: props.content,
+            extensions: [
+                myTheme,
+                minimalSetup,
+                EditorView.lineWrapping,
+                placeholder('Text einfügen ...'),
+                markdown(),
+                syntaxHighlighting(customMarkdownStyle),
+                EditorView.updateListener.of(update => {
+                    if (update.docChanged) props.onChange?.(update.state.doc.toString());
+                }),
+            ],
+        });
+        if (props.autofocus) setTimeout(() => focusView());
     });
 
     function focusView() {
+        if (view === undefined) return;
         const end = view.state.doc.length;
         view.dispatch({
             selection: { anchor: end, head: end },
@@ -86,22 +90,16 @@ function Editor(props: {
         view.focus();
     }
 
-    onMount(() => {
-        if (props.autofocus) setTimeout(focusView);
-    });
+    onMount(() => {});
 
-    return view.dom;
+    return <div ref={editorContainer} class="cm-markdown" />;
 }
 
 function EditCommitView(props: { close: (res: 'dismiss' | 'accept') => void }): JSX.Element {
     return (
         <div class="edit-commit-container">
-            <button class="icon-button" onClick={() => props.close('dismiss')}>
-                &#xF62A;
-            </button>
-            <button class="icon-button" onClick={() => props.close('accept')}>
-                &#xF272;
-            </button>
+            <IconButton icon="x" onClick={() => props.close('dismiss')} />
+            <IconButton icon="check2" onClick={() => props.close('accept')} />
         </div>
     );
 }
@@ -119,29 +117,29 @@ function DeleteCueModal(props: { cuePair: TextCuePair }): JSX.Element {
     const { dismiss, accept } = useModalContext<void>()!;
     return (
         <>
-            <button class="close" onClick={dismiss}>
-                <i class="bi bi-x" />
-            </button>
-            <h3>Einsatz Löschen?</h3>
+            <div class="flex items-center">
+                <h2 class="text-heading-2">Einsatz Löschen?</h2>
+                <IconButton class="ms-auto" icon="x" onClick={dismiss} />
+            </div>
             <span>
                 Möchten sie diesen Einsatz <strong>unwiederruflich</strong> löschen?
             </span>
-            <div class="single-cue-viewer">
+            <div class="border-lighter1 bg-accent2 relative flex flex-col gap-6 rounded-lg border p-2">
                 <TextCuePairView textCuePair={props.cuePair} />
             </div>
-            <div class="bottom-line">
-                <button class="secondary-button" onClick={dismiss}>
+            <div class="flex justify-end gap-2">
+                <Button variant="secondary" onClick={dismiss}>
                     Abbrechen
-                </button>
-                <button class="red-button" onClick={accept}>
+                </Button>
+                <Button variant="danger" onClick={accept}>
                     Löschen
-                </button>
+                </Button>
             </div>
         </>
     );
 }
 
-function EditableTextCue(props: {
+function EditableTextCueView(props: {
     index: number;
     cuePair: TextCuePair;
     type: 'request' | 'response';
@@ -246,7 +244,7 @@ function EditableTextCue(props: {
                         : currentActors(),
                 )}
                 text={formatMarkdown(textCue()?.text ?? '_Du bist der erste in diesem Abschnitt_')}
-                classList={{ editing: isEditing() }}
+                classList={{ 'ring-2 ring-primary': isEditing() }}
                 beforeExtra={isEditing() && <CreateActorsSelector />}
                 afterExtra={isEditing() && <CreateEditCommitView />}>
                 {isEditing() ? (
@@ -257,12 +255,9 @@ function EditableTextCue(props: {
     );
 }
 
-function GapInjectHandle(
-    props: { static?: boolean } & JSX.HTMLAttributes<HTMLDivElement>,
-): JSX.Element {
-    const owner = getOwner();
+function GapInjectHandle(props: { index: number }): JSX.Element {
     const editContext = useContext(ScriptEditContextObj)!;
-    const [, rest] = splitProps(props, ['static', 'classList', 'style', 'children']);
+    const [isInserting, setIsInserting] = createSignal(false);
 
     const insertMutation = useMutation(() => ({
         mutationFn({ index, newCue }: { index: number; newCue: TextCuePair }) {
@@ -270,13 +265,9 @@ function GapInjectHandle(
         },
     }));
 
-    let handle: HTMLDivElement = undefined!;
-    async function onClick() {
-        const newCue = await createCueInserter(handle, editContext.scriptInfo, owner);
-        if (newCue === undefined) return;
-
+    function insertNewCue(newCue: Omit<TextCuePair, 'previousScores'>) {
         insertMutation.mutate({
-            index: newCue.index,
+            index: props.index,
             newCue: {
                 request: newCue.request,
                 response: newCue.response,
@@ -286,25 +277,52 @@ function GapInjectHandle(
     }
 
     return (
-        <div
-            ref={handle}
-            class="gap-inject-handle"
-            onClick={onClick}
-            classList={{ static: props.static }}
-            {...rest}>
-            {props.static ? null : <i class="bi bi-plus-circle" />}
+        <>
+            {!isInserting() ? (
+                <div class="contents" onClick={() => setIsInserting(true)}>
+                    <div class="hover:text-lighter2 before:border-lighter2 absolute -top-6 left-0 h-6 w-full cursor-pointer text-transparent before:absolute before:top-1/2 before:left-0 before:w-full hover:before:border-b">
+                        <i class="bi bi-plus-circle bg-background absolute top-0 left-1/2 -translate-x-1/2 rounded-full" />
+                    </div>
+                </div>
+            ) : (
+                <NewCueInserter
+                    actors={editContext.scriptInfo.actors}
+                    self={editContext.scriptInfo.self}
+                    onAccept={insertNewCue}
+                    onDismiss={() => setIsInserting(false)}
+                />
+            )}
+        </>
+    );
+}
+
+function EditableTextCuePairView(props: { textCuePair: TextCuePair; idx: number }): JSX.Element {
+    return (
+        <div class="relative mt-6 flex flex-col gap-6">
+            <GapInjectHandle index={props.idx} />
+            <EditableTextCueView index={props.idx} cuePair={props.textCuePair} type="request" />
+            <EditableTextCueView index={props.idx} cuePair={props.textCuePair} type="response" />
         </div>
     );
 }
 
-function CuePair(props: { textCuePair: TextCuePair; idx: number }): JSX.Element {
+function ActorPill(
+    props: PillProps & {
+        selected?: boolean;
+    },
+) {
+    const [, rest] = splitProps(props, ['selected', 'classList']);
+
     return (
-        <>
-            <EditableTextCue index={props.idx} cuePair={props.textCuePair} type="request" />
-            <GapInjectHandle static />
-            <EditableTextCue index={props.idx} cuePair={props.textCuePair} type="response" />
-            <GapInjectHandle data-index={props.idx} />
-        </>
+        <BaseActorPill
+            classList={{
+                'bg-[var(--actor-color)]/30 outline-[var(--actor-color)]/30 outline-offset-2 outline':
+                    props.selected,
+                'hover:bg-[var(--actor-color)]/20': !props.selected,
+                ...props.classList,
+            }}
+            {...rest}
+        />
     );
 }
 
@@ -334,9 +352,9 @@ function ActorsSelector(props: {
     }
 
     return (
-        <div class="actors-selector">
+        <div class={`flex flex-wrap gap-2`}>
             {props.self === undefined ? null : (
-                <ActorPill actorForColor={props.self} classList={{ selected: true }} static>
+                <ActorPill class="pointer-events-none" actorForColor={props.self} selected>
                     Ich
                 </ActorPill>
             )}
@@ -344,9 +362,8 @@ function ActorsSelector(props: {
                 .filter(actor => actor !== props.self)
                 .map(actor => (
                     <ActorPill
-                        classList={{
-                            selected: props.selectedActors.includes(actor),
-                        }}
+                        class="cursor-pointer"
+                        selected={props.selectedActors.includes(actor)}
                         onClick={() => toggleSelection(actor)}>
                         {actor}
                     </ActorPill>
@@ -450,10 +467,9 @@ function NewTextCueView(props: {
 function NewCueInserter(props: {
     self: string | undefined;
     actors: string[];
-    ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
+    onAccept: (newCue: Omit<TextCuePair, 'previousScores'>) => void;
+    onDismiss: () => void;
 }): JSX.Element {
-    const cueInsertContext = useContext(CueInsertionContextObj)!;
-
     const [request, setRequest] = createSignal<TextCue>({
         text: '',
         actors: [],
@@ -477,7 +493,7 @@ function NewCueInserter(props: {
     }
 
     return (
-        <div ref={props.ref} class="cue-insert-container">
+        <div class="bg-accent2 border-lighter1 relative -left-2 z-2 my-3 flex w-[calc(100%)+var(--spacing)*4] flex-col gap-6 rounded-lg border p-2">
             <NewTextCueView
                 type="request"
                 onChange={setRequest}
@@ -489,73 +505,19 @@ function NewCueInserter(props: {
                 actors={props.actors}
                 self={props.self}
             />
-            <div class="bottom-line">
-                <button class="secondary-button" onClick={() => cueInsertContext.cancel()}>
+            <div class="flex justify-end gap-2">
+                <Button variant="secondary" onClick={props.onDismiss}>
                     Abbrechen
-                </button>
-                <button
-                    class="primary-button"
-                    onClick={() => cueInsertContext.confirmWithCue(buildCuePair())}
-                    disabled={!isValid()}>
+                </Button>
+                <Button
+                    variant="primary"
+                    disabled={!isValid()}
+                    onClick={() => props.onAccept(buildCuePair())}>
                     Hinzufügen
-                </button>
+                </Button>
             </div>
         </div>
     );
-}
-
-interface CueInsertionContext {
-    cancel(): void;
-    confirmWithCue(cue: Omit<TextCuePair, 'previousScores'>): void;
-}
-
-const CueInsertionContextObj = createContext<CueInsertionContext>();
-type InsertedCue = Omit<TextCuePair, 'previousScores'> & {
-    index: number;
-};
-
-function createCueInserter(
-    handle: HTMLDivElement,
-    scriptInfo: ScriptInfo,
-    detachedOwner: typeof Owner,
-): Promise<InsertedCue | undefined> {
-    let resolve: (res: InsertedCue | undefined) => void;
-    const promise = new Promise<InsertedCue | undefined>(resolve1 => (resolve = resolve1));
-
-    createRoot(dispose => {
-        const divisionElement = handle.parentElement!;
-        const index = Number(handle.dataset.index) + 1;
-
-        const context: CueInsertionContext = {
-            cancel() {
-                divisionElement.insertBefore(handle, insertContainer);
-                insertContainer.remove();
-                dispose();
-                resolve(undefined);
-            },
-            confirmWithCue(cue) {
-                divisionElement.insertBefore(handle, insertContainer);
-                insertContainer.remove();
-                dispose();
-                resolve({ ...cue, index });
-            },
-        };
-
-        let insertContainer: HTMLDivElement = undefined!;
-        const content = (
-            <CueInsertionContextObj.Provider value={context}>
-                <NewCueInserter
-                    ref={insertContainer}
-                    actors={scriptInfo.actors}
-                    self={scriptInfo.self}
-                />
-            </CueInsertionContextObj.Provider>
-        );
-        insert(divisionElement, content, handle);
-        handle.remove();
-    }, detachedOwner);
-
-    return promise;
 }
 
 function DivisionEditMenu(props: { onEdit: () => void; onRename: () => void }): JSX.Element {
@@ -622,23 +584,20 @@ function EditableDivisionInfoView(props: {
 function HeadingWithEditButton(
     props: {
         children: JSX.Element;
-        headingSize: 1 | 2 | 3 | 4 | 5 | 6;
         onEditClick: () => void;
     } & JSX.HTMLAttributes<HTMLHeadingElement>,
 ): JSX.Element {
-    const [_, rest] = splitProps(props, ['children', 'headingSize', 'onEditClick']);
+    const [_, rest] = splitProps(props, ['children', 'onEditClick']);
     const getChildren = children(() => props.children);
     const isSimpleContent = createMemo(() => typeof getChildren() === 'string');
 
     return (
-        <Dynamic component={`h${props.headingSize}`} {...rest}>
+        <h2 class="text-heading-2 py-2 text-center" {...rest}>
             {props.children}
             {isSimpleContent() && (
-                <button class="icon-button" onClick={() => props.onEditClick()}>
-                    &#xF4CB;
-                </button>
+                <IconButton icon="pencil" class="text-lighter2" onClick={props.onEditClick} />
             )}
-        </Dynamic>
+        </h2>
     );
 }
 
@@ -668,21 +627,19 @@ function DivisionView(props: { division: Division; idx: number }): JSX.Element {
     }
 
     return (
-        <div class="script-divsion" id={`division${props.idx}`} data-division={props.idx}>
+        <div class="flex flex-col">
             <MakeEditableContent
                 component={HeadingWithEditButton}
                 isEditable={isEditing()}
                 onContentChange={setCurrentName}
                 onEditEnd={onRenameDone}
 
-                headingSize={2}
                 onEditClick={onRename}>
                 {currentName()}
             </MakeEditableContent>
             <EditableDivisionInfoView division={props.division} onRename={onRename} />
-            <GapInjectHandle data-index={-1} />
             <For each={props.division.textCues}>
-                {(pair, idx) => <CuePair textCuePair={pair} idx={idx()} />}
+                {(pair, idx) => <EditableTextCuePairView textCuePair={pair} idx={idx()} />}
             </For>
         </div>
     );
@@ -700,7 +657,6 @@ interface ScriptEditContext {
 const ScriptEditContextObj = createContext<ScriptEditContext>();
 
 function ScriptView(props: { scriptID: schemas.UUID }): JSX.Element {
-    const scriptContext = useContext(ScriptContextObj)!;
     const authContext = useContext(AuthenticationContextObj)!;
     const scriptQuery = useQuery<Script>(() => ({ queryKey: ['script', props.scriptID] }));
     const script = createMemo(() => scriptQuery.data!);
@@ -866,39 +822,9 @@ function ScriptView(props: { scriptID: schemas.UUID }): JSX.Element {
         };
     }
 
-    const [isEditing, setIsEditing] = createSignal<boolean>(false);
-    const [currentName, setCurrentName] = createSignal<string>(script().name);
-    const renameMutation = useMutation(() => ({
-        mutationFn(newName: string) {
-            return scriptContext.renameScript(script().uuid, newName);
-        },
-    }));
-
-    createEffect(() => {
-        setCurrentName(script().name);
-    });
-
-    function onRenameDone() {
-        setIsEditing(false);
-        const newName = currentName();
-        if (newName === script().name || newName.length === 0) return;
-        renameMutation.mutate(newName);
-    }
-
     return (
         <>
-            <div class="readable-content-view">
-                <MakeEditableContent
-                    component={HeadingWithEditButton}
-                    isEditable={isEditing()}
-                    onContentChange={setCurrentName}
-                    onEditEnd={onRenameDone}
-
-                    class="script-info"
-                    headingSize={1}
-                    onEditClick={() => setIsEditing(true)}>
-                    {currentName()}
-                </MakeEditableContent>
+            <div class="max-w-250 select-none">
                 <For each={script().divisions}>
                     {(division, idx) => (
                         <ScriptEditContextObj.Provider value={createScriptEditContext(idx)}>
@@ -921,8 +847,10 @@ export function ScriptPage(props: { scriptID: schemas.UUID }): JSX.Element {
     });
 
     return (
-        <div class="desktop-view">
-            <ScriptOverview scriptID={props.scriptID} />
+        <div class="flex gap-4 p-4">
+            <div class="w-120 max-w-120 min-w-90">
+                <ScriptOverview scriptID={props.scriptID} />
+            </div>
             {currentRoute() === 'view' ? (
                 <ScriptView scriptID={props.scriptID} />
             ) : (

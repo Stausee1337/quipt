@@ -12,7 +12,8 @@ export function Button(
         <button
             class={`border-lighter1 h-8 cursor-pointer rounded-full border px-4 font-medium ${props.class ?? ''}`}
             classList={{
-                'bg-primary active:bg-[#03b66a]': props.variant === 'primary',
+                'bg-primary active:bg-[#03b66a] disabled:cursor-not-allowed disabled:bg-[#03844c] disabled:text-[#73b398]':
+                    props.variant === 'primary',
                 'bg-inherit hover:bg-lighter1 active:bg-accent1': props.variant === 'secondary',
                 'bg-qpt-red active:bg-[#f1695e]': props.variant === 'danger',
                 ...props.classList,
@@ -37,7 +38,5 @@ export function IconButton(
 
 export function InfoText(props: JSX.HTMLAttributes<HTMLSpanElement>) {
     const [, rest] = splitProps(props, ['class']);
-    return (
-        <span class={`text-lighter2 text-sm font-light ${props.class ?? ''}`} {...rest}/>
-    );
+    return <span class={`text-lighter2 text-sm font-light ${props.class ?? ''}`} {...rest} />;
 }

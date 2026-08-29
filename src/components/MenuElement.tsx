@@ -83,7 +83,7 @@ function DeleteScriptModal(props: { script: PartialScript }): JSX.Element {
             <span>
                 Dadurch wird <strong>{props.script.name}</strong> unwiederruflich gelöscht
             </span>
-            <div class="bottom-line">
+            <div class="flex justify-end gap-2">
                 <Button variant="secondary" onClick={dismiss}>
                     Abbrechen
                 </Button>

@@ -9,6 +9,7 @@ import {
     pluralize,
 } from 'quipt/components/common';
 import { Division } from 'quipt/schemas';
+import { InfoText } from 'quipt/components/basics';
 
 export interface DivisionInfoViewProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>, 'class'> {
     info: DivisionInfo;
@@ -22,14 +23,16 @@ export function DivisionInfoView(props: DivisionInfoViewProps): JSX.Element {
     const getChildren = children(() => props.children);
 
     return (
-        <div class="division-info-wrapper">
-            <div class="division-info" {...rest}>
-                <span class="info">
+        <div class="flex flex-col items-center gap-2">
+            <div
+                class="bg-accent1 flex max-w-17/20 flex-col gap-1 overflow-hidden rounded-lg p-2"
+                {...rest}>
+                <InfoText class="text-center">
                     {props.info.actors.join(', ')} ·{' '}
                     {pluralize(props.info.textCues, 'Einsatz', 'Einsätze')}
-                </span>
+                </InfoText>
                 {props.external ?? (
-                    <span class="content">
+                    <span class="text-justify whitespace-pre-wrap">
                         <FormattedStringView string={formatMarkdown(props.info.description)} />
                     </span>
                 )}
