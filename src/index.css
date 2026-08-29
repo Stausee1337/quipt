@@ -30,8 +30,10 @@
     --color-lighter1: #585858;
     --color-lighter2: #a7a7a7;
     --color-lighter3: #d7d7d7;
+    /* FIXME: add correct line heights */
     --text-heading-1: 1.875rem;
     --text-heading-2: 1.5rem;
+    --text-heading-3: 1.25rem;
 }
 
 @supports (font-variation-settings: normal) {

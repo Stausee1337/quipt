@@ -261,9 +261,9 @@ export function UserAuthenticate(props: RouteSectionProps): JSX.Element {
 
     return (
         <div
-            class="sm:bg-accent1 relative sm:mx-auto flex w-full sm:w-120 flex-col gap-8 sm:self-center overflow-hidden sm:rounded-4xl p-8 text-center"
+            class="sm:bg-accent1 relative flex w-full flex-col gap-8 overflow-hidden p-8 text-center sm:mx-auto sm:w-120 sm:self-center sm:rounded-4xl"
             classList={{ interactable: !loading() }}>
-            <Logo class="h-12 hidden md:block" />
+            <Logo class="hidden h-12 md:block" />
             <Dynamic
                 component={props.location.pathname === '/signin' ? Signin : Signup}
                 onSubmit={onSubmit}

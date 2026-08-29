@@ -38,8 +38,8 @@ function App(props: { children?: JSX.Element }): JSX.Element {
     });
 
     return (
-        <ScriptContextObj.Provider value={scriptContext}> 
-            <div class="relative z-0 flex flex-col min-h-0 w-full flex-1">
+        <ScriptContextObj.Provider value={scriptContext}>
+            <div class="relative z-0 flex min-h-0 w-full flex-1 flex-col">
                 {isSmallWidth() && <Header />}
                 <div class="relative z-0 flex min-h-0 w-full flex-1">
                     {!isSmallWidth() && authenticationContext.isLoggedIn() && <SideMenu />}

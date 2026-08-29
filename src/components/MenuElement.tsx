@@ -1,15 +1,18 @@
 import {
+    ComponentProps,
     JSX,
+    ValidComponent,
+    For,
+    createEffect,
     children,
     createMemo,
     createResource,
     createSignal,
     onCleanup,
     onMount,
+    splitProps,
     useContext,
 } from 'solid-js';
-import { For } from 'solid-js';
-import { createEffect } from 'solid-js';
 import { Dynamic, Portal } from 'solid-js/web';
 
 import { A, useBeforeLeave } from '@solidjs/router';
@@ -23,37 +26,49 @@ import { Popover } from 'quipt/components/Popover';
 import QuiptLogo from 'quipt/components/Quipt-Logo';
 import { useModal, useModalContext } from 'quipt/modals';
 import { PartialScript, ScriptContextObj } from 'quipt/script';
+import { Button, IconButton } from 'quipt/components/basics';
 
-function Fragment(props: { children: JSX.Element }): JSX.Element {
-    const getChildren = children(() => props.children);
+function MenuSlot<C extends ValidComponent>(
+    props: ComponentProps<C> & {
+        component: C;
+        icon?: string;
+    },
+): JSX.Element {
+    const [, rest] = splitProps(props, ['component', 'class', 'children']);
 
-    return <>{getChildren()}</>;
+    return (
+        <Dynamic
+            component={props.component}
+            class={`flex items-center p-2 ${props.class}`}
+            {...rest}>
+            {props.icon !== undefined ? <i class={`bi bi-${props.icon} mr-2`} /> : null}
+            {props.children}
+        </Dynamic>
+    );
 }
 
 function ListItem(props: {
     icon?: string;
     children: JSX.Element;
-    static?: boolean;
     current?: boolean;
     href?: string;
     menuButton?: JSX.Element;
     onClick?: (e: MouseEvent) => void;
-    onUpdate?: (value: string) => void;
 }): JSX.Element {
     const getChildren = children(() => props.children);
     const isSimpleContent = createMemo(() => typeof getChildren() === 'string');
 
     return (
-        <Dynamic
-            component={props.href === undefined || !isSimpleContent() ? 'span' : A}
+        <MenuSlot
+            component={props.href === undefined || !isSimpleContent() ? 'div' : A}
+            icon={props.icon}
             onClick={props.onClick}
             href={props.href}
-            class="list-element"
-            classList={{ static: props.static, current: props.current }}>
-            {props.icon !== undefined ? <i class={`bi bi-${props.icon}`} /> : null}
-            <Dynamic component={isSimpleContent() ? 'span' : Fragment}>{props.children}</Dynamic>
+            class="hover:bg-accent1 rounded-lg"
+            classList={{ 'bg-background': props.current }}>
+            <div class="flex-1">{props.children}</div>
             {isSimpleContent() ? props.menuButton : null}
-        </Dynamic>
+        </MenuSlot>
     );
 }
 
@@ -61,20 +76,20 @@ function DeleteScriptModal(props: { script: PartialScript }): JSX.Element {
     const { dismiss, accept } = useModalContext()!;
     return (
         <>
-            <button class="close" onClick={() => dismiss()}>
-                <i class="bi bi-x" />
-            </button>
-            <h2>Skript löschen?</h2>
+            <div class="flex items-center">
+                <h2 class="text-heading-2">Skript löschen?</h2>
+                <IconButton class="ms-auto" icon="x" onClick={dismiss} />
+            </div>
             <span>
                 Dadurch wird <strong>{props.script.name}</strong> unwiederruflich gelöscht
             </span>
             <div class="bottom-line">
-                <button class="secondary-button" onClick={() => dismiss()}>
+                <Button variant="secondary" onClick={dismiss}>
                     Abbrechen
-                </button>
-                <button class="red-button" onClick={() => accept(props.script.uuid)}>
+                </Button>
+                <Button variant="danger" onClick={() => accept(props.script.uuid)}>
                     Löschen
-                </button>
+                </Button>
             </div>
         </>
     );
@@ -101,7 +116,7 @@ function ScriptListItemMenuButton(props: {
             trigger="click"
             placement="bottom-start"
             content={<ScriptListItemPopoverMenu {...props} />}>
-            <button class="icon-menu-button">
+            <button class="relative h-4.5 cursor-pointer text-lg/4.5 before:absolute before:-top-2 before:-right-2 before:h-[calc(100%+var(--spacing)*4)] before:w-[calc(100%+var(--spacing)*4)]">
                 <i class="bi bi-three-dots" />
             </button>
         </Popover>
@@ -175,15 +190,13 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
     }
 
     return (
-        <nav class="side-menu">
-            <div class="header">
-                <div class="top-line">
+        <nav class="bg-accent2 border-accent1 relative flex w-75 min-w-75 flex-col gap-1 overflow-hidden overflow-y-auto border-r px-2">
+            <div class="border-accent1 sticky top-0 flex flex-col gap-1 border-b">
+                <div class="flex h-15 items-center py-2">
                     {props.closer !== undefined ? (
-                        <button class="close" onClick={props.closer}>
-                            <i class="bi bi-x" />
-                        </button>
+                        <IconButton icon="x" class="ms-auto" onClick={props.closer} />
                     ) : (
-                        <A href="/" style={{ color: 'inherit' }}>
+                        <A class="mx-auto block" href="/">
                             <QuiptLogo />
                         </A>
                     )}
@@ -193,10 +206,10 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
                     Neues Skript
                 </ListItem>
 
-                <h3 style={{ padding: '1rem' }}>Skripte</h3>
+                <h3 class="text-heading-3 px-2">Skripte</h3>
             </div>
 
-            <div style={{ 'min-width': '0', 'max-width': '100%' }}>
+            <div class="min-h-0 max-w-full flex-1">
                 {scriptsQuery.status === 'success' && (
                     <For each={scriptsQuery.data.toSorted((a, b) => b.createdAt - a.createdAt)}>
                         {script => <ScriptListItem script={script} />}
@@ -206,18 +219,12 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
 
             {user.loading || user.error ? null : (
                 <div class="footer">
-                    <ListItem
-                        static
-                        icon="person-circle"
-                        menuButton={
-                            <button
-                                class="secondary-button"
-                                onClick={() => authentication.logout()}>
-                                Logout
-                            </button>
-                        }>
-                        {user()!.username}
-                    </ListItem>
+                    <MenuSlot component="div" class="border-accent1 border-t" icon="person-circle">
+                        <div class="flex-1">{user()!.username}</div>
+                        <Button variant="secondary" onClick={() => authentication.logout()}>
+                            Logout
+                        </Button>
+                    </MenuSlot>
                 </div>
             )}
         </nav>

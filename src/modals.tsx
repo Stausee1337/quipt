@@ -2,7 +2,6 @@ import {
     Component,
     JSX,
     createContext,
-    createEffect,
     createSignal,
     onCleanup,
     onMount,
@@ -63,8 +62,6 @@ export function Modal<T>(props: {
     onClose: CloseFn<T>;
     children: JSX.Element;
 }): JSX.Element {
-    const [modalRoot, setModalRoot] = createSignal<HTMLDivElement>();
-
     function onKeydown(event: KeyboardEvent) {
         if (event.key === 'Escape' && props.isOpen) props.onClose({ type: 'dismiss' });
     }
@@ -75,12 +72,6 @@ export function Modal<T>(props: {
 
     onCleanup(() => {
         document.documentElement.removeEventListener('keydown', onKeydown);
-    });
-
-    createEffect(() => {
-        // FIXME: ideally, giving the div an id is unnecessary
-        const root = modalRoot();
-        if (root !== undefined && root.isConnected) root.id = 'dialog-root';
     });
 
     function onAccept(result: unknown) {
@@ -94,12 +85,12 @@ export function Modal<T>(props: {
     return (
         <>
             {props.isOpen && (
-                <Portal ref={setModalRoot} mount={document.body}>
+                <Portal mount={document.body}>
                     <div
-                        id="modal-dialog-backdrop"
+                        class="fixed top-0 right-0 bottom-0 left-0 z-3000 bg-black/50 backdrop-blur-[1px]"
                         onClick={() => props.onClose({ type: 'dismiss' })}
                     />
-                    <div id="dialog-box">
+                    <div class="bg-accent1 fixed top-2/5 left-1/2 z-3001 flex w-120 -translate-1/2 flex-col gap-2 rounded-2xl p-4">
                         <ModalContextObj.Provider value={{ accept: onAccept, dismiss: onDismiss }}>
                             {props.children}
                         </ModalContextObj.Provider>
