@@ -30,6 +30,11 @@
     --color-lighter1: #585858;
     --color-lighter2: #a7a7a7;
     --color-lighter3: #d7d7d7;
+    --color-pgb-green: #5d9948;
+    --color-pgb-yellow: #fad541;
+    --color-pgb-orange: #ffa459;
+    --color-pgb-red: #fa742c;
+
     /* FIXME: add correct line heights */
     --text-heading-1: 1.875rem;
     --text-heading-2: 1.5rem;

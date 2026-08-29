@@ -211,7 +211,7 @@ export function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => voi
     return [read, () => setSignal({})];
 }
 
-export function SimpleChart(props: {
+export function SimpleChart(props: JSX.HTMLAttributes<HTMLCanvasElement> & {
     onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration;
 }): JSX.Element {
     let chartJSCanvas: HTMLCanvasElement | undefined = undefined;
@@ -223,7 +223,7 @@ export function SimpleChart(props: {
         chart = new Chart(ctx, props.onConfig(ctx));
     });
 
-    return <canvas ref={chartJSCanvas} class="chart-js" />;
+    return <canvas ref={chartJSCanvas} {...props}/>;
 }
 
 export function leftPad(data: number[], length: number): number[] {

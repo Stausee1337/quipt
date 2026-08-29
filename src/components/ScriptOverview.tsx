@@ -1,4 +1,4 @@
-import { For, JSX, createEffect, createMemo } from 'solid-js';
+import { For, JSX, createEffect, createMemo, splitProps } from 'solid-js';
 
 import { A } from '@solidjs/router';
 import { useQuery } from '@tanstack/solid-query';
@@ -11,11 +11,24 @@ import {
     computeScriptInfo,
     leftPad,
     pluralize,
-    progressBarGreen,
-    progressBarRed,
-    progressBarYellow,
 } from 'quipt/components/common';
 import { Script } from 'quipt/schemas';
+import { InfoText } from './basics';
+
+function IconScore(props: JSX.HTMLAttributes<HTMLSpanElement> & {
+    icon: string
+}): JSX.Element {
+    const [, rest] = splitProps(props, ['icon', 'class', 'children']);
+
+    return (
+        <span 
+            class={`text-sm font-semibold text-center ${props.class ?? ''}`}
+            {...rest}>
+            <i class={`bi bi-${props.icon} mr-1`} />
+            {props.children}
+        </span>
+    )
+}
 
 function DivisionItem(props: { script: Script; idx: number }): JSX.Element {
     const division = createMemo(() => props.script.divisions[props.idx]);
@@ -33,10 +46,10 @@ function DivisionItem(props: { script: Script; idx: number }): JSX.Element {
         const delta = p1 - p2;
         const deltaString = `${Math.abs(delta)} pts`;
         if (delta < 0) {
-            trendColor = progressBarRed;
+            trendColor = 'text-pgb-red';
             trendIcon = 'chevron-double-down';
         } else if (delta > 0) {
-            trendColor = progressBarGreen;
+            trendColor = 'text-pgb-green';
             trendIcon = 'chevron-double-up';
         } else trendIcon = 'plus-slash-minus';
 
@@ -108,26 +121,27 @@ function DivisionItem(props: { script: Script; idx: number }): JSX.Element {
     }
 
     return (
-        <A class="division-info" href={`/script/${props.script.uuid}/${props.idx + 1}`}>
-            <div class="general-info">
+        <A class="p-2 flex relative after:absolute after:bottom-0 after:left-1/2 after:w-[calc(100%-var(--spacing)*8)] after:-translate-x-1/2 after:border-b after:border-lighter1 last:after:content-none" 
+            href={`/script/${props.script.uuid}/${props.idx + 1}`}>
+            <div class="flex flex-col flex-1 justify-between gap-1 min-w-0 max-w-full">
                 <h3>{division().name}</h3>
-                <span class="info">{divisionInfo().actors.length} Spieler</span>
-                <span class="info">
+                <InfoText>{divisionInfo().actors.length} Spieler</InfoText>
+                <InfoText>
                     {pluralize(divisionInfo().textCues, 'Einsatz', 'Einsätze')}
-                </span>
+                </InfoText>
             </div>
-            <SimpleChart onConfig={chartConfigFactory} />
-            <div class="score-info">
-                <span class="row" style={{ color: progressBarYellow }}>
-                    <i class="bi bi-trophy-fill" /> {highScore()}
-                </span>
-                <span class="row" style={{ color: displayInfo().trendColor }}>
-                    <i class={`bi bi-${displayInfo().trendIcon}`} /> {displayInfo().deltaString}
-                </span>
+            <SimpleChart class="w-25 my-auto" onConfig={chartConfigFactory} />
+            <div class="flex flex-col justify-evenly w-18 ml-1">
+                <IconScore icon="trophy-fill" class="text-pgb-yellow">
+                    {highScore()}
+                </IconScore>
+                <IconScore icon={displayInfo().trendIcon} class={displayInfo().trendColor}>
+                    {displayInfo().deltaString}
+                </IconScore>
                 {division().previousTotals.length === 0 ? null : (
-                    <span class="row">
-                        <i class="bi bi-arrow-repeat" /> {division().previousTotals.length} x
-                    </span>
+                    <IconScore icon="arrow-repeat">
+                        {division().previousTotals.length} x
+                    </IconScore>
                 )}
             </div>
         </A>
@@ -144,11 +158,11 @@ export function ScriptOverview(props: { scriptID: schemas.UUID }): JSX.Element {
     });
 
     return (
-        <div class="script-overview">
-            <div class="script-info">
-                <h2>{script().name}</h2>
-                <span class="info">{pluralize(scriptInfo().textCues, 'Einsatz', 'Einsätze')}</span>
-                <span class="info">{scriptInfo().actors.join(', ')}</span>
+        <div class="w-full flex-1 flex flex-col">
+            <div class="p-2 flex flex-col gap-1">
+                <h2 class="text-heading-2">{script().name}</h2>
+                <InfoText>{pluralize(scriptInfo().textCues, 'Einsatz', 'Einsätze')}</InfoText>
+                <InfoText>{scriptInfo().actors.join(', ')}</InfoText>
             </div>
             <For each={script().divisions}>
                 {(_, idx) => <DivisionItem script={script()} idx={idx()} />}

@@ -34,3 +34,10 @@ export function IconButton(
         </button>
     );
 }
+
+export function InfoText(props: JSX.HTMLAttributes<HTMLSpanElement>) {
+    const [, rest] = splitProps(props, ['class']);
+    return (
+        <span class={`text-lighter2 text-sm font-light ${props.class ?? ''}`} {...rest}/>
+    );
+}
