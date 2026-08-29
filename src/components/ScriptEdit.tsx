@@ -592,7 +592,7 @@ function HeadingWithEditButton(
     const isSimpleContent = createMemo(() => typeof getChildren() === 'string');
 
     return (
-        <h2 class="text-heading-2 py-2 text-center" {...rest}>
+        <h2 class="text-heading-2 top-0 py-2 text-center" {...rest}>
             {props.children}
             {isSimpleContent() && (
                 <IconButton icon="pencil" class="text-lighter2" onClick={props.onEditClick} />
@@ -847,10 +847,7 @@ export function ScriptPage(props: { scriptID: schemas.UUID }): JSX.Element {
     });
 
     return (
-        <div class="flex gap-4 p-4">
-            <div class="w-120 max-w-120 min-w-90">
-                <ScriptOverview scriptID={props.scriptID} />
-            </div>
+        <div class="flex justify-center gap-8 p-4">
             {currentRoute() === 'view' ? (
                 <ScriptView scriptID={props.scriptID} />
             ) : (
@@ -861,6 +858,11 @@ export function ScriptPage(props: { scriptID: schemas.UUID }): JSX.Element {
                     divisionIdx={parseInt(params.division!) - 1}
                 />
             )}
+            <div>
+                <div class="bg-accent1 sticky top-4 h-[calc(100cqh-var(--spacing)*8)] w-120 max-w-120 min-w-90">
+                    <ScriptOverview scriptID={props.scriptID} />
+                </div>
+            </div>
         </div>
     );
 }

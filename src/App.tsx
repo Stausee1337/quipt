@@ -43,7 +43,9 @@ function App(props: { children?: JSX.Element }): JSX.Element {
                 {isSmallWidth() && <Header />}
                 <div class="relative z-0 flex min-h-0 w-full flex-1">
                     {!isSmallWidth() && authenticationContext.isLoggedIn() && <SideMenu />}
-                    {props.children}
+                    <div class="@container z-0 flex min-h-0 w-full flex-1 flex-col overflow-y-auto">
+                        {props.children}
+                    </div>
                 </div>
             </div>
         </ScriptContextObj.Provider>

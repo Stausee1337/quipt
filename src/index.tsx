@@ -7,6 +7,6 @@ import './index.css';
 
 const root = document.createElement('div');
 // root.id = 'root';
-root.className = 'h-svh w-svw overflow-auto flex relative text-foreground bg-background';
+root.className = 'h-svh w-svw flex relative text-foreground bg-background';
 document.body.prepend(root);
 render(() => <App />, root!);
