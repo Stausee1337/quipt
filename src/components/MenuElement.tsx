@@ -22,7 +22,7 @@ import { schemas } from 'qrpc-js';
 import { useAuthentication } from 'quipt/client';
 import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
 import { NewScriptFileChooser } from 'quipt/components/NewScriptFileChooser';
-import { Popover } from 'quipt/components/Popover';
+import { Popover, PopoverMenuItem } from 'quipt/components/Popover';
 import QuiptLogo from 'quipt/components/Quipt-Logo';
 import { useModal, useModalContext } from 'quipt/modals';
 import { PartialScript, ScriptContextObj } from 'quipt/script';
@@ -100,10 +100,10 @@ function ScriptListItemPopoverMenu(props: {
     renameScript: () => void;
 }): JSX.Element {
     return (
-        <ul class="menu-options">
-            <li onClick={props.deleteScript}>Löschen</li>
-            <li onClick={props.renameScript}>Umbenennen</li>
-        </ul>
+        <>
+            <PopoverMenuItem onClick={props.deleteScript}>Löschen</PopoverMenuItem>
+            <PopoverMenuItem onClick={props.renameScript}>Umbenennen</PopoverMenuItem>
+        </>
     );
 }
 

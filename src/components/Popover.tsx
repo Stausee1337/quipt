@@ -15,6 +15,7 @@ import {
     VirtualElement,
     createPopper,
 } from '@popperjs/core';
+import { splitProps } from 'solid-js';
 
 type Trigger = 'click' | 'contextmenu';
 
@@ -109,7 +110,7 @@ function PopoverContent(props: {
     placement: Placement;
     onClose: () => void;
 }): JSX.Element {
-    let popoverMenu: HTMLDivElement | undefined = undefined;
+    let popoverMenu: HTMLDivElement = undefined!;
     let popper: PopperInstance | undefined;
 
     function captureClick(event: MouseEvent) {
@@ -124,7 +125,7 @@ function PopoverContent(props: {
 
     onMount(() => {
         if (popoverMenu === undefined) return;
-        popoverMenu.className = 'popover-menu';
+        popoverMenu.className = 'p-2 rounded-lg border border-accent1 bg-background z-4000 shadow-lg';
         popoverMenu.addEventListener('click', transactionClick);
         popper = createPopper(props.reference, popoverMenu, { placement: props.placement });
         document.documentElement.addEventListener('click', captureClick);
@@ -139,7 +140,17 @@ function PopoverContent(props: {
 
     return (
         <Portal mount={document.body} ref={popoverMenu}>
-            {props.children}
+            <ul>
+                {props.children}
+            </ul>
         </Portal>
+    );
+}
+
+export function PopoverMenuItem(props: JSX.HTMLAttributes<HTMLLIElement>): JSX.Element {
+    const [, rest] = splitProps(props, ['class']);
+    return (
+        <li class={`py-1 px-2 rounded-sm cursor-pointer hover:bg-accent1 ${props.class ?? ''}`}
+            {...rest}/>
     );
 }

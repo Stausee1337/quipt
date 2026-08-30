@@ -8,7 +8,7 @@ import {
 } from 'quipt/components/common';
 import { TextCue, TextCuePair } from 'quipt/schemas';
 
-export interface TextCueDataViewProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>, 'class'> {
+export interface TextCueDataViewProps extends JSX.HTMLAttributes<HTMLDivElement> {
     text: FormattedString;
     actorsInfo: FormattedString | null;
     type: 'request' | 'response';
@@ -31,6 +31,7 @@ export function TextCueDataView(props: TextCueDataViewProps) {
         'afterExtra',
         'children',
         'classList',
+        'class'
     ]);
 
     return (
@@ -42,7 +43,7 @@ export function TextCueDataView(props: TextCueDataViewProps) {
             }}>
             {props.beforeExtra}
             <div
-                class="bg-accent1 flex max-w-17/20 flex-col overflow-hidden rounded-lg p-2"
+                class={`bg-accent1 flex max-w-17/20 flex-col overflow-hidden rounded-lg p-2 ${props.class ?? ''}`}
                 classList={{
                     'rounded-tl-none': props.type === 'request',
                     'rounded-tr-none': props.type === 'response',
@@ -65,7 +66,7 @@ export function TextCueDataView(props: TextCueDataViewProps) {
     );
 }
 
-export interface TextCueViewProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>, 'class'> {
+export interface TextCueViewProps extends JSX.HTMLAttributes<HTMLDivElement> {
     textCue: Partial<TextCue> | undefined;
     type: 'request' | 'response';
     beforeExtra?: JSX.Element;

@@ -1,4 +1,5 @@
-import { JSX, splitProps } from 'solid-js';
+import { useContext } from 'solid-js';
+import { createContext, createSignal, JSX, splitProps } from 'solid-js';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 
@@ -39,4 +40,26 @@ export function IconButton(
 export function InfoText(props: JSX.HTMLAttributes<HTMLSpanElement>) {
     const [, rest] = splitProps(props, ['class']);
     return <span class={`text-lighter2 text-sm font-light ${props.class ?? ''}`} {...rest} />;
+}
+
+const ScrollContextObj = createContext<HTMLDivElement>();
+
+export function useScrollContainer(): HTMLDivElement | undefined {
+    return useContext(ScrollContextObj);
+}
+
+export function ScrollContainer(props: JSX.HTMLAttributes<HTMLDivElement>): JSX.Element {
+    let [containerElement, setContainerElement] = createSignal<HTMLDivElement>();
+    const [, rest] = splitProps(props, ['class', 'children']);
+
+    return (
+        <div ref={setContainerElement} 
+            class={`@container z-0 min-h-0 w-full flex-1 overflow-y-auto ${props.class ?? ''}`}
+            {...rest}
+        >
+            <ScrollContextObj.Provider value={containerElement()}>
+                {props.children}
+            </ScrollContextObj.Provider>
+        </div>
+    );
 }

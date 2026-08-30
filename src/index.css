@@ -35,10 +35,16 @@
     --color-pgb-orange: #ffa459;
     --color-pgb-red: #fa742c;
 
+    --pgb-transition-properties: background-color, width;
+    --pgb-transition-motion-bezier: cubic-bezier(0.2, 1, 0.3, 1);
+
     /* FIXME: add correct line heights */
     --text-heading-1: 1.875rem;
     --text-heading-2: 1.5rem;
     --text-heading-3: 1.25rem;
+
+    --sct-scroll-padding: 60;
+    --sct-button-height: 8;
 }
 
 @supports (font-variation-settings: normal) {

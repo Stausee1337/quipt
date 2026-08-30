@@ -16,8 +16,6 @@ import { NewScriptRoute, ScriptRoute } from 'quipt/pages/Script';
 import { UserAuthenticate } from 'quipt/pages/UserAuthenticate';
 import { ScriptContextObj, createScriptContext } from 'quipt/script';
 
-import './App.scss';
-
 function App(props: { children?: JSX.Element }): JSX.Element {
     const authenticationContext = useAuthentication()!;
     const navigate = useNavigate();
@@ -43,9 +41,7 @@ function App(props: { children?: JSX.Element }): JSX.Element {
                 {isSmallWidth() && <Header />}
                 <div class="relative z-0 flex min-h-0 w-full flex-1">
                     {!isSmallWidth() && authenticationContext.isLoggedIn() && <SideMenu />}
-                    <div class="@container z-0 flex min-h-0 w-full flex-1 flex-col overflow-y-auto">
-                        {props.children}
-                    </div>
+                    {props.children}
                 </div>
             </div>
         </ScriptContextObj.Provider>

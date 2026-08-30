@@ -25,7 +25,7 @@ import { AuthenticationContextObj, queryClient } from 'quipt/client';
 import { ActorPill as BaseActorPill, PillProps } from 'quipt/components/ActorPill';
 import { CreateDivisionInfoView } from 'quipt/components/DivisionInfoView';
 import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
-import { Popover } from 'quipt/components/Popover';
+import { Popover, PopoverMenuItem } from 'quipt/components/Popover';
 import { ScriptOverview } from 'quipt/components/ScriptOverview';
 import { TrainingRunWrapper } from 'quipt/components/ScriptTraining';
 import { TextCueDataView, TextCuePairView } from 'quipt/components/TextCueView';
@@ -37,7 +37,7 @@ import {
 } from 'quipt/components/common';
 import { useModal, useModalContext } from 'quipt/modals';
 import { Division, Script, TextCue, TextCuePair } from 'quipt/schemas';
-import { Button, IconButton } from 'quipt/components/basics';
+import { Button, IconButton, ScrollContainer } from 'quipt/components/basics';
 
 const myTheme = EditorView.theme({}, { dark: true });
 
@@ -106,10 +106,10 @@ function EditCommitView(props: { close: (res: 'dismiss' | 'accept') => void }): 
 
 function TextCueEditMenu(props: { onEdit: () => void; onDelete: () => void }): JSX.Element {
     return (
-        <ul class="menu-options">
-            <li onClick={props.onDelete}>Löschen</li>
-            <li onClick={props.onEdit}>Bearbeiten</li>
-        </ul>
+        <>
+            <PopoverMenuItem onClick={props.onDelete}>Löschen</PopoverMenuItem>
+            <PopoverMenuItem onClick={props.onEdit}>Bearbeiten</PopoverMenuItem>
+        </>
     );
 }
 
@@ -522,10 +522,10 @@ function NewCueInserter(props: {
 
 function DivisionEditMenu(props: { onEdit: () => void; onRename: () => void }): JSX.Element {
     return (
-        <ul class="menu-options">
-            <li onClick={props.onEdit}>Bearbeiten</li>
-            <li onClick={props.onRename}>Umbenennen</li>
-        </ul>
+        <>
+            <PopoverMenuItem onClick={props.onEdit}>Bearbeiten</PopoverMenuItem>
+            <PopoverMenuItem onClick={props.onRename}>Umbenennen</PopoverMenuItem>
+        </>
     );
 }
 
@@ -824,7 +824,7 @@ function ScriptView(props: { scriptID: schemas.UUID }): JSX.Element {
 
     return (
         <>
-            <div class="max-w-250 select-none">
+            <div class="max-w-250 w-250 select-none">
                 <For each={script().divisions}>
                     {(division, idx) => (
                         <ScriptEditContextObj.Provider value={createScriptEditContext(idx)}>
@@ -847,22 +847,24 @@ export function ScriptPage(props: { scriptID: schemas.UUID }): JSX.Element {
     });
 
     return (
-        <div class="flex justify-center gap-8 p-4">
-            {currentRoute() === 'view' ? (
-                <ScriptView scriptID={props.scriptID} />
-            ) : (
-                // FIXME: params.division is absolutely not enforced (existance and validtiy) and
-                // using params directly isn't exactly a great source of truth
-                <TrainingRunWrapper
-                    scriptID={props.scriptID}
-                    divisionIdx={parseInt(params.division!) - 1}
-                />
-            )}
-            <div>
-                <div class="bg-accent1 sticky top-4 h-[calc(100cqh-var(--spacing)*8)] w-120 max-w-120 min-w-90">
-                    <ScriptOverview scriptID={props.scriptID} />
+        <ScrollContainer>
+            <div class="flex justify-center gap-8 p-4">
+                {currentRoute() === 'view' ? (
+                    <ScriptView scriptID={props.scriptID} />
+                ) : (
+                    // FIXME: params.division is absolutely not enforced (existance and validtiy) and
+                    // using params directly isn't exactly a great source of truth
+                    <TrainingRunWrapper
+                        scriptID={props.scriptID}
+                        divisionIdx={parseInt(params.division!) - 1}
+                    />
+                )}
+                <div class="w-120 max-w-120 min-w-90">
+                    <div class="bg-accent1 sticky top-4 h-[calc(100cqh-var(--spacing)*8)]">
+                        <ScriptOverview scriptID={props.scriptID} />
+                    </div>
                 </div>
             </div>
-        </div>
+        </ScrollContainer>
     );
 }

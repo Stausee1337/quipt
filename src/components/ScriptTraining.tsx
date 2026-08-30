@@ -10,6 +10,7 @@ import {
     getOwner,
     onCleanup,
     onMount,
+    splitProps,
 } from 'solid-js';
 
 import { useQuery } from '@tanstack/solid-query';
@@ -31,19 +32,7 @@ import {
     progressBarYellow,
 } from 'quipt/components/common';
 import { Script } from 'quipt/schemas';
-
-const confidenceIconMap = [
-    {
-        low: '\uF31D',
-        medium: '\uF323',
-        high: '\uF327',
-    },
-    {
-        low: '\uF31C',
-        medium: '\uF322',
-        high: '\uF324',
-    },
-];
+import { Button, useScrollContainer } from 'quipt/components/basics';
 
 type Confidence = 'low' | 'medium' | 'high';
 type OnConfidenceReportHandler = (confidence: Confidence) => void;
@@ -80,18 +69,23 @@ function ConfidenceReportButton(props: {
     isActive: boolean;
 }): JSX.Element {
     const confidenceIconColor = {
-        low: progressBarRed,
-        medium: progressBarYellow,
-        high: progressBarGreen,
+        low: 'text-pgb-red',
+        medium: 'text-pgb-yellow',
+        high: 'text-pgb-green',
     };
 
+    const confidenceIconMap = {
+        low: 'frown',
+        medium: 'neutral',
+        high: 'smile',
+    };
+
+    const icon = () => `emoji-${confidenceIconMap[props.confidence]}${props.isActive ? '-fill' : ''}`
+
     return (
-        <span
-            class="smiley"
-            onClick={() => props.onConfidenceReport(props.confidence)}
-            style={{ color: confidenceIconColor[props.confidence] }}>
-            {confidenceIconMap[Number(props.isActive)][props.confidence]}
-        </span>
+        <i
+            class={`bi bi-${icon()} w-8 h-8 text-[32px]/1 ${confidenceIconColor[props.confidence]} cursor-pointer block`}
+            onClick={() => props.onConfidenceReport(props.confidence)}/>
     );
 }
 
@@ -128,7 +122,7 @@ function ConfidenceReportView(props: {
     );
 
     return (
-        <div class="confidence-rating">
+        <div class="flex items-center justify-end gap-2 text-sm">
             {props.streak && (
                 <span style={{ color: progressBarOrange }}>
                     <i class="bi bi-fire" /> {props.streak}
@@ -169,12 +163,13 @@ function ConfidenceReportView(props: {
     );
 }
 
-function TextCueView(props: {
+function TextCueView(props: JSX.HTMLAttributes<HTMLDivElement> & {
     idx: number;
     currentIdx: number;
     textCues: TextCue[];
     onConfidenceUpdate?: (info: ConfidenceInfo) => void;
 }): JSX.Element {
+    const [, rest] = splitProps(props, ['idx', 'currentIdx', 'textCues', 'onConfidenceUpdate']);
     const [diff, setDiff] = createSignal<number>();
     const [trend, setTrend] = createSignal<Trend>();
     const [streak, setStreak] = createSignal<number>();
@@ -205,11 +200,12 @@ function TextCueView(props: {
                     />
                 )
             }
+            {...rest}
         />
     );
 }
 
-function ConfettiCanvas(): JSX.Element {
+function ConfettiCanvas(props: JSX.HTMLAttributes<HTMLCanvasElement>): JSX.Element {
     let confettiCanvas: HTMLCanvasElement | undefined = undefined;
 
     onMount(() => {
@@ -217,7 +213,7 @@ function ConfettiCanvas(): JSX.Element {
         creater();
     });
 
-    return <canvas ref={confettiCanvas} id="confettiCanvas" />;
+    return <canvas ref={confettiCanvas} {...props}/>;
 }
 
 function TrainingRunCompletedView(props: {
@@ -226,7 +222,7 @@ function TrainingRunCompletedView(props: {
     score: number;
     currentScoreString: string;
     progressBarColor: string;
-    animationsSetteled: boolean;
+    scoreboxRef: (ref: HTMLDivElement) => void;
     onNext: () => void;
     onReset: () => void;
 }): JSX.Element {
@@ -236,7 +232,8 @@ function TrainingRunCompletedView(props: {
 
     const maxScore = props.divisionInfo.textCues * 4; // FIXME: maxScore is pretty arbitrary
     const highScore = Math.max(maxScore, props.divisionInfo.highScore, props.score);
-    const isLastDivision = false; // FIXME: getting THIS information won't be trivial
+    // FIXME: getting THIS information won't be trivial
+    // const isLastDivision = false; 
 
     function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
         const scores = scoreHistory.slice(-7);
@@ -309,36 +306,35 @@ function TrainingRunCompletedView(props: {
     }
 
     return (
-        <div class="division-training-end">
+        <div class="flex flex-col items-center relative">
             <div
-                class="scorebox hidden"
+                class="invisible font-bold text-[9rem] text-(--score-color)"
                 style={{
                     '--score-color': props.progressBarColor,
-                    '--max-score': `"${highScore}"`,
-                }}>
+                }}
+                ref={props.scoreboxRef}>
                 {props.currentScoreString}
+                <span class="text-foreground text-[3rem]">/{highScore}</span>
             </div>
-            {props.animationsSetteled ? <SimpleChart onConfig={chartConfigFactory} /> : null}
-            {props.animationsSetteled && hasBrokenRecord ? (
-                <h3>
+            <SimpleChart onConfig={chartConfigFactory} />
+            {hasBrokenRecord && (
+                <h3 class="text-heading-3">
                     <i class="bi bi-trophy-fill" style={{ color: progressBarYellow }} /> Neuer High
                     Score!
                 </h3>
-            ) : null}
-            {!props.animationsSetteled ? null : (
-                <>
-                    <div style={{ flex: 1 }} />
-                    <div class="continuation-buttons">
-                        <button class="primary-button" onClick={() => props.onNext()}>
-                            {!isLastDivision ? 'Weiter' : 'Zurück zur Übersicht'}
-                        </button>
-                        <button class="secondary-button" onClick={() => props.onReset()}>
-                            Nochmal
-                        </button>
-                    </div>
-                </>
             )}
-            {props.animationsSetteled && hasBrokenRecord && <ConfettiCanvas />}
+            <div class="flex flex-col mb-25 w-full gap-2">
+                <Button variant="primary" onClick={() => props.onNext()}>
+                    Weiter
+                </Button>
+                <Button variant="secondary" onClick={() => props.onReset()}>
+                    Nochmal
+                </Button>
+            </div>
+            {hasBrokenRecord 
+                && <ConfettiCanvas
+                    class="absolute top-0 left-0 w-full h-full"/>
+            }
         </div>
     );
 }
@@ -347,17 +343,13 @@ function easeOut(x: number) {
     return Math.sin((x * Math.PI) / 2);
 }
 
-function scrollAnimation(element: HTMLElement, top: number, duration: number): Promise<void> {
-    let resolve: () => void;
-    const promise: Promise<void> = new Promise(resolve1 => {
-        resolve = resolve1;
-    });
+function scrollAnimation(element: HTMLElement, top: number, duration: number, onAnimationFinished?: () => void) {
     const from = element.scrollTop;
     const to = top;
 
     function doAnimation(start: number, current: number) {
         const progress = Math.min(current - start, duration) / duration;
-        if (progress >= 1.0) setTimeout(resolve, 0);
+        if (progress >= 1.0) setTimeout(() => onAnimationFinished?.(), 0);
         else requestAnimationFrame(timestamp => doAnimation(start, timestamp));
         element.scrollTop = easeOut(progress) * (to - from) + from;
     }
@@ -365,11 +357,11 @@ function scrollAnimation(element: HTMLElement, top: number, duration: number): P
     requestAnimationFrame(current => {
         requestAnimationFrame(timestamp => doAnimation(current, timestamp));
     });
-    return promise;
 }
 
 function flyingScoreAnimation(
-    view: HTMLDivElement,
+    score: HTMLHeadingElement,
+    scoreBox: HTMLHeadingElement,
     scoreString: Accessor<string>,
     progressBarColor: Accessor<string>,
     onAnimationFinished: () => void,
@@ -382,11 +374,8 @@ function flyingScoreAnimation(
         return `translate(${relX}px, ${relY}px)`;
     }
 
-    const score = view.querySelector('h1.score')! as HTMLElement;
-    const scoreBox = view.querySelector('div.scorebox')! as HTMLElement;
-
     const flyingScore = document.createElement('h2');
-    flyingScore.className = 'flying-score';
+    flyingScore.className = 'font-bold top-0 left-0 fixed text-[32px] z-1000';
     const dispsoseFlyingScoreUpdate = createRoot(dispose => {
         createEffect(() => {
             flyingScore.textContent = scoreString();
@@ -418,7 +407,7 @@ function flyingScoreAnimation(
     );
 
     animation.addEventListener('finish', () => {
-        scoreBox.classList.remove('hidden');
+        scoreBox.classList.remove('invisible');
         flyingScore.remove();
         dispsoseFlyingScoreUpdate();
         onAnimationFinished();
@@ -511,13 +500,12 @@ function TrainingRunView(props: {
     // FIXME: this is not how we do state
     const owner = getOwner()!;
     const maxScore = props.divisionInfo.textCues * 4; // FIXME: maxScore is pretty arbitrary
-    const root = document.querySelector('div.routing-contents')! as HTMLElement;
+    const scrollContainer = useScrollContainer();
     const observer = new IntersectionObserver(
         entries => setStickyDivisionVisible(!entries[0].isIntersecting),
-        { root },
+        { root: scrollContainer },
     );
 
-    let viewElement: HTMLDivElement | undefined = undefined;
     let scoreElement: HTMLHeadingElement | undefined = undefined;
     let divisionNameElement: HTMLHeadingElement | undefined = undefined;
 
@@ -526,8 +514,8 @@ function TrainingRunView(props: {
     const [currentScore, setCurrentScore] = createSignal<number>(0);
     const [scoreString, setScoreString] = createSignal<string>(String(currentScore()));
     const [reachedEnd, setReachedEnd] = createSignal<boolean>(false);
-    const [animationsSetteled, setAnimationsSetteled] = createSignal(false);
     const [currentBarTotal, setCurrentBarTotal] = createSignal<number>(maxScore);
+    const [scoreboxRef, setScoreboxRef] = createSignal<HTMLDivElement>();
 
     const progressBarColor = createMemo<string>(() => calculateBarColor(currentScore(), maxScore));
 
@@ -570,33 +558,20 @@ function TrainingRunView(props: {
         interval = setInterval(advance, delta);
     }
 
-    function revealNextCue() {
-        const prev = root.scrollTop;
+    function revealNextCue(onAnimationFinished?: () => void) {
+        if (scrollContainer === undefined) return;
+        const prev = scrollContainer.scrollTop;
         const nextIdx = currentIndex() + 1;
         if (nextIdx >= props.textCues.length) {
             setReachedEnd(true);
-            setAnimationsSetteled(false);
             props.onTrainingRunCompleted();
         } else {
             setCurrentIndex(nextIdx);
         }
 
-        root.scrollTop = prev;
+        scrollContainer.scrollTop = prev;
 
-        scrollAnimation(root, root.scrollHeight - root.offsetHeight, 250).then(() => {
-            if (reachedEnd()) {
-                setAnimationsSetteled(true);
-
-                if (viewElement === undefined) return;
-                flyingScoreAnimation(
-                    viewElement,
-                    scoreString,
-                    progressBarColor,
-                    () => setAnimationsSetteled(true),
-                    owner,
-                );
-            }
-        });
+        scrollAnimation(scrollContainer, scrollContainer.scrollHeight - scrollContainer.offsetHeight, 250, onAnimationFinished);
     }
 
     function updateScore(diff: number) {
@@ -611,7 +586,24 @@ function TrainingRunView(props: {
     function onConfidenceUpdate(info: ConfidenceInfo) {
         // TODO: mutateTextCue(cueIdx, diff);
         updateScore(info.diff + calculatePointsForStreak(info.streak));
-        revealNextCue();
+        
+        if (currentIndex() + 1 < props.textCues.length)
+            revealNextCue();
+        else
+            revealNextCue(() => {
+                const scoreboxElement = scoreboxRef();
+                if (scoreElement === undefined || scoreboxElement === undefined)
+                    return;
+
+                flyingScoreAnimation(
+                    scoreElement,
+                    scoreboxElement,
+                    scoreString,
+                    progressBarColor,
+                    () => {},
+                    owner,
+                );
+            });
 
         // TODO: Animations where staggered:
         //  - [
@@ -659,22 +651,28 @@ function TrainingRunView(props: {
     function onReset() {}
 
     return (
-        <div ref={viewElement} class="script-view">
-            <span class="sticky-division" classList={{ visible: stickyDivisionVisible() }}>
+        <div class="flex-1 select-none">
+            <span class="hidden fixed top-15 left-0 right-0 text-center py-1 bg-accent1 border-b border-lighter1 z-1000"
+                classList={{ 'block': stickyDivisionVisible() }}>
                 {props.divisionInfo.name}
             </span>
-            <div class="division-preamble">
-                <h2 ref={divisionNameElement}>{props.divisionInfo.name}</h2>
+            <div
+                class="min-h-[calc(100svh-var(--spacing)*(var(--sct-scroll-padding)+var(--sct-button-height)+20))] pb-6 flex flex-col">
+                <h2 class="text-center text-heading-2 py-2"
+                    ref={divisionNameElement}>
+                    {props.divisionInfo.name}
+                </h2>
                 <DivisionInfoView info={props.divisionInfo} />
-                <div style={{ flex: 1, 'min-height': '2.5rem' }} />
-                <TextCueView
-                    idx={0}
-                    currentIdx={currentIndex()}
-                    textCues={props.textCues}
-                    onConfidenceUpdate={undefined}
-                />
+                <div class="mbs-auto">
+                    <TextCueView
+                        idx={0}
+                        currentIdx={currentIndex()}
+                        textCues={props.textCues}
+                        onConfidenceUpdate={undefined}
+                    />
+                </div>
             </div>
-            <div class="main-content">
+            <div class="flex flex-col gap-6">
                 <For each={Array.from({ length: currentIndex() }, (_, index) => index + 1)}>
                     {idx => (
                         <TextCueView
@@ -688,45 +686,46 @@ function TrainingRunView(props: {
             </div>
             {currentIndex() % 2 === 0 ? (
                 <div
-                    class="button-container"
-                    style={{
-                        'padding-top': currentIndex() > 0 ? '2.5rem' : undefined,
+                    class="flex"
+                    classList={{
+                        'pt-6': currentIndex() > 0,
                     }}>
-                    <button class="primary-button" onClick={revealNextCue}>
+                    <Button variant="primary" 
+                        class="ms-auto"
+                        onClick={() => revealNextCue()}>
                         Aufdecken
-                    </button>
+                    </Button>
                 </div>
             ) : null}
             {!reachedEnd() ? (
-                <div class="scroll-padding" />
+                <div class="h-[calc(var(--spacing)*var(--sct-scroll-padding))]" />
             ) : (
                 <TrainingRunCompletedView
                     divisionInfo={props.divisionInfo}
                     score={currentScore()}
                     currentScoreString={scoreString()}
                     progressBarColor={progressBarColor()}
-                    animationsSetteled={animationsSetteled()}
+                    scoreboxRef={setScoreboxRef}
                     onNext={props.onNext}
                     onReset={onReset}
                 />
             )}
-            <div class="controls">
-                <div class="horizontal">
-                    <h1 ref={scoreElement} class="score">
+            <div class="absolute left-0 bottom-0 right-0 flex flex-col bg-accent1 p-2 pb-4 gap-2 z-50">
+                <div class="flex">
+                    <h1 ref={scoreElement} class="text-heading-1 font-bold">
                         {scoreString()}
                     </h1>
-                    <div style="flex: 1;" />
-                    <span>
+                    <span class="ms-auto font-semibold">
                         {Math.floor(currentIndex() / 2) + 1} / {props.divisionInfo.textCues}
                     </span>
                 </div>
                 <div
-                    class="progress"
+                    class="h-4 bg-lighter1 rounded-full"
                     style={{
                         '--progress-width': Math.min(currentScore() / currentBarTotal(), 1),
                         '--progress-color': progressBarColor(),
                     }}>
-                    <div class="inner" />
+                    <div class="h-4 rounded-full bg-[var(--progress-color)] w-[calc(100%*var(--progress-width))] transition-(--pgb-transition-properties) duration-250 ease-(--pgb-transition-motion-bezier)" />
                 </div>
             </div>
         </div>
