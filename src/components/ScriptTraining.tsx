@@ -80,12 +80,14 @@ function ConfidenceReportButton(props: {
         high: 'smile',
     };
 
-    const icon = () => `emoji-${confidenceIconMap[props.confidence]}${props.isActive ? '-fill' : ''}`
+    const icon = () =>
+        `emoji-${confidenceIconMap[props.confidence]}${props.isActive ? '-fill' : ''}`;
 
     return (
         <i
-            class={`bi bi-${icon()} w-8 h-8 text-[32px]/1 ${confidenceIconColor[props.confidence]} cursor-pointer block`}
-            onClick={() => props.onConfidenceReport(props.confidence)}/>
+            class={`bi bi-${icon()} h-8 w-8 text-[32px]/1 ${confidenceIconColor[props.confidence]} block cursor-pointer`}
+            onClick={() => props.onConfidenceReport(props.confidence)}
+        />
     );
 }
 
@@ -163,12 +165,14 @@ function ConfidenceReportView(props: {
     );
 }
 
-function TextCueView(props: JSX.HTMLAttributes<HTMLDivElement> & {
-    idx: number;
-    currentIdx: number;
-    textCues: TextCue[];
-    onConfidenceUpdate?: (info: ConfidenceInfo) => void;
-}): JSX.Element {
+function TextCueView(
+    props: JSX.HTMLAttributes<HTMLDivElement> & {
+        idx: number;
+        currentIdx: number;
+        textCues: TextCue[];
+        onConfidenceUpdate?: (info: ConfidenceInfo) => void;
+    },
+): JSX.Element {
     const [, rest] = splitProps(props, ['idx', 'currentIdx', 'textCues', 'onConfidenceUpdate']);
     const [diff, setDiff] = createSignal<number>();
     const [trend, setTrend] = createSignal<Trend>();
@@ -213,7 +217,7 @@ function ConfettiCanvas(props: JSX.HTMLAttributes<HTMLCanvasElement>): JSX.Eleme
         creater();
     });
 
-    return <canvas ref={confettiCanvas} {...props}/>;
+    return <canvas ref={confettiCanvas} {...props} />;
 }
 
 function TrainingRunCompletedView(props: {
@@ -233,7 +237,7 @@ function TrainingRunCompletedView(props: {
     const maxScore = props.divisionInfo.textCues * 4; // FIXME: maxScore is pretty arbitrary
     const highScore = Math.max(maxScore, props.divisionInfo.highScore, props.score);
     // FIXME: getting THIS information won't be trivial
-    // const isLastDivision = false; 
+    // const isLastDivision = false;
 
     function chartConfigFactory(ctx: CanvasRenderingContext2D): ChartConfiguration {
         const scores = scoreHistory.slice(-7);
@@ -306,9 +310,9 @@ function TrainingRunCompletedView(props: {
     }
 
     return (
-        <div class="flex flex-col items-center relative">
+        <div class="relative flex flex-col items-center">
             <div
-                class="invisible font-bold text-[9rem] text-(--score-color)"
+                class="invisible text-[9rem] font-bold text-(--score-color)"
                 style={{
                     '--score-color': props.progressBarColor,
                 }}
@@ -316,14 +320,16 @@ function TrainingRunCompletedView(props: {
                 {props.currentScoreString}
                 <span class="text-foreground text-[3rem]">/{highScore}</span>
             </div>
-            <SimpleChart onConfig={chartConfigFactory} />
+            <div class="relative w-full">
+                <SimpleChart onConfig={chartConfigFactory} />
+            </div>
             {hasBrokenRecord && (
                 <h3 class="text-heading-3">
                     <i class="bi bi-trophy-fill" style={{ color: progressBarYellow }} /> Neuer High
                     Score!
                 </h3>
             )}
-            <div class="flex flex-col mb-25 w-full gap-2">
+            <div class="mb-25 flex w-full flex-col gap-2">
                 <Button variant="primary" onClick={() => props.onNext()}>
                     Weiter
                 </Button>
@@ -331,10 +337,7 @@ function TrainingRunCompletedView(props: {
                     Nochmal
                 </Button>
             </div>
-            {hasBrokenRecord 
-                && <ConfettiCanvas
-                    class="absolute top-0 left-0 w-full h-full"/>
-            }
+            {hasBrokenRecord && <ConfettiCanvas class="absolute top-0 left-0 -z-1 h-full w-full" />}
         </div>
     );
 }
@@ -343,7 +346,12 @@ function easeOut(x: number) {
     return Math.sin((x * Math.PI) / 2);
 }
 
-function scrollAnimation(element: HTMLElement, top: number, duration: number, onAnimationFinished?: () => void) {
+function scrollAnimation(
+    element: HTMLElement,
+    top: number,
+    duration: number,
+    onAnimationFinished?: () => void,
+) {
     const from = element.scrollTop;
     const to = top;
 
@@ -571,7 +579,12 @@ function TrainingRunView(props: {
 
         scrollContainer.scrollTop = prev;
 
-        scrollAnimation(scrollContainer, scrollContainer.scrollHeight - scrollContainer.offsetHeight, 250, onAnimationFinished);
+        scrollAnimation(
+            scrollContainer,
+            scrollContainer.scrollHeight - scrollContainer.offsetHeight,
+            250,
+            onAnimationFinished,
+        );
     }
 
     function updateScore(diff: number) {
@@ -586,14 +599,12 @@ function TrainingRunView(props: {
     function onConfidenceUpdate(info: ConfidenceInfo) {
         // TODO: mutateTextCue(cueIdx, diff);
         updateScore(info.diff + calculatePointsForStreak(info.streak));
-        
-        if (currentIndex() + 1 < props.textCues.length)
-            revealNextCue();
+
+        if (currentIndex() + 1 < props.textCues.length) revealNextCue();
         else
             revealNextCue(() => {
                 const scoreboxElement = scoreboxRef();
-                if (scoreElement === undefined || scoreboxElement === undefined)
-                    return;
+                if (scoreElement === undefined || scoreboxElement === undefined) return;
 
                 flyingScoreAnimation(
                     scoreElement,
@@ -651,15 +662,14 @@ function TrainingRunView(props: {
     function onReset() {}
 
     return (
-        <div class="flex-1 select-none">
-            <span class="hidden fixed top-15 left-0 right-0 text-center py-1 bg-accent1 border-b border-lighter1 z-1000"
-                classList={{ 'block': stickyDivisionVisible() }}>
+        <div class="w-250 max-w-250 select-none">
+            <span
+                class="bg-accent1 border-lighter1 fixed top-15 right-0 left-0 z-1000 hidden border-b py-1 text-center"
+                classList={{ block: stickyDivisionVisible() }}>
                 {props.divisionInfo.name}
             </span>
-            <div
-                class="min-h-[calc(100svh-var(--spacing)*(var(--sct-scroll-padding)+var(--sct-button-height)+20))] pb-6 flex flex-col">
-                <h2 class="text-center text-heading-2 py-2"
-                    ref={divisionNameElement}>
+            <div class="flex min-h-[calc(100svh-var(--spacing)*(var(--sct-scroll-padding)+var(--sct-button-height)+20))] flex-col pb-6">
+                <h2 class="text-heading-2 py-2 text-center" ref={divisionNameElement}>
                     {props.divisionInfo.name}
                 </h2>
                 <DivisionInfoView info={props.divisionInfo} />
@@ -690,9 +700,7 @@ function TrainingRunView(props: {
                     classList={{
                         'pt-6': currentIndex() > 0,
                     }}>
-                    <Button variant="primary" 
-                        class="ms-auto"
-                        onClick={() => revealNextCue()}>
+                    <Button variant="primary" class="ms-auto" onClick={() => revealNextCue()}>
                         Aufdecken
                     </Button>
                 </div>
@@ -710,7 +718,7 @@ function TrainingRunView(props: {
                     onReset={onReset}
                 />
             )}
-            <div class="absolute left-0 bottom-0 right-0 flex flex-col bg-accent1 p-2 pb-4 gap-2 z-50">
+            <div class="bg-accent1 absolute right-0 bottom-0 left-0 z-50 flex flex-col gap-2 p-2 pb-4">
                 <div class="flex">
                     <h1 ref={scoreElement} class="text-heading-1 font-bold">
                         {scoreString()}
@@ -720,12 +728,12 @@ function TrainingRunView(props: {
                     </span>
                 </div>
                 <div
-                    class="h-4 bg-lighter1 rounded-full"
+                    class="bg-lighter1 h-4 rounded-full"
                     style={{
                         '--progress-width': Math.min(currentScore() / currentBarTotal(), 1),
                         '--progress-color': progressBarColor(),
                     }}>
-                    <div class="h-4 rounded-full bg-[var(--progress-color)] w-[calc(100%*var(--progress-width))] transition-(--pgb-transition-properties) duration-250 ease-(--pgb-transition-motion-bezier)" />
+                    <div class="h-4 w-[calc(100%*var(--progress-width))] rounded-full bg-[var(--progress-color)] transition-(--pgb-transition-properties) duration-250 ease-(--pgb-transition-motion-bezier)" />
                 </div>
             </div>
         </div>

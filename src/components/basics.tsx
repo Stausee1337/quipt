@@ -53,10 +53,10 @@ export function ScrollContainer(props: JSX.HTMLAttributes<HTMLDivElement>): JSX.
     const [, rest] = splitProps(props, ['class', 'children']);
 
     return (
-        <div ref={setContainerElement} 
+        <div
+            ref={setContainerElement}
             class={`@container z-0 min-h-0 w-full flex-1 overflow-y-auto ${props.class ?? ''}`}
-            {...rest}
-        >
+            {...rest}>
             <ScrollContextObj.Provider value={containerElement()}>
                 {props.children}
             </ScrollContextObj.Provider>

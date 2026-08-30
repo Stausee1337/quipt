@@ -38,6 +38,7 @@ import {
 import { useModal, useModalContext } from 'quipt/modals';
 import { Division, Script, TextCue, TextCuePair } from 'quipt/schemas';
 import { Button, IconButton, ScrollContainer } from 'quipt/components/basics';
+import { useBreakpoints } from 'quipt/responsive';
 
 const myTheme = EditorView.theme({}, { dark: true });
 
@@ -824,7 +825,7 @@ function ScriptView(props: { scriptID: schemas.UUID }): JSX.Element {
 
     return (
         <>
-            <div class="max-w-250 w-250 select-none">
+            <div class="w-250 max-w-250 select-none">
                 <For each={script().divisions}>
                     {(division, idx) => (
                         <ScriptEditContextObj.Provider value={createScriptEditContext(idx)}>
@@ -840,6 +841,7 @@ function ScriptView(props: { scriptID: schemas.UUID }): JSX.Element {
 export function ScriptPage(props: { scriptID: schemas.UUID }): JSX.Element {
     const location = useLocation();
     const params = useParams();
+    const breakpoints = useBreakpoints();
 
     const currentRoute = createMemo(() => {
         if (location.pathname.startsWith('/train')) return 'train';
@@ -859,11 +861,13 @@ export function ScriptPage(props: { scriptID: schemas.UUID }): JSX.Element {
                         divisionIdx={parseInt(params.division!) - 1}
                     />
                 )}
-                <div class="w-120 max-w-120 min-w-90">
-                    <div class="bg-accent1 sticky top-4 h-[calc(100cqh-var(--spacing)*8)]">
-                        <ScriptOverview scriptID={props.scriptID} />
+                {breakpoints.xl && (
+                    <div class="w-120 max-w-120 min-w-90">
+                        <div class="bg-accent1 sticky top-4 h-[calc(100cqh-var(--spacing)*8)]">
+                            <ScriptOverview scriptID={props.scriptID} />
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </ScrollContainer>
     );

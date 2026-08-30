@@ -31,7 +31,7 @@ export function TextCueDataView(props: TextCueDataViewProps) {
         'afterExtra',
         'children',
         'classList',
-        'class'
+        'class',
     ]);
 
     return (

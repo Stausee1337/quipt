@@ -39,7 +39,7 @@ function MenuSlot<C extends ValidComponent>(
     return (
         <Dynamic
             component={props.component}
-            class={`flex items-center p-2 ${props.class}`}
+            class={`flex items-center p-2 ${props.class ?? ''}`}
             {...rest}>
             {props.icon !== undefined ? <i class={`bi bi-${props.icon} mr-2`} /> : null}
             {props.children}
@@ -66,7 +66,9 @@ function ListItem(props: {
             href={props.href}
             class="hover:bg-accent1 rounded-lg"
             classList={{ 'bg-background': props.current }}>
-            <div class="flex-1">{props.children}</div>
+            <div class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                {props.children}
+            </div>
             {isSimpleContent() ? props.menuButton : null}
         </MenuSlot>
     );
@@ -190,7 +192,7 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
     }
 
     return (
-        <nav class="bg-accent2 border-accent1 relative flex w-75 min-w-75 flex-col gap-1 overflow-hidden overflow-y-auto border-r px-2">
+        <nav class="bg-accent2 border-accent1 relative flex h-full w-75 max-w-[75vw] flex-col gap-1 overflow-hidden overflow-y-auto border-r px-2">
             <div class="border-accent1 sticky top-0 flex flex-col gap-1 border-b">
                 <div class="flex h-15 items-center py-2">
                     {props.closer !== undefined ? (
@@ -220,7 +222,9 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
             {user.loading || user.error ? null : (
                 <div class="footer">
                     <MenuSlot component="div" class="border-accent1 border-t" icon="person-circle">
-                        <div class="flex-1">{user()!.username}</div>
+                        <div class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                            {user()!.username}
+                        </div>
                         <Button variant="secondary" onClick={() => authentication.logout()}>
                             Logout
                         </Button>
@@ -235,29 +239,21 @@ export function SideMenuModal(props: { isOpen: boolean; onClose: () => void }): 
     // TODO: relying on an animation system doesn't need an intermediate signal just to remove an
     // element
     const [isRemoving, setIsRemoving] = createSignal(false);
-    const [modalRoot, setModalRoot] = createSignal<HTMLDivElement>();
 
     createEffect(() => {
         if (props.isOpen) setIsRemoving(false);
     });
 
-    createEffect(() => {
-        // FIXME: ideally, giving the div an id is unnecessary
-        const root = modalRoot();
-        if (root !== undefined && root.isConnected) root.id = 'dialog-root';
-    });
-
-    // FIXME: currently the "floating-menu" container is bigger than the side menu itself, meaning
-    // that the backdrop might be overshadowed by this invibisble container, and clicking on it
-    // doesn't result in the menu being closed.
     return (
         <>
             {props.isOpen && (
-                <Portal ref={setModalRoot} mount={document.body}>
-                    <div id="floating-menu-backdrop" onClick={() => setIsRemoving(true)} />
+                <Portal mount={document.body}>
                     <div
-                        id="floating-menu"
-                        classList={{ removing: isRemoving() }}
+                        class="fixed top-0 right-0 bottom-0 left-0 z-2000 bg-black/30"
+                        onClick={() => setIsRemoving(true)}
+                    />
+                    <div
+                        class="fixed top-0 left-0 z-2001 h-full"
                         onAnimationEnd={isRemoving() ? () => props.onClose() : undefined}>
                         <SideMenu closer={() => setIsRemoving(true)} />
                     </div>
