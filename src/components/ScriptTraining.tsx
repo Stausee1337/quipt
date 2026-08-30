@@ -33,6 +33,9 @@ import {
 } from 'quipt/components/common';
 import { Script } from 'quipt/schemas';
 import { Button, useScrollContainer } from 'quipt/components/basics';
+import { useContext } from 'solid-js';
+import { ScriptContextObj } from 'quipt/script';
+import { useNavigate } from '@solidjs/router';
 
 type Confidence = 'low' | 'medium' | 'high';
 type OnConfidenceReportHandler = (confidence: Confidence) => void;
@@ -57,7 +60,6 @@ interface RequestTextCue extends TextCueBase {
 interface ResponseTextCue extends TextCueBase {
     text: string;
     actors: string[];
-    previousScores: number[];
     type: 'response';
 }
 
@@ -170,6 +172,7 @@ function TextCueView(
         idx: number;
         currentIdx: number;
         textCues: TextCue[];
+        divisionInfo: DivisionInfo;
         onConfidenceUpdate?: (info: ConfidenceInfo) => void;
     },
 ): JSX.Element {
@@ -181,9 +184,11 @@ function TextCueView(
     const textCue = createMemo(() => props.textCues[props.idx]);
 
     function reportConfidence(confidence: Confidence) {
-        const textCue = props.textCues[props.currentIdx];
-        if (textCue.type !== 'response') return;
-        const confidenceInfo = computeConfidenceInfo(textCue, confidence);
+        const confidenceInfo = computeConfidenceInfo(
+            props.divisionInfo, 
+            Math.floor(props.currentIdx / 2),
+            confidence
+        );
         setDiff(confidenceInfo.diff);
         setTrend(confidenceInfo.trend);
         setStreak(confidenceInfo.streak);
@@ -461,7 +466,7 @@ function calculateStreakFromPoints(points: number): number {
     return Math.max(x1, x2);
 }
 
-function computeConfidenceInfo(textCue: ResponseTextCue, confidence: Confidence): ConfidenceInfo {
+function computeConfidenceInfo(info: DivisionInfo, textCueIdx: number, confidence: Confidence): ConfidenceInfo {
     let newScore = 0;
     switch (confidence) {
         case 'low':
@@ -478,7 +483,7 @@ function computeConfidenceInfo(textCue: ResponseTextCue, confidence: Confidence)
 
     let streak = 0;
     let trend: Trend | undefined;
-    const previousScore = textCue.previousScores.at(-1);
+    const previousScore = info.previousScores[textCueIdx];
     if (previousScore === undefined) {
         return { diff: newScore, streak: 0, trend };
     }
@@ -502,6 +507,7 @@ function computeConfidenceInfo(textCue: ResponseTextCue, confidence: Confidence)
 function TrainingRunView(props: {
     divisionInfo: DivisionInfo;
     textCues: TextCue[];
+    onPointsScored: (cueIdx: number, points: number) => void;
     onTrainingRunCompleted: () => void;
     onNext: () => void;
 }) {
@@ -537,7 +543,12 @@ function TrainingRunView(props: {
 
     createEffect<number>(prev => {
         const current = currentScore();
-        scoreCountAnimation(prev, current);
+        if (current !== 0) {
+            // FIXME: we really shouldn't trigger an animation on an effect
+            scoreCountAnimation(prev, current);
+        } else {
+            setScoreString('0');
+        }
         return current;
     }, currentScore());
 
@@ -598,7 +609,9 @@ function TrainingRunView(props: {
 
     function onConfidenceUpdate(info: ConfidenceInfo) {
         // TODO: mutateTextCue(cueIdx, diff);
-        updateScore(info.diff + calculatePointsForStreak(info.streak));
+        const points = info.diff + calculatePointsForStreak(info.streak);
+        props.onPointsScored(Math.floor(currentIndex() / 2), points);
+        updateScore(points);
 
         if (currentIndex() + 1 < props.textCues.length) revealNextCue();
         else
@@ -659,13 +672,20 @@ function TrainingRunView(props: {
         //  - build timeline animation tool
     }
 
-    function onReset() {}
+    function onReset() {
+        scrollAnimation(scrollContainer!, 0, 300, () => {
+            setCurrentIndex(0);
+            setCurrentScore(0);
+            setReachedEnd(false);
+            setCurrentBarTotal(maxScore);
+        })
+    }
 
     return (
-        <div class="w-250 max-w-250 select-none">
+        <div class="@container/train w-250 max-w-250 select-none relative">
             <span
-                class="bg-accent1 border-lighter1 fixed top-15 right-0 left-0 z-1000 hidden border-b py-1 text-center"
-                classList={{ block: stickyDivisionVisible() }}>
+                class="anchor-top-positioning bg-accent1 border-lighter1 fixed w-[100cqw] z-1000 hidden border-b py-1 text-center"
+                classList={{ 'block!': stickyDivisionVisible() }}>
                 {props.divisionInfo.name}
             </span>
             <div class="flex min-h-[calc(100svh-var(--spacing)*(var(--sct-scroll-padding)+var(--sct-button-height)+20))] flex-col pb-6">
@@ -677,8 +697,8 @@ function TrainingRunView(props: {
                     <TextCueView
                         idx={0}
                         currentIdx={currentIndex()}
+                        divisionInfo={props.divisionInfo}
                         textCues={props.textCues}
-                        onConfidenceUpdate={undefined}
                     />
                 </div>
             </div>
@@ -688,6 +708,7 @@ function TrainingRunView(props: {
                         <TextCueView
                             idx={idx}
                             currentIdx={currentIndex()}
+                            divisionInfo={props.divisionInfo}
                             textCues={props.textCues}
                             onConfidenceUpdate={onConfidenceUpdate}
                         />
@@ -718,7 +739,7 @@ function TrainingRunView(props: {
                     onReset={onReset}
                 />
             )}
-            <div class="bg-accent1 absolute right-0 bottom-0 left-0 z-50 flex flex-col gap-2 p-2 pb-4">
+            <div class="anchor-bottom-positioning bg-accent1 fixed z-50 flex flex-col gap-2 p-2 pb-4 w-[100cqw]">
                 <div class="flex">
                     <h1 ref={scoreElement} class="text-heading-1 font-bold">
                         {scoreString()}
@@ -745,35 +766,58 @@ export function TrainingRunWrapper(props: {
     divisionIdx: number;
 }): JSX.Element {
     const scriptQuery = useQuery<Script>(() => ({ queryKey: ['script', props.scriptID] }));
+    const navigate = useNavigate();
 
     type CapturedDivision = {
         info: DivisionInfo;
         textCues: TextCue[];
+        trainingRunCompltedHandler: () => void; 
+        pointsScoredHandler: (cueIdx: number, points: number) => void;
     };
 
+    // FIXME: all of this capturing turns pretty ugly upon introducing resetting
     const [capturedDivision, setCapturedDivision] = createSignal<CapturedDivision>();
 
     createEffect(() => {
-        if (capturedDivision() !== undefined) return; // FIXME: update the training view here
-        if (scriptQuery.status === 'success') {
-            const script = scriptQuery.data;
-            const division = script.divisions[props.divisionIdx];
-            document.title = `${script.name} - Quipt`;
-            const textCues = division.textCues.flatMap(pair => [
-                { ...pair.request, type: 'request' } as RequestTextCue,
-                {
-                    ...pair.response,
-                    previousScores: [...pair.previousScores],
-                    type: 'response',
-                } as ResponseTextCue,
-            ]);
+        if (scriptQuery.status !== 'success') return; 
+        const scriptContext = useContext(ScriptContextObj);
+        const divisionIdx = props.divisionIdx;
 
-            setCapturedDivision({
-                info: computeDivisionInfo(division),
-                textCues,
-            });
+        const script = scriptQuery.data;
+        const division = script.divisions[divisionIdx];
+        document.title = `${script.name} - Quipt`;
+        const textCues = division.textCues.flatMap(pair => [
+            { ...pair.request, type: 'request' } as RequestTextCue,
+            {
+                ...pair.response,
+                previousScores: [...pair.previousScores],
+                type: 'response',
+            } as ResponseTextCue,
+        ]);
+        
+        const newConfidences: number[] = Array(division.textCues.length).fill(0);
+
+        function trainingRunCompltedHandler() {
+            scriptContext?.commitNewConfidences(divisionIdx, [...newConfidences]);
+            newConfidences.length = 0;
         }
+
+        function pointsScoredHandler(cueIdx: number, points: number) {
+            newConfidences[cueIdx] = points;
+        }
+
+        setCapturedDivision({
+            info: computeDivisionInfo(division),
+            textCues,
+            trainingRunCompltedHandler,
+            pointsScoredHandler,
+        });
     });
+
+    function nextDivision() {
+        setCapturedDivision();
+        navigate(`/train/${props.scriptID}/${props.divisionIdx + 2}`, { replace: true });
+    }
 
     return (
         <>
@@ -781,8 +825,9 @@ export function TrainingRunWrapper(props: {
                 <TrainingRunView
                     divisionInfo={capturedDivision()!.info}
                     textCues={capturedDivision()!.textCues}
-                    onTrainingRunCompleted={() => {}}
-                    onNext={() => {}}
+                    onTrainingRunCompleted={capturedDivision()!.trainingRunCompltedHandler}
+                    onPointsScored={capturedDivision()!.pointsScoredHandler}
+                    onNext={nextDivision}
                 />
             )}
         </>

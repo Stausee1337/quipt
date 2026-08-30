@@ -95,6 +95,28 @@
     }
 }
 
+/* FIXME: this anchor positioning is fundamentally not correct */
+
+@layer components {
+    .__ScrollContainer {
+        anchor-name: --scroll-container;
+    }
+}
+
+.\@container\/train {
+    anchor-name: --train-container;
+}
+
+.anchor-top-positioning {
+    top: anchor(--scroll-container top);
+    left: anchor(--train-container left);
+}
+
+.anchor-bottom-positioning {
+    left: anchor(--train-container left);
+    bottom: calc(var(--spacing) * 4);
+}
+
 .cm-markdown {
     div.cm-scroller {
         font-family: inherit;

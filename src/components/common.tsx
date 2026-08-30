@@ -122,6 +122,7 @@ export interface DivisionInfo {
     description: string;
     highScore: number;
     scoreHistory: number[];
+    previousScores: number[];
 }
 
 function commonElements<T>(arrays: T[][]): T[] {
@@ -161,6 +162,7 @@ function computeDivisionInfoImpl(
         description: division.description,
         name: division.name,
         scoreHistory: division.previousTotals,
+        previousScores: division.textCues.map(pair => pair.previousScores.at(-1) ?? 0),
         highScore: Math.max(...division.previousTotals),
     };
 }
