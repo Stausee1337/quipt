@@ -192,7 +192,7 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
     }
 
     return (
-        <nav class="bg-accent2 border-accent1 relative flex h-full w-75 max-w-[75vw] flex-col gap-1 overflow-hidden overflow-y-auto border-r px-2">
+        <nav class="bg-accent2 border-accent1 relative flex h-full w-75 max-w-[75vw] flex-col gap-1 overflow-hidden overflow-y-auto border-r px-2 select-none">
             <div class="border-accent1 sticky top-0 flex flex-col gap-1 border-b">
                 <div class="flex h-15 items-center py-2">
                     {props.closer !== undefined ? (
@@ -250,11 +250,19 @@ export function SideMenuModal(props: { isOpen: boolean; onClose: () => void }): 
                 <Portal mount={document.body}>
                     <div
                         class="fixed top-0 right-0 bottom-0 left-0 z-2000 bg-black/30"
+                        classList={{
+                            'animate-floating-menu-bd-fade-in': !isRemoving(),
+                            'animate-floating-menu-bd-fade-out': isRemoving(),
+                        }}
                         onClick={() => setIsRemoving(true)}
                     />
                     <div
                         class="fixed top-0 left-0 z-2001 h-full"
-                        onAnimationEnd={isRemoving() ? () => props.onClose() : undefined}>
+                        classList={{
+                            'animate-floating-menu-enter': !isRemoving(),
+                            'animate-floating-menu-leave': isRemoving(),
+                        }}
+                        onAnimationEnd={() => isRemoving() && props.onClose()}>
                         <SideMenu closer={() => setIsRemoving(true)} />
                     </div>
                 </Portal>

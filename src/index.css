@@ -45,6 +45,48 @@
 
     --sct-scroll-padding: 60;
     --sct-button-height: 8;
+
+    --animate-floating-menu-enter: floating-menu-enter 250ms ease-in forwards;
+    --animate-floating-menu-leave: floating-menu-leave 250ms ease-in forwards;
+
+    --animate-floating-menu-bd-fade-in: floating-menu-bd-fade-in 250ms ease-in forwards;
+    --animate-floating-menu-bd-fade-out: floating-menu-bd-fade-out 250ms ease-in forwards;
+
+    @keyframes floating-menu-enter {
+        0% {
+            transform: translateX(-100%);
+        }
+        100% {
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes floating-menu-leave {
+        0% {
+            transform: translateX(0);
+        }
+        100% {
+            transform: translateX(-100%);
+        }
+    }
+
+    @keyframes floating-menu-bd-fade-in {
+        0% {
+            opacity: 0;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+
+    @keyframes floating-menu-bd-fade-out {
+        0% {
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+        }
+    }
 }
 
 @supports (font-variation-settings: normal) {
