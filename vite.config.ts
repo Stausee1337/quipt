@@ -1,12 +1,9 @@
 import { defineConfig } from 'vite'
-import solid from 'vite-plugin-solid'
+import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-    plugins: [tailwindcss(), solid()],
-    optimizeDeps: {
-        exclude: ['mupdf'] // Exclude mupdf from pre-bundling
-    },
+    plugins: [tailwindcss(), react()],
     resolve: {
         tsconfigPaths: true
     }

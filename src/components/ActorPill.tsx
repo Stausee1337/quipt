@@ -1,35 +1,37 @@
-/* @refresh reload */
-import { JSX, children, createMemo, splitProps } from 'solid-js';
+import { JSX, ComponentProps, useMemo } from 'quipt/rexport';
+
+import classnames from 'classnames';
 
 import { getActorColor } from 'quipt/components/common';
 
-export interface PillProps extends JSX.HTMLAttributes<HTMLSpanElement> {
+export interface PillProps extends ComponentProps<'span'> {
     extra?: string;
     actorForColor?: string;
-    children?: JSX.Element;
 }
 
-export function ActorPill(props: PillProps): JSX.Element {
-    const [, rest] = splitProps(props, ['children', 'extra', 'actorForColor', 'style', 'class']);
+export function ActorPill({
+    children, extra, actorForColor, style, className, ...rest
+}: PillProps): JSX.Element {
 
-    const getChildren = children(() => props.children);
-    const actorColor = createMemo(() => {
-        const children = getChildren();
-        const actorForColor =
-            props.actorForColor ?? (typeof children === 'string' ? children : undefined);
-        if (actorForColor === undefined || actorForColor.length === 0) return '#e3e3e3';
-        return getActorColor(actorForColor);
-    });
+    const actorColor = useMemo(() => {
+        const actorForColor2 =
+            actorForColor ?? (typeof children === 'string' ? children : undefined);
+        if (actorForColor2 === undefined || actorForColor2.length === 0) return '#e3e3e3';
+        return getActorColor(actorForColor2);
+    }, [children]);
 
-    const isSimpleContent = createMemo(() => typeof getChildren() === 'string');
+    const isSimpleContent = useMemo(() => typeof children === 'string', [children]);
 
     return (
         <span
-            class={`shrink-0 grow-0 basis-auto rounded-full bg-[var(--actor-color)]/10 px-4 py-2 text-sm font-medium text-[var(--actor-color)] ${props.class ?? ''}`}
-            style={{ '--actor-color': actorColor() }}
+            className={classnames(
+                'shrink-0 grow-0 basis-auto rounded-full bg-[var(--actor-color)]/10 px-4 py-2 text-sm font-medium text-[var(--actor-color)]',
+                className
+            )}
+            style={{ '--actor-color': actorColor }}
             {...rest}>
-            {props.children}
-            {isSimpleContent() && props.extra}
+            {children}
+            {isSimpleContent && extra}
         </span>
     );
 }

@@ -1,64 +1,73 @@
-import { useContext } from 'solid-js';
-import { createContext, createSignal, JSX, splitProps } from 'solid-js';
+import { useContext, createContext, useRef, JSX, HTMLAttributes } from 'quipt/rexport';
+
+import classnames from 'classnames';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 
 export function Button(
-    props: JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
+    { variant, className, ...rest }: HTMLAttributes<HTMLButtonElement> & {
         variant: ButtonVariant;
     },
 ): JSX.Element {
-    const [, rest] = splitProps(props, ['variant', 'class', 'classList']);
     return (
         <button
-            class={`border-lighter1 h-8 cursor-pointer rounded-full border px-4 font-medium ${props.class ?? ''}`}
-            classList={{
-                'bg-primary active:bg-[#03b66a] disabled:cursor-not-allowed disabled:bg-[#03844c] disabled:text-[#73b398]':
-                    props.variant === 'primary',
-                'bg-inherit hover:bg-lighter1 active:bg-accent1': props.variant === 'secondary',
-                'bg-qpt-red active:bg-[#f1695e]': props.variant === 'danger',
-                ...props.classList,
-            }}
+            className={classnames(
+                'border-lighter1 h-8 cursor-pointer rounded-full border px-4 font-medium',
+                variant === 'primary' && 'bg-primary active:bg-[#03b66a] disabled:cursor-not-allowed disabled:bg-[#03844c] disabled:text-[#73b398]',
+                variant === 'secondary' && 'bg-inherit hover:bg-lighter1 active:bg-accent1',
+                variant === 'danger' && 'bg-qpt-red active:bg-[#f1695e]',
+                className
+            )}
             {...rest}
         />
     );
 }
 
 export function IconButton(
-    props: JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
+    { icon, className, ...rest }: HTMLAttributes<HTMLButtonElement> & {
         icon: string;
     },
 ) {
-    const [, rest] = splitProps(props, ['icon', 'class', 'children']);
     return (
-        <button class={`h-10 w-10 cursor-pointer text-2xl ${props.class ?? ''}`} {...rest}>
-            <i class={`bi bi-${props.icon}`} />
+        <button className={classnames(
+            'h-10 w-10 cursor-pointer text-2xl',
+            className
+        )} 
+            {...rest}>
+            <i className={`bi bi-${icon}`} />
         </button>
     );
 }
 
-export function InfoText(props: JSX.HTMLAttributes<HTMLSpanElement>) {
-    const [, rest] = splitProps(props, ['class']);
-    return <span class={`text-lighter2 text-sm font-light ${props.class ?? ''}`} {...rest} />;
+export function InfoText({ className, ...rest }: HTMLAttributes<HTMLSpanElement>) {
+    return (
+        <span 
+            className={classnames(
+                'text-lighter2 text-sm font-light', className
+            )}
+            {...rest} />
+    );
 }
 
-const ScrollContextObj = createContext<HTMLDivElement>();
+const ScrollContextObj = createContext<HTMLDivElement|undefined>(undefined);
 
 export function useScrollContainer(): HTMLDivElement | undefined {
     return useContext(ScrollContextObj);
 }
 
-export function ScrollContainer(props: JSX.HTMLAttributes<HTMLDivElement>): JSX.Element {
-    let [containerElement, setContainerElement] = createSignal<HTMLDivElement>();
-    const [, rest] = splitProps(props, ['class', 'children']);
+export function ScrollContainer({ children, className, ...rest }: HTMLAttributes<HTMLDivElement>): JSX.Element {
+    const containerRef = useRef<HTMLDivElement>(null);
 
     return (
         <div
-            ref={setContainerElement}
-            class={`__ScrollContainer @container z-0 min-h-0 w-full flex-1 overflow-y-auto ${props.class ?? ''}`}
+            ref={containerRef}
+            className={classnames(
+                '__ScrollContainer @container z-0 min-h-0 w-full flex-1 overflow-y-auto',
+                className
+            )}
             {...rest}>
-            <ScrollContextObj.Provider value={containerElement()}>
-                {props.children}
+            <ScrollContextObj.Provider value={containerRef.current ?? undefined}>
+                {children}
             </ScrollContextObj.Provider>
         </div>
     );

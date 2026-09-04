@@ -1,7 +1,7 @@
-import { JSX, onCleanup } from 'solid-js';
+import { JSX, onCleanup } from 'quipt/rexport';
 
-import { Navigate, Route, Router, useNavigate } from '@solidjs/router';
-import { QueryClientProvider } from '@tanstack/solid-query';
+import { Navigate, Route, Routes, BrowserRouter, useNavigate } from 'react-router';
+import { QueryClientProvider } from '@tanstack/react-query';
 
 import {
     AuthenticationContextObj,
@@ -30,9 +30,9 @@ function App(props: { children?: JSX.Element }): JSX.Element {
 
     return (
         <ScriptContextObj.Provider value={scriptContext}>
-            <div class="relative z-0 flex min-h-0 w-full flex-1 flex-col">
+            <div className="relative z-0 flex min-h-0 w-full flex-1 flex-col">
                 {!breakpoints.md && <Header />}
-                <div class="relative z-0 flex min-h-0 w-full flex-1">
+                <div className="relative z-0 flex min-h-0 w-full flex-1">
                     {breakpoints.md && authenticationContext.isLoggedIn() && <SideMenu />}
                     {props.children}
                 </div>
@@ -47,26 +47,28 @@ export default function () {
         <ResponsiveBreakpointProivder>
             <QueryClientProvider client={queryClient}>
                 <AuthenticationContextObj.Provider value={authenticationContext}>
-                    <Router root={App}>
-                        <Route path="/" component={Root} />
-                        {!authenticationContext.isLoggedIn() ? (
-                            <Route path={['/signin', '/signup']} component={UserAuthenticate} />
-                        ) : (
-                            <>
-                                <Route path="/new-script" component={NewScriptRoute} />
-                                <Route
-                                    path={[
-                                        '/script/:uuid',
-                                        '/script/:uuid/:division',
-                                        '/train/:uuid/:division',
-                                    ]}
-                                    component={ScriptRoute}
-                                />
-                                <Route path="/dashboard" />
-                            </>
-                        )}
-                        <Route path="*paramName" component={() => <Navigate href="/" />} />
-                    </Router>
+                    <BrowserRouter>
+                        <App>
+                            <Routes>
+                                <Route path="/" element={<Root/>} />
+                                {!authenticationContext.isLoggedIn() ? (
+                                    <>
+                                        <Route path="/signin" element={<UserAuthenticate/>} />
+                                        <Route path="/signup" element={<UserAuthenticate/>} />
+                                    </>
+                                ) : (
+                                    <>
+                                        <Route path="/new-script" element={<NewScriptRoute/>} />
+                                        <Route path="/script/:uuid" element={<ScriptRoute/>} />
+                                        <Route path="/script/:uuid/:division" element={<ScriptRoute/>} />
+                                        <Route path="/train/:uuid/:division" element={<ScriptRoute/>} />
+                                        <Route path="/dashboard" />
+                                    </>
+                                )}
+                                <Route path="*paramName" element={<Navigate to="/" />}/>
+                            </Routes>
+                        </App>
+                    </BrowserRouter>
                 </AuthenticationContextObj.Provider>
             </QueryClientProvider>
         </ResponsiveBreakpointProivder>

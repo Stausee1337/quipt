@@ -1,5 +1,5 @@
-import { Component, JSX, createContext, createEffect, createSignal, untrack } from 'solid-js';
-import { useContext } from 'solid-js';
+import { Component, JSX, createContext, useEffect, useState, untrack } from 'quipt/rexport';
+import { useContext } from 'quipt/rexport';
 import { Dynamic } from 'solid-js/web';
 
 import { useParams } from '@solidjs/router';
@@ -30,7 +30,7 @@ export function DelayedScriptInstantiator<C extends Component<{ scriptID: schema
         queryKey: ['script', scriptContext.currentScript],
     }));
 
-    // const isError = createMemo(() => scriptQuery.status === "error");
+    // const isError = useMemo(() => scriptQuery.status === "error");
     // if (isError()) onError();
     // return null;
 
@@ -49,7 +49,7 @@ const STALE_TIME: number = Infinity;
 export function createScriptContext(authenticationContext: AuthenticationContext): ScriptContext {
     const location = useParams();
 
-    const [currentScriptId, setCurrentScriptId] = createSignal<schemas.UUID | undefined>(undefined);
+    const [currentScriptId, setCurrentScriptId] = useState<schemas.UUID | undefined>(undefined);
     useQuery(() => ({
         queryKey: ['scripts'],
         queryFn: () => authenticationContext.services!.script.list(),
@@ -57,7 +57,7 @@ export function createScriptContext(authenticationContext: AuthenticationContext
     }));
     // const scriptCache: Map<schemas.UUID, Script> = new Map();
 
-    createEffect(async () => {
+    useEffect(async () => {
         let notValidatedScriptId: string | undefined = location.uuid;
         if (notValidatedScriptId === undefined) {
             setCurrentScriptId(undefined);

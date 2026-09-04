@@ -1,18 +1,18 @@
-import { JSX, onMount } from 'solid-js';
+import { JSX, onMount } from 'quipt/rexport';
 
-import { A, Navigate } from '@solidjs/router';
+import { Link, Navigate } from 'react-router';
 
 import { useAuthentication } from 'quipt/client';
 
 function LandingPage(): JSX.Element {
     return (
-        <div class="landing-page">
+        <div className="landing-page">
             <h1>TODO: advertise Quipt</h1>
             <p>
-                <A href="/signin">Login</A>
+                <Link to="/signin">Login</Link>
             </p>
             <p>
-                <A href="/signup">Register</A>
+                <Link to="/signup">Register</Link>
             </p>
         </div>
     );
@@ -23,5 +23,5 @@ export function Root(): JSX.Element {
     onMount(() => {
         document.title = 'Quipt';
     });
-    return <>{authentication.isLoggedIn() ? <Navigate href="/dashboard" /> : <LandingPage />}</>;
+    return <>{authentication.isLoggedIn() ? <Navigate to="/dashboard" /> : <LandingPage />}</>;
 }

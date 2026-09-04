@@ -1,5 +1,5 @@
-import { createMemo } from 'solid-js';
-import { Accessor, createEffect, createSignal, onMount } from 'solid-js';
+import { useMemo } from 'quipt/rexport';
+import { Accessor, useEffect, useState, onMount } from 'quipt/rexport';
 
 export interface Validator {
     validate(v: string): boolean;
@@ -59,20 +59,20 @@ export function useForm<const T extends readonly string[]>(
 ): UseFormHook<T> {
     const inputHooks: Record<string, InputCreateFn> = {};
     const validationMessageProviders = {};
-    const [inputElements, setInputElements] = createSignal<
+    const [inputElements, setInputElements] = useState<
         Record<string, HTMLInputElement | undefined>
     >(Object.fromEntries(keys.map(k => [k, undefined])));
-    const [validationMessages, setValidationMessages] = createSignal<
+    const [validationMessages, setValidationMessages] = useState<
         Record<string, string | undefined>
     >(Object.fromEntries(keys.map(k => [k, undefined])));
-    const [inputValues, setInputValues] = createSignal<Record<string, string>>(
+    const [inputValues, setInputValues] = useState<Record<string, string>>(
         Object.fromEntries(keys.map(k => [k, ''])),
     );
-    const [validities, setInputValidities] = createSignal<Record<string, Validity>>(
+    const [validities, setInputValidities] = useState<Record<string, Validity>>(
         Object.fromEntries(keys.map(k => [k, 'valid'])),
     );
 
-    const formValidity = createMemo<Validity>(() => {
+    const formValidity = useMemo<Validity>(() => {
         for (let validity of Object.values(validities()))
             if (validity === 'invalid') return 'invalid';
         return 'valid';
@@ -119,7 +119,7 @@ export function useForm<const T extends readonly string[]>(
         options.onSubmit(makeFormEvent());
     }
 
-    createEffect(() => {
+    useEffect(() => {
         const formEvent = makeFormEvent();
         options?.onChange?.(formEvent);
     });
@@ -134,12 +134,12 @@ export function useForm<const T extends readonly string[]>(
 }
 
 function inputHook(props: InputHookProps) {
-    const [element, setElement] = createSignal<HTMLInputElement>();
-    const [value, setValue] = createSignal<string>(props?.defaultValue ?? '');
-    const [validity, setValidity] = createSignal<Validity>('valid');
-    const [touchedness, setTouchedness] = createSignal<Touchedness>('untouched');
-    const [pristineness, setPristineness] = createSignal<Pristineness>('pristine');
-    const [validationMessage, setValidationMessage] = createSignal<string>();
+    const [element, setElement] = useState<HTMLInputElement>();
+    const [value, setValue] = useState<string>(props?.defaultValue ?? '');
+    const [validity, setValidity] = useState<Validity>('valid');
+    const [touchedness, setTouchedness] = useState<Touchedness>('untouched');
+    const [pristineness, setPristineness] = useState<Pristineness>('pristine');
+    const [validationMessage, setValidationMessage] = useState<string>();
 
     function runValidators(): { validity: Validity; message: string | undefined } {
         const currentValue = value();
@@ -162,7 +162,7 @@ function inputHook(props: InputHookProps) {
         setTouchedness('touched');
     }
 
-    createEffect(() => {
+    useEffect(() => {
         const validationResult = runValidators();
         setValidity(validationResult.validity);
         setValidationMessage(validationResult.message);
@@ -173,7 +173,7 @@ function inputHook(props: InputHookProps) {
         inputElement && props.onInputMount(props.name, inputElement);
     });
 
-    createEffect(() => {
+    useEffect(() => {
         props.onInputChange({
             name: props.name,
             value: value(),

@@ -1,12 +1,12 @@
 import {
     JSX,
     children,
-    createEffect,
-    createMemo,
-    createSignal,
+    useEffect,
+    useMemo,
+    useState,
     onCleanup,
     onMount,
-} from 'solid-js';
+} from 'quipt/rexport';
 import { Portal } from 'solid-js/web';
 
 import {
@@ -15,7 +15,7 @@ import {
     VirtualElement,
     createPopper,
 } from '@popperjs/core';
-import { splitProps } from 'solid-js';
+import { splitProps } from 'quipt/rexport';
 
 type Trigger = 'click' | 'contextmenu';
 
@@ -28,8 +28,8 @@ export function Popover(props: {
     children: JSX.Element;
 }): JSX.Element {
     const getChildren = children(() => props.children);
-    const [popoverReference, setPopoverReference] = createSignal<HTMLElement | VirtualElement>();
-    const [placement, setPlacement] = createSignal(props.placement);
+    const [popoverReference, setPopoverReference] = useState<HTMLElement | VirtualElement>();
+    const [placement, setPlacement] = useState(props.placement);
 
     function handleTrigger(event: MouseEvent) {
         event.preventDefault();
@@ -61,14 +61,14 @@ export function Popover(props: {
         }
     }
 
-    createEffect(() => {
+    useEffect(() => {
         const menuOpen = popoverReference() !== undefined;
         const children = computedChildren();
         if (menuOpen) children.classList.add('menu-open');
         else children.classList.remove('menu-open');
     });
 
-    const computedChildren = createMemo(() => {
+    const computedChildren = useMemo(() => {
         let trigger = props.trigger;
 
         const children = getChildren();
@@ -146,11 +146,11 @@ function PopoverContent(props: {
     );
 }
 
-export function PopoverMenuItem(props: JSX.HTMLAttributes<HTMLLIElement>): JSX.Element {
+export function PopoverMenuItem(props: HTMLAttributes<HTMLLIElement>): JSX.Element {
     const [, rest] = splitProps(props, ['class']);
     return (
         <li
-            class={`hover:bg-accent1 cursor-pointer rounded-sm px-2 py-1 ${props.class ?? ''}`}
+            className={`hover:bg-accent1 cursor-pointer rounded-sm px-2 py-1 ${props.class ?? ''}`}
             {...rest}
         />
     );

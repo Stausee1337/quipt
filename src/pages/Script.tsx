@@ -1,4 +1,4 @@
-import { JSX } from 'solid-js';
+import { JSX } from 'quipt/rexport';
 
 
 import { ScriptPage } from 'quipt/components/ScriptEdit';

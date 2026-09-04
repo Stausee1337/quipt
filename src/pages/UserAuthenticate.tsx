@@ -1,4 +1,4 @@
-import { JSX, createEffect, createMemo, createSignal, onMount, splitProps } from 'solid-js';
+import { JSX, useEffect, useMemo, useState, onMount, splitProps } from 'quipt/rexport';
 import { Dynamic } from 'solid-js/web';
 
 import { A, RouteSectionProps, useNavigate } from '@solidjs/router';
@@ -27,10 +27,10 @@ const passwordRegex =
 const regexError =
     'Passwort muss mindestens einen Groß- sowie Kleinbuchstaben, eine Zahl und ein Sonderzeichen enthalten';
 
-function ErrorMessage(props: JSX.HTMLAttributes<HTMLSpanElement>): JSX.Element {
+function ErrorMessage(props: HTMLAttributes<HTMLSpanElement>): JSX.Element {
     return (
-        <span class="text-qpt-red text-left" {...props}>
-            <i class="bi bi-exclamation-circle-fill mr-1" />
+        <span className="text-qpt-red text-left" {...props}>
+            <i className="bi bi-exclamation-circle-fill mr-1" />
             {props.children}
         </span>
     );
@@ -39,7 +39,7 @@ function ErrorMessage(props: JSX.HTMLAttributes<HTMLSpanElement>): JSX.Element {
 function Button(props: JSX.ButtonHTMLAttributes<HTMLButtonElement>): JSX.Element {
     return (
         <button
-            class="bg-primary cursor-pointer rounded-full py-4 active:bg-[#03b66a] disabled:cursor-not-allowed disabled:bg-[#03844c] disabled:text-[#73b398]"
+            className="bg-primary cursor-pointer rounded-full py-4 active:bg-[#03b66a] disabled:cursor-not-allowed disabled:bg-[#03844c] disabled:text-[#73b398]"
             {...props}>
             {props.children}
         </button>
@@ -55,14 +55,14 @@ function FormInput(props: FormInputProps): JSX.Element {
     const [, rest] = splitProps(props, ['errorMessage', 'class', 'classList']);
 
     // FXIME: classList hack
-    const isError = createMemo(
+    const isError = useMemo(
         () => (props?.classList?.touched || props.formSubmitted) && props?.classList?.invalid,
     );
 
     return (
-        <div class="flex flex-col gap-2">
+        <div className="flex flex-col gap-2">
             <input
-                class="border-lighter1 outline-lighter2 bg-accent2 rounded-full border border-solid px-5 py-4 outline-offset-1 focus:outline"
+                className="border-lighter1 outline-lighter2 bg-accent2 rounded-full border border-solid px-5 py-4 outline-offset-1 focus:outline"
                 classList={{ 'border-qpt-red': isError() }}
                 {...rest}
             />
@@ -74,9 +74,9 @@ function FormInput(props: FormInputProps): JSX.Element {
 type SubmitFn = (event: FormEvent<['username', 'password']>) => Promise<string | undefined>;
 
 function Signin(props: { onSubmit: SubmitFn }): JSX.Element {
-    const [formSubmitted, setFormSubmitted] = createSignal(false);
-    const [formValidity, setFormValidity] = createSignal<Validity>('valid');
-    const [formErrorMessage, setFormErrorMessage] = createSignal<string>();
+    const [formSubmitted, setFormSubmitted] = useState(false);
+    const [formValidity, setFormValidity] = useState<Validity>('valid');
+    const [formErrorMessage, setFormErrorMessage] = useState<string>();
 
     const { username, password, form, validationMessages } = useForm(['username', 'password'], {
         onSubmit,
@@ -103,8 +103,8 @@ function Signin(props: { onSubmit: SubmitFn }): JSX.Element {
 
     return (
         <>
-            <h1 class="text-heading-1">Anmelden</h1>
-            <form class="flex flex-col gap-8" {...form}>
+            <h1 className="text-heading-1">Anmelden</h1>
+            <form className="flex flex-col gap-8" {...form}>
                 <FormInput
                     type="text"
                     placeholder="Benutzername"
@@ -122,7 +122,7 @@ function Signin(props: { onSubmit: SubmitFn }): JSX.Element {
                 {formErrorMessage() && <ErrorMessage>{formErrorMessage()}</ErrorMessage>}
                 <p>
                     Du hat noch kein Konto?{' '}
-                    <A href="/signup" class="text-link font-medium underline">
+                    <A href="/signup" className="text-link font-medium underline">
                         Jetzt eins erstellen!
                     </A>
                 </p>
@@ -133,10 +133,10 @@ function Signin(props: { onSubmit: SubmitFn }): JSX.Element {
 }
 
 function Signup(props: { onSubmit: SubmitFn }) {
-    const [formSubmitted, setFormSubmitted] = createSignal(false);
-    const [formValidity, setFormValidity] = createSignal<Validity>('valid');
-    const [formData, setFormData] = createSignal({ username: '', password: '', password2: '' });
-    const [formErrorMessage, setFormErrorMessage] = createSignal<string>();
+    const [formSubmitted, setFormSubmitted] = useState(false);
+    const [formValidity, setFormValidity] = useState<Validity>('valid');
+    const [formData, setFormData] = useState({ username: '', password: '', password2: '' });
+    const [formErrorMessage, setFormErrorMessage] = useState<string>();
 
     const { username, password, password2, form, validationMessages } = useForm(
         ['username', 'password', 'password2'],
@@ -164,8 +164,8 @@ function Signup(props: { onSubmit: SubmitFn }) {
 
     return (
         <>
-            <h1 class="text-heading-1">Quipt Konto erstellen</h1>
-            <form class="flex flex-col gap-8" {...form}>
+            <h1 className="text-heading-1">Quipt Konto erstellen</h1>
+            <form className="flex flex-col gap-8" {...form}>
                 <FormInput
                     type="text"
                     placeholder="Benutzername"
@@ -199,7 +199,7 @@ function Signup(props: { onSubmit: SubmitFn }) {
                 {formErrorMessage() && <ErrorMessage>{formErrorMessage()}</ErrorMessage>}
                 <p>
                     Du bist bereits bei Quipt?{' '}
-                    <A href="/signin" class="text-link font-medium underline">
+                    <A href="/signin" className="text-link font-medium underline">
                         Jetzt eins erstellen!
                     </A>
                 </p>
@@ -214,7 +214,7 @@ function Signup(props: { onSubmit: SubmitFn }) {
 export function UserAuthenticate(props: RouteSectionProps): JSX.Element {
     const navigate = useNavigate()!;
     const authentication = useAuthentication()!;
-    const [loading, setLoading] = createSignal(false);
+    const [loading, setLoading] = useState(false);
 
     const keys: Record<string, string> = {
         '/signin': 'Anmelden',
@@ -225,7 +225,7 @@ export function UserAuthenticate(props: RouteSectionProps): JSX.Element {
         document.title = keys[props.location.pathname] + ' - Quipt';
     });
 
-    createEffect(() => {
+    useEffect(() => {
         document.title = keys[props.location.pathname] + ' - Quipt';
     });
 
@@ -261,9 +261,9 @@ export function UserAuthenticate(props: RouteSectionProps): JSX.Element {
 
     return (
         <div
-            class="sm:bg-accent1 relative flex w-full flex-col gap-8 overflow-hidden p-8 text-center sm:mx-auto sm:w-120 sm:self-center sm:rounded-4xl"
+            className="sm:bg-accent1 relative flex w-full flex-col gap-8 overflow-hidden p-8 text-center sm:mx-auto sm:w-120 sm:self-center sm:rounded-4xl"
             classList={{ interactable: !loading() }}>
-            <Logo class="hidden h-12 md:block" />
+            <Logo className="hidden h-12 md:block" />
             <Dynamic
                 component={props.location.pathname === '/signin' ? Signin : Signup}
                 onSubmit={onSubmit}

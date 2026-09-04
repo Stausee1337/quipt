@@ -1,4 +1,4 @@
-import { Accessor, For, JSX, createEffect, createMemo, createSignal, untrack } from 'solid-js';
+import { CSSProperties, HTMLAttributes, JSX, useEffect, useRef } from 'quipt/rexport';
 
 import { Chart, ChartConfiguration } from 'chart.js/auto';
 import { decode } from 'html-entities';
@@ -12,23 +12,23 @@ export const progressBarOrange = '#ffa459';
 export const progressBarRed = '#fa742c';
 
 export type FormattedStringElement = {
-    style: JSX.CSSProperties | null;
+    style: CSSProperties | null;
     string: string;
 };
 export type FormattedString = FormattedStringElement[];
 
 // FIXME: maybe formatted string should be formatted via tailwindcss
-export function FormattedStringView(props: { string: FormattedString }): JSX.Element {
+export function FormattedStringView({ string }: { string: FormattedString }): JSX.Element {
     return (
-        <For each={props.string}>
-            {item =>
+        <>
+            {string.map(item =>
                 item.style ? (
                     <span style={item.style}>{decode(item.string)}</span>
                 ) : (
                     decode(item.string)
                 )
-            }
-        </For>
+            )}
+        </>
     );
 }
 
@@ -83,7 +83,7 @@ const lighter2 = 'rgb(167.4375, 167.4375, 167.4375)';
 export function formatMarkdown(markdown: string): FormattedString {
     function* mapToken(
         tokens: MarkedToken[],
-        style: JSX.CSSProperties | null = null,
+        style: CSSProperties | null = null,
     ): Generator<FormattedStringElement> {
         for (const token of tokens) {
             switch (token.type) {
@@ -93,14 +93,14 @@ export function formatMarkdown(markdown: string): FormattedString {
                 case 'em':
                     yield* mapToken(token.tokens as MarkedToken[], {
                         ...style,
-                        'font-style': 'italic',
+                        fontStyle: 'italic',
                         color: lighter2,
                     });
                     break;
                 case 'strong':
                     yield* mapToken(token.tokens as MarkedToken[], {
                         ...style,
-                        'font-weight': 'bold',
+                        fontWeight: 'bold',
                     });
                     break;
                 default:
@@ -203,28 +203,17 @@ export function pluralize(count: number, singular: string, plural: string): stri
     return `${count} ${plural}`;
 }
 
-export function createInvalidatable<T>(fn: Accessor<T>): [Accessor<T>, () => void] {
-    const [pullSignal, setSignal] = createSignal({});
-
-    const read = createMemo(() => {
-        pullSignal();
-        return untrack(fn);
-    });
-
-    return [read, () => setSignal({})];
-}
-
 export function SimpleChart(
-    props: JSX.HTMLAttributes<HTMLCanvasElement> & {
+    props: HTMLAttributes<HTMLCanvasElement> & {
         onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration;
     },
 ): JSX.Element {
-    let chartJSCanvas: HTMLCanvasElement | undefined = undefined;
+    const chartJSCanvas = useRef<HTMLCanvasElement>(null);
     let chart: Chart | undefined;
 
-    createEffect(() => {
-        if (chartJSCanvas === undefined) return;
-        const ctx = chartJSCanvas.getContext('2d')!;
+    useEffect(() => {
+        if (chartJSCanvas.current === null) return;
+        const ctx = chartJSCanvas.current.getContext('2d')!;
         chart = new Chart(ctx, props.onConfig(ctx));
     });
 

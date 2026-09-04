@@ -1,4 +1,4 @@
-import { createContext, createSignal, JSX, useContext } from 'solid-js';
+import { createContext, useState, JSX, useContext, useMemo } from 'quipt/rexport';
 
 // FIXME: maybe provide in rem
 const MINIMUM_WIDTHS = {
@@ -23,31 +23,35 @@ function computeBreakpoints(): Breakpoints {
     ) as Breakpoints;
 }
 
-const BreakpointContextObj = createContext<Breakpoints>();
+const BreakpointContextObj = createContext<Breakpoints|undefined>(undefined);
 
 export function useBreakpoints(): Breakpoints {
     return useContext(BreakpointContextObj) ?? computeBreakpoints();
 }
 
 export function ResponsiveBreakpointProivder(props: { children?: JSX.Element }): JSX.Element {
-    const queries = Object.fromEntries(
-        Object.entries(MINIMUM_WIDTHS).map(([bp, minWidth]) => [
-            bp,
-            window.matchMedia(`(width >= ${minWidth}px)`),
-        ]),
-    );
+    const signals = useMemo(() => {
+        const queries = Object.fromEntries(
+            Object.entries(MINIMUM_WIDTHS).map(([bp, minWidth]) => [
+                bp,
+                window.matchMedia(`(width >= ${minWidth}px)`),
+            ]),
+        );
 
-    const signals = Object.fromEntries(
-        Object.entries(queries).map(([bp, query]) => [bp, createSignal(query.matches)]),
-    );
+        const signals = Object.fromEntries(
+            Object.entries(queries).map(([bp, query]) => [bp, useState(query.matches)]),
+        );
 
-    Object.entries(queries).forEach(([bp, query]) =>
-        query.addEventListener('change', () => signals[bp][1](query.matches)),
-    );
+        Object.entries(queries).forEach(([bp, query]) =>
+            query.addEventListener('change', () => signals[bp][1](query.matches)),
+        );
 
-    const responsiveBreakpoints = {};
+        return signals;
+    }, []);
+
+    const responsiveBreakpoints: Record<string, boolean> = {};
     for (let [bp, signal] of Object.entries(signals))
-        Object.defineProperty(responsiveBreakpoints, bp, { get: signal[0] });
+        responsiveBreakpoints[bp] = signal[0];
 
     return (
         <BreakpointContextObj.Provider value={responsiveBreakpoints as Breakpoints}>

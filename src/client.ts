@@ -1,6 +1,6 @@
-import { createContext, createEffect, createResource, createSignal, useContext } from 'solid-js';
+import { createContext, useEffect, useState, useMemo, useContext } from 'quipt/rexport';
 
-import { QueryClient } from '@tanstack/solid-query';
+import { QueryClient } from '@tanstack/react-query';
 import { createSimpleExecutor, runtime } from 'qrpc-js';
 
 import {
@@ -90,7 +90,7 @@ function createOnLogout(): OnLogoutLifecylce & { trigger(): void } {
     };
 }
 
-export const AuthenticationContextObj = createContext<AuthenticationContext>();
+export const AuthenticationContextObj = createContext<AuthenticationContext|undefined>(undefined);
 export function createAuthenticationContext(): AuthenticationContext {
     const twoMinutes = 2 * 60 * 1000;
 
@@ -112,7 +112,7 @@ export function createAuthenticationContext(): AuthenticationContext {
             ensureToken() {
                 if (accessToken.loading || accessToken() === undefined) {
                     return new Promise<string>(resolve => {
-                        createEffect(() => {
+                        useEffect(() => {
                             if (!accessToken.loading && accessToken() !== undefined)
                                 resolve(accessToken());
                         });
@@ -169,12 +169,13 @@ export function createAuthenticationContext(): AuthenticationContext {
         queryClient.resetQueries();
     }
 
-    const [isLoggedIn, setIsLoggedIn] = createSignal<boolean>(refreshToken() !== undefined);
+    const [isLoggedIn, setIsLoggedIn] = useState<boolean>(refreshToken() !== undefined);
+    const services = useMemo(() => isLoggedIn ? createServices() : undefined, [isLoggedIn]);
 
     const ctx: AuthenticationContext = {
         onLogout,
-        isLoggedIn,
-        services: isLoggedIn() ? createServices() : undefined,
+        isLoggedIn: () => isLoggedIn,
+        services,
         logout() {
             const currentRefreshToken = refreshToken();
             if (currentRefreshToken !== undefined)
@@ -182,7 +183,7 @@ export function createAuthenticationContext(): AuthenticationContext {
             logout();
         },
         loginUser(data) {
-            if (isLoggedIn()) return;
+            if (isLoggedIn) return;
 
             ctx.services = createServices();
             setIsLoggedIn(true);

@@ -1,4 +1,6 @@
-import { JSX, children, createMemo, splitProps } from 'solid-js';
+import { ComponentProps, JSX, ReactNode, useMemo } from 'quipt/rexport';
+
+import classnames from 'classnames';
 
 import {
     FormattedString,
@@ -8,94 +10,86 @@ import {
 } from 'quipt/components/common';
 import { TextCue, TextCuePair } from 'quipt/schemas';
 
-export interface TextCueDataViewProps extends JSX.HTMLAttributes<HTMLDivElement> {
+export interface TextCueDataViewProps extends ComponentProps<'div'> {
     text: FormattedString;
     actorsInfo: FormattedString | null;
     type: 'request' | 'response';
-    beforeExtra?: JSX.Element;
-    afterExtra?: JSX.Element;
-    children?: JSX.Element;
+    beforeExtra?: ReactNode;
+    afterExtra?: ReactNode;
 }
 
 // FIXME (well, that one stings - a bit):
 // This component is really not ideal, and a lot of its weird choices (beforeExtra and afterExtra,
 // text and children) really come from the legacy CSS styling, and has nothing to do with what the
 // component itself is trying to accomplish.
-export function TextCueDataView(props: TextCueDataViewProps) {
-    const getChildren = children(() => props.children);
-    const [, rest] = splitProps(props, [
-        'text',
-        'actorsInfo',
-        'type',
-        'beforeExtra',
-        'afterExtra',
-        'children',
-        'classList',
-        'class',
-    ]);
-
+export function TextCueDataView({
+    text,
+    actorsInfo,
+    type,
+    beforeExtra,
+    afterExtra,
+    children,
+    className,
+    ...rest
+}: TextCueDataViewProps) {
     return (
         <div
-            class="relative flex flex-col gap-2"
-            classList={{
-                'items-start': props.type === 'request',
-                'items-end': props.type === 'response',
-            }}>
-            {props.beforeExtra}
+            className={classnames(
+                'relative flex flex-col gap-2',
+                type === 'request' && 'items-start',
+                type === 'response' && 'items-end',
+            )}
+            >
+            {beforeExtra}
             <div
-                class={`bg-accent1 flex max-w-17/20 flex-col overflow-hidden rounded-lg p-2 ${props.class ?? ''}`}
-                classList={{
-                    'rounded-tl-none': props.type === 'request',
-                    'rounded-tr-none': props.type === 'response',
-                    ...props.classList,
-                }}
+                className={classnames(
+                    'bg-accent1 flex max-w-17/20 flex-col overflow-hidden rounded-lg p-2',
+                    type === 'request' && 'rounded-tl-none',
+                    type === 'response' && 'rounded-tr-none',
+                    className,
+                )}
                 {...rest}>
-                {props.actorsInfo !== null ? (
-                    <h3 class="text-sm font-medium">
-                        <FormattedStringView string={props.actorsInfo} />
+                {actorsInfo !== null ? (
+                    <h3 className="text-sm font-medium">
+                        <FormattedStringView string={actorsInfo} />
                     </h3>
                 ) : null}
-                {getChildren() ?? (
-                    <span class="whitespace-pre-wrap">
-                        <FormattedStringView string={props.text} />
+                {children ?? (
+                    <span className="whitespace-pre-wrap">
+                        <FormattedStringView string={text} />
                     </span>
                 )}
             </div>
-            {props.afterExtra}
+            {afterExtra}
         </div>
     );
 }
 
-export interface TextCueViewProps extends JSX.HTMLAttributes<HTMLDivElement> {
+export interface TextCueViewProps extends ComponentProps<'div'> {
     textCue: Partial<TextCue> | undefined;
     type: 'request' | 'response';
-    beforeExtra?: JSX.Element;
-    afterExtra?: JSX.Element;
+    beforeExtra?: ReactNode;
+    afterExtra?: ReactNode;
 }
 
-export function TextCueView(props: TextCueViewProps): JSX.Element {
-    const [_, rest] = splitProps(props, ['textCue']);
+export function TextCueView({ textCue, ...rest }: TextCueViewProps): JSX.Element {
 
-    const cueData = createMemo(() =>
-        props.type === 'request'
+    const cueData = useMemo(() =>
+        rest.type === 'request'
             ? {
-                  actors: formatActorsArray(props.textCue?.actors ?? null),
-                  text: props.textCue?.text ?? '_Du bist der erste in diesem Abschnitt_',
+                  actors: formatActorsArray(textCue?.actors ?? null),
+                  text: textCue?.text ?? '_Du bist der erste in diesem Abschnitt_',
               }
             : {
                   actors: formatActorsArray(
-                      props.textCue!.actors!.length === 1 ? null : props.textCue!.actors!,
+                      textCue!.actors!.length === 1 ? null : textCue!.actors!,
                   ),
-                  text: props.textCue!.text!,
+                  text: textCue!.text!,
               },
-    );
+        [rest, textCue]);
 
     return (
-        <TextCueDataView
-            text={formatMarkdown(cueData().text)}
-            actorsInfo={cueData().actors}
-            {...rest}
-        />
+        <TextCueDataView text={formatMarkdown(cueData.text)} actorsInfo={cueData.actors} {...rest}/>
     );
 }
 

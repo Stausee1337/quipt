@@ -2,11 +2,11 @@ import {
     Component,
     JSX,
     createContext,
-    createSignal,
+    useState,
     onCleanup,
     onMount,
     useContext,
-} from 'solid-js';
+} from 'quipt/rexport';
 import { Dynamic, Portal } from 'solid-js/web';
 
 type AcceptFn<T> = T extends void ? () => void : (result: T) => void;
@@ -30,8 +30,8 @@ type ModalFn<T> = (component: Component) => Promise<ModalResult<T>>;
 type CloseFn<T> = (result: ModalResult<T>) => void;
 
 export function useModal<T>(): ModalFn<T> {
-    const [currentContent, setCurrentContent] = createSignal<[Component]>();
-    const [currentCloseFn, setCurrentCloseFn] = createSignal<[CloseFn<T>]>();
+    const [currentContent, setCurrentContent] = useState<[Component]>();
+    const [currentCloseFn, setCurrentCloseFn] = useState<[CloseFn<T>]>();
 
     function onClose(result: ModalResult<T>) {
         const closeFn = currentCloseFn();
@@ -87,10 +87,10 @@ export function Modal<T>(props: {
             {props.isOpen && (
                 <Portal mount={document.body}>
                     <div
-                        class="fixed top-0 right-0 bottom-0 left-0 z-3000 bg-black/50 backdrop-blur-[1px]"
+                        className="fixed top-0 right-0 bottom-0 left-0 z-3000 bg-black/50 backdrop-blur-[1px]"
                         onClick={() => props.onClose({ type: 'dismiss' })}
                     />
-                    <div class="bg-accent1 fixed top-2/5 left-1/2 z-3001 flex w-120 -translate-1/2 flex-col gap-2 rounded-2xl p-4">
+                    <div className="bg-accent1 fixed top-2/5 left-1/2 z-3001 flex w-120 -translate-1/2 flex-col gap-2 rounded-2xl p-4">
                         <ModalContextObj.Provider value={{ accept: onAccept, dismiss: onDismiss }}>
                             {props.children}
                         </ModalContextObj.Provider>
