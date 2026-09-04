@@ -176,6 +176,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*q
 	}
 	id, secret := splits[0], splits[1]
 
+	// NOTE: this relies on the assumption, that redis will not return expired entries.
 	rawData, err := s.db.Get(ctx, id).Result()
 	if err == redis.Nil {
 		return nil, ErrInvalidToken

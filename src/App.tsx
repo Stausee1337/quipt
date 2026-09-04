@@ -1,4 +1,4 @@
-import { JSX, createSignal, createEffect, onCleanup, onMount } from 'solid-js';
+import { JSX, onCleanup } from 'solid-js';
 
 import { Navigate, Route, Router, useNavigate } from '@solidjs/router';
 import { QueryClientProvider } from '@tanstack/solid-query';

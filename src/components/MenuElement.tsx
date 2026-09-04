@@ -21,7 +21,6 @@ import { schemas } from 'qrpc-js';
 
 import { useAuthentication } from 'quipt/client';
 import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
-import { NewScriptFileChooser } from 'quipt/components/NewScriptFileChooser';
 import { Popover, PopoverMenuItem } from 'quipt/components/Popover';
 import QuiptLogo from 'quipt/components/Quipt-Logo';
 import { useModal, useModalContext } from 'quipt/modals';
@@ -166,7 +165,6 @@ function ScriptListItem(props: { script: PartialScript }): JSX.Element {
 
 export function SideMenu(props: { closer?: () => void }): JSX.Element {
     const authentication = useAuthentication()!;
-    const openModal = useModal();
 
     const [user] = createResource(() => authentication.services!.user.get());
     const scriptsQuery = useQuery<PartialScript[]>(() => ({
@@ -187,10 +185,6 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
         unsubscribe?.();
     });
 
-    function createNewScript() {
-        openModal(NewScriptFileChooser);
-    }
-
     return (
         <nav class="bg-accent2 border-accent1 relative flex h-full w-75 max-w-[75vw] flex-col gap-1 overflow-hidden overflow-y-auto border-r px-2 select-none">
             <div class="border-accent1 sticky top-0 flex flex-col gap-1 border-b">
@@ -204,7 +198,7 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
                     )}
                 </div>
 
-                <ListItem icon="pencil-square" onClick={createNewScript}>
+                <ListItem icon="pencil-square">
                     Neues Skript
                 </ListItem>
 

@@ -144,9 +144,10 @@ export function createAuthenticationContext(): AuthenticationContext {
             let data;
             try {
                 data = await authService.refresh({ refreshToken: token });
-            } catch {
+            } catch (e) {
                 logout();
-                return undefined;
+                // NOTE: Rethrow here so downstream code won't run. Especially executors, who might have called `refreshLogin()`
+                throw e;
             }
             setupAutomaticRefresh(data);
             setRefreshToken(data.refreshToken);
