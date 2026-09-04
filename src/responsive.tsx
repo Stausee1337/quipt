@@ -1,4 +1,4 @@
-import { createContext, useState, JSX, useContext, useMemo } from 'quipt/rexport';
+import { createContext, useState, JSX, useContext, useMemo,  } from 'quipt/rexport';
 
 // FIXME: maybe provide in rem
 const MINIMUM_WIDTHS = {
@@ -30,24 +30,21 @@ export function useBreakpoints(): Breakpoints {
 }
 
 export function ResponsiveBreakpointProivder(props: { children?: JSX.Element }): JSX.Element {
-    const signals = useMemo(() => {
-        const queries = Object.fromEntries(
-            Object.entries(MINIMUM_WIDTHS).map(([bp, minWidth]) => [
-                bp,
-                window.matchMedia(`(width >= ${minWidth}px)`),
-            ]),
-        );
+    const queries = useMemo(() => Object.fromEntries(
+        Object.entries(MINIMUM_WIDTHS).map(([bp, minWidth]) => [
+            bp,
+            window.matchMedia(`(width >= ${minWidth}px)`),
+        ]),
+    ), []);
 
-        const signals = Object.fromEntries(
-            Object.entries(queries).map(([bp, query]) => [bp, useState(query.matches)]),
-        );
+    const signals = Object.fromEntries(
+        Object.entries(queries).map(([bp, query]) => [bp, useState(query.matches)]),
+    );
 
-        Object.entries(queries).forEach(([bp, query]) =>
-            query.addEventListener('change', () => signals[bp][1](query.matches)),
-        );
-
-        return signals;
-    }, []);
+    // FIXME: we're adding new events every time this function reruns
+    Object.entries(queries).forEach(([bp, query]) =>
+        query.addEventListener('change', () => signals[bp][1](query.matches)),
+    );
 
     const responsiveBreakpoints: Record<string, boolean> = {};
     for (let [bp, signal] of Object.entries(signals))

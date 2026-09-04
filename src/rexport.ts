@@ -3,11 +3,11 @@ import { JSX, useEffect, useMemo, useRef, useState, useContext, createContext, C
 export type Accessor<T> = T;
 
 export function onMount(effect: EffectCallback) {
-    useEffect(effect);
+    useEffect(effect, []);
 }
 
-export function onCleanup(effect: EffectCallback) {
-    useEffect(effect, []); // FIXME: I don't know if this works
+export function onCleanup(cleanup: () => void) {
+    useEffect(() => cleanup, []);
 }
 
 export { type JSX, type Component, type ComponentProps, type JSXElementConstructor, type CSSProperties, type ReactNode, type Ref, type RefAttributes, useEffect, useMemo, useRef, useState, useContext, createContext };

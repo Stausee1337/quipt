@@ -1,10 +1,9 @@
-import { JSX, HTMLAttributes } from 'quipt/rexport';
+import { JSX, ComponentProps } from 'quipt/rexport';
 
-export default function ({ className, ...rest }: HTMLAttributes<SVGSVGElement>): JSX.Element {
+export default function ({ className, ...rest }: ComponentProps<'svg'>): JSX.Element {
     return (
         <svg
             id="quiptLogo"
-            width="auto"
             height="100%"
             viewBox="0 0 2534 954"
             fill="none"

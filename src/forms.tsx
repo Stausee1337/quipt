@@ -1,5 +1,4 @@
-import { useMemo } from 'quipt/rexport';
-import { Accessor, useEffect, useState, onMount } from 'quipt/rexport';
+import { useEffect, useState, useMemo, onMount, useRef, Ref } from 'quipt/rexport';
 
 export interface Validator {
     validate(v: string): boolean;
@@ -31,7 +30,20 @@ type InputHookProps = InputCreateOptions & {
     onInputMount: (name: string, element: HTMLInputElement) => void;
 };
 
-export type InputCreateFn = (options?: InputCreateOptions) => Record<string, any>;
+export type FormInputProps = {
+    ref: Ref<HTMLInputElement>,
+    name: string,
+    onInput: () => void,
+    onChange: () => void,
+    onBlur: () => void,
+    value: string,
+    pristineness: Pristineness,
+    touchedness: Touchedness,
+    validity: Validity
+
+};
+
+export type InputCreateFn = (options?: InputCreateOptions) => FormInputProps;
 type Inputs<T extends readonly string[]> = { [K in T[number]]: InputCreateFn };
 
 type VailationMessages<T extends readonly string[]> = { [K in T[number]]: string | undefined };
@@ -57,8 +69,6 @@ export function useForm<const T extends readonly string[]>(
     keys: T,
     options: FormOptions<T>,
 ): UseFormHook<T> {
-    const inputHooks: Record<string, InputCreateFn> = {};
-    const validationMessageProviders = {};
     const [inputElements, setInputElements] = useState<
         Record<string, HTMLInputElement | undefined>
     >(Object.fromEntries(keys.map(k => [k, undefined])));
@@ -73,10 +83,10 @@ export function useForm<const T extends readonly string[]>(
     );
 
     const formValidity = useMemo<Validity>(() => {
-        for (let validity of Object.values(validities()))
+        for (let validity of Object.values(validities))
             if (validity === 'invalid') return 'invalid';
         return 'valid';
-    });
+    }, Object.values(validities));
 
     function createInputHook(props: {
         name: string;
@@ -96,21 +106,21 @@ export function useForm<const T extends readonly string[]>(
         setInputValidities(r => ({ ...r, [event.name]: event.validity }));
     }
 
-    keys.forEach(key => {
-        inputHooks[key] = createInputHook({ name: key, onInputMount, onInputChange });
-        Object.defineProperty(validationMessageProviders, key, {
-            get() {
-                return validationMessages()[key];
-            },
+    const inputHooks = useMemo(() => {
+        const inputHooks: Record<string, InputCreateFn> = {};
+        keys.forEach(key => {
+            inputHooks[key] = createInputHook({ name: key, onInputMount, onInputChange });
         });
-    });
+        return inputHooks;
+    }, []);
+
 
     function makeFormEvent(): FormEvent<any> {
         return {
-            elements: inputElements(),
-            validity: formValidity(),
-            validationMessages: validationMessages(),
-            formData: inputValues(),
+            elements: inputElements,
+            validity: formValidity,
+            validationMessages,
+            formData: inputValues,
         };
     }
 
@@ -122,19 +132,19 @@ export function useForm<const T extends readonly string[]>(
     useEffect(() => {
         const formEvent = makeFormEvent();
         options?.onChange?.(formEvent);
-    });
+    }, [formValidity, ...Object.values(inputValues)]);
 
     return {
         form: {
             onSubmit,
         },
-        validationMessages: validationMessageProviders,
+        validationMessages,
         ...inputHooks,
     } as unknown as UseFormHook<T>;
 }
 
-function inputHook(props: InputHookProps) {
-    const [element, setElement] = useState<HTMLInputElement>();
+function inputHook(props: InputHookProps): FormInputProps {
+    const elementRef = useRef<HTMLInputElement>(null);
     const [value, setValue] = useState<string>(props?.defaultValue ?? '');
     const [validity, setValidity] = useState<Validity>('valid');
     const [touchedness, setTouchedness] = useState<Touchedness>('untouched');
@@ -142,11 +152,10 @@ function inputHook(props: InputHookProps) {
     const [validationMessage, setValidationMessage] = useState<string>();
 
     function runValidators(): { validity: Validity; message: string | undefined } {
-        const currentValue = value();
         const validatorsArray = props?.validators ?? [];
 
         for (const validator of validatorsArray) {
-            if (!validator.validate(currentValue))
+            if (!validator.validate(value))
                 return { validity: 'invalid', message: validator.message };
         }
 
@@ -154,7 +163,7 @@ function inputHook(props: InputHookProps) {
     }
 
     function valueChange() {
-        setValue(element()?.value ?? '');
+        setValue(elementRef.current?.value ?? '');
         setPristineness('dirty');
     }
 
@@ -166,38 +175,35 @@ function inputHook(props: InputHookProps) {
         const validationResult = runValidators();
         setValidity(validationResult.validity);
         setValidationMessage(validationResult.message);
-    });
+    }, [value]);
 
     onMount(() => {
-        const inputElement = element();
+        console.log('onMount()');
+        const inputElement = elementRef.current;
         inputElement && props.onInputMount(props.name, inputElement);
     });
 
     useEffect(() => {
         props.onInputChange({
             name: props.name,
-            value: value(),
-            message: validationMessage(),
-            validity: validity(),
-            pristineness: pristineness(),
-            touchedness: touchedness(),
+            value,
+            message: validationMessage,
+            validity,
+            pristineness,
+            touchedness,
         });
-    });
+    }, [value, validity, pristineness, touchedness]);
 
     return {
-        ref: setElement,
+        ref: elementRef,
         name: props.name,
         onInput: valueChange,
         onChange: valueChange,
         onBlur: focusChange,
-        get value() {
-            return value();
-        },
-        get classList() {
-            return Object.fromEntries(
-                [pristineness(), touchedness(), validity()].map(k => [k, true]),
-            );
-        },
+        value,
+        pristineness,
+        touchedness,
+        validity
     };
 }
 
@@ -236,10 +242,10 @@ export namespace validators {
         };
     }
 
-    export function equal(accesor: Accessor<string>, name: string): Validator {
+    export function equal(accesor: string, name: string): Validator {
         return {
             validate(value: string): boolean {
-                return value === accesor();
+                return value === accesor;
             },
             message: `Feld stimmt nicht mit ${name} überein`,
         };

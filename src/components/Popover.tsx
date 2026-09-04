@@ -1,13 +1,11 @@
 import {
     JSX,
-    children,
     useEffect,
     useMemo,
     useState,
     onCleanup,
     onMount,
 } from 'quipt/rexport';
-import { Portal } from 'solid-js/web';
 
 import {
     Placement,
@@ -15,7 +13,6 @@ import {
     VirtualElement,
     createPopper,
 } from '@popperjs/core';
-import { splitProps } from 'quipt/rexport';
 
 type Trigger = 'click' | 'contextmenu';
 

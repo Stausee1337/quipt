@@ -1,6 +1,6 @@
 import { createContext, useEffect, useState, useMemo, useContext } from 'quipt/rexport';
 
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, useQuery } from '@tanstack/react-query';
 import { createSimpleExecutor, runtime } from 'qrpc-js';
 
 import {
@@ -110,15 +110,15 @@ export function createAuthenticationContext(): AuthenticationContext {
     function createServices() {
         const ctx: AuthorizedContext = {
             ensureToken() {
-                if (accessToken.loading || accessToken() === undefined) {
+                if (accessToken.isLoading || accessToken.data === undefined) {
                     return new Promise<string>(resolve => {
                         useEffect(() => {
-                            if (!accessToken.loading && accessToken() !== undefined)
-                                resolve(accessToken());
+                            if (!accessToken.isLoading && accessToken.data !== undefined)
+                                resolve(accessToken.data);
                         });
                     });
                 }
-                return Promise.resolve(accessToken()!);
+                return Promise.resolve(accessToken.data);
             },
             async refreshLogin() {
                 await refetchAccessToken();
@@ -137,10 +137,11 @@ export function createAuthenticationContext(): AuthenticationContext {
         };
     }
 
-    const [accessToken, { refetch: refetchAccessToken, mutate: mutateAccessToken }] =
-        createResource<string | undefined>(async () => {
+    const { refetch: refetchAccessToken, ...accessToken } = useQuery({
+        queryKey: ['accessToken'],
+        async queryFn() {
             const token = refreshToken();
-            if (token === undefined) return undefined;
+            if (token === undefined) return null;
             let data;
             try {
                 data = await authService.refresh({ refreshToken: token });
@@ -152,7 +153,9 @@ export function createAuthenticationContext(): AuthenticationContext {
             setupAutomaticRefresh(data);
             setRefreshToken(data.refreshToken);
             return data.accessToken;
-        });
+        }
+    }, queryClient);
+
 
     function setupAutomaticRefresh(data: AuthSuccess) {
         const tokenTTL = data.expiresAt - Date.now();
@@ -163,7 +166,7 @@ export function createAuthenticationContext(): AuthenticationContext {
         setIsLoggedIn(false);
         ctx.services = undefined;
         setRefreshToken(undefined);
-        mutateAccessToken(undefined);
+        refetchAccessToken();
         onLogout.trigger();
 
         queryClient.resetQueries();
@@ -188,7 +191,7 @@ export function createAuthenticationContext(): AuthenticationContext {
             ctx.services = createServices();
             setIsLoggedIn(true);
             setRefreshToken(data.refreshToken);
-            mutateAccessToken(data.accessToken);
+            queryClient.setQueryData(['acessToken'], data.accessToken);
             setupAutomaticRefresh(data);
         },
     };

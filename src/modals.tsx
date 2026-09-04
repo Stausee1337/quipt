@@ -7,7 +7,6 @@ import {
     onMount,
     useContext,
 } from 'quipt/rexport';
-import { Dynamic, Portal } from 'solid-js/web';
 
 type AcceptFn<T> = T extends void ? () => void : (result: T) => void;
 type DismissFn = () => void;

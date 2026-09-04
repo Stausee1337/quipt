@@ -1,15 +1,14 @@
-import { Component, JSX, createContext, useEffect, useState, untrack } from 'quipt/rexport';
+import { Component, JSX, createContext, useEffect, useState } from 'quipt/rexport';
 import { useContext } from 'quipt/rexport';
-import { Dynamic } from 'solid-js/web';
 
-import { useParams } from '@solidjs/router';
-import { UseQueryResult, useQuery } from '@tanstack/solid-query';
+import { useParams } from 'react-router';
+import { UseQueryResult, useQuery } from '@tanstack/react-query';
 import { schemas } from 'qrpc-js';
 
 import { AuthenticationContext, queryClient } from 'quipt/client';
 import { Script } from 'quipt/schemas';
 
-export const ScriptContextObj = createContext<ScriptContext>();
+export const ScriptContextObj = createContext<ScriptContext|undefined>(undefined);
 
 export type PartialScript = Omit<Script, 'divisions'>;
 
@@ -26,9 +25,9 @@ export function DelayedScriptInstantiator<C extends Component<{ scriptID: schema
     component: C;
 }): JSX.Element {
     const scriptContext = useContext(ScriptContextObj)!;
-    const scriptQuery = useQuery<Script>(() => ({
+    const scriptQuery = useQuery<Script>({
         queryKey: ['script', scriptContext.currentScript],
-    }));
+    });
 
     // const isError = useMemo(() => scriptQuery.status === "error");
     // if (isError()) onError();
@@ -50,14 +49,14 @@ export function createScriptContext(authenticationContext: AuthenticationContext
     const location = useParams();
 
     const [currentScriptId, setCurrentScriptId] = useState<schemas.UUID | undefined>(undefined);
-    useQuery(() => ({
+    useQuery({
         queryKey: ['scripts'],
         queryFn: () => authenticationContext.services!.script.list(),
         staleTime: STALE_TIME,
-    }));
+    });
     // const scriptCache: Map<schemas.UUID, Script> = new Map();
-
-    useEffect(async () => {
+    
+    async function doStuff() {
         let notValidatedScriptId: string | undefined = location.uuid;
         if (notValidatedScriptId === undefined) {
             setCurrentScriptId(undefined);
@@ -72,30 +71,33 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             return;
         }
         setCurrentScriptId(script.uuid);
-    });
 
-    const scriptQuery = useQuery(() => ({
-        queryKey: ['script', currentScriptId()],
+    }
+
+    useEffect(() => { doStuff() }, [location]);
+
+    const scriptQuery = useQuery({
+        queryKey: ['script', currentScriptId],
         async queryFn() {
-            const scriptUuid = untrack(currentScriptId);
+            const scriptUuid = currentScriptId;
             if (scriptUuid === undefined) throw 'unknown script';
             return await authenticationContext.services!.script.get({
                 uuid: scriptUuid,
             });
         },
         staleTime: STALE_TIME,
-    }));
+    });
 
     return {
         get currentScript() {
-            return currentScriptId();
+            return currentScriptId;
         },
         scriptQuery() {
             // FIXME: I think the correct approach is to have multiple queries, actually
             return scriptQuery;
         },
         async commitNewConfidences(divisionIdx, newScores) {
-            const scriptId = currentScriptId()!;
+            const scriptId = currentScriptId!;
 
             await queryClient.cancelQueries({ queryKey: ['script', scriptId] });
             queryClient.setQueryData<Script>(['script', scriptId], old => {
