@@ -265,7 +265,7 @@ export function UserAuthenticate(): JSX.Element {
 
         if (AuthError.isSchema(result)) return convertErrorToMessage(result);
 
-        authentication.loginUser(result);
+        await authentication.loginUser(result);
         navigate('/dashboard');
     }
 

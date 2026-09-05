@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState, useMemo, useContext } from 'quipt/rexport';
+import { createContext, useState, useMemo, useContext } from 'quipt/rexport';
 
 import { QueryClient, useQuery } from '@tanstack/react-query';
 import { createSimpleExecutor, runtime } from 'qrpc-js';
@@ -13,11 +13,11 @@ import {
 } from 'quipt/schemas';
 
 export const queryClient = new QueryClient({
-    // defaultOptions: {
-    //     queries: {
-    //         experimental_prefetchInRender: true,
-    //     },
-    // },
+    defaultOptions: {
+        queries: {
+            staleTime: 2 * 60 * 60 * 1000
+        },
+    },
 });
 
 const apiURL = import.meta.env.VITE_API_HOST;
@@ -35,6 +35,7 @@ interface AuthorizedContext {
 function createAuthorizedExecutor(ctx: AuthorizedContext): runtime.Executor {
     return async (url: string, body: string): Promise<Response> => {
         const accessToken = await ctx.ensureToken();
+        console.log({ accessToken });
         const headers = {
             Authorization: `Bearer ${accessToken}`,
         };
@@ -73,8 +74,8 @@ export interface AuthenticationContext {
     onLogout: OnLogoutLifecylce;
     services: AuthenticatedServices | undefined;
     logout(): void;
-    isLoggedIn(): boolean;
-    loginUser(data: AuthSuccess): any;
+    isLoggedIn: boolean;
+    loginUser(data: AuthSuccess): Promise<void>;
 }
 
 function createOnLogout(): OnLogoutLifecylce & { trigger(): void } {
@@ -94,31 +95,25 @@ export const AuthenticationContextObj = createContext<AuthenticationContext|unde
 export function createAuthenticationContext(): AuthenticationContext {
     const twoMinutes = 2 * 60 * 1000;
 
-    const onLogout = createOnLogout();
-    let [refreshToken, setRefreshToken] = (() => {
-        let value = localStorage.getItem('refreshToken') ?? undefined;
-        return [() => value, updater];
+    const onLogout = useMemo(createOnLogout, []);
+    const [refreshToken, setRefreshToken] = (() => {
+        const [state, setState] = useState(
+            localStorage.getItem('refreshToken') ?? undefined
+        );
+        return [state, updater];
 
         function updater(token: string | undefined) {
-            if (token === value) return;
+            if (token === state) return;
             if (token === undefined) localStorage.removeItem('refreshToken');
             else localStorage.setItem('refreshToken', token);
-            value = token;
+            setState(token);
         }
     })();
 
     function createServices() {
         const ctx: AuthorizedContext = {
             ensureToken() {
-                if (accessToken.isLoading || accessToken.data === undefined) {
-                    return new Promise<string>(resolve => {
-                        useEffect(() => {
-                            if (!accessToken.isLoading && accessToken.data !== undefined)
-                                resolve(accessToken.data);
-                        });
-                    });
-                }
-                return Promise.resolve(accessToken.data);
+                return queryClient.query({ queryKey: ['accessToken'], staleTime: 'static' });
             },
             async refreshLogin() {
                 await refetchAccessToken();
@@ -137,14 +132,13 @@ export function createAuthenticationContext(): AuthenticationContext {
         };
     }
 
-    const { refetch: refetchAccessToken, ...accessToken } = useQuery({
+    const { refetch: refetchAccessToken } = useQuery({
         queryKey: ['accessToken'],
         async queryFn() {
-            const token = refreshToken();
-            if (token === undefined) return null;
+            if (refreshToken === undefined) return null;
             let data;
             try {
-                data = await authService.refresh({ refreshToken: token });
+                data = await authService.refresh({ refreshToken });
             } catch (e) {
                 logout();
                 // NOTE: Rethrow here so downstream code won't run. Especially executors, who might have called `refreshLogin()`
@@ -153,7 +147,8 @@ export function createAuthenticationContext(): AuthenticationContext {
             setupAutomaticRefresh(data);
             setRefreshToken(data.refreshToken);
             return data.accessToken;
-        }
+        },
+        staleTime: Infinity
     }, queryClient);
 
 
@@ -163,8 +158,7 @@ export function createAuthenticationContext(): AuthenticationContext {
     }
 
     function logout() {
-        setIsLoggedIn(false);
-        ctx.services = undefined;
+        queryClient.invalidateQueries({ queryKey: ['accessToken']});
         setRefreshToken(undefined);
         refetchAccessToken();
         onLogout.trigger();
@@ -172,30 +166,27 @@ export function createAuthenticationContext(): AuthenticationContext {
         queryClient.resetQueries();
     }
 
-    const [isLoggedIn, setIsLoggedIn] = useState<boolean>(refreshToken() !== undefined);
+    const isLoggedIn = refreshToken !== undefined;
     const services = useMemo(() => isLoggedIn ? createServices() : undefined, [isLoggedIn]);
 
-    const ctx: AuthenticationContext = {
+    return {
         onLogout,
-        isLoggedIn: () => isLoggedIn,
+        isLoggedIn,
         services,
         logout() {
-            const currentRefreshToken = refreshToken();
-            if (currentRefreshToken !== undefined)
-                authService.logout({ refreshToken: currentRefreshToken });
+            if (refreshToken !== undefined)
+                authService.logout({ refreshToken });
             logout();
         },
-        loginUser(data) {
+        async loginUser(data) {
             if (isLoggedIn) return;
 
-            ctx.services = createServices();
-            setIsLoggedIn(true);
             setRefreshToken(data.refreshToken);
-            queryClient.setQueryData(['acessToken'], data.accessToken);
+            await queryClient.invalidateQueries({ queryKey: ['accessToken']});
+            queryClient.setQueryData(['accessToken'], data.accessToken);
             setupAutomaticRefresh(data);
         },
     };
-    return ctx;
 }
 
 export function useAuthentication(): AuthenticationContext | undefined {

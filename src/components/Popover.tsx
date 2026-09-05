@@ -1,12 +1,14 @@
 import {
     JSX,
-    useEffect,
-    useMemo,
     useState,
     onCleanup,
     onMount,
+    ReactNode,
 } from 'quipt/rexport';
+import React, { ComponentProps, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
+import classnames from 'classnames';
 import {
     Placement,
     Instance as PopperInstance,
@@ -18,15 +20,17 @@ type Trigger = 'click' | 'contextmenu';
 
 let globalContextMenu: (() => void) | undefined;
 
-export function Popover(props: {
+export function Popover({
+    trigger, placement: origPlacement, content, children
+}: {
     trigger: Trigger;
     placement: Placement;
-    content?: JSX.Element;
-    children: JSX.Element;
+    content?: ReactNode;
+    children: ReactNode;
 }): JSX.Element {
-    const getChildren = children(() => props.children);
-    const [popoverReference, setPopoverReference] = useState<HTMLElement | VirtualElement>();
-    const [placement, setPlacement] = useState(props.placement);
+    const targetRef = useRef<HTMLElement>(null);
+    const [popoverRef, setPopoverRef] = useState<HTMLElement | VirtualElement>();
+    const [placement, setPlacement] = useState(origPlacement);
 
     function handleTrigger(event: MouseEvent) {
         event.preventDefault();
@@ -48,106 +52,98 @@ export function Popover(props: {
                 },
             };
             if (globalContextMenu !== undefined) globalContextMenu();
-            setPopoverReference(virtualReference);
-            globalContextMenu = () => setPopoverReference(undefined);
-        } else if (popoverReference() === undefined) {
-            setPlacement(props.placement);
-            setPopoverReference(computedChildren());
+            setPopoverRef(virtualReference);
+            globalContextMenu = () => setPopoverRef(undefined);
+        } else if (popoverRef === undefined) {
+            setPlacement(placement);
+            setPopoverRef(targetRef.current!);
         } else {
-            setPopoverReference(undefined);
+            setPopoverRef(undefined);
         }
     }
 
-    useEffect(() => {
-        const menuOpen = popoverReference() !== undefined;
-        const children = computedChildren();
-        if (menuOpen) children.classList.add('menu-open');
-        else children.classList.remove('menu-open');
-    });
+    const newChildren1 = React.isValidElement(children)
+        ? children
+        : <span>{children}</span>;
 
-    const computedChildren = useMemo(() => {
-        let trigger = props.trigger;
+    const newChildren2 = {
+        ...newChildren1,
+        props: {
+            ...newChildren1.props,
+            onContextMenu: trigger === 'contextmenu' ? handleTrigger : undefined,
+            onClick: trigger === 'click' ? handleTrigger : undefined,
+            className: classnames(
+                popoverRef !== undefined && 'menu-open'
+            ),
+            ref: targetRef
+        }
+    };
 
-        const children = getChildren();
-        const computedChildren =
-            children instanceof HTMLElement ? children : ((<span>{children}</span>) as HTMLElement);
-
-        // FIXME: I don't know if there's a better way to do this in solid, since components are
-        // "precomputed"
-
-        onMount(() => {
-            computedChildren.addEventListener(trigger, handleTrigger);
-        });
-
-        onCleanup(() => {
-            computedChildren.removeEventListener(trigger, handleTrigger);
-        });
-
-        return computedChildren;
-    });
 
     return (
         <>
-            {popoverReference() && (
+            {popoverRef && (
                 <PopoverContent
-                    placement={placement()}
-                    reference={popoverReference()!}
-                    onClose={() => setPopoverReference(undefined)}>
-                    {props.content}
+                    placement={placement}
+                    reference={popoverRef}
+                    onClose={() => setPopoverRef(undefined)}>
+                    {content}
                 </PopoverContent>
             )}
-            {computedChildren()}
+            {newChildren2}
         </>
     );
 }
 
 function PopoverContent(props: {
-    children: JSX.Element;
+    children: ReactNode;
     reference: HTMLElement | VirtualElement;
     placement: Placement;
     onClose: () => void;
 }): JSX.Element {
-    let popoverMenu: HTMLDivElement = undefined!;
-    let popper: PopperInstance | undefined;
+    const popoverMenu = useRef<HTMLDivElement>(null);
+    const popper = useRef<PopperInstance>(null);
 
     function captureClick(event: MouseEvent) {
         const path = event.composedPath();
-        if (!path.includes(props.reference as any) && !path.includes(popoverMenu!)) props.onClose();
+        if (!path.includes(props.reference as any) && !path.includes(popoverMenu.current!)) props.onClose();
     }
 
-    function transactionClick(event: MouseEvent) {
+    function transactionClick(event: React.MouseEvent<HTMLDivElement>) {
+        event.preventDefault();
         // TODO: potentially provide a context and a custom element instead of this "solution"
         if (event.target instanceof HTMLLIElement) props.onClose();
     }
 
     onMount(() => {
-        if (popoverMenu === undefined) return;
-        popoverMenu.className =
-            'p-2 rounded-lg border border-accent1 bg-background z-4000 shadow-lg';
-        popoverMenu.addEventListener('click', transactionClick);
-        popper = createPopper(props.reference, popoverMenu, { placement: props.placement });
+        if (popoverMenu.current === null) return;
+        popper.current = createPopper(props.reference, popoverMenu.current, { placement: props.placement });
         document.documentElement.addEventListener('click', captureClick);
     });
 
     onCleanup(() => {
-        if (popper === undefined || popoverMenu === undefined) return;
+        if (popper.current === null) return;
         document.documentElement.removeEventListener('click', captureClick);
-        popper.destroy();
-        popoverMenu.remove();
+        popper.current.destroy();
     });
 
-    return (
-        <Portal mount={document.body} ref={popoverMenu}>
+    return createPortal(
+        <div className="p-2 rounded-lg border border-accent1 bg-background z-4000 shadow-lg"
+            onClick={transactionClick}
+            ref={popoverMenu}>
             <ul>{props.children}</ul>
-        </Portal>
+        </div>,
+        document.body
     );
 }
 
-export function PopoverMenuItem(props: HTMLAttributes<HTMLLIElement>): JSX.Element {
-    const [, rest] = splitProps(props, ['class']);
+export function PopoverMenuItem({ className, ...rest }: ComponentProps<'li'>): JSX.Element {
     return (
         <li
-            className={`hover:bg-accent1 cursor-pointer rounded-sm px-2 py-1 ${props.class ?? ''}`}
+            className={classnames(
+                'hover:bg-accent1 cursor-pointer rounded-sm px-2 py-1',
+                className
+            )}
             {...rest}
         />
     );

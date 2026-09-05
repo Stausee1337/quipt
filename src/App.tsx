@@ -33,7 +33,7 @@ function App(props: { children?: JSX.Element }): JSX.Element {
             <div className="relative z-0 flex min-h-0 w-full flex-1 flex-col">
                 {!breakpoints.md && <Header />}
                 <div className="relative z-0 flex min-h-0 w-full flex-1">
-                    {breakpoints.md && authenticationContext.isLoggedIn() && <SideMenu />}
+                    {breakpoints.md && authenticationContext.isLoggedIn && <SideMenu />}
                     {props.children}
                 </div>
             </div>
@@ -51,7 +51,7 @@ export default function () {
                         <App>
                             <Routes>
                                 <Route path="/" element={<Root/>} />
-                                {!authenticationContext.isLoggedIn() ? (
+                                {!authenticationContext.isLoggedIn ? (
                                     <>
                                         <Route path="/signin" element={<UserAuthenticate/>} />
                                         <Route path="/signup" element={<UserAuthenticate/>} />
@@ -62,10 +62,10 @@ export default function () {
                                         <Route path="/script/:uuid" element={<ScriptRoute/>} />
                                         <Route path="/script/:uuid/:division" element={<ScriptRoute/>} />
                                         <Route path="/train/:uuid/:division" element={<ScriptRoute/>} />
-                                        <Route path="/dashboard" />
+                                        <Route path="/dashboard" element={<></>}/>
                                     </>
                                 )}
-                                <Route path="*paramName" element={<Navigate to="/" />}/>
+                                <Route path="*" element={<Navigate to="/" />}/>
                             </Routes>
                         </App>
                     </BrowserRouter>

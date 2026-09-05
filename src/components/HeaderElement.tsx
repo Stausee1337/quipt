@@ -13,7 +13,7 @@ export function Header() {
     return (
         <>
             <div className="border-lighter1 relative z-10 flex h-15 items-center border-b p-4">
-                {authentication.isLoggedIn() ? (
+                {authentication.isLoggedIn ? (
                     <IconButton icon="list" onClick={() => setIsSideMenuOpen(true)} />
                 ) : null}
                 <QuiptLogo className="mx-auto" />

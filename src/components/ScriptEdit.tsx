@@ -36,7 +36,7 @@ import {
     formatActorsArray,
     formatMarkdown,
 } from 'quipt/components/common';
-import { useModal, useModalContext } from 'quipt/modals';
+import { Modal, useModal, useModalContext } from 'quipt/modals';
 import { Division, Script, TextCue, TextCuePair } from 'quipt/schemas';
 import { Button, IconButton, ScrollContainer } from 'quipt/components/basics';
 import { useBreakpoints } from 'quipt/responsive';
@@ -147,7 +147,7 @@ function EditableTextCueView(props: {
     type: 'request' | 'response';
 }): JSX.Element {
     const editContext = useContext(ScriptEditContextObj)!;
-    const openModal = useModal<void>();
+    const [modalContext, openModal] = useModal<void>();
     const textCue = props.cuePair[props.type];
 
     const [content, setContent] = useState<string>(textCue?.text ?? '');
@@ -234,26 +234,29 @@ function EditableTextCueView(props: {
     // provided by ref. There might need to be a way to `usePopover` on target element refs in the
     // future.
     return (
-        <Popover
-            trigger="contextmenu"
-            placement="auto"
-            content={<TextCueEditMenu onEdit={() => setIsEditing(true)} onDelete={onDelete} />}>
-            <TextCueDataView
-                type={props.type}
-                actorsInfo={formatActorsArray(
-                    props.type === 'response' && currentActors.length === 1
-                        ? null
-                        : currentActors,
-                )}
-                text={formatMarkdown(textCue?.text ?? '_Du bist der erste in diesem Abschnitt_')}
-                className={classnames({ 'ring-2 ring-primary': isEditing })}
-                beforeExtra={isEditing && <CreateActorsSelector />}
-                afterExtra={isEditing && <CreateEditCommitView />}>
-                {isEditing ? (
-                    <Editor content={content} onChange={setContent} autofocus />
-                ) : undefined}
-            </TextCueDataView>
-        </Popover>
+        <>
+            <Modal context={modalContext}/>
+            <Popover
+                trigger="contextmenu"
+                placement="auto"
+                content={<TextCueEditMenu onEdit={() => setIsEditing(true)} onDelete={onDelete} />}>
+                <TextCueDataView
+                    type={props.type}
+                    actorsInfo={formatActorsArray(
+                        props.type === 'response' && currentActors.length === 1
+                            ? null
+                            : currentActors,
+                    )}
+                    text={formatMarkdown(textCue?.text ?? '_Du bist der erste in diesem Abschnitt_')}
+                    className={classnames({ 'ring-2 ring-primary': isEditing })}
+                    beforeExtra={isEditing && <CreateActorsSelector />}
+                    afterExtra={isEditing && <CreateEditCommitView />}>
+                    {isEditing ? (
+                        <Editor content={content} onChange={setContent} autofocus />
+                    ) : undefined}
+                </TextCueDataView>
+            </Popover>
+        </>
     );
 }
 

@@ -21,8 +21,9 @@ import { useAuthentication } from 'quipt/client';
 import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
 import { Popover, PopoverMenuItem } from 'quipt/components/Popover';
 import QuiptLogo from 'quipt/components/Quipt-Logo';
-import { useModal, useModalContext } from 'quipt/modals';
-import { PartialScript, ScriptContextObj } from 'quipt/script';
+import { Modal, useModal, useModalContext } from 'quipt/modals';
+import { ScriptContextObj } from 'quipt/script';
+import { Script, User } from 'quipt/schemas';
 import { Button, IconButton } from 'quipt/components/basics';
 
 type ComponentType = keyof JSX.IntrinsicElements | JSXElementConstructor<any>;
@@ -51,14 +52,14 @@ function ListItem({
     icon,
     children,
     current,
-    href,
+    to,
     menuButton,
     onClick,
 }: {
     icon?: string;
     children: ReactNode;
     current?: boolean;
-    href?: string;
+    to?: string;
     menuButton?: JSX.Element;
     onClick?: (e: MouseEvent) => void;
 }): JSX.Element {
@@ -66,10 +67,10 @@ function ListItem({
 
     return (
         <MenuSlot
-            component={href === undefined || !isSimpleContent ? 'div' : Link}
+            component={to === undefined || !isSimpleContent ? 'div' : Link}
             icon={icon}
             onClick={onClick}
-            href={href}
+            to={to}
             className={classnames(
                 'hover:bg-accent1 rounded-lg',
                 current && 'bg-background'
@@ -82,7 +83,7 @@ function ListItem({
     );
 }
 
-function DeleteScriptModal(props: { script: PartialScript }): JSX.Element {
+function DeleteScriptModal(props: { script: Script }): JSX.Element {
     const { dismiss, accept } = useModalContext()!;
     return (
         <>
@@ -133,11 +134,11 @@ function ScriptListItemMenuButton(props: {
     );
 }
 
-function ScriptListItem(props: { script: PartialScript }): JSX.Element {
+function ScriptListItem(props: { script: Script }): JSX.Element {
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [currentContent, setCurrentContent] = useState<string>(props.script.name);
     const scriptContext = useContext(ScriptContextObj)!;
-    const openModal = useModal<schemas.UUID>();
+    const [modalContext, openModal] = useModal<schemas.UUID>();
 
     async function deleteScript() {
         const modalResult = await openModal(<DeleteScriptModal script={props.script}/>);
@@ -156,28 +157,35 @@ function ScriptListItem(props: { script: PartialScript }): JSX.Element {
     }
 
     return (
-        <MakeEditableContent
-            component={ListItem}
-            isEditable={isEditing}
-            onContentChange={setCurrentContent}
-            onEditEnd={onRenameDone}
+        <>
+            <Modal context={modalContext}/>
+            <MakeEditableContent
+                component={ListItem}
+                isEditable={isEditing}
+                onContentChange={setCurrentContent}
+                onEditEnd={onRenameDone}
 
-            href={`/script/${props.script.uuid}`}
-            menuButton={
-                <ScriptListItemMenuButton deleteScript={deleteScript} renameScript={renameScript} />
-            }
-            current={props.script.uuid === scriptContext.currentScript}>
-            {currentContent}
-        </MakeEditableContent>
+                to={`/script/${props.script.uuid}`}
+                menuButton={
+                    <ScriptListItemMenuButton deleteScript={deleteScript} renameScript={renameScript} />
+                }
+                current={props.script.uuid === scriptContext.currentScript}>
+                {currentContent}
+            </MakeEditableContent>
+        </>
     );
 }
 
 export function SideMenu(props: { closer?: () => void }): JSX.Element {
     const authentication = useAuthentication()!;
 
-    const [user] = createResource(() => authentication.services!.user.get());
-    const scriptsQuery = useQuery<PartialScript[]>({
+    const user = useQuery<User>({
+        queryKey: ['user'],
+        queryFn: () => authentication.services!.user.get()
+    });
+    const scriptsQuery = useQuery<Script[]>({
         queryKey: ['scripts'],
+        queryFn: () => authentication.services!.script.list()
     });
 
     useBeforeUnload(() => {
@@ -219,15 +227,15 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
                     scriptsQuery
                         .data
                         .toSorted((a, b) => b.createdAt - a.createdAt)
-                        .map(script => <ScriptListItem script={script} />)
+                        .map(script => <ScriptListItem script={script} key={script.name}/>)
                 )}
             </div>
 
-            {user.loading || user.error ? null : (
+            {user.isLoading || user.isError || user.data === undefined ? null : (
                 <div className="footer">
                     <MenuSlot component="div" className="border-accent1 border-t" icon="person-circle">
                         <div className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                            {user()!.username}
+                            {user.data.username}
                         </div>
                         <Button variant="secondary" onClick={() => authentication.logout()}>
                             Logout

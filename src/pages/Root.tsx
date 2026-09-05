@@ -23,5 +23,5 @@ export function Root(): JSX.Element {
     onMount(() => {
         document.title = 'Quipt';
     });
-    return <>{authentication.isLoggedIn() ? <Navigate to="/dashboard" /> : <LandingPage />}</>;
+    return <>{authentication.isLoggedIn ? <Navigate to="/dashboard" /> : <LandingPage />}</>;
 }

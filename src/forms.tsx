@@ -178,7 +178,6 @@ function inputHook(props: InputHookProps): FormInputProps {
     }, [value]);
 
     onMount(() => {
-        console.log('onMount()');
         const inputElement = elementRef.current;
         inputElement && props.onInputMount(props.name, inputElement);
     });

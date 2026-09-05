@@ -50,7 +50,7 @@ export function createScriptContext(authenticationContext: AuthenticationContext
 
     const [currentScriptId, setCurrentScriptId] = useState<schemas.UUID | undefined>(undefined);
     useQuery({
-        queryKey: ['scripts'],
+        queryKey: ['scriptsXXXX'],
         queryFn: () => authenticationContext.services!.script.list(),
         staleTime: STALE_TIME,
     });
@@ -63,7 +63,7 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             return;
         }
         const scripts = await queryClient.ensureQueryData<Script[]>({
-            queryKey: ['scripts'],
+            queryKey: ['scriptsXXXX'],
         });
         const script = scripts.find(s => s.uuid === notValidatedScriptId);
         if (script === undefined) {
@@ -148,13 +148,13 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             newScript.uuid = uuid;
             newScript.createdAt = createdAt;
 
-            queryClient.invalidateQueries({ queryKey: ['scripts'] });
+            queryClient.invalidateQueries({ queryKey: ['scriptsXXXX'] });
 
             return newScript;
         },
         async deleteScript(uuid) {
-            await queryClient.cancelQueries({ queryKey: ['scripts'] });
-            queryClient.setQueryData<PartialScript[]>(['scripts'], old => {
+            await queryClient.cancelQueries({ queryKey: ['scriptsXXXX'] });
+            queryClient.setQueryData<PartialScript[]>(['scriptsXXXX'], old => {
                 if (!old) return old;
 
                 return old.filter(s => s.uuid !== uuid);
@@ -169,8 +169,8 @@ export function createScriptContext(authenticationContext: AuthenticationContext
             }
         },
         async renameScript(uuid, name) {
-            await queryClient.cancelQueries({ queryKey: ['scripts'] });
-            queryClient.setQueryData<PartialScript[]>(['scripts'], old => {
+            await queryClient.cancelQueries({ queryKey: ['scriptsXXXX'] });
+            queryClient.setQueryData<PartialScript[]>(['scriptsXXXX'], old => {
                 if (!old) return old;
 
                 return old.map(s => (s.uuid !== uuid ? s : { ...s, name }));
