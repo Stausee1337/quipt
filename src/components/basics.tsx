@@ -1,11 +1,11 @@
-import { useContext, createContext, useRef, JSX, HTMLAttributes } from 'quipt/rexport';
+import { ComponentProps, JSX, useContext, createContext, useRef } from 'quipt/rexport';
 
 import classnames from 'classnames';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 
 export function Button(
-    { variant, className, ...rest }: HTMLAttributes<HTMLButtonElement> & {
+    { variant, className, ...rest }: ComponentProps<'button'> & {
         variant: ButtonVariant;
     },
 ): JSX.Element {
@@ -24,7 +24,7 @@ export function Button(
 }
 
 export function IconButton(
-    { icon, className, ...rest }: HTMLAttributes<HTMLButtonElement> & {
+    { icon, className, ...rest }: ComponentProps<'button'> & {
         icon: string;
     },
 ) {
@@ -39,7 +39,7 @@ export function IconButton(
     );
 }
 
-export function InfoText({ className, ...rest }: HTMLAttributes<HTMLSpanElement>) {
+export function InfoText({ className, ...rest }: ComponentProps<'span'>) {
     return (
         <span 
             className={classnames(
@@ -55,7 +55,7 @@ export function useScrollContainer(): HTMLDivElement | undefined {
     return useContext(ScrollContextObj);
 }
 
-export function ScrollContainer({ children, className, ...rest }: HTMLAttributes<HTMLDivElement>): JSX.Element {
+export function ScrollContainer({ children, className, ...rest }: ComponentProps<'div'>): JSX.Element {
     const containerRef = useRef<HTMLDivElement>(null);
 
     return (

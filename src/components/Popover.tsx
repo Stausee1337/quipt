@@ -73,6 +73,7 @@ export function Popover({
             onContextMenu: trigger === 'contextmenu' ? handleTrigger : undefined,
             onClick: trigger === 'click' ? handleTrigger : undefined,
             className: classnames(
+                newChildren1.props.className,
                 popoverRef !== undefined && 'menu-open'
             ),
             ref: targetRef

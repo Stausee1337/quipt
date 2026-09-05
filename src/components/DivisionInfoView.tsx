@@ -19,7 +19,6 @@ export interface DivisionInfoViewProps extends ComponentProps<'div'> {
 }
 
 export function DivisionInfoView({ children, style, info, external, className, ...rest }: DivisionInfoViewProps): JSX.Element {
-
     return (
         <div className="flex flex-col items-center gap-2">
             <div

@@ -14,13 +14,11 @@ import { SideMenu } from 'quipt/components/MenuElement';
 import { Root } from 'quipt/pages/Root';
 import { NewScriptRoute, ScriptRoute } from 'quipt/pages/Script';
 import { UserAuthenticate } from 'quipt/pages/UserAuthenticate';
-import { ScriptContextObj, createScriptContext } from 'quipt/script';
 import { ResponsiveBreakpointProivder, useBreakpoints } from 'quipt/responsive';
 
 function App(props: { children?: JSX.Element }): JSX.Element {
     const authenticationContext = useAuthentication()!;
     const navigate = useNavigate();
-    const scriptContext = createScriptContext(authenticationContext);
     const breakpoints = useBreakpoints();
 
     const unsubscribe = authenticationContext.onLogout.subscribe(() => navigate('/'));
@@ -29,15 +27,13 @@ function App(props: { children?: JSX.Element }): JSX.Element {
     });
 
     return (
-        <ScriptContextObj.Provider value={scriptContext}>
-            <div className="relative z-0 flex min-h-0 w-full flex-1 flex-col">
-                {!breakpoints.md && <Header />}
-                <div className="relative z-0 flex min-h-0 w-full flex-1">
-                    {breakpoints.md && authenticationContext.isLoggedIn && <SideMenu />}
-                    {props.children}
-                </div>
+        <div className="relative z-0 flex min-h-0 w-full flex-1 flex-col">
+            {!breakpoints.md && <Header />}
+            <div className="relative z-0 flex min-h-0 w-full flex-1">
+                {breakpoints.md && authenticationContext.isLoggedIn && <SideMenu />}
+                {props.children}
             </div>
-        </ScriptContextObj.Provider>
+        </div>
     );
 }
 

@@ -1,4 +1,5 @@
-import { CSSProperties, HTMLAttributes, JSX, useEffect, useRef } from 'quipt/rexport';
+import React, { useLayoutEffect } from 'react';
+import { CSSProperties, ComponentProps, JSX, useRef } from 'quipt/rexport';
 
 import { Chart, ChartConfiguration } from 'chart.js/auto';
 import { decode } from 'html-entities';
@@ -23,9 +24,9 @@ export function FormattedStringView({ string }: { string: FormattedString }): JS
         <>
             {string.map(item =>
                 item.style ? (
-                    <span style={item.style}>{decode(item.string)}</span>
+                    <span style={item.style} key={item.string}>{decode(item.string)}</span>
                 ) : (
-                    decode(item.string)
+                    <React.Fragment key={item.string}>{decode(item.string)}</React.Fragment>
                 )
             )}
         </>
@@ -204,20 +205,23 @@ export function pluralize(count: number, singular: string, plural: string): stri
 }
 
 export function SimpleChart(
-    props: HTMLAttributes<HTMLCanvasElement> & {
+    { onConfig, ...rest }: ComponentProps<'canvas'> & {
         onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration;
     },
 ): JSX.Element {
     const chartJSCanvas = useRef<HTMLCanvasElement>(null);
-    let chart: Chart | undefined;
+    const chart = useRef<Chart>(null);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (chartJSCanvas.current === null) return;
         const ctx = chartJSCanvas.current.getContext('2d')!;
-        chart = new Chart(ctx, props.onConfig(ctx));
-    });
+        chart.current = new Chart(ctx, onConfig(ctx));
+        return () => {
+            chart.current?.destroy();
+        };
+    }, [onConfig, chartJSCanvas.current]);
 
-    return <canvas ref={chartJSCanvas} {...props} />;
+    return <canvas ref={chartJSCanvas} {...rest} />;
 }
 
 export function leftPad(data: number[], length: number): number[] {

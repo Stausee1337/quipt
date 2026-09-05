@@ -1,13 +1,11 @@
 import {
-    HTMLAttributes,
+    ComponentProps,
     JSX,
     Ref,
-    useEffect,
     useMemo,
     useState,
-    onCleanup,
-    onMount,
     useRef,
+    useEffect,
 } from 'quipt/rexport';
 
 import { useQuery } from '@tanstack/react-query';
@@ -29,11 +27,10 @@ import {
     progressBarRed,
     progressBarYellow,
 } from 'quipt/components/common';
-import { Script } from 'quipt/schemas';
 import { Button, useScrollContainer } from 'quipt/components/basics';
-import { useContext } from 'quipt/rexport';
-import { ScriptContextObj } from 'quipt/script';
+import { scriptQueryOptions, useCommitNewConfidences } from 'quipt/script';
 import { useNavigate } from 'react-router';
+import { useAuthentication } from 'quipt/client';
 
 type Confidence = 'low' | 'medium' | 'high';
 type OnConfidenceReportHandler = (confidence: Confidence) => void;
@@ -119,9 +116,7 @@ function ConfidenceReportView({diff, trend, streak, onConfidenceReport}: {
         onConfidenceReport(confidence);
     }
 
-    const indicatorColor = useMemo(() =>
-        diff ? calculateIndicatorColor(diff) : undefined,
-    []);
+    const indicatorColor = diff ? calculateIndicatorColor(diff) : undefined;
 
     return (
         <div className="flex items-center justify-end gap-2 text-sm">
@@ -166,7 +161,7 @@ function ConfidenceReportView({diff, trend, streak, onConfidenceReport}: {
 }
 
 function TextCueView(
-    { idx, currentIdx, textCues, divisionInfo, onConfidenceUpdate, ...rest }: HTMLAttributes<HTMLDivElement> & {
+    { idx, currentIdx, textCues, divisionInfo, onConfidenceUpdate, ...rest }: ComponentProps<'div'> & {
         idx: number;
         currentIdx: number;
         textCues: TextCue[];
@@ -211,13 +206,13 @@ function TextCueView(
     );
 }
 
-function ConfettiCanvas(props: HTMLAttributes<HTMLCanvasElement>): JSX.Element {
-    let confettiCanvas: HTMLCanvasElement | undefined = undefined;
+function ConfettiCanvas(props: ComponentProps<'canvas'>): JSX.Element {
+    const confettiCanvas = useRef<HTMLCanvasElement>(null);
 
-    onMount(() => {
-        const creater = confetti.create(confettiCanvas, { resize: true });
+    useEffect(() => {
+        const creater = confetti.create(confettiCanvas.current ?? undefined, { resize: true });
         creater();
-    });
+    }, [confettiCanvas.current]);
 
     return <canvas ref={confettiCanvas} {...props} />;
 }
@@ -498,9 +493,32 @@ function computeConfidenceInfo(info: DivisionInfo, textCueIdx: number, confidenc
     return { diff, streak, trend };
 }
 
-// Remember, `TrainingRunView` (at least theoretically) is resettable. I don't really know how this
-// is supposed to be done, its just clear to me that this should normally be considered quite early
-// in the architecture (LOL).
+// function scoreCountAnimation(start: number, end: number, setScoreString: (score: string) => void) {
+//     const effect: string[] = [];
+//     for (let c = start; c <= end; c++) {
+//         effect.push(String(c));
+//     }
+// 
+//     let currentIndex = 0;
+//     function advance() {
+//         if (currentIndex === effect.length - 1) {
+//             clearInterval(interval);
+//         }
+//         setScoreString(effect[currentIndex]);
+//         currentIndex++;
+//     }
+// 
+//     let interval = 0;
+//     advance();
+//     if (effect.length == 1) return;
+// 
+//     let delta = 75;
+//     if (effect.length - 1 > 4) delta = 300 /* ms */ / (effect.length - 1);
+// 
+//     interval = setInterval(advance, delta);
+// }
+
+// FXIME: componnent too big; runs into performance issues with react
 function TrainingRunView(props: {
     divisionInfo: DivisionInfo;
     textCues: TextCue[];
@@ -510,14 +528,11 @@ function TrainingRunView(props: {
 }) {
     const maxScore = props.divisionInfo.textCues * 4; // FIXME: maxScore is pretty arbitrary
     const scrollContainer = useScrollContainer();
-    const observer = new IntersectionObserver(
-        entries => setStickyDivisionVisible(!entries[0].isIntersecting),
-        { root: scrollContainer },
-    );
 
     const scoreRef = useRef<HTMLHeadingElement>(null);
     const divisionNameRef = useRef<HTMLHeadingElement>(null);
     const scoreboxRef = useRef<HTMLDivElement>(null);
+    const observerRef = useRef<IntersectionObserver>(null);
 
     const [stickyDivisionVisible, setStickyDivisionVisible] = useState<boolean>(false);
     const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -526,40 +541,22 @@ function TrainingRunView(props: {
     const [reachedEnd, setReachedEnd] = useState<boolean>(false);
     const [currentBarTotal, setCurrentBarTotal] = useState<number>(maxScore);
 
+    useEffect(() => {
+        if (divisionNameRef.current === null) return;
+        const divisionNameElement = divisionNameRef.current;
+        const observer = observerRef.current = new IntersectionObserver(
+            entries => setStickyDivisionVisible(!entries[0].isIntersecting),
+            { root: scrollContainer },
+        );
+        observerRef.current.observe(divisionNameElement);
+
+        return () => {
+            observer.unobserve(divisionNameElement);
+        };
+    }, [divisionNameRef.current, scrollContainer]);
+
+
     const progressBarColor = useMemo<string>(() => calculateBarColor(currentScore, maxScore), [currentScore]);
-
-    onMount(() => {
-        divisionNameRef.current && observer.observe(divisionNameRef.current);
-    });
-
-    onCleanup(() => {
-        divisionNameRef.current && observer.unobserve(divisionNameRef.current);
-    });
-
-    function scoreCountAnimation(start: number, end: number) {
-        const effect: string[] = [];
-        for (let c = start; c <= end; c++) {
-            effect.push(String(c));
-        }
-
-        let currentIndex = 0;
-        function advance() {
-            if (currentIndex === effect.length - 1) {
-                clearInterval(interval);
-            }
-            setScoreString(effect[currentIndex]);
-            currentIndex++;
-        }
-
-        let interval = 0;
-        advance();
-        if (effect.length == 1) return;
-
-        let delta = 75;
-        if (effect.length - 1 > 4) delta = 300 /* ms */ / (effect.length - 1);
-
-        interval = setInterval(advance, delta);
-    }
 
     function revealNextCue(onAnimationFinished?: () => void) {
         if (scrollContainer === undefined) return;
@@ -574,17 +571,19 @@ function TrainingRunView(props: {
 
         scrollContainer.scrollTop = prev;
 
-        scrollAnimation(
-            scrollContainer,
-            scrollContainer.scrollHeight - scrollContainer.offsetHeight,
-            250,
-            onAnimationFinished,
-        );
+        queueMicrotask(() => {
+            scrollAnimation(
+                scrollContainer,
+                scrollContainer.scrollHeight - scrollContainer.offsetHeight,
+                250,
+                onAnimationFinished,
+            );
+        })
     }
 
     function updateScore(diff: number) {
         setCurrentScore(currentScore + diff);
-        scoreCountAnimation(currentScore, currentScore + diff);
+        setScoreString(String(currentScore + diff));
 
         if (currentScore > currentBarTotal && currentBarTotal < props.divisionInfo.highScore)
             setCurrentBarTotal(props.divisionInfo.highScore);
@@ -659,6 +658,7 @@ function TrainingRunView(props: {
         scrollAnimation(scrollContainer!, 0, 300, () => {
             setCurrentIndex(0);
             setCurrentScore(0);
+            setScoreString('0');
             setReachedEnd(false);
             setCurrentBarTotal(maxScore);
         })
@@ -695,6 +695,7 @@ function TrainingRunView(props: {
                         divisionInfo={props.divisionInfo}
                         textCues={props.textCues}
                         onConfidenceUpdate={onConfidenceUpdate}
+                        key={idx}
                     />
                 ))}
             </div>
@@ -744,7 +745,9 @@ export function TrainingRunWrapper(props: {
     scriptID: schemas.UUID;
     divisionIdx: number;
 }): JSX.Element {
-    const scriptQuery = useQuery<Script>({ queryKey: ['script', props.scriptID] });
+    const authentication = useAuthentication();
+    const scriptQuery = useQuery(scriptQueryOptions(authentication, props.scriptID));
+    const commitNewConfidences = useCommitNewConfidences();
     const navigate = useNavigate();
 
     type CapturedDivision = {
@@ -755,11 +758,8 @@ export function TrainingRunWrapper(props: {
     };
 
     // FIXME: all of this capturing turns pretty ugly upon introducing resetting
-    const [capturedDivision, setCapturedDivision] = useState<CapturedDivision>();
-
-    useEffect(() => {
+    const capturedDivision = useMemo<CapturedDivision|undefined>(() => {
         if (scriptQuery.status !== 'success') return; 
-        const scriptContext = useContext(ScriptContextObj);
         const divisionIdx = props.divisionIdx;
 
         const script = scriptQuery.data;
@@ -777,7 +777,11 @@ export function TrainingRunWrapper(props: {
         const newConfidences: number[] = Array(division.textCues.length).fill(0);
 
         function trainingRunCompltedHandler() {
-            scriptContext?.commitNewConfidences(divisionIdx, [...newConfidences]);
+            commitNewConfidences.mutate({
+                scriptID: props.scriptID,
+                divisionIdx,
+                newScores: [...newConfidences]
+            });
             newConfidences.length = 0;
         }
 
@@ -785,16 +789,15 @@ export function TrainingRunWrapper(props: {
             newConfidences[cueIdx] = points;
         }
 
-        setCapturedDivision({
+        return {
             info: computeDivisionInfo(division),
             textCues,
             trainingRunCompltedHandler,
             pointsScoredHandler,
-        });
-    });
+        };
+    }, [scriptQuery, props.divisionIdx]);
 
     function nextDivision() {
-        setCapturedDivision(undefined);
         navigate(`/train/${props.scriptID}/${props.divisionIdx + 2}`, { replace: true });
     }
 
@@ -807,6 +810,7 @@ export function TrainingRunWrapper(props: {
                     onTrainingRunCompleted={capturedDivision.trainingRunCompltedHandler}
                     onPointsScored={capturedDivision.pointsScoredHandler}
                     onNext={nextDivision}
+                    key={`${props.scriptID}-${props.divisionIdx}`}
                 />
             )}
         </>

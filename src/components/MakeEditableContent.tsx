@@ -1,4 +1,4 @@
-import { ComponentProps, JSX, JSXElementConstructor, useEffect, useRef } from 'quipt/rexport';
+import { ComponentProps, JSX, JSXElementConstructor, useRef } from 'quipt/rexport';
 
 type ComponentType = keyof JSX.IntrinsicElements | JSXElementConstructor<any>;
 
@@ -14,14 +14,6 @@ export function MakeEditableContent<T extends ComponentType>(
 ): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        const element = inputRef.current;
-        if (element !== null && element.isConnected) {
-            element.focus();
-            element.select();
-        }
-    }, [inputRef.current]);
-
     return (
         <Component {...rest}>
             {isEditable ? (
@@ -31,6 +23,7 @@ export function MakeEditableContent<T extends ComponentType>(
                     value={children}
                     onBlur={() => onEditEnd()}
                     onInput={e => onContentChange(e.currentTarget.value)}
+                    autoFocus
                 />
             ) : (
                 children

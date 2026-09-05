@@ -1,6 +1,6 @@
 import { createContext, useState, useMemo, useContext } from 'quipt/rexport';
 
-import { QueryClient, useQuery } from '@tanstack/react-query';
+import { QueryClient, queryOptions, useQuery } from '@tanstack/react-query';
 import { createSimpleExecutor, runtime } from 'qrpc-js';
 
 import {
@@ -9,6 +9,7 @@ import {
     CueService,
     DivisionService,
     ScriptService,
+    User,
     UserService,
 } from 'quipt/schemas';
 
@@ -189,10 +190,13 @@ export function createAuthenticationContext(): AuthenticationContext {
     };
 }
 
-export function useAuthentication(): AuthenticationContext | undefined {
-    const value = useContext(AuthenticationContextObj);
-    if (value === null) {
-        throw new Error('useAuthentication can only be used inside an AuthenticationContext');
-    }
-    return value;
+export function useAuthentication(): AuthenticationContext {
+    return useContext(AuthenticationContextObj)!;
+}
+
+export function userQueryOptions(authentication: AuthenticationContext) {
+    return queryOptions<User>({
+        queryKey: ['user'],
+        queryFn: () => authentication.services!.user.get()
+    });
 }

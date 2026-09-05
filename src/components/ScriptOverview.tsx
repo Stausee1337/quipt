@@ -1,4 +1,4 @@
-import { HTMLAttributes, JSX, useEffect, useMemo } from 'quipt/rexport';
+import { ComponentProps, JSX, useMemo } from 'quipt/rexport';
 
 import { Link } from 'react-router';
 import classnames from 'classnames';
@@ -15,9 +15,11 @@ import {
 } from 'quipt/components/common';
 import { Script } from 'quipt/schemas';
 import { InfoText } from 'quipt/components/basics';
+import { scriptQueryOptions } from 'quipt/script';
+import { useAuthentication } from 'quipt/client';
 
 function IconScore(
-    { icon, className, children, ...rest }: HTMLAttributes<HTMLSpanElement> & {
+    { icon, className, children, ...rest }: ComponentProps<'span'> & {
         icon: string;
     },
 ): JSX.Element {
@@ -131,7 +133,7 @@ function DivisionItem({ script, idx }: { script: Script; idx: number }): JSX.Ele
                 <InfoText>{divisionInfo.actors.length} Spieler</InfoText>
                 <InfoText>{pluralize(divisionInfo.textCues, 'Einsatz', 'Einsätze')}</InfoText>
             </div>
-            <SimpleChart className="my-auto w-25" onConfig={chartConfigFactory} />
+            <SimpleChart className="my-auto" width="100" onConfig={chartConfigFactory} />
             <div className="ml-1 flex w-18 flex-col justify-evenly">
                 <IconScore icon="trophy-fill" className="text-pgb-yellow">
                     {highScore}
@@ -148,24 +150,30 @@ function DivisionItem({ script, idx }: { script: Script; idx: number }): JSX.Ele
 }
 
 export function ScriptOverview({ scriptID }: { scriptID: schemas.UUID }): JSX.Element {
-    const scriptQuery = useQuery<Script>({ queryKey: ['script', scriptID] });
-    const script = scriptQuery.data!;
-    const scriptInfo = useMemo(() => computeScriptInfo(script), [script]);
-
-    useEffect(() => {
-        document.title = `${script.name} - Quipt`;
-    }, [script]);
+    const authentication = useAuthentication();
+    const scriptQuery = useQuery(scriptQueryOptions(authentication, scriptID));
+    const scriptInfo = useMemo(() => scriptQuery.isSuccess 
+        ? computeScriptInfo(scriptQuery.data)
+        : undefined, [scriptQuery]);
 
     return (
         <div className="flex w-full flex-1 flex-col">
-            <div className="flex flex-col gap-1 p-2">
-                <h2 className="text-heading-2">{script.name}</h2>
-                <InfoText>{pluralize(scriptInfo.textCues, 'Einsatz', 'Einsätze')}</InfoText>
-                <InfoText className="overflow-hidden text-ellipsis whitespace-nowrap">
-                    {scriptInfo.actors.join(', ')}
-                </InfoText>
-            </div>
-            {script.divisions.map((_, idx) => <DivisionItem script={script} idx={idx} key={script.divisions[idx].name} />)}
+            {scriptQuery.isSuccess &&(
+                <>
+                    <div className="flex flex-col gap-1 p-2">
+                        <h2 className="text-heading-2">{scriptQuery.data.name}</h2>
+                        <InfoText>{pluralize(scriptInfo!.textCues, 'Einsatz', 'Einsätze')}</InfoText>
+                        <InfoText className="overflow-hidden text-ellipsis whitespace-nowrap">
+                            {scriptInfo!.actors.join(', ')}
+                        </InfoText>
+                    </div>
+                    {scriptQuery.data.divisions
+                        .map((_, idx) => <DivisionItem 
+                            script={scriptQuery.data} 
+                            idx={idx}
+                            key={scriptQuery.data.divisions[idx].name} />)}
+                </>
+            )}
         </div>
     );
 }

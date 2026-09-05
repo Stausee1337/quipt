@@ -1,106 +1,54 @@
-import { Component, JSX, createContext, useEffect, useState } from 'quipt/rexport';
-import { useContext } from 'quipt/rexport';
-
 import { useParams } from 'react-router';
-import { UseQueryResult, useQuery } from '@tanstack/react-query';
+import { queryOptions, useMutation } from '@tanstack/react-query';
 import { schemas } from 'qrpc-js';
 
-import { AuthenticationContext, queryClient } from 'quipt/client';
-import { Script } from 'quipt/schemas';
+import { AuthenticationContext, queryClient, useAuthentication } from 'quipt/client';
+import { Script, TextCuePair } from 'quipt/schemas';
 
-export const ScriptContextObj = createContext<ScriptContext|undefined>(undefined);
 
 export type PartialScript = Omit<Script, 'divisions'>;
 
-export interface ScriptContext {
-    readonly currentScript: schemas.UUID | undefined;
-    scriptQuery(): UseQueryResult<Script>;
-    createNewScript(script: Script): Promise<Script>;
-    commitNewConfidences(divisionIdx: number, newScores: number[]): void;
-    deleteScript(uuid: schemas.UUID): void;
-    renameScript(uuid: schemas.UUID, name: string): void;
+export function scriptsQueryOptions(authentication: AuthenticationContext) {
+    return queryOptions<PartialScript[]>({
+        queryKey: ['scripts'],
+        queryFn: () => authentication.services!.script.list()
+    });
 }
 
-export function DelayedScriptInstantiator<C extends Component<{ scriptID: schemas.UUID }>>(props: {
-    component: C;
-}): JSX.Element {
-    const scriptContext = useContext(ScriptContextObj)!;
-    const scriptQuery = useQuery<Script>({
-        queryKey: ['script', scriptContext.currentScript],
-    });
-
-    // const isError = useMemo(() => scriptQuery.status === "error");
-    // if (isError()) onError();
-    // return null;
-
-    return (
-        <>
-            {scriptQuery.status === 'success' ? (
-                <Dynamic component={props.component} scriptID={scriptQuery.data.uuid} />
-            ) : null}
-        </>
-    );
-}
-
-// const STALE_TIME: number = 10 * 60_000; // 10 Minutes
-const STALE_TIME: number = Infinity;
-
-export function createScriptContext(authenticationContext: AuthenticationContext): ScriptContext {
-    const location = useParams();
-
-    const [currentScriptId, setCurrentScriptId] = useState<schemas.UUID | undefined>(undefined);
-    useQuery({
-        queryKey: ['scriptsXXXX'],
-        queryFn: () => authenticationContext.services!.script.list(),
-        staleTime: STALE_TIME,
-    });
-    // const scriptCache: Map<schemas.UUID, Script> = new Map();
-    
-    async function doStuff() {
-        let notValidatedScriptId: string | undefined = location.uuid;
-        if (notValidatedScriptId === undefined) {
-            setCurrentScriptId(undefined);
-            return;
-        }
-        const scripts = await queryClient.ensureQueryData<Script[]>({
-            queryKey: ['scriptsXXXX'],
-        });
-        const script = scripts.find(s => s.uuid === notValidatedScriptId);
-        if (script === undefined) {
-            setCurrentScriptId(undefined);
-            return;
-        }
-        setCurrentScriptId(script.uuid);
-
-    }
-
-    useEffect(() => { doStuff() }, [location]);
-
-    const scriptQuery = useQuery({
-        queryKey: ['script', currentScriptId],
+export function scriptQueryOptions(authentication: AuthenticationContext, scriptID: schemas.UUID) {
+    return queryOptions<Script>({
+        queryKey: ['script', scriptID],
         async queryFn() {
-            const scriptUuid = currentScriptId;
-            if (scriptUuid === undefined) throw 'unknown script';
-            return await authenticationContext.services!.script.get({
-                uuid: scriptUuid,
-            });
+            return await authentication.services!.script.get({ uuid: scriptID });
         },
-        staleTime: STALE_TIME,
-    });
+    })
+}
 
+export type ScriptParams = {
+    scriptID: schemas.UUID|undefined,
+    divisionIdx: number|undefined
+};
+
+export function useScriptParams(): ScriptParams {
+    const params = useParams();
+    const division = parseInt(params.division ?? '');
     return {
-        get currentScript() {
-            return currentScriptId;
-        },
-        scriptQuery() {
-            // FIXME: I think the correct approach is to have multiple queries, actually
-            return scriptQuery;
-        },
-        async commitNewConfidences(divisionIdx, newScores) {
-            const scriptId = currentScriptId!;
+        scriptID: params.uuid as (schemas.UUID|undefined),
+        divisionIdx: isNaN(division) ? undefined : division - 1
+    };
+}
 
-            await queryClient.cancelQueries({ queryKey: ['script', scriptId] });
-            queryClient.setQueryData<Script>(['script', scriptId], old => {
+export function useCommitNewConfidences() {
+    const authentication = useAuthentication();
+
+    return useMutation({
+        async mutationFn({
+            scriptID,
+            divisionIdx,
+            newScores
+        }: { scriptID: schemas.UUID; divisionIdx: number; newScores: number[]; }) {
+            await queryClient.cancelQueries({ queryKey: ['script', scriptID] });
+            queryClient.setQueryData<Script>(['script', scriptID], old => {
                 if (!old) return old;
 
                 const division = old.divisions[divisionIdx];
@@ -124,73 +72,272 @@ export function createScriptContext(authenticationContext: AuthenticationContext
                 };
             });
 
-            await authenticationContext.services!.division.saveScores({
-                scriptId: scriptId,
+            await authentication.services!.division.saveScores({
+                scriptId: scriptID,
                 divisionIdx,
                 newScores,
             });
-        },
-        async createNewScript(script) {
-            const newScript = window.structuredClone(script);
-            newScript.uuid = '00000000-0000-0000-0000-000000000000' as schemas.UUID;
+        }
+    });
+}
 
-            let uuid: schemas.UUID;
-            try {
-                uuid = await authenticationContext.services!.script.create({
-                    script: newScript,
-                });
-            } catch (error) {
-                throw `could not create new script: ${error}`;
-            }
+export function useDeleteScript() {
+    const authentication = useAuthentication();
 
-            const createdAt = Date.now();
-
-            newScript.uuid = uuid;
-            newScript.createdAt = createdAt;
-
-            queryClient.invalidateQueries({ queryKey: ['scriptsXXXX'] });
-
-            return newScript;
-        },
-        async deleteScript(uuid) {
-            await queryClient.cancelQueries({ queryKey: ['scriptsXXXX'] });
-            queryClient.setQueryData<PartialScript[]>(['scriptsXXXX'], old => {
+    return useMutation({
+        async mutationFn({ scriptID }: { scriptID: schemas.UUID }) {
+            await queryClient.cancelQueries({ queryKey: ['scripts'] });
+            queryClient.setQueryData<PartialScript[]>(['scripts'], old => {
                 if (!old) return old;
 
-                return old.filter(s => s.uuid !== uuid);
+                return old.filter(s => s.uuid !== scriptID);
             });
 
-            queryClient.removeQueries({ queryKey: ['script', uuid] });
+            queryClient.removeQueries({ queryKey: ['script', scriptID] });
 
             try {
-                await authenticationContext.services!.script.delete({ uuid });
+                await authentication.services!.script.delete({ uuid: scriptID });
             } catch (error) {
                 throw `could not delete script: ${error}`;
             }
-        },
-        async renameScript(uuid, name) {
+        }
+    });
+}
+
+export function useRenameScript() {
+    const authentication = useAuthentication();
+
+    return useMutation({
+        async mutationFn({ scriptID, name }: { scriptID: schemas.UUID, name: string }) {
             await queryClient.cancelQueries({ queryKey: ['scriptsXXXX'] });
             queryClient.setQueryData<PartialScript[]>(['scriptsXXXX'], old => {
                 if (!old) return old;
 
-                return old.map(s => (s.uuid !== uuid ? s : { ...s, name }));
+                return old.map(s => (s.uuid !== scriptID ? s : { ...s, name }));
             });
 
-            await queryClient.cancelQueries({ queryKey: ['script', uuid] });
-            queryClient.setQueryData<Script>(['script', uuid], old => {
+            await queryClient.cancelQueries({ queryKey: ['script', scriptID] });
+            queryClient.setQueryData<Script>(['script', scriptID], old => {
                 if (!old) return old;
 
                 return { ...old, name };
             });
 
             try {
-                await authenticationContext.services!.script.rename({
-                    uuid,
-                    name,
-                });
+                await authentication.services!.script.rename({ uuid: scriptID, name });
             } catch (error) {
                 throw `could not rename script: ${error}`;
             }
-        },
-    };
+        }
+    });
+}
+
+// interface ScriptEditContext {
+//     readonly scriptInfo: ScriptInfo;
+//     updateDescription(newDescription: string): Promise<{ prev: Script }>;
+//     renameDivision(newName: string): Promise<{ prev: Script }>;
+//     deleteCue(index: number): Promise<{ prev: Script }>;
+//     insertCue(index: number, newCue: TextCuePair): Promise<{ prev: Script }>;
+//     updateCue(index: number, newCue: TextCuePair): Promise<{ prev: Script }>;
+// }
+
+export function useRenameDivision() {
+    const authentication = useAuthentication();
+
+    return useMutation({
+        async mutationFn({
+            scriptID,
+            divisionIdx,
+            name
+        }: { scriptID: schemas.UUID; divisionIdx: number; name: string; }) {
+            await queryClient.cancelQueries({
+                queryKey: ['script', scriptID],
+            });
+            const prev = queryClient.getQueryData<Script>(['script', scriptID])!;
+
+            queryClient.setQueryData<Script>(['script', scriptID], old => {
+                if (!old) return old;
+
+                return {
+                    ...old,
+                    divisions: Array.from({
+                        ...old.divisions,
+                        [divisionIdx]: {
+                            ...old.divisions[divisionIdx],
+                            name,
+                        },
+                        length: old.divisions.length,
+                    }),
+                };
+            });
+
+            await authentication.services!.division.rename({
+                scriptId: scriptID,
+                divisionIdx: divisionIdx,
+                name,
+            });
+            return { prev };
+        }
+    });
+}
+
+export function useUpdateDivisionDescription() {
+    const authentication = useAuthentication();
+    return useMutation({
+        async mutationFn({
+            scriptID,
+            divisionIdx,
+            description 
+        }: { scriptID: schemas.UUID; divisionIdx: number; description: string; }) {
+            await queryClient.cancelQueries({
+                queryKey: ['script', scriptID],
+            });
+            const prev = queryClient.getQueryData<Script>(['script', scriptID])!;
+            queryClient.setQueryData<Script>(['script', scriptID], old => {
+                if (!old) return old;
+
+                return {
+                    ...old,
+                    divisions: Array.from({
+                        ...old.divisions,
+                        [divisionIdx]: {
+                            ...old.divisions[divisionIdx],
+                            description
+                        },
+                        length: old.divisions.length,
+                    }),
+                };
+            });
+            await authentication.services!.division.updateDescription({
+                scriptId: scriptID,
+                divisionIdx,
+                description,
+            });
+            return { prev };
+        }
+    });
+}
+
+export function useCreateCue() {
+    const authentication = useAuthentication();
+    return useMutation({
+        async mutationFn({
+            scriptID,
+            divisionIdx,
+            cueIdx,
+            cue
+        }: { scriptID: schemas.UUID; divisionIdx: number; cueIdx: number; cue: TextCuePair; }) {
+            await queryClient.cancelQueries({
+                queryKey: ['script', scriptID],
+            });
+            const prev = queryClient.getQueryData<Script>(['script', scriptID])!;
+            queryClient.setQueryData<Script>(['script', scriptID], old => {
+                if (!old) return old;
+
+                const textCues = old.divisions[divisionIdx].textCues;
+                return {
+                    ...old,
+                    divisions: Array.from({
+                        ...old.divisions,
+                        [divisionIdx]: {
+                            ...old.divisions[divisionIdx],
+                            textCues: [
+                                ...textCues.slice(0, cueIdx),
+                                cue,
+                                ...textCues.slice(cueIdx),
+                            ],
+                        },
+                        length: old.divisions.length,
+                    }),
+                };
+            });
+            await authentication.services!.cue.insert({
+                uuid: scriptID,
+                divisionIdx,
+                cueIdx,
+                cue,
+            });
+            return { prev };
+        }
+    });
+}
+
+export function useUpdateCue() {
+    const authentication = useAuthentication();
+    return useMutation({
+        async mutationFn({
+            scriptID,
+            divisionIdx,
+            cueIdx,
+            cue
+        }: { scriptID: schemas.UUID; divisionIdx: number; cueIdx: number; cue: TextCuePair; }) {
+            await queryClient.cancelQueries({
+                queryKey: ['script', scriptID],
+            });
+            const prev = queryClient.getQueryData<Script>(['script', scriptID])!;
+            queryClient.setQueryData<Script>(['script', scriptID], old => {
+                if (!old) return old;
+
+                const target = old.divisions[divisionIdx].textCues[cueIdx];
+                return {
+                    ...old,
+                    divisions: Array.from({
+                        ...old.divisions,
+                        [divisionIdx]: {
+                            ...old.divisions[divisionIdx],
+                            textCues: old.divisions[divisionIdx].textCues.map(p =>
+                                p !== target ? p : cue,
+                            ),
+                        },
+                        length: old.divisions.length,
+                    }),
+                };
+            });
+            await authentication.services!.cue.update({
+                uuid: scriptID,
+                divisionIdx,
+                cueIdx,
+                newCue: cue,
+            });
+            return { prev };
+        }
+    });
+}
+
+export function useDeleteCue() {
+    const authentication = useAuthentication();
+    return useMutation({
+        async mutationFn({
+            scriptID,
+            divisionIdx,
+            cueIdx,
+        }: { scriptID: schemas.UUID; divisionIdx: number; cueIdx: number; }) {
+            await queryClient.cancelQueries({
+                queryKey: ['script', scriptID],
+            });
+            const prev = queryClient.getQueryData<Script>(['script', scriptID])!;
+            queryClient.setQueryData<Script>(['script', scriptID], old => {
+                if (!old) return old;
+
+                const toRemove = old.divisions[divisionIdx].textCues[cueIdx];
+                return {
+                    ...old,
+                    divisions: Array.from({
+                        ...old.divisions,
+                        [cueIdx]: {
+                            ...old.divisions[cueIdx],
+                            textCues: old.divisions[cueIdx].textCues.filter(p => p !== toRemove),
+                        },
+                        length: old.divisions.length,
+                    }),
+                };
+            });
+            await authentication.services!.cue.delete({
+                uuid: scriptID,
+                divisionIdx,
+                cueIdx,
+            });
+            return { prev };
+        }
+    });
 }

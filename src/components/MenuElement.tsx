@@ -8,7 +8,6 @@ import {
     useState,
     onCleanup,
     onMount,
-    useContext,
 } from 'quipt/rexport';
 import { createPortal } from 'react-dom';
 
@@ -17,13 +16,12 @@ import { useQuery } from '@tanstack/react-query';
 import { schemas } from 'qrpc-js';
 import classnames from 'classnames';
 
-import { useAuthentication } from 'quipt/client';
+import { useAuthentication, userQueryOptions } from 'quipt/client';
 import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
 import { Popover, PopoverMenuItem } from 'quipt/components/Popover';
 import QuiptLogo from 'quipt/components/Quipt-Logo';
 import { Modal, useModal, useModalContext } from 'quipt/modals';
-import { ScriptContextObj } from 'quipt/script';
-import { Script, User } from 'quipt/schemas';
+import { PartialScript, scriptsQueryOptions, useDeleteScript, useRenameScript, useScriptParams } from 'quipt/script';
 import { Button, IconButton } from 'quipt/components/basics';
 
 type ComponentType = keyof JSX.IntrinsicElements | JSXElementConstructor<any>;
@@ -83,7 +81,7 @@ function ListItem({
     );
 }
 
-function DeleteScriptModal(props: { script: Script }): JSX.Element {
+function DeleteScriptModal(props: { script: PartialScript }): JSX.Element {
     const { dismiss, accept } = useModalContext()!;
     return (
         <>
@@ -134,15 +132,17 @@ function ScriptListItemMenuButton(props: {
     );
 }
 
-function ScriptListItem(props: { script: Script }): JSX.Element {
+function ScriptListItem(props: { script: PartialScript }): JSX.Element {
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [currentContent, setCurrentContent] = useState<string>(props.script.name);
-    const scriptContext = useContext(ScriptContextObj)!;
+    const scriptParams = useScriptParams();
+    const deleteScriptMutation = useDeleteScript();
+    const renameScriptMutation = useRenameScript();
     const [modalContext, openModal] = useModal<schemas.UUID>();
 
     async function deleteScript() {
         const modalResult = await openModal(<DeleteScriptModal script={props.script}/>);
-        if (modalResult.type === 'accept') scriptContext.deleteScript(modalResult.result);
+        if (modalResult.type === 'accept') deleteScriptMutation.mutate({ scriptID: modalResult.result });
     }
 
     async function renameScript() {
@@ -151,9 +151,9 @@ function ScriptListItem(props: { script: Script }): JSX.Element {
 
     function onRenameDone() {
         setIsEditing(false);
-        const newName = currentContent;
-        if (newName === props.script.name || newName.length === 0) return;
-        scriptContext.renameScript(props.script.uuid!, newName);
+        const name = currentContent;
+        if (name === props.script.name || name.length === 0) return;
+        renameScriptMutation.mutate({ scriptID: props.script.uuid!, name });
     }
 
     return (
@@ -169,7 +169,7 @@ function ScriptListItem(props: { script: Script }): JSX.Element {
                 menuButton={
                     <ScriptListItemMenuButton deleteScript={deleteScript} renameScript={renameScript} />
                 }
-                current={props.script.uuid === scriptContext.currentScript}>
+                current={props.script.uuid === scriptParams.scriptID}>
                 {currentContent}
             </MakeEditableContent>
         </>
@@ -179,14 +179,8 @@ function ScriptListItem(props: { script: Script }): JSX.Element {
 export function SideMenu(props: { closer?: () => void }): JSX.Element {
     const authentication = useAuthentication()!;
 
-    const user = useQuery<User>({
-        queryKey: ['user'],
-        queryFn: () => authentication.services!.user.get()
-    });
-    const scriptsQuery = useQuery<Script[]>({
-        queryKey: ['scripts'],
-        queryFn: () => authentication.services!.script.list()
-    });
+    const user = useQuery(userQueryOptions(authentication));
+    const scriptsQuery = useQuery(scriptsQueryOptions(authentication));
 
     useBeforeUnload(() => {
         props.closer?.();
@@ -231,7 +225,7 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
                 )}
             </div>
 
-            {user.isLoading || user.isError || user.data === undefined ? null : (
+            {user.isLoading || user.isError || user.isPending ? null : (
                 <div className="footer">
                     <MenuSlot component="div" className="border-accent1 border-t" icon="person-circle">
                         <div className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
