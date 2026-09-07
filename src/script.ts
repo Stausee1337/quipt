@@ -5,13 +5,12 @@ import { schemas } from 'qrpc-js';
 import { AuthenticationContext, queryClient, useAuthentication } from 'quipt/client';
 import { Script, TextCuePair } from 'quipt/schemas';
 
-
 export type PartialScript = Omit<Script, 'divisions'>;
 
 export function scriptsQueryOptions(authentication: AuthenticationContext) {
     return queryOptions<PartialScript[]>({
         queryKey: ['scripts'],
-        queryFn: () => authentication.services!.script.list()
+        queryFn: () => authentication.services!.script.list(),
     });
 }
 
@@ -21,20 +20,20 @@ export function scriptQueryOptions(authentication: AuthenticationContext, script
         async queryFn() {
             return await authentication.services!.script.get({ uuid: scriptID });
         },
-    })
+    });
 }
 
 export type ScriptParams = {
-    scriptID: schemas.UUID|undefined,
-    divisionIdx: number|undefined
+    scriptID: schemas.UUID | undefined;
+    divisionIdx: number | undefined;
 };
 
 export function useScriptParams(): ScriptParams {
     const params = useParams();
     const division = parseInt(params.division ?? '');
     return {
-        scriptID: params.uuid as (schemas.UUID|undefined),
-        divisionIdx: isNaN(division) ? undefined : division - 1
+        scriptID: params.uuid as schemas.UUID | undefined,
+        divisionIdx: isNaN(division) ? undefined : division - 1,
     };
 }
 
@@ -45,8 +44,12 @@ export function useCommitNewConfidences() {
         async mutationFn({
             scriptID,
             divisionIdx,
-            newScores
-        }: { scriptID: schemas.UUID; divisionIdx: number; newScores: number[]; }) {
+            newScores,
+        }: {
+            scriptID: schemas.UUID;
+            divisionIdx: number;
+            newScores: number[];
+        }) {
             await queryClient.cancelQueries({ queryKey: ['script', scriptID] });
             queryClient.setQueryData<Script>(['script', scriptID], old => {
                 if (!old) return old;
@@ -77,7 +80,7 @@ export function useCommitNewConfidences() {
                 divisionIdx,
                 newScores,
             });
-        }
+        },
     });
 }
 
@@ -100,7 +103,7 @@ export function useDeleteScript() {
             } catch (error) {
                 throw `could not delete script: ${error}`;
             }
-        }
+        },
     });
 }
 
@@ -108,7 +111,7 @@ export function useRenameScript() {
     const authentication = useAuthentication();
 
     return useMutation({
-        async mutationFn({ scriptID, name }: { scriptID: schemas.UUID, name: string }) {
+        async mutationFn({ scriptID, name }: { scriptID: schemas.UUID; name: string }) {
             await queryClient.cancelQueries({ queryKey: ['scriptsXXXX'] });
             queryClient.setQueryData<PartialScript[]>(['scriptsXXXX'], old => {
                 if (!old) return old;
@@ -128,18 +131,9 @@ export function useRenameScript() {
             } catch (error) {
                 throw `could not rename script: ${error}`;
             }
-        }
+        },
     });
 }
-
-// interface ScriptEditContext {
-//     readonly scriptInfo: ScriptInfo;
-//     updateDescription(newDescription: string): Promise<{ prev: Script }>;
-//     renameDivision(newName: string): Promise<{ prev: Script }>;
-//     deleteCue(index: number): Promise<{ prev: Script }>;
-//     insertCue(index: number, newCue: TextCuePair): Promise<{ prev: Script }>;
-//     updateCue(index: number, newCue: TextCuePair): Promise<{ prev: Script }>;
-// }
 
 export function useRenameDivision() {
     const authentication = useAuthentication();
@@ -148,8 +142,12 @@ export function useRenameDivision() {
         async mutationFn({
             scriptID,
             divisionIdx,
-            name
-        }: { scriptID: schemas.UUID; divisionIdx: number; name: string; }) {
+            name,
+        }: {
+            scriptID: schemas.UUID;
+            divisionIdx: number;
+            name: string;
+        }) {
             await queryClient.cancelQueries({
                 queryKey: ['script', scriptID],
             });
@@ -177,7 +175,7 @@ export function useRenameDivision() {
                 name,
             });
             return { prev };
-        }
+        },
     });
 }
 
@@ -187,8 +185,12 @@ export function useUpdateDivisionDescription() {
         async mutationFn({
             scriptID,
             divisionIdx,
-            description 
-        }: { scriptID: schemas.UUID; divisionIdx: number; description: string; }) {
+            description,
+        }: {
+            scriptID: schemas.UUID;
+            divisionIdx: number;
+            description: string;
+        }) {
             await queryClient.cancelQueries({
                 queryKey: ['script', scriptID],
             });
@@ -202,7 +204,7 @@ export function useUpdateDivisionDescription() {
                         ...old.divisions,
                         [divisionIdx]: {
                             ...old.divisions[divisionIdx],
-                            description
+                            description,
                         },
                         length: old.divisions.length,
                     }),
@@ -214,7 +216,7 @@ export function useUpdateDivisionDescription() {
                 description,
             });
             return { prev };
-        }
+        },
     });
 }
 
@@ -225,8 +227,13 @@ export function useCreateCue() {
             scriptID,
             divisionIdx,
             cueIdx,
-            cue
-        }: { scriptID: schemas.UUID; divisionIdx: number; cueIdx: number; cue: TextCuePair; }) {
+            cue,
+        }: {
+            scriptID: schemas.UUID;
+            divisionIdx: number;
+            cueIdx: number;
+            cue: TextCuePair;
+        }) {
             await queryClient.cancelQueries({
                 queryKey: ['script', scriptID],
             });
@@ -258,7 +265,7 @@ export function useCreateCue() {
                 cue,
             });
             return { prev };
-        }
+        },
     });
 }
 
@@ -269,8 +276,13 @@ export function useUpdateCue() {
             scriptID,
             divisionIdx,
             cueIdx,
-            cue
-        }: { scriptID: schemas.UUID; divisionIdx: number; cueIdx: number; cue: TextCuePair; }) {
+            cue,
+        }: {
+            scriptID: schemas.UUID;
+            divisionIdx: number;
+            cueIdx: number;
+            cue: TextCuePair;
+        }) {
             await queryClient.cancelQueries({
                 queryKey: ['script', scriptID],
             });
@@ -300,7 +312,7 @@ export function useUpdateCue() {
                 newCue: cue,
             });
             return { prev };
-        }
+        },
     });
 }
 
@@ -311,7 +323,11 @@ export function useDeleteCue() {
             scriptID,
             divisionIdx,
             cueIdx,
-        }: { scriptID: schemas.UUID; divisionIdx: number; cueIdx: number; }) {
+        }: {
+            scriptID: schemas.UUID;
+            divisionIdx: number;
+            cueIdx: number;
+        }) {
             await queryClient.cancelQueries({
                 queryKey: ['script', scriptID],
             });
@@ -338,6 +354,6 @@ export function useDeleteCue() {
                 cueIdx,
             });
             return { prev };
-        }
+        },
     });
 }

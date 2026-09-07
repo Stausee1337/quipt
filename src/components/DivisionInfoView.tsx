@@ -1,4 +1,4 @@
-import { JSX, ComponentProps, ReactNode } from 'quipt/rexport';
+import { JSX, ComponentProps, ReactNode } from 'react';
 
 import classnames from 'classnames';
 
@@ -18,18 +18,24 @@ export interface DivisionInfoViewProps extends ComponentProps<'div'> {
     children?: ReactNode;
 }
 
-export function DivisionInfoView({ children, style, info, external, className, ...rest }: DivisionInfoViewProps): JSX.Element {
+export function DivisionInfoView({
+    children,
+    style,
+    info,
+    external,
+    className,
+    ...rest
+}: DivisionInfoViewProps): JSX.Element {
     return (
         <div className="flex flex-col items-center gap-2">
             <div
                 className={classnames(
-                    'bg-accent1 flex max-w-17/20 flex-col gap-1 overflow-hidden rounded-lg p-2', 
-                    className
+                    'bg-accent1 flex max-w-17/20 flex-col gap-1 overflow-hidden rounded-lg p-2',
+                    className,
                 )}
                 {...rest}>
                 <InfoText className="text-center">
-                    {info.actors.join(', ')} ·{' '}
-                    {pluralize(info.textCues, 'Einsatz', 'Einsätze')}
+                    {info.actors.join(', ')} · {pluralize(info.textCues, 'Einsatz', 'Einsätze')}
                 </InfoText>
                 {external ?? (
                     <span className="text-justify whitespace-pre-wrap">
@@ -48,6 +54,9 @@ export interface CreateDivisionInfoViewProps extends ComponentProps<'div'> {
     children?: ReactNode;
 }
 
-export function CreateDivisionInfoView({ division, ...rest}: CreateDivisionInfoViewProps): JSX.Element {
+export function CreateDivisionInfoView({
+    division,
+    ...rest
+}: CreateDivisionInfoViewProps): JSX.Element {
     return <DivisionInfoView info={computeDivisionInfo(division)} {...rest} />;
 }

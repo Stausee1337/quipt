@@ -1,6 +1,6 @@
-import { JSX, onCleanup } from 'quipt/rexport';
+import { JSX } from 'react';
 
-import { Navigate, Route, Routes, BrowserRouter, useNavigate } from 'react-router';
+import { Navigate, Route, Routes, BrowserRouter } from 'react-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 
 import {
@@ -18,13 +18,7 @@ import { ResponsiveBreakpointProivder, useBreakpoints } from 'quipt/responsive';
 
 function App(props: { children?: JSX.Element }): JSX.Element {
     const authenticationContext = useAuthentication()!;
-    const navigate = useNavigate();
     const breakpoints = useBreakpoints();
-
-    const unsubscribe = authenticationContext.onLogout.subscribe(() => navigate('/'));
-    onCleanup(() => {
-        unsubscribe();
-    });
 
     return (
         <div className="relative z-0 flex min-h-0 w-full flex-1 flex-col">
@@ -46,22 +40,28 @@ export default function () {
                     <BrowserRouter>
                         <App>
                             <Routes>
-                                <Route path="/" element={<Root/>} />
+                                <Route path="/" element={<Root />} />
                                 {!authenticationContext.isLoggedIn ? (
                                     <>
-                                        <Route path="/signin" element={<UserAuthenticate/>} />
-                                        <Route path="/signup" element={<UserAuthenticate/>} />
+                                        <Route path="/signin" element={<UserAuthenticate />} />
+                                        <Route path="/signup" element={<UserAuthenticate />} />
                                     </>
                                 ) : (
                                     <>
-                                        <Route path="/new-script" element={<NewScriptRoute/>} />
-                                        <Route path="/script/:uuid" element={<ScriptRoute/>} />
-                                        <Route path="/script/:uuid/:division" element={<ScriptRoute/>} />
-                                        <Route path="/train/:uuid/:division" element={<ScriptRoute/>} />
-                                        <Route path="/dashboard" element={<></>}/>
+                                        <Route path="/new-script" element={<NewScriptRoute />} />
+                                        <Route path="/script/:uuid" element={<ScriptRoute />} />
+                                        <Route
+                                            path="/script/:uuid/:division"
+                                            element={<ScriptRoute />}
+                                        />
+                                        <Route
+                                            path="/train/:uuid/:division"
+                                            element={<ScriptRoute />}
+                                        />
+                                        <Route path="/dashboard" element={<></>} />
                                     </>
                                 )}
-                                <Route path="*" element={<Navigate to="/" />}/>
+                                <Route path="*" element={<Navigate to="/" />} />
                             </Routes>
                         </App>
                     </BrowserRouter>

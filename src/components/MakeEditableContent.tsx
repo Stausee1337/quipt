@@ -1,4 +1,4 @@
-import { ComponentProps, JSX, JSXElementConstructor, useRef } from 'quipt/rexport';
+import { ComponentProps, JSX, JSXElementConstructor, useRef } from 'react';
 
 type ComponentType = keyof JSX.IntrinsicElements | JSXElementConstructor<any>;
 
@@ -9,9 +9,14 @@ type EditableProps<T extends ComponentType, P = ComponentProps<T>> = P & {
     onEditEnd: () => void;
 };
 
-export function MakeEditableContent<T extends ComponentType>(
-    { component: Component, children, isEditable, onEditEnd, onContentChange, ...rest }: EditableProps<T>,
-): JSX.Element {
+export function MakeEditableContent<T extends ComponentType>({
+    component: Component,
+    children,
+    isEditable,
+    onEditEnd,
+    onContentChange,
+    ...rest
+}: EditableProps<T>): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null);
 
     return (

@@ -1,4 +1,4 @@
-import { useState } from 'quipt/rexport';
+import { useState } from 'react';
 
 import { useAuthentication } from 'quipt/client';
 import { SideMenuModal } from 'quipt/components/MenuElement';

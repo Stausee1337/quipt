@@ -1,4 +1,4 @@
-import { JSX, ComponentProps, useEffect, useState, onMount } from 'quipt/rexport';
+import { JSX, ComponentProps, useEffect, useState } from 'react';
 
 import { Link, useLocation, useNavigate } from 'react-router';
 import classnames from 'classnames';
@@ -43,15 +43,16 @@ function Button({ className, ...rest }: ComponentProps<'button'>): JSX.Element {
                 'bg-primary cursor-pointer rounded-full py-4 active:bg-[#03b66a] disabled:cursor-not-allowed disabled:bg-[#03844c] disabled:text-[#73b398]',
                 className,
             )}
-            {...rest}/>
+            {...rest}
+        />
     );
 }
 
 export interface FormInputProps extends ComponentProps<'input'> {
     errorMessage: string | undefined;
     formSubmitted: boolean;
-    touchedness: Touchedness,
-    validity: Validity
+    touchedness: Touchedness;
+    validity: Validity;
 }
 
 function FormInput({
@@ -62,7 +63,6 @@ function FormInput({
     className,
     ...rest
 }: FormInputProps): JSX.Element {
-
     const isError = (touchedness === 'touched' || formSubmitted) && validity === 'invalid';
 
     return (
@@ -212,9 +212,7 @@ function Signup(props: { onSubmit: SubmitFn }) {
                         Jetzt eins erstellen!
                     </Link>
                 </p>
-                <Button disabled={formValidity == 'invalid' && formSubmitted}>
-                    Registrieren
-                </Button>
+                <Button disabled={formValidity == 'invalid' && formSubmitted}>Registrieren</Button>
             </form>
         </>
     );
@@ -230,10 +228,6 @@ export function UserAuthenticate(): JSX.Element {
         '/signin': 'Anmelden',
         '/signup': 'Quipt Konto erstellen',
     };
-
-    onMount(() => {
-        document.title = keys[location.pathname] + ' - Quipt';
-    });
 
     useEffect(() => {
         document.title = keys[location.pathname] + ' - Quipt';
@@ -272,8 +266,7 @@ export function UserAuthenticate(): JSX.Element {
     const Component = location.pathname === '/signin' ? Signin : Signup;
 
     return (
-        <div
-            className="sm:bg-accent1 relative flex w-full flex-col gap-8 overflow-hidden p-8 text-center sm:mx-auto sm:w-120 sm:self-center sm:rounded-4xl">
+        <div className="sm:bg-accent1 relative flex w-full flex-col gap-8 overflow-hidden p-8 text-center sm:mx-auto sm:w-120 sm:self-center sm:rounded-4xl">
             <Logo className="hidden h-12 md:block" />
             <Component onSubmit={onSubmit} />
         </div>

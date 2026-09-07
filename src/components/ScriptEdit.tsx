@@ -8,7 +8,7 @@ import {
     useState,
     useContext,
     useRef,
-} from 'quipt/rexport';
+} from 'react';
 
 import { markdown } from '@codemirror/lang-markdown';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
@@ -38,7 +38,15 @@ import { Modal, useModal, useModalContext } from 'quipt/modals';
 import { Division, TextCue, TextCuePair } from 'quipt/schemas';
 import { Button, IconButton, ScrollContainer } from 'quipt/components/basics';
 import { useBreakpoints } from 'quipt/responsive';
-import { scriptQueryOptions, useCreateCue, useDeleteCue, useRenameDivision, useScriptParams, useUpdateCue, useUpdateDivisionDescription } from 'quipt/script';
+import {
+    scriptQueryOptions,
+    useCreateCue,
+    useDeleteCue,
+    useRenameDivision,
+    useScriptParams,
+    useUpdateCue,
+    useUpdateDivisionDescription,
+} from 'quipt/script';
 
 const myTheme = EditorView.theme({}, { dark: true });
 
@@ -144,8 +152,8 @@ function CreateActorsSelector({
     actors,
     onActorsChange,
 }: {
-    type: 'request' | 'response',
-    actors: string[],
+    type: 'request' | 'response';
+    actors: string[];
     onActorsChange: (actors: string[]) => void;
 }): JSX.Element {
     const editContext = useContext(DivisionContextObj)!;
@@ -160,9 +168,7 @@ function CreateActorsSelector({
             actors={
                 type === 'response'
                     ? editContext.scriptInfo.actors
-                    : editContext.scriptInfo.actors.filter(
-                          s => s !== editContext.scriptInfo.self,
-                      )
+                    : editContext.scriptInfo.actors.filter(s => s !== editContext.scriptInfo.self)
             }
             selectedActors={actors}
             onSelectionChange={actorsChange}
@@ -195,14 +201,13 @@ function EditableTextCueView({
         setCurrentActors(textCue?.actors ?? []);
     }, [textCue]);
 
-
     async function onDelete() {
         const res = await openModal(<DeleteCueModal cuePair={cuePair} />);
         if (res.type === 'dismiss') return;
         deleteMutation.mutate({
             scriptID: editContext.scriptID,
             divisionIdx: editContext.divisionIdx,
-            cueIdx
+            cueIdx,
         });
     }
 
@@ -230,7 +235,7 @@ function EditableTextCueView({
             cue: {
                 ...cuePair,
                 [type]: newTextCue,
-            }
+            },
         });
     }
 
@@ -239,7 +244,7 @@ function EditableTextCueView({
     // future.
     return (
         <>
-            <Modal context={modalContext}/>
+            <Modal context={modalContext} />
             <Popover
                 trigger="contextmenu"
                 placement="auto"
@@ -247,17 +252,21 @@ function EditableTextCueView({
                 <TextCueDataView
                     type={type}
                     actorsInfo={formatActorsArray(
-                        type === 'response' && currentActors.length === 1
-                            ? null
-                            : currentActors,
+                        type === 'response' && currentActors.length === 1 ? null : currentActors,
                     )}
-                    text={formatMarkdown(textCue?.text ?? '_Du bist der erste in diesem Abschnitt_')}
-                    className={classnames({ 'ring-2 ring-primary': isEditing })}
-                    beforeExtra={isEditing && 
-                        <CreateActorsSelector
-                            type={type}
-                            actors={currentActors}
-                            onActorsChange={setCurrentActors}/>}
+                    text={formatMarkdown(
+                        textCue?.text ?? '_Du bist der erste in diesem Abschnitt_',
+                    )}
+                    className={classnames({ 'ring-primary ring-2': isEditing })}
+                    beforeExtra={
+                        isEditing && (
+                            <CreateActorsSelector
+                                type={type}
+                                actors={currentActors}
+                                onActorsChange={setCurrentActors}
+                            />
+                        )
+                    }
                     afterExtra={isEditing && <EditCommitView close={closeEditor} />}>
                     {isEditing ? (
                         <Editor content={content} onChange={setContent} autofocus />
@@ -318,15 +327,18 @@ function EditableTextCuePairView(props: { textCuePair: TextCuePair; idx: number 
     );
 }
 
-function ActorPill(
-    { selected, className, ...rest }: PillProps & {
-        selected?: boolean;
-    },
-) {
+function ActorPill({
+    selected,
+    className,
+    ...rest
+}: PillProps & {
+    selected?: boolean;
+}) {
     return (
         <BaseActorPill
             className={classnames(
-                selected && 'bg-[var(--actor-color)]/30 outline-[var(--actor-color)]/30 outline-offset-2 outline',
+                selected &&
+                    'bg-[var(--actor-color)]/30 outline outline-offset-2 outline-[var(--actor-color)]/30',
                 !selected && 'hover:bg-[var(--actor-color)]/20',
                 className,
             )}
@@ -463,11 +475,7 @@ function NewTextCueView(props: {
                     onSelectionChange={setSelectedActors}
                 />
             }>
-            <Editor
-                content={content}
-                onChange={setContent}
-                autofocus={props.type === 'request'}
-            />
+            <Editor content={content} onChange={setContent} autofocus={props.type === 'request'} />
         </TextCueDataView>
     );
 }
@@ -545,7 +553,7 @@ function EditableDivisionInfoView(props: {
     // TODO: what exactly is this contraption?
     const [currentContent, setCurrentContent] = useState<string>(props.division.description);
 
-    const descriptionMutation = useUpdateDivisionDescription(); 
+    const descriptionMutation = useUpdateDivisionDescription();
 
     function closeEditor(res: 'dismiss' | 'accept') {
         if (isEditing) {
@@ -556,7 +564,7 @@ function EditableDivisionInfoView(props: {
                 descriptionMutation.mutate({
                     scriptID: editContext.scriptID,
                     divisionIdx: editContext.divisionIdx,
-                    description: currentContent
+                    description: currentContent,
                 });
             }
         }
@@ -588,12 +596,14 @@ function EditableDivisionInfoView(props: {
     );
 }
 
-function HeadingWithEditButton(
-    { children, onEditClick, ...rest }: {
-        children: ReactNode;
-        onEditClick: () => void;
-    } & ComponentProps<'h2'>,
-): JSX.Element {
+function HeadingWithEditButton({
+    children,
+    onEditClick,
+    ...rest
+}: {
+    children: ReactNode;
+    onEditClick: () => void;
+} & ComponentProps<'h2'>): JSX.Element {
     // FIXME: maybe remove memo
     const isSimpleContent = useMemo(() => typeof children === 'string', [children]);
 
@@ -617,7 +627,7 @@ function DivisionView(props: { division: Division }): JSX.Element {
     const [currentName, setCurrentName] = useState<string>(props.division.name);
     useEffect(() => setCurrentName(props.division.name), [props.division]);
 
-    const renameMutation = useRenameDivision(); 
+    const renameMutation = useRenameDivision();
 
     function onRename() {
         setIsEditing(true);
@@ -629,7 +639,7 @@ function DivisionView(props: { division: Division }): JSX.Element {
         renameMutation.mutate({
             scriptID: editContext.scriptID,
             divisionIdx: editContext.divisionIdx,
-            name: currentName
+            name: currentName,
         });
     }
 
@@ -645,8 +655,13 @@ function DivisionView(props: { division: Division }): JSX.Element {
                 {currentName}
             </MakeEditableContent>
             <EditableDivisionInfoView division={props.division} onRename={onRename} />
-            {props.division.textCues.map((pair, idx) => 
-                <EditableTextCuePairView textCuePair={pair} idx={idx} key={pair.request?.text + pair.response?.text}/>)}
+            {props.division.textCues.map((pair, idx) => (
+                <EditableTextCuePairView
+                    textCuePair={pair}
+                    idx={idx}
+                    key={pair.request?.text + pair.response?.text}
+                />
+            ))}
         </div>
     );
 }
@@ -654,36 +669,35 @@ function DivisionView(props: { division: Division }): JSX.Element {
 type DivisionContext = {
     scriptID: schemas.UUID;
     divisionIdx: number;
-    scriptInfo: ScriptInfo
+    scriptInfo: ScriptInfo;
 };
 
-const DivisionContextObj = createContext<DivisionContext|undefined>(undefined);
+const DivisionContextObj = createContext<DivisionContext | undefined>(undefined);
 
 function ScriptView({ scriptID }: { scriptID: schemas.UUID }): JSX.Element {
     const authentication = useContext(AuthenticationContextObj)!;
     const scriptQuery = useQuery(scriptQueryOptions(authentication, scriptID));
 
     useEffect(() => {
-        if (scriptQuery.isSuccess)
-            document.title = `${scriptQuery.data.name} - Quipt`;
+        if (scriptQuery.isSuccess) document.title = `${scriptQuery.data.name} - Quipt`;
     }, [scriptQuery]);
 
-    const scriptInfo = useMemo(() => scriptQuery.isSuccess 
-        ? computeScriptInfo(scriptQuery.data)
-        : undefined,
-        [scriptQuery]
+    const scriptInfo = useMemo(
+        () => (scriptQuery.isSuccess ? computeScriptInfo(scriptQuery.data) : undefined),
+        [scriptQuery],
     );
 
     return (
         <>
             <div className="w-250 max-w-250 select-none">
-                {scriptQuery.isSuccess && scriptQuery.data.divisions.map((division, divisionIdx) => (
-                    <DivisionContextObj.Provider 
-                        value={{ scriptID, divisionIdx, scriptInfo: scriptInfo! }} 
-                        key={division.name}>
-                        <DivisionView division={division}/>
-                    </DivisionContextObj.Provider>
-                ))}
+                {scriptQuery.isSuccess &&
+                    scriptQuery.data.divisions.map((division, divisionIdx) => (
+                        <DivisionContextObj.Provider
+                            value={{ scriptID, divisionIdx, scriptInfo: scriptInfo! }}
+                            key={division.name}>
+                            <DivisionView division={division} />
+                        </DivisionContextObj.Provider>
+                    ))}
             </div>
         </>
     );

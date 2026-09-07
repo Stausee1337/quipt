@@ -1,4 +1,4 @@
-import { ComponentProps, JSX, useMemo } from 'quipt/rexport';
+import { ComponentProps, JSX, useMemo } from 'react';
 
 import { Link } from 'react-router';
 import classnames from 'classnames';
@@ -18,16 +18,16 @@ import { InfoText } from 'quipt/components/basics';
 import { scriptQueryOptions } from 'quipt/script';
 import { useAuthentication } from 'quipt/client';
 
-function IconScore(
-    { icon, className, children, ...rest }: ComponentProps<'span'> & {
-        icon: string;
-    },
-): JSX.Element {
+function IconScore({
+    icon,
+    className,
+    children,
+    ...rest
+}: ComponentProps<'span'> & {
+    icon: string;
+}): JSX.Element {
     return (
-        <span className={classnames(
-            'text-center text-sm font-semibold',
-            className
-        )} {...rest}>
+        <span className={classnames('text-center text-sm font-semibold', className)} {...rest}>
             <i className={`bi bi-${icon} mr-1`} />
             {children}
         </span>
@@ -38,7 +38,10 @@ function DivisionItem({ script, idx }: { script: Script; idx: number }): JSX.Ele
     const division = script.divisions[idx];
     const divisionInfo = useMemo(() => computeDivisionInfo(division), [division]);
     const highScore = useMemo(() => Math.max(0, ...division.previousTotals), [division]);
-    const maxScore = useMemo(() => Math.max(division.textCues.length * 4, highScore), [division, highScore]);
+    const maxScore = useMemo(
+        () => Math.max(division.textCues.length * 4, highScore),
+        [division, highScore],
+    );
 
     const displayInfo = useMemo(() => {
         const previousTotals = division.previousTotals;
@@ -152,26 +155,31 @@ function DivisionItem({ script, idx }: { script: Script; idx: number }): JSX.Ele
 export function ScriptOverview({ scriptID }: { scriptID: schemas.UUID }): JSX.Element {
     const authentication = useAuthentication();
     const scriptQuery = useQuery(scriptQueryOptions(authentication, scriptID));
-    const scriptInfo = useMemo(() => scriptQuery.isSuccess 
-        ? computeScriptInfo(scriptQuery.data)
-        : undefined, [scriptQuery]);
+    const scriptInfo = useMemo(
+        () => (scriptQuery.isSuccess ? computeScriptInfo(scriptQuery.data) : undefined),
+        [scriptQuery],
+    );
 
     return (
         <div className="flex w-full flex-1 flex-col">
-            {scriptQuery.isSuccess &&(
+            {scriptQuery.isSuccess && (
                 <>
                     <div className="flex flex-col gap-1 p-2">
                         <h2 className="text-heading-2">{scriptQuery.data.name}</h2>
-                        <InfoText>{pluralize(scriptInfo!.textCues, 'Einsatz', 'Einsätze')}</InfoText>
+                        <InfoText>
+                            {pluralize(scriptInfo!.textCues, 'Einsatz', 'Einsätze')}
+                        </InfoText>
                         <InfoText className="overflow-hidden text-ellipsis whitespace-nowrap">
                             {scriptInfo!.actors.join(', ')}
                         </InfoText>
                     </div>
-                    {scriptQuery.data.divisions
-                        .map((_, idx) => <DivisionItem 
-                            script={scriptQuery.data} 
+                    {scriptQuery.data.divisions.map((_, idx) => (
+                        <DivisionItem
+                            script={scriptQuery.data}
                             idx={idx}
-                            key={scriptQuery.data.divisions[idx].name} />)}
+                            key={scriptQuery.data.divisions[idx].name}
+                        />
+                    ))}
                 </>
             )}
         </div>

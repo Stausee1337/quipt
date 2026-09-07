@@ -1,4 +1,4 @@
-import { ComponentProps, JSX, ReactNode, useMemo } from 'quipt/rexport';
+import { ComponentProps, JSX, ReactNode, useMemo } from 'react';
 
 import classnames from 'classnames';
 
@@ -38,8 +38,7 @@ export function TextCueDataView({
                 'relative flex flex-col gap-2',
                 type === 'request' && 'items-start',
                 type === 'response' && 'items-end',
-            )}
-            >
+            )}>
             {beforeExtra}
             <div
                 className={classnames(
@@ -73,23 +72,28 @@ export interface TextCueViewProps extends ComponentProps<'div'> {
 }
 
 export function TextCueView({ textCue, ...rest }: TextCueViewProps): JSX.Element {
-
-    const cueData = useMemo(() =>
-        rest.type === 'request'
-            ? {
-                  actors: formatActorsArray(textCue?.actors ?? null),
-                  text: textCue?.text ?? '_Du bist der erste in diesem Abschnitt_',
-              }
-            : {
-                  actors: formatActorsArray(
-                      textCue!.actors!.length === 1 ? null : textCue!.actors!,
-                  ),
-                  text: textCue!.text!,
-              },
-        [rest, textCue]);
+    const cueData = useMemo(
+        () =>
+            rest.type === 'request'
+                ? {
+                      actors: formatActorsArray(textCue?.actors ?? null),
+                      text: textCue?.text ?? '_Du bist der erste in diesem Abschnitt_',
+                  }
+                : {
+                      actors: formatActorsArray(
+                          textCue!.actors!.length === 1 ? null : textCue!.actors!,
+                      ),
+                      text: textCue!.text!,
+                  },
+        [rest, textCue],
+    );
 
     return (
-        <TextCueDataView text={formatMarkdown(cueData.text)} actorsInfo={cueData.actors} {...rest}/>
+        <TextCueDataView
+            text={formatMarkdown(cueData.text)}
+            actorsInfo={cueData.actors}
+            {...rest}
+        />
     );
 }
 

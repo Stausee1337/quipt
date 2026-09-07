@@ -1,5 +1,4 @@
-import React, { useLayoutEffect } from 'react';
-import { CSSProperties, ComponentProps, JSX, useRef } from 'quipt/rexport';
+import React, { CSSProperties, ComponentProps, JSX, useRef, useLayoutEffect } from 'react';
 
 import { Chart, ChartConfiguration } from 'chart.js/auto';
 import { decode } from 'html-entities';
@@ -24,10 +23,12 @@ export function FormattedStringView({ string }: { string: FormattedString }): JS
         <>
             {string.map(item =>
                 item.style ? (
-                    <span style={item.style} key={item.string}>{decode(item.string)}</span>
+                    <span style={item.style} key={item.string}>
+                        {decode(item.string)}
+                    </span>
                 ) : (
                     <React.Fragment key={item.string}>{decode(item.string)}</React.Fragment>
-                )
+                ),
             )}
         </>
     );
@@ -204,11 +205,12 @@ export function pluralize(count: number, singular: string, plural: string): stri
     return `${count} ${plural}`;
 }
 
-export function SimpleChart(
-    { onConfig, ...rest }: ComponentProps<'canvas'> & {
-        onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration;
-    },
-): JSX.Element {
+export function SimpleChart({
+    onConfig,
+    ...rest
+}: ComponentProps<'canvas'> & {
+    onConfig: (ctx: CanvasRenderingContext2D) => ChartConfiguration;
+}): JSX.Element {
     const chartJSCanvas = useRef<HTMLCanvasElement>(null);
     const chart = useRef<Chart>(null);
 

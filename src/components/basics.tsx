@@ -1,61 +1,60 @@
-import { ComponentProps, JSX, useContext, createContext, useRef } from 'quipt/rexport';
+import { ComponentProps, JSX, useContext, createContext, useRef } from 'react';
 
 import classnames from 'classnames';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 
-export function Button(
-    { variant, className, ...rest }: ComponentProps<'button'> & {
-        variant: ButtonVariant;
-    },
-): JSX.Element {
+export function Button({
+    variant,
+    className,
+    ...rest
+}: ComponentProps<'button'> & {
+    variant: ButtonVariant;
+}): JSX.Element {
     return (
         <button
             className={classnames(
                 'border-lighter1 h-8 cursor-pointer rounded-full border px-4 font-medium',
-                variant === 'primary' && 'bg-primary active:bg-[#03b66a] disabled:cursor-not-allowed disabled:bg-[#03844c] disabled:text-[#73b398]',
-                variant === 'secondary' && 'bg-inherit hover:bg-lighter1 active:bg-accent1',
+                variant === 'primary' &&
+                    'bg-primary active:bg-[#03b66a] disabled:cursor-not-allowed disabled:bg-[#03844c] disabled:text-[#73b398]',
+                variant === 'secondary' && 'hover:bg-lighter1 active:bg-accent1 bg-inherit',
                 variant === 'danger' && 'bg-qpt-red active:bg-[#f1695e]',
-                className
+                className,
             )}
             {...rest}
         />
     );
 }
 
-export function IconButton(
-    { icon, className, ...rest }: ComponentProps<'button'> & {
-        icon: string;
-    },
-) {
+export function IconButton({
+    icon,
+    className,
+    ...rest
+}: ComponentProps<'button'> & {
+    icon: string;
+}) {
     return (
-        <button className={classnames(
-            'h-10 w-10 cursor-pointer text-2xl',
-            className
-        )} 
-            {...rest}>
+        <button className={classnames('h-10 w-10 cursor-pointer text-2xl', className)} {...rest}>
             <i className={`bi bi-${icon}`} />
         </button>
     );
 }
 
 export function InfoText({ className, ...rest }: ComponentProps<'span'>) {
-    return (
-        <span 
-            className={classnames(
-                'text-lighter2 text-sm font-light', className
-            )}
-            {...rest} />
-    );
+    return <span className={classnames('text-lighter2 text-sm font-light', className)} {...rest} />;
 }
 
-const ScrollContextObj = createContext<HTMLDivElement|undefined>(undefined);
+const ScrollContextObj = createContext<HTMLDivElement | undefined>(undefined);
 
 export function useScrollContainer(): HTMLDivElement | undefined {
     return useContext(ScrollContextObj);
 }
 
-export function ScrollContainer({ children, className, ...rest }: ComponentProps<'div'>): JSX.Element {
+export function ScrollContainer({
+    children,
+    className,
+    ...rest
+}: ComponentProps<'div'>): JSX.Element {
     const containerRef = useRef<HTMLDivElement>(null);
 
     return (
@@ -63,7 +62,7 @@ export function ScrollContainer({ children, className, ...rest }: ComponentProps
             ref={containerRef}
             className={classnames(
                 '__ScrollContainer @container z-0 min-h-0 w-full flex-1 overflow-y-auto',
-                className
+                className,
             )}
             {...rest}>
             <ScrollContextObj.Provider value={containerRef.current ?? undefined}>

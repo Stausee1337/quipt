@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, onMount, useRef, Ref } from 'quipt/rexport';
+import { useEffect, useState, useMemo, useRef, Ref } from 'react';
 
 export interface Validator {
     validate(v: string): boolean;
@@ -31,16 +31,15 @@ type InputHookProps = InputCreateOptions & {
 };
 
 export type FormInputProps = {
-    ref: Ref<HTMLInputElement>,
-    name: string,
-    onInput: () => void,
-    onChange: () => void,
-    onBlur: () => void,
-    value: string,
-    pristineness: Pristineness,
-    touchedness: Touchedness,
-    validity: Validity
-
+    ref: Ref<HTMLInputElement>;
+    name: string;
+    onInput: () => void;
+    onChange: () => void;
+    onBlur: () => void;
+    value: string;
+    pristineness: Pristineness;
+    touchedness: Touchedness;
+    validity: Validity;
 };
 
 export type InputCreateFn = (options?: InputCreateOptions) => FormInputProps;
@@ -114,7 +113,6 @@ export function useForm<const T extends readonly string[]>(
         return inputHooks;
     }, []);
 
-
     function makeFormEvent(): FormEvent<any> {
         return {
             elements: inputElements,
@@ -177,10 +175,10 @@ function inputHook(props: InputHookProps): FormInputProps {
         setValidationMessage(validationResult.message);
     }, [value]);
 
-    onMount(() => {
+    useEffect(() => {
         const inputElement = elementRef.current;
         inputElement && props.onInputMount(props.name, inputElement);
-    });
+    }, []);
 
     useEffect(() => {
         props.onInputChange({
@@ -202,7 +200,7 @@ function inputHook(props: InputHookProps): FormInputProps {
         value,
         pristineness,
         touchedness,
-        validity
+        validity,
     };
 }
 

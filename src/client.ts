@@ -1,4 +1,4 @@
-import { createContext, useState, useMemo, useContext } from 'quipt/rexport';
+import { createContext, useState, useMemo, useContext } from 'react';
 
 import { QueryClient, queryOptions, useQuery } from '@tanstack/react-query';
 import { createSimpleExecutor, runtime } from 'qrpc-js';
@@ -16,7 +16,7 @@ import {
 export const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            staleTime: 2 * 60 * 60 * 1000
+            staleTime: 2 * 60 * 60 * 1000,
         },
     },
 });
@@ -92,15 +92,13 @@ function createOnLogout(): OnLogoutLifecylce & { trigger(): void } {
     };
 }
 
-export const AuthenticationContextObj = createContext<AuthenticationContext|undefined>(undefined);
+export const AuthenticationContextObj = createContext<AuthenticationContext | undefined>(undefined);
 export function createAuthenticationContext(): AuthenticationContext {
     const twoMinutes = 2 * 60 * 1000;
 
     const onLogout = useMemo(createOnLogout, []);
     const [refreshToken, setRefreshToken] = (() => {
-        const [state, setState] = useState(
-            localStorage.getItem('refreshToken') ?? undefined
-        );
+        const [state, setState] = useState(localStorage.getItem('refreshToken') ?? undefined);
         return [state, updater];
 
         function updater(token: string | undefined) {
@@ -133,25 +131,27 @@ export function createAuthenticationContext(): AuthenticationContext {
         };
     }
 
-    const { refetch: refetchAccessToken } = useQuery({
-        queryKey: ['accessToken'],
-        async queryFn() {
-            if (refreshToken === undefined) return null;
-            let data;
-            try {
-                data = await authService.refresh({ refreshToken });
-            } catch (e) {
-                logout();
-                // NOTE: Rethrow here so downstream code won't run. Especially executors, who might have called `refreshLogin()`
-                throw e;
-            }
-            setupAutomaticRefresh(data);
-            setRefreshToken(data.refreshToken);
-            return data.accessToken;
+    const { refetch: refetchAccessToken } = useQuery(
+        {
+            queryKey: ['accessToken'],
+            async queryFn() {
+                if (refreshToken === undefined) return null;
+                let data;
+                try {
+                    data = await authService.refresh({ refreshToken });
+                } catch (e) {
+                    logout();
+                    // NOTE: Rethrow here so downstream code won't run. Especially executors, who might have called `refreshLogin()`
+                    throw e;
+                }
+                setupAutomaticRefresh(data);
+                setRefreshToken(data.refreshToken);
+                return data.accessToken;
+            },
+            staleTime: Infinity,
         },
-        staleTime: Infinity
-    }, queryClient);
-
+        queryClient,
+    );
 
     function setupAutomaticRefresh(data: AuthSuccess) {
         const tokenTTL = data.expiresAt - Date.now();
@@ -159,7 +159,7 @@ export function createAuthenticationContext(): AuthenticationContext {
     }
 
     function logout() {
-        queryClient.invalidateQueries({ queryKey: ['accessToken']});
+        queryClient.invalidateQueries({ queryKey: ['accessToken'] });
         setRefreshToken(undefined);
         refetchAccessToken();
         onLogout.trigger();
@@ -168,22 +168,21 @@ export function createAuthenticationContext(): AuthenticationContext {
     }
 
     const isLoggedIn = refreshToken !== undefined;
-    const services = useMemo(() => isLoggedIn ? createServices() : undefined, [isLoggedIn]);
+    const services = useMemo(() => (isLoggedIn ? createServices() : undefined), [isLoggedIn]);
 
     return {
         onLogout,
         isLoggedIn,
         services,
         logout() {
-            if (refreshToken !== undefined)
-                authService.logout({ refreshToken });
+            if (refreshToken !== undefined) authService.logout({ refreshToken });
             logout();
         },
         async loginUser(data) {
             if (isLoggedIn) return;
 
             setRefreshToken(data.refreshToken);
-            await queryClient.invalidateQueries({ queryKey: ['accessToken']});
+            await queryClient.invalidateQueries({ queryKey: ['accessToken'] });
             queryClient.setQueryData(['accessToken'], data.accessToken);
             setupAutomaticRefresh(data);
         },
@@ -197,6 +196,6 @@ export function useAuthentication(): AuthenticationContext {
 export function userQueryOptions(authentication: AuthenticationContext) {
     return queryOptions<User>({
         queryKey: ['user'],
-        queryFn: () => authentication.services!.user.get()
+        queryFn: () => authentication.services!.user.get(),
     });
 }

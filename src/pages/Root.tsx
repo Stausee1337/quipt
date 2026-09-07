@@ -1,4 +1,4 @@
-import { JSX, onMount } from 'quipt/rexport';
+import { JSX, useEffect } from 'react';
 
 import { Link, Navigate } from 'react-router';
 
@@ -20,8 +20,8 @@ function LandingPage(): JSX.Element {
 
 export function Root(): JSX.Element {
     const authentication = useAuthentication()!;
-    onMount(() => {
+    useEffect(() => {
         document.title = 'Quipt';
-    });
+    }, []);
     return <>{authentication.isLoggedIn ? <Navigate to="/dashboard" /> : <LandingPage />}</>;
 }

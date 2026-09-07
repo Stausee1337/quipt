@@ -1,4 +1,4 @@
-import { JSX, ComponentProps } from 'quipt/rexport';
+import { JSX, ComponentProps } from 'react';
 
 export default function ({ className, ...rest }: ComponentProps<'svg'>): JSX.Element {
     return (

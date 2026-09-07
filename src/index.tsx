@@ -11,6 +11,6 @@ root.className = 'h-svh w-svw flex relative text-foreground bg-background';
 document.body.append(root);
 createRoot(root).render(
     <StrictMode>
-    <App />
-    </StrictMode>
+        <App />
+    </StrictMode>,
 );

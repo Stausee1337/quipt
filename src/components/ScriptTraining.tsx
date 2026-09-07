@@ -1,12 +1,4 @@
-import {
-    ComponentProps,
-    JSX,
-    Ref,
-    useMemo,
-    useState,
-    useRef,
-    useEffect,
-} from 'quipt/rexport';
+import { ComponentProps, JSX, Ref, useMemo, useState, useRef, useEffect } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 import confetti from 'canvas-confetti';
@@ -102,7 +94,12 @@ const TREND_COLORS = {
     dd: progressBarRed,
 };
 
-function ConfidenceReportView({diff, trend, streak, onConfidenceReport}: {
+function ConfidenceReportView({
+    diff,
+    trend,
+    streak,
+    onConfidenceReport,
+}: {
     diff: number | undefined;
     trend: Trend | undefined;
     streak: number | undefined;
@@ -160,15 +157,20 @@ function ConfidenceReportView({diff, trend, streak, onConfidenceReport}: {
     );
 }
 
-function TextCueView(
-    { idx, currentIdx, textCues, divisionInfo, onConfidenceUpdate, ...rest }: ComponentProps<'div'> & {
-        idx: number;
-        currentIdx: number;
-        textCues: TextCue[];
-        divisionInfo: DivisionInfo;
-        onConfidenceUpdate?: (info: ConfidenceInfo) => void;
-    },
-): JSX.Element {
+function TextCueView({
+    idx,
+    currentIdx,
+    textCues,
+    divisionInfo,
+    onConfidenceUpdate,
+    ...rest
+}: ComponentProps<'div'> & {
+    idx: number;
+    currentIdx: number;
+    textCues: TextCue[];
+    divisionInfo: DivisionInfo;
+    onConfidenceUpdate?: (info: ConfidenceInfo) => void;
+}): JSX.Element {
     const [diff, setDiff] = useState<number>();
     const [trend, setTrend] = useState<Trend>();
     const [streak, setStreak] = useState<number>();
@@ -177,9 +179,9 @@ function TextCueView(
 
     function reportConfidence(confidence: Confidence) {
         const confidenceInfo = computeConfidenceInfo(
-            divisionInfo, 
+            divisionInfo,
             Math.floor(currentIdx / 2),
-            confidence
+            confidence,
         );
         setDiff(confidenceInfo.diff);
         setTrend(confidenceInfo.trend);
@@ -322,8 +324,8 @@ function TrainingRunCompletedView(props: {
             </div>
             {hasBrokenRecord && (
                 <h3 className="text-heading-3">
-                    <i className="bi bi-trophy-fill" style={{ color: progressBarYellow }} /> Neuer High
-                    Score!
+                    <i className="bi bi-trophy-fill" style={{ color: progressBarYellow }} /> Neuer
+                    High Score!
                 </h3>
             )}
             <div className="mb-25 flex w-full flex-col gap-2">
@@ -334,7 +336,9 @@ function TrainingRunCompletedView(props: {
                     Nochmal
                 </Button>
             </div>
-            {hasBrokenRecord && <ConfettiCanvas className="absolute top-0 left-0 -z-1 h-full w-full" />}
+            {hasBrokenRecord && (
+                <ConfettiCanvas className="absolute top-0 left-0 -z-1 h-full w-full" />
+            )}
         </div>
     );
 }
@@ -375,10 +379,10 @@ function scrollAnimation(
 //     function calculateTranslationTo(sourceRect: DOMRect, targetRect: DOMRect): string {
 //         const relY = targetRect.top + targetRect.height / 2 - sourceRect.height / 2;
 //         const relX = targetRect.left + targetRect.width / 2 - sourceRect.width / 2;
-// 
+//
 //         return `translate(${relX}px, ${relY}px)`;
 //     }
-// 
+//
 //     const flyingScore = document.createElement('h2');
 //     flyingScore.className = 'font-bold top-0 left-0 fixed text-[32px] z-1000';
 //     const dispsoseFlyingScoreUpdate = createRoot(dispose => {
@@ -388,17 +392,17 @@ function scrollAnimation(
 //         return dispose;
 //     }, owner);
 //     document.body.append(flyingScore);
-// 
+//
 //     const initalTargetRect = score.getBoundingClientRect();
 //     const finalTargetRect = scoreBox.getBoundingClientRect();
-// 
+//
 //     const sourceRect = flyingScore.getBoundingClientRect();
 //     const initialTranslation = calculateTranslationTo(sourceRect, initalTargetRect);
 //     const finalTranslation = calculateTranslationTo(sourceRect, finalTargetRect);
-// 
+//
 //     flyingScore.style.transform = `${finalTranslation} scale(10)`;
 //     flyingScore.style.color = progressBarColor;
-// 
+//
 //     const animation = flyingScore.animate(
 //         [
 //             { transform: initialTranslation, offset: 0 },
@@ -410,7 +414,7 @@ function scrollAnimation(
 //         ],
 //         { duration: 500, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' },
 //     );
-// 
+//
 //     animation.addEventListener('finish', () => {
 //         scoreBox.classList.remove('invisible');
 //         flyingScore.remove();
@@ -458,7 +462,11 @@ function calculateStreakFromPoints(points: number): number {
     return Math.max(x1, x2);
 }
 
-function computeConfidenceInfo(info: DivisionInfo, textCueIdx: number, confidence: Confidence): ConfidenceInfo {
+function computeConfidenceInfo(
+    info: DivisionInfo,
+    textCueIdx: number,
+    confidence: Confidence,
+): ConfidenceInfo {
     let newScore = 0;
     switch (confidence) {
         case 'low':
@@ -498,7 +506,7 @@ function computeConfidenceInfo(info: DivisionInfo, textCueIdx: number, confidenc
 //     for (let c = start; c <= end; c++) {
 //         effect.push(String(c));
 //     }
-// 
+//
 //     let currentIndex = 0;
 //     function advance() {
 //         if (currentIndex === effect.length - 1) {
@@ -507,14 +515,14 @@ function computeConfidenceInfo(info: DivisionInfo, textCueIdx: number, confidenc
 //         setScoreString(effect[currentIndex]);
 //         currentIndex++;
 //     }
-// 
+//
 //     let interval = 0;
 //     advance();
 //     if (effect.length == 1) return;
-// 
+//
 //     let delta = 75;
 //     if (effect.length - 1 > 4) delta = 300 /* ms */ / (effect.length - 1);
-// 
+//
 //     interval = setInterval(advance, delta);
 // }
 
@@ -544,10 +552,10 @@ function TrainingRunView(props: {
     useEffect(() => {
         if (divisionNameRef.current === null) return;
         const divisionNameElement = divisionNameRef.current;
-        const observer = observerRef.current = new IntersectionObserver(
+        const observer = (observerRef.current = new IntersectionObserver(
             entries => setStickyDivisionVisible(!entries[0].isIntersecting),
             { root: scrollContainer },
-        );
+        ));
         observerRef.current.observe(divisionNameElement);
 
         return () => {
@@ -555,8 +563,10 @@ function TrainingRunView(props: {
         };
     }, [divisionNameRef.current, scrollContainer]);
 
-
-    const progressBarColor = useMemo<string>(() => calculateBarColor(currentScore, maxScore), [currentScore]);
+    const progressBarColor = useMemo<string>(
+        () => calculateBarColor(currentScore, maxScore),
+        [currentScore],
+    );
 
     function revealNextCue(onAnimationFinished?: () => void) {
         if (scrollContainer === undefined) return;
@@ -578,7 +588,7 @@ function TrainingRunView(props: {
                 250,
                 onAnimationFinished,
             );
-        })
+        });
     }
 
     function updateScore(diff: number) {
@@ -661,15 +671,15 @@ function TrainingRunView(props: {
             setScoreString('0');
             setReachedEnd(false);
             setCurrentBarTotal(maxScore);
-        })
+        });
     }
 
     return (
-        <div className="@container/train w-250 max-w-250 select-none relative">
+        <div className="@container/train relative w-250 max-w-250 select-none">
             <span
                 className={classnames(
-                    'anchor-top-positioning bg-accent1 border-lighter1 fixed w-[100cqw] z-1000 hidden border-b py-1 text-center',
-                    stickyDivisionVisible && 'block!'
+                    'anchor-top-positioning bg-accent1 border-lighter1 fixed z-1000 hidden w-[100cqw] border-b py-1 text-center',
+                    stickyDivisionVisible && 'block!',
                 )}>
                 {props.divisionInfo.name}
             </span>
@@ -700,7 +710,7 @@ function TrainingRunView(props: {
                 ))}
             </div>
             {currentIndex % 2 === 0 ? (
-                <div className={classnames('flex', {'pt-6': currentIndex > 0})}>
+                <div className={classnames('flex', { 'pt-6': currentIndex > 0 })}>
                     <Button variant="primary" className="ms-auto" onClick={() => revealNextCue()}>
                         Aufdecken
                     </Button>
@@ -719,7 +729,7 @@ function TrainingRunView(props: {
                     onReset={onReset}
                 />
             )}
-            <div className="anchor-bottom-positioning bg-accent1 fixed z-50 flex flex-col gap-2 p-2 pb-4 w-[100cqw]">
+            <div className="anchor-bottom-positioning bg-accent1 fixed z-50 flex w-[100cqw] flex-col gap-2 p-2 pb-4">
                 <div className="flex">
                     <h1 ref={scoreRef} className="text-heading-1 font-bold">
                         {scoreString}
@@ -753,13 +763,13 @@ export function TrainingRunWrapper(props: {
     type CapturedDivision = {
         info: DivisionInfo;
         textCues: TextCue[];
-        trainingRunCompltedHandler: () => void; 
+        trainingRunCompltedHandler: () => void;
         pointsScoredHandler: (cueIdx: number, points: number) => void;
     };
 
     // FIXME: all of this capturing turns pretty ugly upon introducing resetting
-    const capturedDivision = useMemo<CapturedDivision|undefined>(() => {
-        if (scriptQuery.status !== 'success') return; 
+    const capturedDivision = useMemo<CapturedDivision | undefined>(() => {
+        if (scriptQuery.status !== 'success') return;
         const divisionIdx = props.divisionIdx;
 
         const script = scriptQuery.data;
@@ -773,14 +783,14 @@ export function TrainingRunWrapper(props: {
                 type: 'response',
             } as ResponseTextCue,
         ]);
-        
+
         const newConfidences: number[] = Array(division.textCues.length).fill(0);
 
         function trainingRunCompltedHandler() {
             commitNewConfidences.mutate({
                 scriptID: props.scriptID,
                 divisionIdx,
-                newScores: [...newConfidences]
+                newScores: [...newConfidences],
             });
             newConfidences.length = 0;
         }

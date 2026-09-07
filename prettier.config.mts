@@ -10,7 +10,7 @@ const config: Config = {
     bracketSameLine: true,
     arrowParens: "avoid",
     importOrder: [
-        "solid-js(/web)?",
+        "react(-dom(/client)?)?",
         "<THIRD_PARTY_MODULES>",
         "^quipt/(.*)$",
         "^[./]"

@@ -1,10 +1,4 @@
-import {
-    JSX,
-    useState,
-    onCleanup,
-    onMount,
-    ReactNode,
-} from 'quipt/rexport';
+import { JSX, useState, ReactNode, useEffect } from 'react';
 import React, { ComponentProps, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -21,7 +15,10 @@ type Trigger = 'click' | 'contextmenu';
 let globalContextMenu: (() => void) | undefined;
 
 export function Popover({
-    trigger, placement: origPlacement, content, children
+    trigger,
+    placement: origPlacement,
+    content,
+    children,
 }: {
     trigger: Trigger;
     placement: Placement;
@@ -62,9 +59,7 @@ export function Popover({
         }
     }
 
-    const newChildren1 = React.isValidElement(children)
-        ? children
-        : <span>{children}</span>;
+    const newChildren1 = React.isValidElement(children) ? children : <span>{children}</span>;
 
     const newChildren2 = {
         ...newChildren1,
@@ -74,12 +69,11 @@ export function Popover({
             onClick: trigger === 'click' ? handleTrigger : undefined,
             className: classnames(
                 newChildren1.props.className,
-                popoverRef !== undefined && 'menu-open'
+                popoverRef !== undefined && 'menu-open',
             ),
-            ref: targetRef
-        }
+            ref: targetRef,
+        },
     };
-
 
     return (
         <>
@@ -107,7 +101,8 @@ function PopoverContent(props: {
 
     function captureClick(event: MouseEvent) {
         const path = event.composedPath();
-        if (!path.includes(props.reference as any) && !path.includes(popoverMenu.current!)) props.onClose();
+        if (!path.includes(props.reference as any) && !path.includes(popoverMenu.current!))
+            props.onClose();
     }
 
     function transactionClick(event: React.MouseEvent<HTMLDivElement>) {
@@ -116,25 +111,28 @@ function PopoverContent(props: {
         if (event.target instanceof HTMLLIElement) props.onClose();
     }
 
-    onMount(() => {
+    useEffect(() => {
         if (popoverMenu.current === null) return;
-        popper.current = createPopper(props.reference, popoverMenu.current, { placement: props.placement });
+        const popperInstance = (popper.current = createPopper(
+            props.reference,
+            popoverMenu.current,
+            { placement: props.placement },
+        ));
         document.documentElement.addEventListener('click', captureClick);
-    });
-
-    onCleanup(() => {
-        if (popper.current === null) return;
         document.documentElement.removeEventListener('click', captureClick);
-        popper.current.destroy();
-    });
+        return () => {
+            popperInstance.destroy();
+        };
+    }, []);
 
     return createPortal(
-        <div className="p-2 rounded-lg border border-accent1 bg-background z-4000 shadow-lg"
+        <div
+            className="border-accent1 bg-background z-4000 rounded-lg border p-2 shadow-lg"
             onClick={transactionClick}
             ref={popoverMenu}>
             <ul>{props.children}</ul>
         </div>,
-        document.body
+        document.body,
     );
 }
 
@@ -143,7 +141,7 @@ export function PopoverMenuItem({ className, ...rest }: ComponentProps<'li'>): J
         <li
             className={classnames(
                 'hover:bg-accent1 cursor-pointer rounded-sm px-2 py-1',
-                className
+                className,
             )}
             {...rest}
         />

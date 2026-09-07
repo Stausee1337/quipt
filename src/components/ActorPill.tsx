@@ -1,4 +1,4 @@
-import { JSX, ComponentProps, useMemo } from 'quipt/rexport';
+import { JSX, ComponentProps, useMemo } from 'react';
 
 import classnames from 'classnames';
 
@@ -10,9 +10,13 @@ export interface PillProps extends ComponentProps<'span'> {
 }
 
 export function ActorPill({
-    children, extra, actorForColor, style, className, ...rest
+    children,
+    extra,
+    actorForColor,
+    style,
+    className,
+    ...rest
 }: PillProps): JSX.Element {
-
     const actorColor = useMemo(() => {
         const actorForColor2 =
             actorForColor ?? (typeof children === 'string' ? children : undefined);
@@ -26,7 +30,7 @@ export function ActorPill({
         <span
             className={classnames(
                 'shrink-0 grow-0 basis-auto rounded-full bg-[var(--actor-color)]/10 px-4 py-2 text-sm font-medium text-[var(--actor-color)]',
-                className
+                className,
             )}
             style={{ '--actor-color': actorColor }}
             {...rest}>

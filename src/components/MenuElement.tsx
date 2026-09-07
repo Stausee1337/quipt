@@ -6,9 +6,7 @@ import {
     useEffect,
     useMemo,
     useState,
-    onCleanup,
-    onMount,
-} from 'quipt/rexport';
+} from 'react';
 import { createPortal } from 'react-dom';
 
 import { Link, useBeforeUnload } from 'react-router';
@@ -21,25 +19,29 @@ import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
 import { Popover, PopoverMenuItem } from 'quipt/components/Popover';
 import QuiptLogo from 'quipt/components/Quipt-Logo';
 import { Modal, useModal, useModalContext } from 'quipt/modals';
-import { PartialScript, scriptsQueryOptions, useDeleteScript, useRenameScript, useScriptParams } from 'quipt/script';
+import {
+    PartialScript,
+    scriptsQueryOptions,
+    useDeleteScript,
+    useRenameScript,
+    useScriptParams,
+} from 'quipt/script';
 import { Button, IconButton } from 'quipt/components/basics';
 
 type ComponentType = keyof JSX.IntrinsicElements | JSXElementConstructor<any>;
 
-function MenuSlot<C extends ComponentType>(
-    { component: Component, children, className, icon, ...rest }: ComponentProps<C> & {
-        component: C;
-        icon?: string;
-    },
-): JSX.Element {
-
+function MenuSlot<C extends ComponentType>({
+    component: Component,
+    children,
+    className,
+    icon,
+    ...rest
+}: ComponentProps<C> & {
+    component: C;
+    icon?: string;
+}): JSX.Element {
     return (
-        <Component
-            className={classnames(
-                'flex items-center p-2',
-                className
-            )}
-            {...rest}>
+        <Component className={classnames('flex items-center p-2', className)} {...rest}>
             {icon !== undefined ? <i className={`bi bi-${icon} mr-2`} /> : null}
             {children}
         </Component>
@@ -69,13 +71,8 @@ function ListItem({
             icon={icon}
             onClick={onClick}
             to={to}
-            className={classnames(
-                'hover:bg-accent1 rounded-lg',
-                current && 'bg-background'
-            )}>
-            <div className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                {children}
-            </div>
+            className={classnames('hover:bg-accent1 rounded-lg', current && 'bg-background')}>
+            <div className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{children}</div>
             {isSimpleContent ? menuButton : null}
         </MenuSlot>
     );
@@ -141,8 +138,9 @@ function ScriptListItem(props: { script: PartialScript }): JSX.Element {
     const [modalContext, openModal] = useModal<schemas.UUID>();
 
     async function deleteScript() {
-        const modalResult = await openModal(<DeleteScriptModal script={props.script}/>);
-        if (modalResult.type === 'accept') deleteScriptMutation.mutate({ scriptID: modalResult.result });
+        const modalResult = await openModal(<DeleteScriptModal script={props.script} />);
+        if (modalResult.type === 'accept')
+            deleteScriptMutation.mutate({ scriptID: modalResult.result });
     }
 
     async function renameScript() {
@@ -158,7 +156,7 @@ function ScriptListItem(props: { script: PartialScript }): JSX.Element {
 
     return (
         <>
-            <Modal context={modalContext}/>
+            <Modal context={modalContext} />
             <MakeEditableContent
                 component={ListItem}
                 isEditable={isEditing}
@@ -167,7 +165,10 @@ function ScriptListItem(props: { script: PartialScript }): JSX.Element {
 
                 to={`/script/${props.script.uuid}`}
                 menuButton={
-                    <ScriptListItemMenuButton deleteScript={deleteScript} renameScript={renameScript} />
+                    <ScriptListItemMenuButton
+                        deleteScript={deleteScript}
+                        renameScript={renameScript}
+                    />
                 }
                 current={props.script.uuid === scriptParams.scriptID}>
                 {currentContent}
@@ -186,15 +187,14 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
         props.closer?.();
     });
 
-    let unsubscribe: (() => void) | undefined = undefined;
-    onMount(() => {
-        unsubscribe = authentication.onLogout.subscribe(() => {
+    useEffect(() => {
+        const unsubscribe = authentication.onLogout.subscribe(() => {
             props.closer?.();
         });
-    });
-    onCleanup(() => {
-        unsubscribe?.();
-    });
+        return () => {
+            unsubscribe();
+        };
+    }, []);
 
     return (
         <nav className="bg-accent2 border-accent1 relative flex h-full w-75 max-w-[75vw] flex-col gap-1 overflow-hidden overflow-y-auto border-r px-2 select-none">
@@ -209,25 +209,24 @@ export function SideMenu(props: { closer?: () => void }): JSX.Element {
                     )}
                 </div>
 
-                <ListItem icon="pencil-square">
-                    Neues Skript
-                </ListItem>
+                <ListItem icon="pencil-square">Neues Skript</ListItem>
 
                 <h3 className="text-heading-3 px-2">Skripte</h3>
             </div>
 
             <div className="min-h-0 max-w-full flex-1">
-                {scriptsQuery.status === 'success' && (
-                    scriptsQuery
-                        .data
+                {scriptsQuery.status === 'success' &&
+                    scriptsQuery.data
                         .toSorted((a, b) => b.createdAt - a.createdAt)
-                        .map(script => <ScriptListItem script={script} key={script.name}/>)
-                )}
+                        .map(script => <ScriptListItem script={script} key={script.name} />)}
             </div>
 
             {user.isLoading || user.isError || user.isPending ? null : (
                 <div className="footer">
-                    <MenuSlot component="div" className="border-accent1 border-t" icon="person-circle">
+                    <MenuSlot
+                        component="div"
+                        className="border-accent1 border-t"
+                        icon="person-circle">
                         <div className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
                             {user.data.username}
                         </div>
@@ -248,11 +247,11 @@ export function SideMenuModal(props: { isOpen: boolean; onClose: () => void }): 
 
     useEffect(() => {
         if (props.isOpen) setIsRemoving(false);
-    });
+    }, [props.isOpen]);
 
     return (
         <>
-            {props.isOpen && (
+            {props.isOpen &&
                 createPortal(
                     <>
                         <div
@@ -273,9 +272,8 @@ export function SideMenuModal(props: { isOpen: boolean; onClose: () => void }): 
                             <SideMenu closer={() => setIsRemoving(true)} />
                         </div>
                     </>,
-                    document.body
-                )
-            )}
+                    document.body,
+                )}
         </>
     );
 }
