@@ -1,0 +1,65 @@
+on:
+  push:
+    branches:
+      - trunk
+
+jobs:
+  build-and-publish-backend:
+    runs-on: ubuntu-latest
+    name: Create and Publish Go Server Docker Image
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: stausee1337
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Build & push Docker image
+      - name: Build and push image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          push: true
+          tags: ghcr.io/stausee1337/quipt-backend:${{ github.sha }}
+
+  build-and-publish-frontend:
+    runs-on: ubuntu-latest
+    name: Create and Publish Nginx Docker Image
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      # Install deps and build app
+      - name: Build app
+        run: |
+          npm ci
+          npm run build
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: stausee1337
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Build & push Docker image
+      - name: Build and push image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/stausee1337/quipt-frontend:${{ github.sha }}
+
+

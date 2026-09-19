@@ -54,11 +54,11 @@ export function ResponsiveBreakpointProivder(props: { children?: JSX.Element }):
                 ]),
             );
             Object.entries(queries).forEach(([bp, query]) =>
-                query.addEventListener('change', () => listeners[bp]),
+                query.addEventListener('change', listeners[bp]),
             );
             return () => {
                 Object.entries(queries).forEach(([bp, query]) =>
-                    query.removeEventListener('change', () => listeners[bp]),
+                    query.removeEventListener('change', listeners[bp]),
                 );
             };
         },
