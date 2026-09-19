@@ -11,6 +11,7 @@
     "generate-defs": "qrpc-gen -o ./src/schemas.ts ./qdefs/script.rpc ./qdefs/user.rpc"
   },
   "dependencies": {
+    "@base-ui/react": "^1.8.0",
     "@codemirror/lang-markdown": "^6.3.4",
     "@popperjs/core": "^2.11.8",
     "@tailwindcss/vite": "^4.3.3",
