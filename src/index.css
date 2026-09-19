@@ -19,12 +19,21 @@
 
 @theme {
     --font-sans: Inter, sans-serif;
-    --color-primary: #039d5b;
+    --color-background: var(--color-neutral-900);
+    --color-foreground: var(--color-neutral-200);
+
+    --color-primary: #00c86b;
+    --color-light-primary: #33d489;
+    --color-dark-primary: #00a056;
+
+    --color-accent-100: var(--color-neutral-400);
+    --color-accent-30: #414141;
+    --color-accent-20: #333333;
+    --color-accent-10: #262626;
+
     --color-link: #06f990;
     --color-qpt-blue: #008eff;
     --color-qpt-red: #ef5347;
-    --color-background: #181818;
-    --color-foreground: #e3e3e3;
     --color-accent1: #252525;
     --color-accent2: #101010;
     --color-lighter1: #585858;
