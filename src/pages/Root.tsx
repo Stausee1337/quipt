@@ -4,6 +4,7 @@ import { Link, Navigate } from 'react-router';
 
 import { useAuthentication } from 'quipt/client';
 import { BigButton, Button } from 'quipt/components/button';
+import { Icon } from 'quipt/components/icon';
 
 function LandingPage(): JSX.Element {
     return (
@@ -42,6 +43,11 @@ function LandingPage(): JSX.Element {
                 <BigButton variant="danger" disabled>
                     Button
                 </BigButton>
+            </div>
+            <div>
+                <Icon iconName="exclamation-circle-fill"/>
+                <Icon iconName="quipt-logo"/>
+                <Icon iconName="quipt-logo" className="h-16 w-auto"/>
             </div>
         </div>
     );
