@@ -41,7 +41,7 @@ export default function () {
                     <BrowserRouter>
                         <App>
                             <Routes>
-                                <Route path="/auth/*" element={<Authentication/>}/>
+                                <Route path="/auth/*" element={<Authentication />} />
                                 <Route path="/" element={<Root />} />
                                 {!authenticationContext.isLoggedIn ? (
                                     <>

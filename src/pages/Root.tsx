@@ -46,13 +46,13 @@ function LandingPage(): JSX.Element {
                 </BigButton>
             </div>
             <div>
-                <Input placeholder="Placeholder"/>
-                <BigInput placeholder="Placeholder"/>
+                <Input placeholder="Placeholder" />
+                <BigInput placeholder="Placeholder" />
             </div>
             <div>
-                <Icon iconName="exclamation-circle-fill"/>
-                <Icon iconName="quipt-logo"/>
-                <Icon iconName="quipt-logo" className="h-16 w-auto"/>
+                <Icon iconName="exclamation-circle-fill" />
+                <Icon iconName="quipt-logo" />
+                <Icon iconName="quipt-logo" className="h-16 w-auto" />
             </div>
         </div>
     );
