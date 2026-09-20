@@ -15,6 +15,7 @@ import { Root } from 'quipt/pages/Root';
 import { NewScriptRoute, ScriptRoute } from 'quipt/pages/Script';
 import { UserAuthenticate } from 'quipt/pages/UserAuthenticate';
 import { ResponsiveBreakpointProivder, useBreakpoints } from 'quipt/responsive';
+import { Authentication } from 'quipt/features/authentication';
 
 function App(props: { children?: JSX.Element }): JSX.Element {
     const authenticationContext = useAuthentication()!;
@@ -40,6 +41,7 @@ export default function () {
                     <BrowserRouter>
                         <App>
                             <Routes>
+                                <Route path="/auth/*" element={<Authentication/>}/>
                                 <Route path="/" element={<Root />} />
                                 {!authenticationContext.isLoggedIn ? (
                                     <>
@@ -61,7 +63,7 @@ export default function () {
                                         <Route path="/dashboard" element={<></>} />
                                     </>
                                 )}
-                                <Route path="*" element={<Navigate to="/" />} />
+                                <Route path="*" element={<h1>404 - Not Found</h1>} />
                             </Routes>
                         </App>
                     </BrowserRouter>

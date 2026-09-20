@@ -4,6 +4,7 @@ import { Link, Navigate } from 'react-router';
 
 import { useAuthentication } from 'quipt/client';
 import { BigButton, Button } from 'quipt/components/button';
+import { BigInput, Input } from 'quipt/components/input';
 import { Icon } from 'quipt/components/icon';
 
 function LandingPage(): JSX.Element {
@@ -43,6 +44,10 @@ function LandingPage(): JSX.Element {
                 <BigButton variant="danger" disabled>
                     Button
                 </BigButton>
+            </div>
+            <div>
+                <Input placeholder="Placeholder"/>
+                <BigInput placeholder="Placeholder"/>
             </div>
             <div>
                 <Icon iconName="exclamation-circle-fill"/>
