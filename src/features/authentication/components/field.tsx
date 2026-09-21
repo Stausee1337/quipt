@@ -1,28 +1,48 @@
-import { ComponentProps, JSX } from 'react';
+import { JSX } from 'react';
 
-import { Field as BaseField } from '@base-ui/react';
+import { Field as BaseField, FieldRootProps, InputProps } from '@base-ui/react';
 
 import { Icon } from 'quipt/components/icon';
 import { BigInput } from 'quipt/components/input';
 
-export interface FieldProps extends ComponentProps<typeof BigInput> {
+export interface FieldProps extends 
+    Pick<InputProps, 'ref'|'autoFocus'|'inputMode'|'value'|'onValueChange'>,
+    Pick<FieldRootProps, 'disabled'|'name'|'validate'|'validationMode'> {
     label: string;
 }
 
-export function Field({ label, ...props }: FieldProps): JSX.Element {
+export function TextField({
+    label,
+
+    ref,
+    autoFocus,
+    inputMode,
+    disabled,
+    value,
+    onValueChange,
+
+    name,
+    validate,
+    validationMode
+}: FieldProps): JSX.Element {
     return (
-        <BaseField.Root name="test">
+        <BaseField.Root disabled={disabled} name={name} validate={validate} validationMode={validationMode}>
             <div className="relative">
                 <BigInput
+                    ref={ref}
                     render={(props, { touched, valid }) => (
                         <input
                             data-error={touched && valid === false ? '' : undefined}
                             {...props}
                         />
                     )}
+                    value={value}
+                    autoFocus={autoFocus}
+                    inputMode={inputMode}
+                    onValueChange={onValueChange}
+
                     aria-placeholder={label}
                     className="border-accent-100/50! focus:not-data-primary:border-primary! w-full data-error:border-red-500! data-error:data-focused:border-red-400!"
-                    {...props}
                 />
                 <BaseField.Label
                     render={(props, { focused, filled, touched, valid }) => (

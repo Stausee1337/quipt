@@ -11,10 +11,11 @@ interface ImportMeta {
 }
 
 declare module 'virtual:icons-meta' {
-    export type ViewBox = {
+    export type IconMeta = {
+        viewBox: string;
         width: number;
         height: number;
     };
-    export const iconsMeta: Record<string, ViewBox>;
+    export const iconsMeta: Record<string, IconMeta>;
     export default iconsMeta;
 }
