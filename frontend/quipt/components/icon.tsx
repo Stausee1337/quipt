@@ -6,7 +6,7 @@ interface IconProps extends ComponentProps<'svg'> {
 }
 
 export function Icon({ iconName, ...props }: IconProps): JSX.Element {
-    const { viewBox, width, height } = meta[iconName];
+    const { viewBox, width, height } = meta.iconData[iconName];
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -14,7 +14,7 @@ export function Icon({ iconName, ...props }: IconProps): JSX.Element {
             height={height}
             viewBox={viewBox}
             {...props}>
-            <use href={`/icon-sprites.svg#${iconName}`}></use>
+            <use href={`/${meta.fileName}#${iconName}`}></use>
         </svg>
     );
 }

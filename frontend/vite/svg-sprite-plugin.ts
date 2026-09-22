@@ -1,7 +1,8 @@
 import { Plugin } from 'vite'
 
-import { readdirSync, readFileSync } from 'fs';
-import path from 'path';
+import path from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+
 import { optimize } from 'svgo';
 import { XmlDocument, XmlElement } from 'xmldoc';
 
@@ -23,6 +24,8 @@ export function svgSprite({
         spriteMetaData = JSON.stringify(meta);
     }
 
+    let assetId: string|undefined;
+
     return {
         name: 'svg-sprite',
 
@@ -38,12 +41,14 @@ export function svgSprite({
             server.watcher.on('change', filterEvents(iconDir, dirChange));
             server.watcher.on('unlink', filterEvents(iconDir, dirChange));
         },
-        generateBundle() {
-            this.emitFile({
-                type: 'asset',
-                fileName: 'icon-sprites.svg',
-                source: svgSpriteData
-            });
+        buildStart() {
+            if (this.environment.mode === 'build') {
+                assetId = this.emitFile({
+                    type: 'asset',
+                    name: 'icon-sprites.svg',
+                    source: svgSpriteData
+                });
+            }
         },
         resolveId(id) {
             if (id === virtualModuleId) {
@@ -53,8 +58,9 @@ export function svgSprite({
 
         load(id) {
             if (id === resolvedVirtualModuleId) {
+                const fileName = assetId ? this.getFileName(assetId) : 'icon-sprites.svg';
                 return `
-export const iconsMeta = ${spriteMetaData};
+export const iconsMeta = {fileName:${JSON.stringify(fileName)},iconData:${spriteMetaData}};
 export default iconsMeta;
 `
             }

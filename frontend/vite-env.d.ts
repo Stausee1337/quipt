@@ -11,11 +11,15 @@ interface ImportMeta {
 }
 
 declare module 'virtual:icons-meta' {
-    export type IconMeta = {
+    export type IconData = {
         viewBox: string;
         width: number;
         height: number;
     };
-    export const iconsMeta: Record<string, IconMeta>;
+    export type IconMeta = {
+        fileName: string;
+        iconData: Record<string, IconData>;
+    };
+    export const iconsMeta: IconMeta;
     export default iconsMeta;
 }
