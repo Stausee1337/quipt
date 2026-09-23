@@ -1,6 +1,4 @@
-
-
-type Validator = (value: any) => string|undefined;
+type Validator = (value: any) => string | undefined;
 
 export function multi(...validators: Validator[]): Validator {
     return value => {
@@ -12,31 +10,26 @@ export function multi(...validators: Validator[]): Validator {
 }
 
 export function required(): Validator {
-    return value => 
+    return value =>
         typeof value !== 'string' || value.length === 0
             ? 'Dieses Feld ist erforderlich'
             : undefined;
-};
+}
 
-export function lengthRange({min, max}: { min: number, max: number }): Validator {
+export function lengthRange({ min, max }: { min: number; max: number }): Validator {
     function getMessage() {
         return `Muss zwischen ${min} und ${max} Zeichen lang sein`;
     }
 
     return value => {
         if (typeof value === 'string')
-            return value.length < min || value.length > max
-                ? getMessage()
-                : undefined;
-    }
+            return value.length < min || value.length > max ? getMessage() : undefined;
+    };
 }
 
 export function regex(regex: RegExp, message: string): Validator {
     return value => {
-        if (typeof value === 'string')
-            return value.match(regex) === null
-                ? message
-                : undefined;
+        if (typeof value === 'string') return value.match(regex) === null ? message : undefined;
     };
 }
 

@@ -5,9 +5,10 @@ import { Field as BaseField, FieldRootProps, InputProps } from '@base-ui/react';
 import { Icon } from 'quipt/components/icon';
 import { BigInput } from 'quipt/components/input';
 
-export interface FieldProps extends 
-    Pick<InputProps, 'ref'|'autoFocus'|'inputMode'|'value'|'onValueChange'>,
-    Pick<FieldRootProps, 'disabled'|'name'|'validate'|'validationMode'> {
+export interface FieldProps
+    extends
+        Pick<InputProps, 'ref' | 'autoFocus' | 'inputMode' | 'value' | 'onValueChange'>,
+        Pick<FieldRootProps, 'disabled' | 'name' | 'validate' | 'validationMode'> {
     label: string;
 }
 
@@ -23,10 +24,14 @@ export function TextField({
 
     name,
     validate,
-    validationMode
+    validationMode,
 }: FieldProps): JSX.Element {
     return (
-        <BaseField.Root disabled={disabled} name={name} validate={validate} validationMode={validationMode}>
+        <BaseField.Root
+            disabled={disabled}
+            name={name}
+            validate={validate}
+            validationMode={validationMode}>
             <div className="relative">
                 <BigInput
                     ref={ref}

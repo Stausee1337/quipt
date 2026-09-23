@@ -23,3 +23,8 @@ declare module 'virtual:icons-meta' {
     export const iconsMeta: IconMeta;
     export default iconsMeta;
 }
+
+declare module '*.html' {
+    const data: string;
+    export default data;
+}

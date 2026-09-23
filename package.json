@@ -14,6 +14,7 @@
     "@base-ui/react": "^1.8.0",
     "@codemirror/lang-markdown": "^6.3.4",
     "@popperjs/core": "^2.11.8",
+    "@remix-run/node-fetch-server": "^0.14.1",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.90.6",
     "@types/canvas-confetti": "^1.9.0",

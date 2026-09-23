@@ -7,6 +7,11 @@ import { BigButton, Button } from 'quipt/components/button';
 import { BigInput, Input } from 'quipt/components/input';
 import { Icon } from 'quipt/components/icon';
 
+async function importTest() {
+    const t = await import('quipt/features/test');
+    console.log(t);
+}
+
 function LandingPage(): JSX.Element {
     return (
         <div className="p-1">
@@ -18,7 +23,9 @@ function LandingPage(): JSX.Element {
                 <Link to="/signup">Register</Link>
             </p>
             <div>
-                <Button variant="primary">Button</Button>
+                <Button variant="primary" onClick={importTest}>
+                    Button
+                </Button>
                 <Button variant="primary" disabled>
                     Button
                 </Button>

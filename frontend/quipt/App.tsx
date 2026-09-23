@@ -1,74 +1,24 @@
-import { JSX } from 'react';
+import { type JSX } from 'react';
 
-import { Navigate, Route, Routes, BrowserRouter } from 'react-router';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { Outlet } from 'react-router';
 
-import {
-    AuthenticationContextObj,
-    createAuthenticationContext,
-    queryClient,
-    useAuthentication,
-} from 'quipt/client';
+import { useAuthentication } from 'quipt/client';
 import { Header } from 'quipt/components/HeaderElement';
 import { SideMenu } from 'quipt/components/MenuElement';
-import { Root } from 'quipt/pages/Root';
-import { NewScriptRoute, ScriptRoute } from 'quipt/pages/Script';
-import { UserAuthenticate } from 'quipt/pages/UserAuthenticate';
-import { ResponsiveBreakpointProivder, useBreakpoints } from 'quipt/responsive';
-import { Authentication } from 'quipt/features/authentication';
+import { useBreakpoints } from 'quipt/responsive';
 
-function App(props: { children?: JSX.Element }): JSX.Element {
-    const authenticationContext = useAuthentication()!;
-    const breakpoints = useBreakpoints();
+export function App(): JSX.Element {
+    const authenticationContext = import.meta.env.SSR ? undefined : useAuthentication();
+    const breakpoints = import.meta.env.SSR ? undefined : useBreakpoints();
 
     return (
         <div className="relative z-0 flex min-h-0 w-full flex-1 flex-col">
-            {!breakpoints.md && <Header />}
+            {breakpoints && !breakpoints?.md && <Header />}
             <div className="relative z-0 flex min-h-0 w-full flex-1">
-                {breakpoints.md && authenticationContext.isLoggedIn && <SideMenu />}
-                {props.children}
+                {breakpoints?.md && authenticationContext?.isLoggedIn && <SideMenu />}
+                <h1 className="text-heading-1">Hello, World!</h1>
+                <Outlet />
             </div>
         </div>
-    );
-}
-
-export default function () {
-    const authenticationContext = createAuthenticationContext();
-    return (
-        <ResponsiveBreakpointProivder>
-            <QueryClientProvider client={queryClient}>
-                <AuthenticationContextObj.Provider value={authenticationContext}>
-                    <BrowserRouter>
-                        <App>
-                            <Routes>
-                                <Route path="/auth/*" element={<Authentication />} />
-                                <Route path="/" element={<Root />} />
-                                {!authenticationContext.isLoggedIn ? (
-                                    <>
-                                        <Route path="/signin" element={<UserAuthenticate />} />
-                                        <Route path="/signup" element={<UserAuthenticate />} />
-                                    </>
-                                ) : (
-                                    <>
-                                        <Route path="/new-script" element={<NewScriptRoute />} />
-                                        <Route path="/script/:uuid" element={<ScriptRoute />} />
-                                        <Route
-                                            path="/script/:uuid/:division"
-                                            element={<ScriptRoute />}
-                                        />
-                                        <Route
-                                            path="/train/:uuid/:division"
-                                            element={<ScriptRoute />}
-                                        />
-                                        <Route path="/dashboard" element={<></>} />
-                                    </>
-                                )}
-                                <Route path="*" element={<h1>404 - Not Found</h1>} />
-                            </Routes>
-                        </App>
-                    </BrowserRouter>
-                </AuthenticationContextObj.Provider>
-            </QueryClientProvider>
-        </ResponsiveBreakpointProivder>
     );
 }

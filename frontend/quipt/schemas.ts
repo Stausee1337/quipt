@@ -2,122 +2,122 @@
 import { schemas as $s, runtime as $r } from 'qrpc-js';
 
 export const TextCue = $s.Record('TextCue', {
-  actors: $s.Array($s.String),
-  text: $s.String,
+    actors: $s.Array($s.String),
+    text: $s.String,
 });
 export type TextCue = $s.TypeOf<typeof TextCue>;
 
 export const User = $s.Record('User', {
-  uuid: $s.UUID,
-  username: $s.String,
-  verified: $s.Boolean,
+    uuid: $s.UUID,
+    username: $s.String,
+    verified: $s.Boolean,
 });
 export type User = $s.TypeOf<typeof User>;
 
 export const AuthError = $s.Enum(
-  'AuthError',
-  'USERNAME_MALFORMED',
-  'WEAK_PASSWORD',
-  'INVALID_CREDENTIALS',
-  'USERNAME_ALREADY_EXISTS',
-  'TOKEN_EXPIRED',
-  'UNAUTHORIZED',
+    'AuthError',
+    'USERNAME_MALFORMED',
+    'WEAK_PASSWORD',
+    'INVALID_CREDENTIALS',
+    'USERNAME_ALREADY_EXISTS',
+    'TOKEN_EXPIRED',
+    'UNAUTHORIZED',
 );
 export type AuthError = $s.TypeOf<typeof AuthError>;
 
 export const AuthSuccess = $s.Record('AuthSuccess', {
-  userId: $s.UUID,
-  accessToken: $s.String,
-  refreshToken: $s.String,
-  expiresAt: $s.Number,
+    userId: $s.UUID,
+    accessToken: $s.String,
+    refreshToken: $s.String,
+    expiresAt: $s.Number,
 });
 export type AuthSuccess = $s.TypeOf<typeof AuthSuccess>;
 
 export const TextCuePair = $s.Record('TextCuePair', {
-  request: $s.Optional(TextCue),
-  response: TextCue,
-  previousScores: $s.Array($s.UInt),
+    request: $s.Optional(TextCue),
+    response: TextCue,
+    previousScores: $s.Array($s.UInt),
 });
 export type TextCuePair = $s.TypeOf<typeof TextCuePair>;
 
 export const Division = $s.Record('Division', {
-  name: $s.String,
-  description: $s.String,
-  textCues: $s.Array(TextCuePair),
-  previousTotals: $s.Array($s.UInt),
+    name: $s.String,
+    description: $s.String,
+    textCues: $s.Array(TextCuePair),
+    previousTotals: $s.Array($s.UInt),
 });
 export type Division = $s.TypeOf<typeof Division>;
 
 export const Script = $s.Record('Script', {
-  uuid: $s.UUID,
-  name: $s.String,
-  createdAt: $s.Number,
-  divisions: $s.Array(Division),
+    uuid: $s.UUID,
+    name: $s.String,
+    createdAt: $s.Number,
+    divisions: $s.Array(Division),
 });
 export type Script = $s.TypeOf<typeof Script>;
 
 export const ScriptService = $r.service('script', {
-  list: $r.query('list', $s.Array(Script)),
-  get: $r.query('get', { uuid: $s.UUID }, Script),
-  create: $r.mutation('create', { script: Script }, $s.UUID),
-  rename: $r.mutation('rename', { uuid: $s.UUID, name: $s.String }),
-  delete: $r.mutation('delete', { uuid: $s.UUID }),
+    list: $r.query('list', $s.Array(Script)),
+    get: $r.query('get', { uuid: $s.UUID }, Script),
+    create: $r.mutation('create', { script: Script }, $s.UUID),
+    rename: $r.mutation('rename', { uuid: $s.UUID, name: $s.String }),
+    delete: $r.mutation('delete', { uuid: $s.UUID }),
 });
 export type ScriptService = InstanceType<typeof ScriptService>;
 
 export const DivisionService = $r.service('division', {
-  saveScores: $r.mutation('saveScores', {
-    scriptId: $s.UUID,
-    divisionIdx: $s.UInt,
-    newScores: $s.Array($s.UInt),
-  }),
-  updateDescription: $r.mutation('updateDescription', {
-    scriptId: $s.UUID,
-    divisionIdx: $s.UInt,
-    description: $s.String,
-  }),
-  rename: $r.mutation('rename', {
-    scriptId: $s.UUID,
-    divisionIdx: $s.UInt,
-    name: $s.String,
-  }),
+    saveScores: $r.mutation('saveScores', {
+        scriptId: $s.UUID,
+        divisionIdx: $s.UInt,
+        newScores: $s.Array($s.UInt),
+    }),
+    updateDescription: $r.mutation('updateDescription', {
+        scriptId: $s.UUID,
+        divisionIdx: $s.UInt,
+        description: $s.String,
+    }),
+    rename: $r.mutation('rename', {
+        scriptId: $s.UUID,
+        divisionIdx: $s.UInt,
+        name: $s.String,
+    }),
 });
 export type DivisionService = InstanceType<typeof DivisionService>;
 
 export const CueService = $r.service('cue', {
-  insert: $r.mutation('insert', {
-    uuid: $s.UUID,
-    divisionIdx: $s.UInt,
-    cueIdx: $s.UInt,
-    cue: TextCuePair,
-  }),
-  update: $r.mutation('update', {
-    uuid: $s.UUID,
-    divisionIdx: $s.UInt,
-    cueIdx: $s.UInt,
-    newCue: TextCuePair,
-  }),
-  delete: $r.mutation('delete', {
-    uuid: $s.UUID,
-    divisionIdx: $s.UInt,
-    cueIdx: $s.UInt,
-  }),
+    insert: $r.mutation('insert', {
+        uuid: $s.UUID,
+        divisionIdx: $s.UInt,
+        cueIdx: $s.UInt,
+        cue: TextCuePair,
+    }),
+    update: $r.mutation('update', {
+        uuid: $s.UUID,
+        divisionIdx: $s.UInt,
+        cueIdx: $s.UInt,
+        newCue: TextCuePair,
+    }),
+    delete: $r.mutation('delete', {
+        uuid: $s.UUID,
+        divisionIdx: $s.UInt,
+        cueIdx: $s.UInt,
+    }),
 });
 export type CueService = InstanceType<typeof CueService>;
 
 export const AuthService = $r.service('auth', {
-  signin: $r.mutation(
-    'signin',
-    { username: $s.String, password: $s.String },
-    $s.Union(AuthSuccess, AuthError),
-  ),
-  signup: $r.mutation(
-    'signup',
-    { username: $s.String, password: $s.String },
-    $s.Union(AuthSuccess, AuthError),
-  ),
-  refresh: $r.mutation('refresh', { refreshToken: $s.String }, AuthSuccess),
-  logout: $r.mutation('logout', { refreshToken: $s.String }),
+    signin: $r.mutation(
+        'signin',
+        { username: $s.String, password: $s.String },
+        $s.Union(AuthSuccess, AuthError),
+    ),
+    signup: $r.mutation(
+        'signup',
+        { username: $s.String, password: $s.String },
+        $s.Union(AuthSuccess, AuthError),
+    ),
+    refresh: $r.mutation('refresh', { refreshToken: $s.String }, AuthSuccess),
+    logout: $r.mutation('logout', { refreshToken: $s.String }),
 });
 export type AuthService = InstanceType<typeof AuthService>;
 

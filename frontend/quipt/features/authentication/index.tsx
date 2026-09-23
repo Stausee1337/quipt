@@ -18,7 +18,7 @@ export function Authentication(): JSX.Element {
         setTimeout(() => {
             setLoading(false);
             setErrors({ email: 'Dieses Konto wurde nicht gefunden' });
-        }, 1000)
+        }, 1000);
     }
 
     return (
@@ -28,21 +28,20 @@ export function Authentication(): JSX.Element {
             helpInfo="Bei Ihrem Quipt Konto anmelden."
             loading={loading}
             onFormSubmit={onSubmit}>
-            <TextField ref={ref}
+            <TextField
+                ref={ref}
                 name="email"
                 label="E-Mail"
                 inputMode="email"
 
-                validate={validators.multi(
-                    validators.required(),
-                    validators.email(),
-                )}
+                validate={validators.multi(validators.required(), validators.email())}
                 disabled={loading}
-                autoFocus/>
+                autoFocus
+            />
             <div className="flex items-center justify-between">
                 <StyledLink to="signup">Konto erstellen</StyledLink>
                 <BigButton variant="primary" type="submit" focusableWhenDisabled disabled={loading}>
-                    { loading ? <Loader/> : <>Weiter</> }
+                    {loading ? <Loader /> : <>Weiter</>}
                 </BigButton>
             </div>
         </Form>
