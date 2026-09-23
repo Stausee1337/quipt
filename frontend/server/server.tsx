@@ -36,7 +36,10 @@ async function handleRequest(request: Request, template: string) {
 
     const html = template.replace('<!--ssr-outlet-->', () => content);
 
-    return new Response(html, { headers: { 'Content-Type': 'text/html' } });
+    return new Response(html, {
+        status: context.statusCode,
+        headers: { 'Content-Type': 'text/html' }
+    });
 }
 
 function getForwardedProtocol(nodeReq: http.IncomingMessage): string | undefined {

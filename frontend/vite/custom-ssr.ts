@@ -1,20 +1,10 @@
 import { type Plugin, isRunnableDevEnvironment } from 'vite';
 
-// import path from 'node:path'
-// import { type RoutesConfig } from '../../shared/routing.ts';
-
-export type CustomSSROptions = {
-    routesMoudle: string;
-};
-
-export function customSSR(options: CustomSSROptions): Plugin[] {
+export function customSSR(): Plugin[] {
     return [
         {
             name: 'custom-ssr',
-            async config(config) {
-                // const root = path.resolve(config.root ?? process.cwd())
-                // const x = await loadRoutes(options.routesMoudle, root);
-
+            async config() {
                 return {
                     appType: 'custom',
                     builder: {
@@ -26,7 +16,7 @@ export function customSSR(options: CustomSSROptions): Plugin[] {
                             consumer: 'client',
                             build: {
                                 rolldownOptions: {
-                                    input: './frontend/public/app.html',
+                                    input: './frontend/quipt/index.tsx',
                                     output: {
                                         codeSplitting: {
                                             groups: [
@@ -66,7 +56,7 @@ export function customSSR(options: CustomSSROptions): Plugin[] {
                             }
                             const build = (await ssrEnvironment.runner.import(
                                 './frontend/server/entry-dev.ts',
-                            )) as typeof import('../../server/entry-dev.ts');
+                            )) as typeof import('../server/entry-dev.ts');
 
                             try {
                                 await build.default(req, resp, server);
