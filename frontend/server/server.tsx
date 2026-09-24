@@ -6,9 +6,13 @@ import { createRequest, sendResponse } from '@remix-run/node-fetch-server';
 import type * as http from 'node:http';
 
 import * as appRoute from 'quipt/entrypoints/app';
+import * as authRoute from 'quipt/entrypoints/auth';
 import { makeRoute } from '../shared/routing';
 
-const routes = [makeRoute(appRoute)] satisfies RouteObject[];
+const routes = [
+    makeRoute(appRoute),
+    makeRoute(authRoute),
+] satisfies RouteObject[];
 
 export async function handleNodeRequest(
     nodeReq: http.IncomingMessage,
