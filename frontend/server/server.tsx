@@ -1,25 +1,27 @@
 import { StrictMode } from 'react';
 import ReactDOMServer from 'react-dom/server';
-import { StaticRouterProvider, createStaticHandler, createStaticRouter } from 'react-router';
+import { RouteObject, StaticRouterProvider, createStaticHandler, createStaticRouter } from 'react-router';
 import { createRequest, sendResponse } from '@remix-run/node-fetch-server';
 
 import type * as http from 'node:http';
 
-import routes from 'quipt/routes';
+import * as appRoute from 'quipt/entrypoints/app';
+import { makeRoute } from '../shared/routing';
+
+const routes = [makeRoute(appRoute)] satisfies RouteObject[];
 
 export async function handleNodeRequest(
     nodeReq: http.IncomingMessage,
     nodeResp: http.ServerResponse,
-    template: string,
 ) {
     const req = createRequest(nodeReq, nodeResp, {
         protocol: getForwardedProtocol(nodeReq),
     });
-    const resp = await handleRequest(req, template);
+    const resp = await handleRequest(req);
     sendResponse(nodeResp, resp);
 }
 
-async function handleRequest(request: Request, template: string) {
+async function handleRequest(request: Request) {
     const { query, dataRoutes } = createStaticHandler(routes);
     const context = await query(request);
 
@@ -28,14 +30,13 @@ async function handleRequest(request: Request, template: string) {
     }
 
     const router = createStaticRouter(dataRoutes, context);
-    const content = ReactDOMServer.renderToString(
+    const renderedLayout = ReactDOMServer.renderToString(
         <StrictMode>
             <StaticRouterProvider context={context} router={router} />
         </StrictMode>,
     );
 
-    const html = template.replace('<!--ssr-outlet-->', () => content);
-
+    const html = `<!DOCTYPE html>${renderedLayout}`;
     return new Response(html, {
         status: context.statusCode,
         headers: { 'Content-Type': 'text/html' }

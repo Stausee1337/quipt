@@ -1,5 +1,8 @@
 import { type Plugin, isRunnableDevEnvironment } from 'vite';
 
+const virtualModuleId = 'virtual:test123';
+const resolvedVirtualModuleId = '\0' + virtualModuleId;
+
 export function customSSR(): Plugin[] {
     return [
         {
@@ -16,7 +19,7 @@ export function customSSR(): Plugin[] {
                             consumer: 'client',
                             build: {
                                 rolldownOptions: {
-                                    input: './frontend/quipt/index.tsx',
+                                    input: 'x',
                                     output: {
                                         codeSplitting: {
                                             groups: [
@@ -68,20 +71,16 @@ export function customSSR(): Plugin[] {
                         });
                 };
             },
-        },
-        {
-            name: 'custom-ssr:embed-html',
-            transform: {
-                filter: { id: /\.html$/ },
-                handler(src) {
-                    return {
-                        code: `
-const data = ${JSON.stringify(src)};
-export default data;
-`,
-                        map: null,
-                    };
-                },
+            resolveId(id) {
+                if (id === virtualModuleId) {
+                    return resolvedVirtualModuleId;
+                }
+            },
+
+            load(id) {
+                if (id === resolvedVirtualModuleId) {
+                    return `console.log('Hello, World!');`;
+                }
             },
         },
     ];

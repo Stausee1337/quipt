@@ -1,18 +1,12 @@
-import { JSX, useEffect } from 'react';
+import { JSX } from 'react';
 
-import { Link, Navigate } from 'react-router';
+import { Link } from 'react-router';
 
-import { useAuthentication } from 'quipt/client';
 import { BigButton, Button } from 'quipt/components/button';
 import { BigInput, Input } from 'quipt/components/input';
 import { Icon } from 'quipt/components/icon';
 
-async function importTest() {
-    const t = await import('quipt/features/test');
-    console.log(t);
-}
-
-function LandingPage(): JSX.Element {
+export function Root(): JSX.Element {
     return (
         <div className="p-1">
             <h1>TODO: advertise Quipt</h1>
@@ -23,7 +17,7 @@ function LandingPage(): JSX.Element {
                 <Link to="/signup">Register</Link>
             </p>
             <div>
-                <Button variant="primary" onClick={importTest}>
+                <Button variant="primary">
                     Button
                 </Button>
                 <Button variant="primary" disabled>
@@ -63,12 +57,4 @@ function LandingPage(): JSX.Element {
             </div>
         </div>
     );
-}
-
-export function Root(): JSX.Element {
-    const authentication = useAuthentication()!;
-    useEffect(() => {
-        document.title = 'Quipt';
-    }, []);
-    return <>{authentication.isLoggedIn ? <Navigate to="/dashboard" /> : <LandingPage />}</>;
 }
