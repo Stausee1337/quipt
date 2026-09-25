@@ -5,27 +5,39 @@ import { createRequest, sendResponse } from '@remix-run/node-fetch-server';
 
 import type * as http from 'node:http';
 
-import * as appRoute from 'quipt/entrypoints/app';
-import * as authRoute from 'quipt/entrypoints/auth';
-import { makeRoute } from '../shared/routing';
+import { type ServerEntryConfig, ServerConfigProvider, createRouterRoute } from '../shared/routing';
 
-const routes = [
-    makeRoute(appRoute),
-    makeRoute(authRoute),
-] satisfies RouteObject[];
-
-export async function handleNodeRequest(
+export type RequestHandler = (
     nodeReq: http.IncomingMessage,
     nodeResp: http.ServerResponse,
+) => Promise<void>;
+
+export function createRequestHandler(config: ServerEntryConfig): RequestHandler {
+    return async (nodeReq, nodeResp) => {
+        return await handleNodeRequest(nodeReq, nodeResp, config);
+    };
+}
+
+async function handleNodeRequest(
+    nodeReq: http.IncomingMessage,
+    nodeResp: http.ServerResponse,
+    config: ServerEntryConfig,
 ) {
     const req = createRequest(nodeReq, nodeResp, {
         protocol: getForwardedProtocol(nodeReq),
     });
-    const resp = await handleRequest(req);
+    const resp = await handleRequest(req, config);
     sendResponse(nodeResp, resp);
 }
 
-async function handleRequest(request: Request) {
+export function createServerRoutes(config: ServerEntryConfig): RouteObject[] {
+    return Object
+        .entries(config.entries)
+        .map(([id, entry]) => ({ id, ...createRouterRoute(entry) }));
+}
+
+async function handleRequest(request: Request, config: ServerEntryConfig) {
+    const routes = createServerRoutes(config);
     const { query, dataRoutes } = createStaticHandler(routes);
     const context = await query(request);
 
@@ -36,7 +48,9 @@ async function handleRequest(request: Request) {
     const router = createStaticRouter(dataRoutes, context);
     const renderedLayout = ReactDOMServer.renderToString(
         <StrictMode>
-            <StaticRouterProvider context={context} router={router} />
+            <ServerConfigProvider config={config}>
+                <StaticRouterProvider context={context} router={router} />
+            </ServerConfigProvider>
         </StrictMode>,
     );
 

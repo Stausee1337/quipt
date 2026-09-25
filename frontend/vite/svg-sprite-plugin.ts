@@ -6,11 +6,13 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { optimize } from 'svgo';
 import { XmlDocument, XmlElement } from 'xmldoc';
 
+import createVirtualModule from './virtual-module.ts';
+
+const virtualIconsMeta = createVirtualModule('icons-meta');
+
 interface SvgSpritePluginOptions {
     iconDir: string;
 }
-const virtualModuleId = 'virtual:icons-meta';
-const resolvedVirtualModuleId = '\0' + virtualModuleId;
 
 export function svgSprite({ iconDir }: SvgSpritePluginOptions): Plugin {
     let { data: svgSpriteData, meta } = compileToSprite(iconDir);
@@ -49,17 +51,17 @@ export function svgSprite({ iconDir }: SvgSpritePluginOptions): Plugin {
             }
         },
         resolveId(id) {
-            if (id === virtualModuleId) {
-                return resolvedVirtualModuleId;
+            if (id === virtualIconsMeta.id) {
+                return virtualIconsMeta.resolvedId;
             }
         },
 
         load(id) {
-            if (id === resolvedVirtualModuleId) {
+            if (id === virtualIconsMeta.resolvedId) {
                 const fileName = assetId ? this.getFileName(assetId) : 'icon-sprites.svg';
-                return `
-export const iconsMeta = {fileName:${JSON.stringify(fileName)},iconData:${spriteMetaData}};
-export default iconsMeta;
+                return `\
+export const iconsMeta = {"fileName":${JSON.stringify(fileName)},"iconData":${spriteMetaData}};
+export default iconsMeta;\
 `;
             }
         },

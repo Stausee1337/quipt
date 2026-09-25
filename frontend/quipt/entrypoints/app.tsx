@@ -1,53 +1,53 @@
 import { type JSX, ReactNode } from 'react';
 
-import { RouteObject, isRouteErrorResponse, useRouteError } from 'react-router';
+import { Outlet, isRouteErrorResponse, useRouteError } from 'react-router';
 
-import { App } from 'quipt/features/app';
+import { Head, Scripts } from 'quipt/components/ssr';
 import { Root } from 'quipt/pages/Root';
-import stylesUrl from '../index.css?url';
+import { App } from 'quipt/features/app';
+import { defineEntry } from '../../shared/routing';
 
-export const route = {
+export default defineEntry({
     path: '',
     children: [
         { index: true, Component: Root },
-        { path: 'test', element: <p>You are on the nested test page</p> }
-    ]
-} satisfies RouteObject;
+        { path: 'test', element: <p>You are on the nested test page</p> },
+        {
+            id: 'xyz',
+            path: 'deeply',
+            Component: () => <>Deeply <Outlet/></>,
+            children: [
+                {
+                    id: 'zyx',
+                    path: 'nested',
+                    Component: () => <>Nested <Outlet/></>,
+                    children: [
+                        { path: 'route', element: <>Route</> }
+                    ]
+                }
+            ]
+        }
+    ],
+    Layout,
+    Component: App,
+    ErrorBoundary,
+});
 
-export function Layout({ children }: { children: ReactNode }) {
+function Layout({ children }: { children: ReactNode }): JSX.Element {
     return (
         <html>
-            <head>
-                <meta charSet="utf-8" />
-                <meta
-                    name="viewport"
-                    content="user-scalable=no, width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" />
-                <meta name="apple-touch-fullscreen" content="yes" />
-                <meta name="apple-mobile-web-app-capable" content="yes" />
-                <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-                <link rel="icon" type="image/svg+xml" href="/quipt-icon.svg" />
-                <link rel="stylesheet" href={stylesUrl} />
-                <title>Quipt</title>
-
-                <link rel="preconnect" href="https://rsms.me/" />
-                <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-            </head>
+            <Head/>
             <body>
                 <div className="text-foreground bg-background relative flex h-svh w-svw">
                     { children }
                 </div>
-                <script type="module">
-                    import "/@id/__x00__@vitejs/plugin-react/preamble";
-                    import * as route from "/frontend/quipt/entrypoints/app.js";
-                    import main from "/frontend/quipt/main.js";
-                    main(route);
-                </script>
+                <Scripts/>
             </body>
         </html>
     );
 }
 
-export function ErrorBoundary(): JSX.Element {
+function ErrorBoundary(): JSX.Element {
   const error = useRouteError();
 
     if (isRouteErrorResponse(error)) {
@@ -74,6 +74,4 @@ export function ErrorBoundary(): JSX.Element {
         return <h1>Unknown Error</h1>;
     }
 }
-
-export default App;
 

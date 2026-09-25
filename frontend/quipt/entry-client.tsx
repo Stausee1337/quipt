@@ -3,10 +3,13 @@ import { hydrateRoot } from 'react-dom/client';
 
 import { RouterProvider, createBrowserRouter } from 'react-router';
 
-import { type EntryRouteExport, makeRoute } from '../shared/routing';
+import { type RouteConfigEntry, createRouterRoute } from '../shared/routing';
 
-export default function main(entryRoute: EntryRouteExport) {
-    const routes = [makeRoute(entryRoute)];
+export default(entry: RouteConfigEntry, id: string) => {
+    const routes = [{
+        id,
+        ...createRouterRoute(entry)
+    }];
     const router = createBrowserRouter(routes);
 
     hydrateRoot(
