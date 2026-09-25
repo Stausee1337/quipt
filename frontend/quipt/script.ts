@@ -2,7 +2,7 @@ import { useParams } from 'react-router';
 import { queryOptions, useMutation } from '@tanstack/react-query';
 import { schemas } from 'qrpc-js';
 
-import { AuthenticationContext, queryClient, useAuthentication } from 'quipt/client';
+import { type AuthenticationContext, queryClient, useAuthentication } from 'quipt/client';
 import { Script, TextCuePair } from 'quipt/schemas';
 
 export type PartialScript = Omit<Script, 'divisions'>;

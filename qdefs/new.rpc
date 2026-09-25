@@ -1,0 +1,147 @@
+service auth {
+    enum SigninError {
+        UsernameMalformed "username-malformed",
+        WeakPassword "weak-password",
+        InvalidCredentials "invalid-credentials",
+        UsernameAlreadyExists "username-already-exists",
+        // FIXME: are these even used?
+        TokenExpired "token-expired",
+        Unauthorized "unauthorized"
+    }
+
+    record AccessToken {
+        data: string;
+        expiresAt: float;
+    }
+
+    record AuthResult {
+        accessToken: AccessToken;
+        user: ref<user.User>;
+    }
+
+    // TODO: figure out stepwise signin and signup
+    proc authenticate(): AuthResult;
+    proc logout();
+
+    enum Visibility {
+        Public "public",
+        Private "private",
+        Protected "protected"
+    }
+
+    object User {
+        name: string;
+        username: string?;
+        avatarURL: string;
+        visibility: Visibility;
+    }
+
+    proc listScripts(user: ref<User>): Script[];
+    proc deleteScript(script: ref<Script>);
+}
+
+
+service scriptData {
+    object Script {
+        commitedBy: ref<User>;
+        commitedAt: float;
+        parent: ref<Script>?;
+        allActors: string[];
+        content: SectionContent|ItemsContent;
+        name: string;
+        visibility: auth.Visibility;
+    }
+
+    record SectionContent {
+        sections: ref<Section>[];
+    }
+
+    object Section {
+        name: string;
+        content: SubsectionContent|ItemsContent;
+    }
+
+    record SubsectionContent {
+        subsections: ref<Subsection>[];
+    }
+
+    object Subsection {
+        name: string;
+        content: ItemsContent;
+    }
+
+    record ItemsContent {
+        items: ref<ScriptItem>[];
+    }
+
+    enum ScriptItemKind {
+        Action "action"
+        Dialogue "dialogue",
+    }
+
+    // Better name for the ScriptItem
+    object ScriptItem {
+        kind: ScriptItemKind;
+        actors: string[];
+        content: string;
+    }
+
+    enum CommandError {
+        UnknownObject "unkown-object",
+        AlreadyPresent "already-present",
+        NoItemsContent "no-items-content",
+        OutOfRange "out-of-range",
+        InvalidOperation "invalid-operation"
+    }
+
+    // Client sends commands, server keeps event log
+    // What to attach any event log to? The Script obviously!
+
+
+    // The only procedure that happens immediately, as it creates the basis for the event log.
+    proc createScript(name: string): ref<Script>;
+
+    // FIXME: These functions definitely need to be batchable.
+    // FIXME: it would be nice for commands to have a revision.
+
+    // These functions just create the thing on the script, aka in the event log, they don't do 
+    // anything else. If you don't store their IDs they'll just be gone eventually.
+    proc createSection(ctx: ScriptCtx, name: string): ref<Subsection>|CommandError;
+    proc createSubsection(ctx: ScriptCtx, name: string): ref<Section>|CommandError;
+    proc createDialog(ctx: ScriptCtx, actors: string[], content: string): ref<ScriptItem>|CommandError;
+    proc createAction(ctx: ScriptCtx, content: string): ref<ScriptItem>|CommandError;
+
+    // Fails in case the section already is part of the script
+    // CAUTION: This will replace ItemsContent or SubsectionsContent with SectionsContent.
+    proc insertSection(ctx: ScriptCtx, index: uint, section: ref<Section>): CommandError?;
+    // Fails in case the subsection already is part of the script
+    // CAUTION: This will replace ItemsContent or SubsectionsContent with SectionsContent.
+    proc insertSubsection(ctx: ScriptCtx, index: uint, section: ref<Section>, subsection: ref<Subsection>): CommandError?;
+
+    // Fails in case the Script is not ItemsContent
+    // Fails in case the Item is alreay part of the Script
+    proc insertToScript(ctx: ScriptCtx, index: uint, item: ref<ScriptItem>): CommandError?;
+    // Fails in case the Section is not ItemsContent
+    // Fails in case the Item is alreay part of the Script
+    proc insertToSection(ctx: ScriptCtx, index: uint, section: ref<Section>, item: ref<ScriptItem>): CommandError?;
+
+    proc renameScript(ctx: ScriptCtx): CommandError?;
+    proc renameSection(ctx: ScriptCtx, section: ref<Section>, name: string): CommandError?;
+    proc renameSubsection(ctx: ScriptCtx, subsection: ref<Subsection>, name: string): CommandError?;
+
+    proc insertText(ctx: ScriptCtx, item: ref<ScriptItem>, offset: uint, text: string): CommandError?;
+    proc deleteText(ctx: ScriptCtx, item: ref<ScriptItem>, offset: uint, count: uint): CommandError?;
+    // Will fail if item does not have type action
+    proc addActor(ctx: ScriptCtx, item: ref<ScriptItem>): CommandError?;
+
+    // FIXME: we probably need way more `remove` or `unlink` style functions, since deleting will
+    // *need* to be done by grabage collection
+
+    // This does not do recursive deletion
+    proc deleteSection(ctx: ScriptCtx, section: ref<Section>): CommandError?;
+    // This does not do recursive deletion
+    proc deleteSubsection(ctx: ScriptCtx, subsection: ref<Subsection>): CommandError?;
+    proc deleteItem(ctx: ScriptCtx, item: ref<ScriptItem>): CommandError?;
+
+}
+

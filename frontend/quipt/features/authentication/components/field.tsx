@@ -7,7 +7,7 @@ import { BigInput } from 'quipt/components/input';
 
 export interface FieldProps
     extends
-        Pick<InputProps, 'ref' | 'autoFocus' | 'inputMode' | 'value' | 'onValueChange'>,
+        Pick<InputProps, 'ref' | 'autoFocus' | 'inputMode' | 'value' | 'onValueChange' | 'onKeyDown' | 'onKeyUp'>,
         Pick<FieldRootProps, 'disabled' | 'name' | 'validate' | 'validationMode'> {
     label: string;
     
@@ -23,6 +23,8 @@ export function TextField({
     disabled,
     type,
     value,
+    onKeyDown,
+    onKeyUp,
     onValueChange,
 
     name,
@@ -48,6 +50,8 @@ export function TextField({
                     value={value}
                     autoFocus={autoFocus}
                     inputMode={inputMode}
+                    onKeyDown={onKeyDown}
+                    onKeyUp={onKeyUp}
                     onValueChange={onValueChange}
 
                     aria-placeholder={label}

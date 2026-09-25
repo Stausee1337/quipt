@@ -1,49 +1,42 @@
-import { JSX, useRef, useState } from 'react';
+import { type JSX } from 'react';
 
-import { BigButton } from 'quipt/components/button';
-import { StyledLink } from 'quipt/components/link';
-import { Form } from './components/form';
-import { TextField } from './components/field';
-import * as validators from './validators';
-import { Loader } from 'quipt/components/loader';
+import { AppOtpForm } from './components/app-otp-form';
+import { CollectEmailForm } from './components/collect-email-form';
+import { EmailOtpForm } from './components/email-otp-form';
+import { IdentifyForm } from './components/identify-form';
+import { NameForm as NameFormBase } from './components/name-form'
+import { PasswordForm as PasswordFormBase } from './components/password-form'
+import { VerifyEmailForm } from './components/verify-email-form';
 
-export function Authentication(): JSX.Element {
-    const ref = useRef<HTMLInputElement>(null);
-    const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({});
+const email = 'test@example.com';
 
-    function onSubmit() {
-        ref.current?.blur();
-        setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            setErrors({ email: 'Dieses Konto wurde nicht gefunden' });
-        }, 1000);
-    }
-
+export function NameForm(): JSX.Element {
     return (
-        <Form
-            errors={errors}
-            heading="Anmelden"
-            helpInfo="Bei Ihrem Quipt Konto anmelden."
-            loading={loading}
-            onFormSubmit={onSubmit}>
-            <TextField
-                ref={ref}
-                name="email"
-                label="E-Mail"
-                inputMode="email"
-
-                validate={validators.multi(validators.required(), validators.email())}
-                disabled={loading}
-                autoFocus
-            />
-            <div className="flex items-center justify-between">
-                <StyledLink to="signup">Konto erstellen</StyledLink>
-                <BigButton variant="primary" type="submit" focusableWhenDisabled disabled={loading}>
-                    {loading ? <Loader /> : <>Weiter</>}
-                </BigButton>
-            </div>
-        </Form>
+        <NameFormBase
+            heading="Willkommen"
+            helpInfo="Bitte geben Sie Ihren Namen ein, um die Einrichtung abzuschließen."/>
     );
 }
+
+export function PasswordForm(): JSX.Element {
+    return (
+        <PasswordFormBase
+            heading="Identität bestätigen"
+            helpInfo="Bitte geben Sie Ihr Passwort ein."/>
+    );
+}
+
+export function Authentication(): JSX.Element {
+    return (
+        <>
+            <AppOtpForm/>
+            <CollectEmailForm/>
+            <EmailOtpForm email={email}/>
+            <IdentifyForm/>
+            <NameForm/>
+            <PasswordForm/>
+            <VerifyEmailForm email={email}/>
+        </>
+    );
+}
+

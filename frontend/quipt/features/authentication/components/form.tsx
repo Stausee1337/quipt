@@ -1,25 +1,32 @@
-import { type ComponentProps, type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, type Ref, useEffect, useRef } from 'react';
 
 import classnames from 'classnames';
 import { Form as BaseForm } from '@base-ui/react';
 
 import { Icon } from 'quipt/components/icon';
+import { BigButton } from 'quipt/components/button';
+import { Loader } from 'quipt/components/loader';
 
-export interface FormProps extends ComponentProps<typeof BaseForm> {
+export type FormValues = BaseForm.Values;
+
+export interface FormContentProps {
     heading: string;
     helpInfo: ReactNode;
-
-    loading?: boolean | undefined;
 }
 
-export function Form({ heading, helpInfo, loading, children, className, ...props }: FormProps) {
+export interface FormProps<T extends BaseForm.Values> extends BaseForm.Props<T>, FormContentProps {
+    loading?: boolean | undefined;
+    submitButtonRef?: Ref<HTMLButtonElement|null> | undefined;
+}
+
+export function Form<T extends BaseForm.Values = BaseForm.Values>({ heading, helpInfo, loading, children, className, ...props }: FormProps<T>) {
     const actionsRef = useRef<BaseForm.Actions | null>(null);
     useEffect(() => {
         actionsRef.current?.validate();
     }, [actionsRef.current]);
 
     return (
-        <BaseForm
+        <BaseForm<T>
             actionsRef={actionsRef}
             validationMode="onChange"
             data-loading={loading ? '' : undefined}
@@ -34,6 +41,25 @@ export function Form({ heading, helpInfo, loading, children, className, ...props
                 <p className="pt-1">{helpInfo}</p>
             </div>
             {children}
+            <FlowControl
+                submitButtonRef={props.submitButtonRef}
+                loading={loading}/>
         </BaseForm>
+    );
+}
+
+function FlowControl(props: {
+    submitButtonRef?: Ref<HTMLButtonElement|null> | undefined;
+    loading?: boolean |undefined ;
+}) {
+    return (
+        <div className="flex items-center justify-between">
+            <BigButton variant="secondary">
+                Zurück
+            </BigButton>
+            <BigButton ref={props.submitButtonRef} variant="primary" type="submit" focusableWhenDisabled disabled={props.loading}>  
+                {props.loading ? <Loader /> : <>Weiter</>}
+            </BigButton>
+        </div>
     );
 }

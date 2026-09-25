@@ -18,7 +18,7 @@ function Layout({ children }: { children: ReactNode }): JSX.Element {
             <Head />
             <body>
                 <div className="text-foreground bg-background relative flex h-svh w-svw">
-                    <div className="relative z-0 flex min-h-0 w-full flex-1">
+                    <div className="relative z-0 flex flex-wrap min-h-0 w-full flex-1">
                         {children}
                     </div>
                 </div>
