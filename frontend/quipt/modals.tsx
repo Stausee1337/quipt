@@ -1,4 +1,4 @@
-import { JSX, createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { type JSX, createContext, useState, useContext, type ReactNode, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 type AcceptFn<T> = T extends void ? () => void : (result: T) => void;

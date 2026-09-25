@@ -1,5 +1,5 @@
 import { type JSX, type ComponentType, type ReactNode, createContext, useContext } from 'react';
-import type { RouteObject } from 'react-router';
+import { Outlet, type RouteObject } from 'react-router';
 
 export type ExportedRouteEntry = {
     route: RouteObject;
@@ -27,27 +27,6 @@ export type ServerEntryConfig = {
     entries: Record<string, RouteConfigEntry>;
 };
 
-export function makeRoute({
-    route,
-    Layout,
-    ErrorBoundary,
-    default: Component,
-}: ExportedRouteEntry): RouteObject {
-    return {
-        ...route,
-        element: (
-            <Layout>
-                <Component />
-            </Layout>
-        ),
-        errorElement: ErrorBoundary ? (
-            <Layout>
-                <ErrorBoundary />
-            </Layout>
-        ) : undefined,
-    };
-}
-
 export function createRouterRoute({
     path,
     children,
@@ -62,7 +41,11 @@ export function createRouterRoute({
             <Layout>
                 <Component />
             </Layout>
-        ) : undefined,
+        ) : (
+            <Layout>
+                <Outlet/>
+            </Layout>
+        ),
         errorElement: ErrorBoundary ? (
             <Layout>
                 <ErrorBoundary />

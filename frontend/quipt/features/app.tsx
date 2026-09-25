@@ -1,4 +1,4 @@
-import { type JSX, ReactNode } from 'react';
+import { type JSX, type ReactNode } from 'react';
 
 import { Outlet } from 'react-router';
 
@@ -6,7 +6,6 @@ import { useAuthentication } from 'quipt/client';
 import { Header } from 'quipt/components/HeaderElement';
 import { SideMenu } from 'quipt/components/MenuElement';
 import { useBreakpoints } from 'quipt/responsive';
-import { HydrationBoundary } from 'quipt/components/hydration-boundary';
 
 import { QueryClientProvider } from '@tanstack/react-query';
 

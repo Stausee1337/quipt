@@ -4,7 +4,7 @@ import { RouterProvider, createBrowserRouter, useMatches } from 'react-router';
 
 import stylesUrl from '../index.css?url';
 import faviconUrl from '../../icons/quipt-icon.svg?url&no-inline';
-import { RouteConfigEntry, createRouterRoute, useServerConfig } from '../../shared/routing';
+import { type RouteConfigEntry, createRouterRoute, useServerConfig } from '../../shared/routing';
 
 export function Head(): JSX.Element {
     return (

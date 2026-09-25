@@ -1,11 +1,11 @@
-import { JSX, ComponentProps, useEffect, useState } from 'react';
+import { type JSX, type ComponentProps, useEffect, useState } from 'react';
 
 import { Link, useLocation, useNavigate } from 'react-router';
 import classnames from 'classnames';
 
 import { authService, useAuthentication } from 'quipt/client';
 import Logo from 'quipt/components/Quipt-Logo';
-import { FormEvent, Touchedness, Validity, useForm, validators } from 'quipt/forms';
+import { type FormEvent, type Touchedness, type Validity, useForm, validators } from 'quipt/forms';
 import { AuthError } from 'quipt/schemas';
 
 function convertErrorToMessage(error: AuthError): string {

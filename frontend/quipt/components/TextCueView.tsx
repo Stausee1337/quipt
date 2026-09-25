@@ -1,9 +1,9 @@
-import { ComponentProps, JSX, ReactNode, useMemo } from 'react';
+import { type ComponentProps, type JSX, type ReactNode, useMemo } from 'react';
 
 import classnames from 'classnames';
 
 import {
-    FormattedString,
+    type FormattedString,
     FormattedStringView,
     formatActorsArray,
     formatMarkdown,

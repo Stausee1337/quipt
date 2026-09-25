@@ -1,4 +1,4 @@
-import { ComponentProps, JSX } from 'react';
+import { type ComponentProps, type JSX } from 'react';
 import meta from 'virtual:icons-meta';
 
 interface IconProps extends ComponentProps<'svg'> {

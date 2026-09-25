@@ -1,6 +1,6 @@
-import { JSX } from 'react';
+import { type JSX } from 'react';
 
-import { Field as BaseField, FieldRootProps, InputProps } from '@base-ui/react';
+import { Field as BaseField, type FieldRootProps, type InputProps } from '@base-ui/react';
 
 import { Icon } from 'quipt/components/icon';
 import { BigInput } from 'quipt/components/input';
@@ -10,6 +10,8 @@ export interface FieldProps
         Pick<InputProps, 'ref' | 'autoFocus' | 'inputMode' | 'value' | 'onValueChange'>,
         Pick<FieldRootProps, 'disabled' | 'name' | 'validate' | 'validationMode'> {
     label: string;
+    
+    type?: 'text' | 'password' | undefined;
 }
 
 export function TextField({
@@ -19,6 +21,7 @@ export function TextField({
     autoFocus,
     inputMode,
     disabled,
+    type,
     value,
     onValueChange,
 
@@ -41,6 +44,7 @@ export function TextField({
                             {...props}
                         />
                     )}
+                    type={type}
                     value={value}
                     autoFocus={autoFocus}
                     inputMode={inputMode}
@@ -63,7 +67,7 @@ export function TextField({
                 <BaseField.Error
                     render={({ children, ...props }, { touched, valid }) =>
                         (touched && valid === false ? (
-                            <div className="flex items-center gap-x-1 py-2 text-red-500" {...props}>
+                            <div className="flex items-center gap-x-1 pt-2 text-red-500" {...props}>
                                 <Icon iconName="exclamation-circle-fill" />
                                 {children}
                             </div>

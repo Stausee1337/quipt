@@ -1,15 +1,15 @@
-import { ComponentProps, JSX, Ref, useMemo, useState, useRef, useEffect } from 'react';
+import { type ComponentProps, type JSX, type Ref, useMemo, useState, useRef, useEffect } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 import confetti from 'canvas-confetti';
-import { ChartConfiguration, ChartData } from 'chart.js/auto';
+import { type ChartConfiguration, type ChartData } from 'chart.js/auto';
 import { schemas } from 'qrpc-js';
 import classnames from 'classnames';
 
 import { DivisionInfoView } from 'quipt/components/DivisionInfoView';
 import { TextCueView as BaseTextCueView } from 'quipt/components/TextCueView';
 import {
-    DivisionInfo,
+    type DivisionInfo,
     FormattedStringView,
     SimpleChart,
     computeDivisionInfo,

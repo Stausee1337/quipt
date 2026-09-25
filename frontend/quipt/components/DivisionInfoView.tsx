@@ -1,9 +1,9 @@
-import { JSX, ComponentProps, ReactNode } from 'react';
+import { type JSX, type ComponentProps, type ReactNode } from 'react';
 
 import classnames from 'classnames';
 
 import {
-    DivisionInfo,
+    type DivisionInfo,
     FormattedStringView,
     computeDivisionInfo,
     formatMarkdown,

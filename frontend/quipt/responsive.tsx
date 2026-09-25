@@ -1,4 +1,4 @@
-import { createContext, useState, JSX, useContext, useMemo, useEffect } from 'react';
+import { type JSX, createContext, useState, useContext, useMemo, useEffect } from 'react';
 
 // FIXME: maybe provide in rem
 const MINIMUM_WIDTHS = {

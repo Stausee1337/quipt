@@ -1,9 +1,9 @@
-import { ComponentProps, JSX, useMemo } from 'react';
+import { type ComponentProps, type JSX, useMemo } from 'react';
 
 import { Link } from 'react-router';
 import classnames from 'classnames';
 import { useQuery } from '@tanstack/react-query';
-import { ChartConfiguration, ChartData } from 'chart.js/auto';
+import { type ChartConfiguration, type ChartData } from 'chart.js/auto';
 import { schemas } from 'qrpc-js';
 
 import {

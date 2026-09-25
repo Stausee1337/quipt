@@ -1,7 +1,7 @@
-import { JSX } from 'react';
+import { type JSX } from 'react';
 
 import classnames from 'classnames';
-import { Button as BaseButton, ButtonProps as BaseButtonProps } from '@base-ui/react';
+import { Button as BaseButton, type ButtonProps as BaseButtonProps } from '@base-ui/react';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 

@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import {
-    RouteObject,
+    type RouteObject,
     StaticRouterProvider,
     createStaticHandler,
     createStaticRouter,

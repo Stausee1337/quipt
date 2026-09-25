@@ -1,12 +1,12 @@
-import { JSX, useState, ReactNode, useEffect } from 'react';
-import React, { ComponentProps, useRef } from 'react';
+import { type JSX, useState, type ReactNode, useEffect } from 'react';
+import React, { type ComponentProps, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 import classnames from 'classnames';
 import {
-    Placement,
-    Instance as PopperInstance,
-    VirtualElement,
+    type Placement,
+    type Instance as PopperInstance,
+    type VirtualElement,
     createPopper,
 } from '@popperjs/core';
 

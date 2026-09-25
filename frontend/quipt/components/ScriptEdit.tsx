@@ -1,7 +1,7 @@
 import {
-    ComponentProps,
-    JSX,
-    ReactNode,
+    type ComponentProps,
+    type JSX,
+    type ReactNode,
     createContext,
     useEffect,
     useMemo,
@@ -21,7 +21,7 @@ import { schemas } from 'qrpc-js';
 import classnames from 'classnames';
 
 import { AuthenticationContextObj } from 'quipt/client';
-import { ActorPill as BaseActorPill, PillProps } from 'quipt/components/ActorPill';
+import { ActorPill as BaseActorPill, type PillProps } from 'quipt/components/ActorPill';
 import { CreateDivisionInfoView } from 'quipt/components/DivisionInfoView';
 import { MakeEditableContent } from 'quipt/components/MakeEditableContent';
 import { Popover, PopoverMenuItem } from 'quipt/components/Popover';
@@ -29,7 +29,7 @@ import { ScriptOverview } from 'quipt/components/ScriptOverview';
 import { TrainingRunWrapper } from 'quipt/components/ScriptTraining';
 import { TextCueDataView, TextCuePairView } from 'quipt/components/TextCueView';
 import {
-    ScriptInfo,
+    type ScriptInfo,
     computeScriptInfo,
     formatActorsArray,
     formatMarkdown,

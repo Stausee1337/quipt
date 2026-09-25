@@ -1,4 +1,4 @@
-import { JSX } from 'react';
+import { type JSX } from 'react';
 
 import { ScriptPage } from 'quipt/components/ScriptEdit';
 

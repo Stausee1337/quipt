@@ -1,4 +1,4 @@
-import { ComponentProps, JSX, JSXElementConstructor, useRef } from 'react';
+import { type ComponentProps, type JSX, type JSXElementConstructor, useRef } from 'react';
 
 type ComponentType = keyof JSX.IntrinsicElements | JSXElementConstructor<any>;
 

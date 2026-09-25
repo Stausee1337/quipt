@@ -1,8 +1,8 @@
-import React, { CSSProperties, ComponentProps, JSX, useRef, useLayoutEffect } from 'react';
+import React, { type CSSProperties, type ComponentProps, type JSX, useRef, useLayoutEffect } from 'react';
 
-import { Chart, ChartConfiguration } from 'chart.js/auto';
+import { Chart, type ChartConfiguration } from 'chart.js/auto';
 import { decode } from 'html-entities';
-import { Lexer, MarkedToken } from 'marked';
+import { Lexer, type MarkedToken } from 'marked';
 
 import { Division, Script, TextCue } from 'quipt/schemas';
 

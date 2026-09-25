@@ -1,4 +1,4 @@
-import { type JSX, ReactNode, useState, useEffect } from 'react';
+import { type JSX, type ReactNode, useState, useEffect } from 'react';
 
 export function HydrationBoundary({ children }: { children: ReactNode }): JSX.Element {
     const [isHydrated, setIsHydrated] = useState(false);

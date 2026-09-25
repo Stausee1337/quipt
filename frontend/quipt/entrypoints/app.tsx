@@ -1,4 +1,4 @@
-import { type JSX, ReactNode } from 'react';
+import { type JSX, type ReactNode } from 'react';
 
 import { Outlet, isRouteErrorResponse, useRouteError } from 'react-router';
 

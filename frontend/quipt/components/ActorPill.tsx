@@ -1,4 +1,4 @@
-import { JSX, ComponentProps, useMemo } from 'react';
+import { type JSX, type ComponentProps, useMemo } from 'react';
 
 import classnames from 'classnames';
 

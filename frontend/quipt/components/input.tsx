@@ -1,7 +1,7 @@
-import { JSX } from 'react';
+import { type JSX } from 'react';
 
 import classnames from 'classnames';
-import { Input as BaseInput, InputProps } from '@base-ui/react';
+import { Input as BaseInput, type InputProps } from '@base-ui/react';
 
 const commonInputStyle =
     'rounded-full border outline-none border-accent-100/50 hover:not-focus-within:border-accent-100 focus-within:border-primary placeholder:text-accent-100/50';

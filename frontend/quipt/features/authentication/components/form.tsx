@@ -1,4 +1,4 @@
-import { ComponentProps, ReactNode, useEffect, useRef } from 'react';
+import { type ComponentProps, type ReactNode, useEffect, useRef } from 'react';
 
 import classnames from 'classnames';
 import { Form as BaseForm } from '@base-ui/react';

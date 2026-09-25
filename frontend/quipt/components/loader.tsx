@@ -1,4 +1,4 @@
-import { JSX, ComponentProps } from 'react';
+import { type JSX, type ComponentProps } from 'react';
 
 import classnames from 'classnames';
 

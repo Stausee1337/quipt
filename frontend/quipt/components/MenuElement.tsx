@@ -1,8 +1,8 @@
 import {
-    ComponentProps,
-    JSXElementConstructor,
-    JSX,
-    ReactNode,
+    type ComponentProps,
+    type JSXElementConstructor,
+    type JSX,
+    type ReactNode,
     useEffect,
     useMemo,
     useState,
@@ -20,7 +20,7 @@ import { Popover, PopoverMenuItem } from 'quipt/components/Popover';
 import QuiptLogo from 'quipt/components/Quipt-Logo';
 import { Modal, useModal, useModalContext } from 'quipt/modals';
 import {
-    PartialScript,
+    type PartialScript,
     scriptsQueryOptions,
     useDeleteScript,
     useRenameScript,
