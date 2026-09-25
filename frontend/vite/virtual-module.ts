@@ -15,8 +15,7 @@ export default function create(name: string, namespace?: string) {
 
 export function virtualModuleNamespace<T>(
     namespace: string,
-    build: (create: (name: string) => VirtualModuleDescriptor) => T
+    build: (create: (name: string) => VirtualModuleDescriptor) => T,
 ): T {
-    return build((name) => create(name, namespace));
+    return build(name => create(name, namespace));
 }
-

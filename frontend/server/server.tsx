@@ -1,6 +1,11 @@
 import { StrictMode } from 'react';
 import ReactDOMServer from 'react-dom/server';
-import { RouteObject, StaticRouterProvider, createStaticHandler, createStaticRouter } from 'react-router';
+import {
+    RouteObject,
+    StaticRouterProvider,
+    createStaticHandler,
+    createStaticRouter,
+} from 'react-router';
 import { createRequest, sendResponse } from '@remix-run/node-fetch-server';
 
 import type * as http from 'node:http';
@@ -31,9 +36,10 @@ async function handleNodeRequest(
 }
 
 export function createServerRoutes(config: ServerEntryConfig): RouteObject[] {
-    return Object
-        .entries(config.entries)
-        .map(([id, entry]) => ({ id, ...createRouterRoute(entry) }));
+    return Object.entries(config.entries).map(([id, entry]) => ({
+        id,
+        ...createRouterRoute(entry),
+    }));
 }
 
 async function handleRequest(request: Request, config: ServerEntryConfig) {
@@ -57,7 +63,7 @@ async function handleRequest(request: Request, config: ServerEntryConfig) {
     const html = `<!DOCTYPE html>${renderedLayout}`;
     return new Response(html, {
         status: context.statusCode,
-        headers: { 'Content-Type': 'text/html' }
+        headers: { 'Content-Type': 'text/html' },
     });
 }
 

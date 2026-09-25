@@ -17,9 +17,7 @@ export function Root(): JSX.Element {
                 <Link to="/signup">Register</Link>
             </p>
             <div>
-                <Button variant="primary">
-                    Button
-                </Button>
+                <Button variant="primary">Button</Button>
                 <Button variant="primary" disabled>
                     Button
                 </Button>

@@ -6,12 +6,6 @@ export function HydrationBoundary({ children }: { children: ReactNode }): JSX.El
     useEffect(() => {
         setIsHydrated(true);
     }, []);
-    
-    return (
-        <>
-            { isHydrated ? children : undefined }
-        </>
-    );
 
+    return <>{isHydrated ? children : undefined}</>;
 }
-

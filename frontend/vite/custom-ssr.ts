@@ -1,4 +1,9 @@
-import { type Plugin, type Manifest as ViteManifest, isRunnableDevEnvironment, normalizePath } from 'vite';
+import {
+    type Plugin,
+    type Manifest as ViteManifest,
+    isRunnableDevEnvironment,
+    normalizePath,
+} from 'vite';
 
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -13,7 +18,6 @@ const serverEntry = './frontend/server/entry-prod.ts';
 
 const virtual = virtualModuleNamespace('custom-ssr', create => ({
     serverEntryConfig: create('server-entry-config'),
-
 }));
 
 function resolveEntrypointURL(rootDir: string, entrypoint: string) {
@@ -23,10 +27,7 @@ function resolveEntrypointURL(rootDir: string, entrypoint: string) {
 }
 
 function getId(module: string): string {
-    return createHash('sha256')
-        .update(module)
-        .digest('base64')
-        .slice(0, 8);
+    return createHash('sha256').update(module).digest('base64').slice(0, 8);
 }
 
 type EntryManifest = {
@@ -36,22 +37,23 @@ type EntryManifest = {
 
 function getServerEntryConfig({
     clientManifest,
-    serverManifest
+    serverManifest,
 }: {
-        clientManifest: EntryManifest,
-        serverManifest: EntryManifest
+    clientManifest: EntryManifest;
+    serverManifest: EntryManifest;
 }) {
-        return `\
-${Object.values(serverManifest.meta).map((entrypoint, idx) => 
-    `import route${idx} from ${JSON.stringify(entrypoint.module)};`)
+    return `\
+${Object.values(serverManifest.meta)
+    .map((entrypoint, idx) => `import route${idx} from ${JSON.stringify(entrypoint.module)};`)
     .join('\n')}
 export const clientEntryModule = ${JSON.stringify(clientManifest.entryModule)};
-export const meta = {${clientManifest.meta.map(route => 
-    `${JSON.stringify(route.id)}: ${JSON.stringify(route)}`).join()}};
-export const entries = {${clientManifest.meta.map((route, idx) => 
-    `${JSON.stringify(route.id)}: route${idx}`).join()}};`;
+export const meta = {${clientManifest.meta
+        .map(route => `${JSON.stringify(route.id)}: ${JSON.stringify(route)}`)
+        .join()}};
+export const entries = {${clientManifest.meta
+        .map((route, idx) => `${JSON.stringify(route.id)}: route${idx}`)
+        .join()}};`;
 }
-
 
 function loadViteManifest(directory: string) {
     const manifestContents = readFileSync(
@@ -59,29 +61,30 @@ function loadViteManifest(directory: string) {
         'utf-8',
     );
     return JSON.parse(manifestContents) as ViteManifest;
-};
+}
 
 function resolveModuleToChunk(moduleFilePath: string, viteManifest: ViteManifest) {
     const rootRelativeFilePath = normalizePath(
-        moduleFilePath.startsWith('/') ? moduleFilePath.slice(1) : moduleFilePath
+        moduleFilePath.startsWith('/') ? moduleFilePath.slice(1) : moduleFilePath,
     );
     let entryChunk = viteManifest[rootRelativeFilePath];
 
-    if (!entryChunk)
-        throw new Error(`Chunk not found: ${moduleFilePath}`);
+    if (!entryChunk) throw new Error(`Chunk not found: ${moduleFilePath}`);
 
     return entryChunk;
 }
 
-function resolveModulesToChunks(manifest: EntryManifest, viteManifest: ViteManifest): EntryManifest {
+function resolveModulesToChunks(
+    manifest: EntryManifest,
+    viteManifest: ViteManifest,
+): EntryManifest {
     return {
         meta: manifest.meta.map(entry => ({
             id: entry.id,
             module: `/${resolveModuleToChunk(entry.module, viteManifest).file}`,
         })),
-        entryModule: `/${resolveModuleToChunk(manifest.entryModule, viteManifest).file}`
+        entryModule: `/${resolveModuleToChunk(manifest.entryModule, viteManifest).file}`,
     };
-
 }
 
 export function customSSR(entrypoints: string[]): Plugin[] {
@@ -105,13 +108,13 @@ export function customSSR(entrypoints: string[]): Plugin[] {
         };
     }
 
-    function generateManifestsForBuild(): { 
-        clientManifest: EntryManifest,
-        serverManifest: EntryManifest
+    function generateManifestsForBuild(): {
+        clientManifest: EntryManifest;
+        serverManifest: EntryManifest;
     } {
         const serverManifest = generateManifest(clientEntrypoint);
         const viteManifest = loadViteManifest(
-            path.join(rootDir, 'dist') // TODO: factor out
+            path.join(rootDir, 'dist'), // TODO: factor out
         );
         const clientManifest = resolveModulesToChunks(serverManifest, viteManifest);
         serverManifest.entryModule = serverEntrypoint;
@@ -139,10 +142,7 @@ export function customSSR(entrypoints: string[]): Plugin[] {
                             build: {
                                 manifest: true,
                                 rolldownOptions: {
-                                    input: [
-                                        ...entrypoints,
-                                        clientEntrypoint,
-                                    ],
+                                    input: [...entrypoints, clientEntrypoint],
                                     output: {
                                         codeSplitting: {
                                             groups: [
@@ -184,12 +184,12 @@ export function customSSR(entrypoints: string[]): Plugin[] {
                                 return;
                             }
                             const [devServerModule, config] = await Promise.all([
-                                ssrEnvironment.runner
-                                    .import<typeof devServerEntry>(
-                                        path.join(rootDir, './frontend/server/entry-dev.ts')
-                                    ),
-                                ssrEnvironment.runner
-                                    .import<ServerEntryConfig>(virtual.serverEntryConfig.id),
+                                ssrEnvironment.runner.import<typeof devServerEntry>(
+                                    path.join(rootDir, './frontend/server/entry-dev.ts'),
+                                ),
+                                ssrEnvironment.runner.import<ServerEntryConfig>(
+                                    virtual.serverEntryConfig.id,
+                                ),
                             ]);
 
                             const handleRequest = devServerModule.createRequestHandler(config);
@@ -211,8 +211,7 @@ export function customSSR(entrypoints: string[]): Plugin[] {
 
             load(id) {
                 switch (id) {
-                    case virtual.serverEntryConfig.resolvedId:
-                    {
+                    case virtual.serverEntryConfig.resolvedId: {
                         if (viteCommand === 'build') {
                             const manifests = generateManifestsForBuild();
                             return getServerEntryConfig(manifests);
@@ -220,7 +219,7 @@ export function customSSR(entrypoints: string[]): Plugin[] {
                             const manifest = generateManifest(clientEntrypoint);
                             return getServerEntryConfig({
                                 serverManifest: manifest,
-                                clientManifest: manifest
+                                clientManifest: manifest,
                             });
                         }
                     }
@@ -229,5 +228,3 @@ export function customSSR(entrypoints: string[]): Plugin[] {
         },
     ];
 }
-
-

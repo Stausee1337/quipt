@@ -10,7 +10,7 @@ export default [
         ErrorBoundary: ErrorBoundary,
         children: [
             { index: true, element: <h1>Hello, World!</h1> },
-            { path: 'test', element: <p>You are on the nested test page</p> }
+            { path: 'test', element: <p>You are on the nested test page</p> },
         ],
     },
 ] satisfies RouteObject[];

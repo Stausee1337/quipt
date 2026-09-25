@@ -15,18 +15,24 @@ export default defineEntry({
         {
             id: 'xyz',
             path: 'deeply',
-            Component: () => <>Deeply <Outlet/></>,
+            Component: () => (
+                <>
+                    Deeply <Outlet />
+                </>
+            ),
             children: [
                 {
                     id: 'zyx',
                     path: 'nested',
-                    Component: () => <>Nested <Outlet/></>,
-                    children: [
-                        { path: 'route', element: <>Route</> }
-                    ]
-                }
-            ]
-        }
+                    Component: () => (
+                        <>
+                            Nested <Outlet />
+                        </>
+                    ),
+                    children: [{ path: 'route', element: <>Route</> }],
+                },
+            ],
+        },
     ],
     Layout,
     Component: App,
@@ -36,19 +42,19 @@ export default defineEntry({
 function Layout({ children }: { children: ReactNode }): JSX.Element {
     return (
         <html>
-            <Head/>
+            <Head />
             <body>
                 <div className="text-foreground bg-background relative flex h-svh w-svw">
-                    { children }
+                    {children}
                 </div>
-                <Scripts/>
+                <Scripts />
             </body>
         </html>
     );
 }
 
 function ErrorBoundary(): JSX.Element {
-  const error = useRouteError();
+    const error = useRouteError();
 
     if (isRouteErrorResponse(error)) {
         return (
@@ -69,9 +75,8 @@ function ErrorBoundary(): JSX.Element {
             </div>
         );
     } else if (error instanceof Error && import.meta.env.DEV) {
-        return (<div>Internal Error</div>);
+        return <div>Internal Error</div>;
     } else {
         return <h1>Unknown Error</h1>;
     }
 }
-

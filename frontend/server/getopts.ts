@@ -11,13 +11,7 @@ type OptGroup = {
 export class Options {
     groups: OptGroup[] = [];
 
-    opt(
-        shortName: string,
-        longName: string,
-        description: string,
-        hint: string,
-        hasarg: boolean
-    ) {
+    opt(shortName: string, longName: string, description: string, hint: string, hasarg: boolean) {
         if (shortName.length !== 0 && shortName.length !== 1)
             throw 'the short_name (first argument) should be a single character, or an empty string for none';
         if (longName.length === 1)
@@ -35,52 +29,40 @@ export class Options {
     }
 
     parse(args: string[], allowPositionals?: boolean | undefined) {
-        const options = Object.fromEntries(this.groups.map<[string, ParseArgsOptionDescriptor]>(group => [
-            group.longName.length > 0 ? group.longName : group.shortName,
-            {
-                type: group.hasarg ? 'string' : 'boolean',
-                multiple: false,
-                ...(group.shortName.length > 0 ? { short: group.shortName } : {})
-            }
-        ]));
+        const options = Object.fromEntries(
+            this.groups.map<[string, ParseArgsOptionDescriptor]>(group => [
+                group.longName.length > 0 ? group.longName : group.shortName,
+                {
+                    type: group.hasarg ? 'string' : 'boolean',
+                    multiple: false,
+                    ...(group.shortName.length > 0 ? { short: group.shortName } : {}),
+                },
+            ]),
+        );
         const result = parseArgs({
             args,
             allowPositionals,
-            options
+            options,
         });
         return new Matches(result.positionals, result.values);
     }
 
     usage(brief: string) {
         const descSep = `\n${' '.repeat(24)}`;
-        const rows = this.groups.map(({
-            shortName,
-            longName,
-            hint,
-            description,
-            hasarg
-        }) => {
+        const rows = this.groups.map(({ shortName, longName, hint, description, hasarg }) => {
             let row = '    ';
             if (shortName.length > 0) {
                 row += `-${shortName}`;
-                if (longName.length > 0)
-                    row += ', '
-                else
-                    row += ' ';
-            }
-            else
-                row += '    ';
+                if (longName.length > 0) row += ', ';
+                else row += ' ';
+            } else row += '    ';
 
-            if (longName.length > 0)
-                row += `--${longName} `;
+            if (longName.length > 0) row += `--${longName} `;
 
-            if (hasarg)
-                row += hint;
+            if (hasarg) row += hint;
 
-            if (row.length < 24)
-                row += ' '.repeat(24 - row.length);
-            else
-                row += descSep;
+            if (row.length < 24) row += ' '.repeat(24 - row.length);
+            else row += descSep;
 
             row += description;
 
@@ -95,7 +77,7 @@ export class Matches {
         public positionals: string[],
         private values: {
             [longOption: string]: undefined | string | boolean | Array<string | boolean>;
-        }
+        },
     ) {}
 
     optPresent(name: string): boolean {
@@ -103,9 +85,7 @@ export class Matches {
     }
 
     optString(name: string): string | undefined {
-        if (typeof this.values[name] === 'string')
-            return this.values[name];
+        if (typeof this.values[name] === 'string') return this.values[name];
         return undefined;
     }
 }
-

@@ -3,7 +3,7 @@ import { type JSX } from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router';
 
 export function ErrorBoundary(): JSX.Element {
-  const error = useRouteError();
+    const error = useRouteError();
 
     if (isRouteErrorResponse(error)) {
         return (
@@ -24,9 +24,8 @@ export function ErrorBoundary(): JSX.Element {
             </div>
         );
     } else if (error instanceof Error && import.meta.env.DEV) {
-        return (<div>Internal Error</div>);
+        return <div>Internal Error</div>;
     } else {
         return <h1>Unknown Error</h1>;
     }
 }
-

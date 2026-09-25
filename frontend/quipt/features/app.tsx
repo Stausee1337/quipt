@@ -40,11 +40,6 @@ export function App(): JSX.Element {
         </div>
     );
 
-    if (typeof window !== 'undefined')
-        return (
-            <ClientProvider>
-                { content }
-            </ClientProvider>
-        );
+    if (typeof window !== 'undefined') return <ClientProvider>{content}</ClientProvider>;
     return content;
 }

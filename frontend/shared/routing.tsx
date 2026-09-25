@@ -2,10 +2,10 @@ import { type JSX, type ComponentType, type ReactNode, createContext, useContext
 import type { RouteObject } from 'react-router';
 
 export type ExportedRouteEntry = {
-    route: RouteObject,
-    Layout: ComponentType<{ children: ReactNode }>,
-    ErrorBoundary?: ComponentType | undefined,
-    default: ComponentType
+    route: RouteObject;
+    Layout: ComponentType<{ children: ReactNode }>;
+    ErrorBoundary?: ComponentType | undefined;
+    default: ComponentType;
 };
 
 export type RouteConfigEntry = {
@@ -27,11 +27,24 @@ export type ServerEntryConfig = {
     entries: Record<string, RouteConfigEntry>;
 };
 
-export function makeRoute({ route, Layout, ErrorBoundary, default: Component }: ExportedRouteEntry): RouteObject {
+export function makeRoute({
+    route,
+    Layout,
+    ErrorBoundary,
+    default: Component,
+}: ExportedRouteEntry): RouteObject {
     return {
-            ...route,
-            element: <Layout><Component/></Layout>,
-            errorElement: ErrorBoundary ? <Layout><ErrorBoundary/></Layout> : undefined
+        ...route,
+        element: (
+            <Layout>
+                <Component />
+            </Layout>
+        ),
+        errorElement: ErrorBoundary ? (
+            <Layout>
+                <ErrorBoundary />
+            </Layout>
+        ) : undefined,
     };
 }
 
@@ -40,13 +53,21 @@ export function createRouterRoute({
     children,
     Layout,
     Component,
-    ErrorBoundary
+    ErrorBoundary,
 }: RouteConfigEntry): RouteObject {
     return {
         path,
         children,
-        element: Component ? <Layout><Component/></Layout> : undefined,
-        errorElement: ErrorBoundary ? <Layout><ErrorBoundary/></Layout> : undefined
+        element: Component ? (
+            <Layout>
+                <Component />
+            </Layout>
+        ) : undefined,
+        errorElement: ErrorBoundary ? (
+            <Layout>
+                <ErrorBoundary />
+            </Layout>
+        ) : undefined,
     };
 }
 
@@ -54,19 +75,20 @@ export function defineEntry(entry: RouteConfigEntry): RouteConfigEntry {
     return entry;
 }
 
-const ServerConfigContextObj = createContext<ServerEntryConfig|null>(null);
+const ServerConfigContextObj = createContext<ServerEntryConfig | null>(null);
 
-export function useServerConfig(): ServerEntryConfig|undefined {
+export function useServerConfig(): ServerEntryConfig | undefined {
     return useContext(ServerConfigContextObj) ?? undefined;
 }
 
-export function ServerConfigProvider(
-    { config, children }: { config: ServerEntryConfig, children: ReactNode }
-): JSX.Element {
+export function ServerConfigProvider({
+    config,
+    children,
+}: {
+    config: ServerEntryConfig;
+    children: ReactNode;
+}): JSX.Element {
     return (
-        <ServerConfigContextObj.Provider value={config}>
-            { children }
-        </ServerConfigContextObj.Provider> 
+        <ServerConfigContextObj.Provider value={config}>{children}</ServerConfigContextObj.Provider>
     );
 }
-

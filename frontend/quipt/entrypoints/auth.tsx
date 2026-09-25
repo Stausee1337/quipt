@@ -13,16 +13,13 @@ export default defineEntry({
 function Layout({ children }: { children: ReactNode }): JSX.Element {
     return (
         <html>
-            <Head/>
+            <Head />
             <body>
                 <div className="text-foreground bg-background relative flex h-svh w-svw">
-                    <div className="relative z-0 flex min-h-0 w-full flex-1">
-                    { children }
-                    </div>
+                    <div className="relative z-0 flex min-h-0 w-full flex-1">{children}</div>
                 </div>
-                <Scripts/>
+                <Scripts />
             </body>
         </html>
     );
 }
-

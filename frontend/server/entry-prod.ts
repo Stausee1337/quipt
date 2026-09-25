@@ -10,7 +10,7 @@ import { Options } from './getopts';
 
 import * as config from 'virtual:custom-ssr/server-entry-config';
 
-function getInt(x: string|undefined): number|undefined {
+function getInt(x: string | undefined): number | undefined {
     if (x === undefined) return undefined;
 
     const number = parseInt(x);
@@ -19,14 +19,12 @@ function getInt(x: string|undefined): number|undefined {
     return number;
 }
 
-function main(
-    argv: string[] = process.argv.slice(2)
-) {
+function main(argv: string[] = process.argv.slice(2)) {
     const options = new Options();
     options
         .optflag('h', 'help', 'Display this message')
         .optopt('', 'host', 'specify hostname', 'host')
-        .optopt('', 'port', 'specify port', 'port'); 
+        .optopt('', 'port', 'specify port', 'port');
 
     const matches = options.parse(argv);
     if (matches.optPresent('help')) {
@@ -39,10 +37,7 @@ function main(
 
     const app = connect();
 
-    const assetsPath = path.join(
-        path.dirname(fileURLToPath(import.meta.url)),
-        'assets'
-    );
+    const assetsPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'assets');
 
     app.use('/assets', serveStatic(assetsPath));
 
@@ -54,12 +49,11 @@ function main(
         console.log(`listening at http://${host}:${port}`);
     });
 
-    ["SIGTERM", "SIGINT"].forEach((signal) => {
+    ['SIGTERM', 'SIGINT'].forEach(signal => {
         process.once(signal, () => server?.close(console.error));
     });
 }
 
-if (import.meta.main)  {
+if (import.meta.main) {
     main();
 }
-
