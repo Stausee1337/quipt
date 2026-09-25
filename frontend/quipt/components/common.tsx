@@ -1,4 +1,10 @@
-import React, { type CSSProperties, type ComponentProps, type JSX, useRef, useLayoutEffect } from 'react';
+import React, {
+    type CSSProperties,
+    type ComponentProps,
+    type JSX,
+    useRef,
+    useLayoutEffect,
+} from 'react';
 
 import { Chart, type ChartConfiguration } from 'chart.js/auto';
 import { decode } from 'html-entities';

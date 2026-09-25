@@ -7,9 +7,7 @@ import { defineEntry } from '../../shared/routing';
 export default defineEntry({
     path: 'auth',
     Layout,
-    children: [
-        { path: 'identify', Component: Authentication }
-    ],
+    children: [{ path: 'identify', Component: Authentication }],
 });
 
 function Layout({ children }: { children: ReactNode }): JSX.Element {
@@ -18,7 +16,7 @@ function Layout({ children }: { children: ReactNode }): JSX.Element {
             <Head />
             <body>
                 <div className="text-foreground bg-background relative flex h-svh w-svw">
-                    <div className="relative z-0 flex flex-wrap min-h-0 w-full flex-1">
+                    <div className="relative z-0 flex min-h-0 w-full flex-1 flex-wrap">
                         {children}
                     </div>
                 </div>

@@ -15,17 +15,16 @@ export function PasswordForm({ heading, helpInfo, onValueSubmit }: PasswordFormP
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
 
-    async function onSubmit(formValues: { password: string; }) {
+    async function onSubmit(formValues: { password: string }) {
         inputRef.current?.blur();
         setLoading(true);
-        const result = (onValueSubmit && await onValueSubmit(formValues.password));
+        const result = onValueSubmit && (await onValueSubmit(formValues.password));
         setLoading(false);
-        if (result?.status === 'error')
-            setErrors({ password: 'Das Passwort ist falsch' });
+        if (result?.status === 'error') setErrors({ password: 'Das Passwort ist falsch' });
     }
 
     return (
-        <Form<{ password: string; }>
+        <Form<{ password: string }>
             errors={errors}
             heading={heading}
             helpInfo={helpInfo}
@@ -42,7 +41,7 @@ export function PasswordForm({ heading, helpInfo, onValueSubmit }: PasswordFormP
                     disabled={loading}
                     autoFocus
                 />
-                { /* FIXME: generate propper flow link */ }
+                {/* FIXME: generate propper flow link */}
                 <StyledLink to="/auth/password-reset">Passwort vergessen?</StyledLink>
             </div>
         </Form>

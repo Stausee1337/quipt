@@ -15,7 +15,8 @@ export interface EmailOtpFormProps {
 }
 
 export function EmailCodeForm({ heading, email, onValueSubmit }: EmailOtpFormProps): JSX.Element {
-    const [timerValue, setTimerValue] = useState(initialTimerTime);
+    const [timerValue, setTimerValue] =
+        typeof window !== 'undefined' ? useState(initialTimerTime) : [initialTimerTime, () => {}];
 
     useEffect(() => {
         timerValue && setTimeout(() => setTimerValue(v => v - 1), 1000);
@@ -41,11 +42,10 @@ export function EmailCodeForm({ heading, email, onValueSubmit }: EmailOtpFormPro
                 <Button
                     disabled={timerValue > 0}
                     onClick={onCodeResend}
-                    className="text-link font-medium underline cursor-pointer data-disabled:opacity-50 data-disabled:pointer-events-none data-disabled:cursor-not-allowed">
-                    { timerValue > 0 
+                    className="text-link cursor-pointer font-medium underline data-disabled:pointer-events-none data-disabled:cursor-not-allowed data-disabled:opacity-50">
+                    {timerValue > 0
                         ? `Code in ${timerValue} Sekunden erneut senden`
-                        : 'Code erneut senden'
-                    }
+                        : 'Code erneut senden'}
                 </Button>
             </div>
         </CodeForm>

@@ -6,9 +6,7 @@ import { type Result, error } from '../util';
 const codeLength = 6;
 
 function onValueSubmit(_value: string) {
-    return new Promise<Result>(
-        resolve => setTimeout(() => resolve(error()), 10000)
-    );
+    return new Promise<Result>(resolve => setTimeout(() => resolve(error()), 10000));
 }
 
 export function AppOtpForm(): JSX.Element {
@@ -17,6 +15,7 @@ export function AppOtpForm(): JSX.Element {
             codeLength={codeLength}
             heading="Identität bestätigen"
             helpInfo="Bitte geben Sie den Code aus Ihrer Zwei-Faktor-Authentisierungsapp ein."
-            onValueSubmit={onValueSubmit}/>
+            onValueSubmit={onValueSubmit}
+        />
     );
 }

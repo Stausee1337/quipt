@@ -7,10 +7,13 @@ import { BigInput } from 'quipt/components/input';
 
 export interface FieldProps
     extends
-        Pick<InputProps, 'ref' | 'autoFocus' | 'inputMode' | 'value' | 'onValueChange' | 'onKeyDown' | 'onKeyUp'>,
+        Pick<
+            InputProps,
+            'ref' | 'autoFocus' | 'inputMode' | 'value' | 'onValueChange' | 'onKeyDown' | 'onKeyUp'
+        >,
         Pick<FieldRootProps, 'disabled' | 'name' | 'validate' | 'validationMode'> {
     label: string;
-    
+
     type?: 'text' | 'password' | undefined;
 }
 

@@ -1,4 +1,12 @@
-import { type ComponentProps, type JSX, type Ref, useMemo, useState, useRef, useEffect } from 'react';
+import {
+    type ComponentProps,
+    type JSX,
+    type Ref,
+    useMemo,
+    useState,
+    useRef,
+    useEffect,
+} from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 import confetti from 'canvas-confetti';

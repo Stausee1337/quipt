@@ -17,14 +17,13 @@ export function EmailForm({ heading, helpInfo, onValueSubmit }: EmailFormProps):
     async function onSubmit(formValues: { email: string }) {
         ref.current?.blur();
         setLoading(true);
-        const result = (onValueSubmit && await onValueSubmit(formValues.email));
+        const result = onValueSubmit && (await onValueSubmit(formValues.email));
         setLoading(false);
-        if (result?.status === 'error') 
-            setErrors({ email: result.error });
+        if (result?.status === 'error') setErrors({ email: result.error });
     }
 
     return (
-        <Form<{ email: string; }>
+        <Form<{ email: string }>
             errors={errors}
             heading={heading}
             helpInfo={helpInfo}

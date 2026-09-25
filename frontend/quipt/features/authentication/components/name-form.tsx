@@ -15,15 +15,15 @@ export function NameForm({ heading, helpInfo, onValueSubmit }: NameFormProps): J
     const inputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
 
-    async function onSubmit(formValues: { name: string; }) {
+    async function onSubmit(formValues: { name: string }) {
         inputRef.current?.blur();
         setLoading(true);
-        (onValueSubmit && await onValueSubmit(formValues.name));
+        onValueSubmit && (await onValueSubmit(formValues.name));
         setLoading(false);
     }
 
     return (
-        <Form<{ name: string; }>
+        <Form<{ name: string }>
             heading={heading}
             helpInfo={helpInfo}
             loading={loading}

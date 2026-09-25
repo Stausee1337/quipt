@@ -43,7 +43,7 @@ export function createRouterRoute({
             </Layout>
         ) : (
             <Layout>
-                <Outlet/>
+                <Outlet />
             </Layout>
         ),
         errorElement: ErrorBoundary ? (

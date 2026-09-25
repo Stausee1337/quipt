@@ -4,9 +4,7 @@ import { EmailCodeForm } from './email-code-form';
 import { type Result, error } from '../util';
 
 function onValueSubmit(_value: string) {
-    return new Promise<Result>(
-        resolve => setTimeout(() => resolve(error()), 10000)
-    );
+    return new Promise<Result>(resolve => setTimeout(() => resolve(error()), 10000));
 }
 
 export function VerifyEmailForm({ email }: { email: string }): JSX.Element {
@@ -14,6 +12,7 @@ export function VerifyEmailForm({ email }: { email: string }): JSX.Element {
         <EmailCodeForm
             email={email}
             heading="E-Mail Addresse verifizieren"
-            onValueSubmit={onValueSubmit}/>
+            onValueSubmit={onValueSubmit}
+        />
     );
 }

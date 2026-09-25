@@ -18,18 +18,14 @@ export function required(): Validator {
 
 export function lengthRange(min: number, max?: number): Validator {
     function getMessage() {
-        if (max === undefined || !max)
-            return `Muss mindestens ${min} Zeichen lang sein`;
-        if (min === 0)
-            return `Darf maximal ${max} Zeichen lang sein`;
+        if (max === undefined || !max) return `Muss mindestens ${min} Zeichen lang sein`;
+        if (min === 0) return `Darf maximal ${max} Zeichen lang sein`;
         return `Muss zwischen ${min} und ${max} Zeichen lang sein`;
     }
 
     return value => {
         if (typeof value === 'string')
-            return value.length < min || (max && value.length > max)
-                ? getMessage() 
-                : undefined;
+            return value.length < min || (max && value.length > max) ? getMessage() : undefined;
     };
 }
 
