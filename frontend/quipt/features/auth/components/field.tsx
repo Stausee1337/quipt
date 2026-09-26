@@ -9,7 +9,7 @@ export interface FieldProps
     extends
         Pick<
             InputProps,
-            'ref' | 'autoFocus' | 'inputMode' | 'value' | 'onValueChange' | 'onKeyDown' | 'onKeyUp'
+            'ref' | 'autoComplete' | 'autoFocus' | 'inputMode' | 'spellCheck' | 'value' | 'onValueChange' | 'onKeyDown' | 'onKeyUp'
         >,
         Pick<FieldRootProps, 'disabled' | 'name' | 'validate' | 'validationMode'> {
     label: string;
@@ -21,9 +21,11 @@ export function TextField({
     label,
 
     ref,
+    autoComplete,
     autoFocus,
     inputMode,
     disabled,
+    spellCheck,
     type,
     value,
     onKeyDown,
@@ -51,8 +53,10 @@ export function TextField({
                     )}
                     type={type}
                     value={value}
+                    autoComplete={autoComplete}
                     autoFocus={autoFocus}
                     inputMode={inputMode}
+                    spellCheck={spellCheck}
                     onKeyDown={onKeyDown}
                     onKeyUp={onKeyUp}
                     onValueChange={onValueChange}

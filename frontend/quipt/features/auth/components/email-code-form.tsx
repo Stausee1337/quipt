@@ -19,8 +19,11 @@ export function EmailCodeForm({ heading, email, onDataSubmit }: EmailOtpFormProp
         typeof window !== 'undefined' ? useState(initialTimerTime) : [initialTimerTime, () => {}];
 
     useEffect(() => {
-        timerValue && setTimeout(() => setTimerValue(v => v - 1), 1000);
-    }, [timerValue]);
+        const x = setInterval(() => {
+            setTimerValue(v => v && v - 1);
+        }, 1000);
+        return () => clearInterval(x);
+    }, []);
 
     async function onCodeResend() {
         await new Promise<boolean>(resolve => setTimeout(resolve, 500));

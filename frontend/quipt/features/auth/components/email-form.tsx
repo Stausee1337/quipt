@@ -27,6 +27,8 @@ export function EmailForm({ heading, helpInfo, onDataSubmit }: EmailFormProps): 
                 name="email"
                 label="E-Mail"
                 inputMode="email"
+                autoComplete="email webauthn"
+                spellCheck="false"
 
                 validate={validators.multi(validators.required(), validators.email())}
                 disabled={loading}

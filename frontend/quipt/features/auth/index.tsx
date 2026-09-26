@@ -1,28 +1,6 @@
 import { type JSX } from 'react';
-
-import {
-    AppOtpForm,
-    CollectEmailForm,
-    EmailOtpForm,
-    IdentifyForm,
-    NameForm,
-    PasswordForm,
-    VerifyEmailForm,
-} from './components/forms';
-
-const email = 'test@example.com';
-
+import { FlowManager } from './flow-controller';
 
 export function Authentication(): JSX.Element {
-    return (
-        <>
-            <AppOtpForm />
-            <CollectEmailForm />
-            <EmailOtpForm email={email} />
-            <IdentifyForm />
-            <NameForm />
-            <PasswordForm />
-            <VerifyEmailForm email={email} />
-        </>
-    );
+    return <FlowManager />;
 }

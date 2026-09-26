@@ -53,6 +53,7 @@ function Layout({ children }: { children: ReactNode }): JSX.Element {
     );
 }
 
+// TODO: factor out into components
 function ErrorBoundary(): JSX.Element {
     const error = useRouteError();
 

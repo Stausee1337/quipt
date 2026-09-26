@@ -19,10 +19,27 @@ export type DataSubmitFunction<TDataErrorDescriptor extends Record<string, Submi
     data: FormData<StringKeys<TDataErrorDescriptor>>,
 ) => Promise<PropperErrors<TDataErrorDescriptor>>;
 
-export declare function mapErrorToMessage(error: SubmitError): string;
-export declare function mapErrorsToMessages<T extends Partial<Record<string, string>>>(
+const errorMessages = {
+    'invalid-code': 'Ungültiger Code',
+    'email-not-found': 'Kein Konto zu dieser E-Mail gefunden',
+    'email-already-used': 'Es gibt bereits ein Konto zu dieser E-Mail',
+    'invalid-email': 'Ungültige E-Mail',
+    'invalid-name': 'Ungültiger Name',
+    'incorrect-password': 'Falsches Passwort',
+} satisfies { [P in SubmitError]: string };
+
+export function mapErrorToMessage(error: SubmitError): string {
+    return errorMessages[error];
+}
+
+export function mapErrorsToMessages<T extends Partial<Record<string, SubmitError>>>(
     errors: T,
-): FormErrors<StringKeys<T>>;
+): FormErrors<StringKeys<T>> {
+    return Object.fromEntries(
+        Object.entries(errors)
+            .filter(([_, value]) => value !== undefined)
+            .map(([key, value]) => [key, value ? mapErrorToMessage(value) : undefined])) as FormErrors<StringKeys<T>>;
+}
 
 export function useDataSubmit<
     TFn extends (data: FormData<TKeys>) => Promise<FormErrors<TKeys>>,

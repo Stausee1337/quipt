@@ -36,7 +36,6 @@ interface AuthorizedContext {
 function createAuthorizedExecutor(ctx: AuthorizedContext): runtime.Executor {
     return async (url: string, body: string): Promise<Response> => {
         const accessToken = await ctx.ensureToken();
-        console.log({ accessToken });
         const headers = {
             Authorization: `Bearer ${accessToken}`,
         };
