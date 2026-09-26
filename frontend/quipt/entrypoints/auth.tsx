@@ -1,7 +1,7 @@
 import { type JSX, type ReactNode } from 'react';
 
 import { Head, Scripts } from 'quipt/components/ssr';
-import { Authentication } from 'quipt/features/authentication';
+import { Authentication } from 'quipt/features/auth';
 import { defineEntry } from '../../shared/routing';
 
 export default defineEntry({
