@@ -1,30 +1,21 @@
-import { type JSX, useRef, useState } from 'react';
+import { type JSX, useRef } from 'react';
 
 import { StyledLink } from 'quipt/components/link';
 import { Form, type FormContentProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
-import type { ValueSubmitFunction } from '../util';
+import { type DataSubmitFunction2, useDataSubmit } from '../flow';
 
 export interface PasswordFormProps extends FormContentProps {
-    onValueSubmit?: ValueSubmitFunction<string> | undefined;
+    onDataSubmit?: DataSubmitFunction2<{ password: 'incorrect-password' }>;
 }
 
-export function PasswordForm({ heading, helpInfo, onValueSubmit }: PasswordFormProps): JSX.Element {
+export function PasswordForm({ heading, helpInfo, onDataSubmit }: PasswordFormProps): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null);
-    const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({});
-
-    async function onSubmit(formValues: { password: string }) {
-        inputRef.current?.blur();
-        setLoading(true);
-        const result = onValueSubmit && (await onValueSubmit(formValues.password));
-        setLoading(false);
-        if (result?.status === 'error') setErrors({ password: 'Das Passwort ist falsch' });
-    }
+    const [onSubmit, loading, errors] = useDataSubmit(onDataSubmit, { password: inputRef });
 
     return (
-        <Form<{ password: string }>
+        <Form
             errors={errors}
             heading={heading}
             helpInfo={helpInfo}

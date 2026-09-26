@@ -1,36 +1,29 @@
-import { type JSX, useRef, useState } from 'react';
+import { type JSX, useRef } from 'react';
 
 import { Form, type FormContentProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
-import type { ValueSubmitFunction } from '../util';
+import { type DataSubmitFunction2, useDataSubmit } from '../flow';
 
 export interface EmailFormProps extends FormContentProps {
-    onValueSubmit?: ValueSubmitFunction<string, string> | undefined;
+    onDataSubmit?: DataSubmitFunction2<{
+        email: 'email-not-found' | 'email-already-used' | 'invalid-email';
+    }>;
 }
 
-export function EmailForm({ heading, helpInfo, onValueSubmit }: EmailFormProps): JSX.Element {
-    const ref = useRef<HTMLInputElement>(null);
-    const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({});
-
-    async function onSubmit(formValues: { email: string }) {
-        ref.current?.blur();
-        setLoading(true);
-        const result = onValueSubmit && (await onValueSubmit(formValues.email));
-        setLoading(false);
-        if (result?.status === 'error') setErrors({ email: result.error });
-    }
+export function EmailForm({ heading, helpInfo, onDataSubmit }: EmailFormProps): JSX.Element {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [onSubmit, loading, errors] = useDataSubmit(onDataSubmit, { email: inputRef });
 
     return (
-        <Form<{ email: string }>
+        <Form
             errors={errors}
             heading={heading}
             helpInfo={helpInfo}
             loading={loading}
             onFormSubmit={onSubmit}>
             <TextField
-                ref={ref}
+                ref={inputRef}
                 name="email"
                 label="E-Mail"
                 inputMode="email"

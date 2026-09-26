@@ -3,40 +3,40 @@ import { type JSX, type ReactNode, useRef, useState, useEffect } from 'react';
 import { Form, type FormContentProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
-import { type ValueSubmitFunction, isNumeric } from '../util';
+import { type DataSubmitFunction2, useDataSubmit } from '../flow';
+
+export function isNumeric(value: string): boolean {
+    for (let idx = 0; idx < value.length; idx++) {
+        const code = value.charCodeAt(idx);
+        if (code < 0x30 || code > 0x39) return false;
+    }
+    return true;
+}
 
 export interface CodeFormProps extends FormContentProps {
     codeLength: number;
     children?: ReactNode | undefined;
-    onValueSubmit?: ValueSubmitFunction | undefined;
+    onDataSubmit?: DataSubmitFunction2<{ code: 'invalid-code' }>;
 }
 
 export function CodeForm({
     children,
     codeLength,
-    onValueSubmit,
+    onDataSubmit,
     ...props
 }: CodeFormProps): JSX.Element {
-    const buttonRef = useRef<HTMLButtonElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const [value, setValue] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState<{ code?: string | undefined }>({});
+    const buttonRef = useRef<HTMLButtonElement>(null);
 
-    async function onSubmit(formValues: { code: string }) {
-        inputRef.current?.blur();
-        setLoading(true);
-        const result = onValueSubmit && (await onValueSubmit(formValues.code));
-        setLoading(false);
-        if (result?.status === 'error') setErrors({ code: 'Ungültiger Code' });
-    }
+    const [value, setValue] = useState('');
+    const [onSubmit, loading, errors] = useDataSubmit(onDataSubmit, { code: inputRef });
 
     useEffect(() => {
         if (value.length === codeLength) buttonRef.current && buttonRef.current.click();
     }, [value]);
 
     return (
-        <Form<{ code: string }>
+        <Form
             submitButtonRef={buttonRef}
             errors={errors}
             loading={loading}
