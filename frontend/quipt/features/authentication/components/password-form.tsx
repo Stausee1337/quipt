@@ -4,10 +4,10 @@ import { StyledLink } from 'quipt/components/link';
 import { Form, type FormContentProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
-import { type DataSubmitFunction2, useDataSubmit } from '../flow';
+import { type DataSubmitFunction, useDataSubmit } from '../flow';
 
 export interface PasswordFormProps extends FormContentProps {
-    onDataSubmit?: DataSubmitFunction2<{ password: 'incorrect-password' }>;
+    onDataSubmit?: DataSubmitFunction<{ password: 'incorrect-password' }>;
 }
 
 export function PasswordForm({ heading, helpInfo, onDataSubmit }: PasswordFormProps): JSX.Element {

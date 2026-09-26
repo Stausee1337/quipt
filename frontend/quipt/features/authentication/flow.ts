@@ -15,7 +15,7 @@ type PropperErrors<TDataErrorDescriptor extends Record<string, SubmitError>> = {
     [P in StringKeys<TDataErrorDescriptor>]?: TDataErrorDescriptor[P] | undefined;
 };
 
-export type DataSubmitFunction2<TDataErrorDescriptor extends Record<string, SubmitError>> = (
+export type DataSubmitFunction<TDataErrorDescriptor extends Record<string, SubmitError>> = (
     data: FormData<StringKeys<TDataErrorDescriptor>>,
 ) => Promise<PropperErrors<TDataErrorDescriptor>>;
 

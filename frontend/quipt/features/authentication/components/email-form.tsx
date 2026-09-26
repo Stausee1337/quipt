@@ -3,10 +3,10 @@ import { type JSX, useRef } from 'react';
 import { Form, type FormContentProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
-import { type DataSubmitFunction2, useDataSubmit } from '../flow';
+import { type DataSubmitFunction, useDataSubmit } from '../flow';
 
 export interface EmailFormProps extends FormContentProps {
-    onDataSubmit?: DataSubmitFunction2<{
+    onDataSubmit?: DataSubmitFunction<{
         email: 'email-not-found' | 'email-already-used' | 'invalid-email';
     }>;
 }

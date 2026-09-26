@@ -3,12 +3,12 @@ import { type JSX, useRef } from 'react';
 import { Form, type FormContentProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
-import { type DataSubmitFunction2, useDataSubmit } from '../flow';
+import { type DataSubmitFunction, useDataSubmit } from '../flow';
 
 const nameRegex = /^[\p{L}\p{M}]+(?:[ '-][\p{L}\p{M}]+)*$/u;
 
 export interface NameFormProps extends FormContentProps {
-    onDataSubmit?: DataSubmitFunction2<{ name: 'invalid-name' }>;
+    onDataSubmit?: DataSubmitFunction<{ name: 'invalid-name' }>;
 }
 
 export function NameForm({ heading, helpInfo, onDataSubmit }: NameFormProps): JSX.Element {

@@ -3,20 +3,20 @@ import { type JSX, type ReactNode, useRef, useState, useEffect } from 'react';
 import { Form, type FormContentProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
-import { type DataSubmitFunction2, useDataSubmit } from '../flow';
+import { type DataSubmitFunction, useDataSubmit } from '../flow';
 
-export function isNumeric(value: string): boolean {
+export interface CodeFormProps extends FormContentProps {
+    codeLength: number;
+    children?: ReactNode | undefined;
+    onDataSubmit?: DataSubmitFunction<{ code: 'invalid-code' }>;
+}
+
+function isNumeric(value: string): boolean {
     for (let idx = 0; idx < value.length; idx++) {
         const code = value.charCodeAt(idx);
         if (code < 0x30 || code > 0x39) return false;
     }
     return true;
-}
-
-export interface CodeFormProps extends FormContentProps {
-    codeLength: number;
-    children?: ReactNode | undefined;
-    onDataSubmit?: DataSubmitFunction2<{ code: 'invalid-code' }>;
 }
 
 export function CodeForm({
