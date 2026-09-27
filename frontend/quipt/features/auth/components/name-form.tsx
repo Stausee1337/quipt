@@ -3,17 +3,15 @@ import { type JSX, useRef } from 'react';
 import { Form, type FormContentProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
-import { type DataSubmitFunction, useDataSubmit } from '../flow';
+import { type FlowFormProps, useDataSubmit } from '../flow';
 
 const nameRegex = /^[\p{L}\p{M}]+(?:[ '-][\p{L}\p{M}]+)*$/u;
 
-export interface NameFormProps extends FormContentProps {
-    onDataSubmit?: DataSubmitFunction<{ name: 'invalid-name' }>;
-}
+export interface NameFormProps extends FormContentProps, FlowFormProps<{ name: 'invalid-name' }> {}
 
-export function NameForm({ heading, helpInfo, onDataSubmit }: NameFormProps): JSX.Element {
+export function NameForm({ heading, helpInfo, errors, onDataSubmit }: NameFormProps): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null);
-    const [onSubmit, loading, errors] = useDataSubmit(onDataSubmit, { name: inputRef });
+    const [onSubmit, loading] = useDataSubmit(onDataSubmit, { name: inputRef });
 
     return (
         <Form

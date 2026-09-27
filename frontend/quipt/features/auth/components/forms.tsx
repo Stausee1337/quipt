@@ -5,7 +5,7 @@ import { EmailForm } from './email-form';
 import { EmailCodeForm } from './email-code-form';
 import { NameForm } from './name-form';
 import { PasswordForm } from './password-form';
-import { type DataSubmitFunction, type FormData, type SubmitError } from '../flow';
+import { type DataSubmitFunction2, type FlowFormProps, type FormData, type SubmitError } from '../flow';
 
 interface Form<
     TName extends string,
@@ -13,7 +13,11 @@ interface Form<
     TErrors extends Record<string, SubmitError>,
 > {
     name: TName;
-    renderForm: (args: TArgs, submit: DataSubmitFunction<TErrors>) => JSX.Element;
+    renderForm: (
+        args: TArgs,
+        errors: Partial<TErrors>, // Repalce with propper errors
+        onDataSubmit: DataSubmitFunction2<keyof TErrors & string> // FIXME: Replace with StringKeys
+    ) => JSX.Element;
 }
 
 function form<
@@ -23,20 +27,17 @@ function form<
     TErrors extends Record<string, SubmitError>,
 >(
     name: TName,
-    component: ComponentType<{ onDataSubmit?: DataSubmitFunction<TErrors> } & TProps>,
+    component: ComponentType<FlowFormProps<TErrors> & TProps>,
     staticProps: TStaticProps,
-): Form<TName, Omit<TProps, 'onDataSubmit'|keyof TStaticProps>, TErrors> {
+): Form<TName, Omit<TProps, 'errors' | 'onDataSubmit' | (keyof TStaticProps & string)>, TErrors> {
     return {
         name,
-        renderForm(args, submit) {
-            const props = {
-                ...args,
-                ...staticProps,
-            } as TProps;
+        renderForm(args, errors, onDataSubmit) {
+            const props = { ...staticProps, ...args } as TProps;
             return createElement(component, {
                 ...props,
-                onDataSubmit: submit,
-                key: name,
+                errors,
+                onDataSubmit,
             });
         },
     };
@@ -46,7 +47,9 @@ type ByName<T extends readonly Form<any, any, any>[]> = {
     [F in T[number] as F['name']]: F;
 };
 
-export function recordByName<TForms extends Form<any, any, any>[]>(...forms: TForms): Readonly<ByName<TForms>> {
+export function recordByName<TForms extends Form<any, any, any>[]>(
+    ...forms: TForms
+): Readonly<ByName<TForms>> {
     return Object.freeze(Object.fromEntries(forms.map(form => [form.name, form])));
 }
 
@@ -96,6 +99,13 @@ export const forms = recordByName(
     nameForm,
     passwordForm,
 );
+
+export type ErrorsOf<TProps extends FlowFormProps<any>> = TProps extends FlowFormProps<infer TErrors>
+    ? TErrors : never;
+
+export function f(): FormErrorsOf<'identify'> {
+    return { email: 'invalid-email' };
+}
 
 export type Forms = typeof forms;
 export type FormKind = keyof Forms;

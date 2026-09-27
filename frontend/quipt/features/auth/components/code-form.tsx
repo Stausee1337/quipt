@@ -3,12 +3,11 @@ import { type JSX, type ReactNode, useRef, useState, useEffect } from 'react';
 import { Form, type FormContentProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
-import { type DataSubmitFunction, useDataSubmit } from '../flow';
+import { type FlowFormProps, useDataSubmit } from '../flow';
 
-export interface CodeFormProps extends FormContentProps {
+export interface CodeFormProps extends FormContentProps, FlowFormProps<{ code: 'invalid-code' }> {
     codeLength: number;
     children?: ReactNode | undefined;
-    onDataSubmit?: DataSubmitFunction<{ code: 'invalid-code' }>;
 }
 
 function isNumeric(value: string): boolean {
@@ -22,6 +21,7 @@ function isNumeric(value: string): boolean {
 export function CodeForm({
     children,
     codeLength,
+    errors,
     onDataSubmit,
     ...props
 }: CodeFormProps): JSX.Element {
@@ -29,7 +29,7 @@ export function CodeForm({
     const buttonRef = useRef<HTMLButtonElement>(null);
 
     const [value, setValue] = useState('');
-    const [onSubmit, loading, errors] = useDataSubmit(onDataSubmit, { code: inputRef });
+    const [onSubmit, loading] = useDataSubmit(onDataSubmit, { code: inputRef });
 
     useEffect(() => {
         if (value.length === codeLength) buttonRef.current && buttonRef.current.click();

@@ -9,7 +9,15 @@ export interface FieldProps
     extends
         Pick<
             InputProps,
-            'ref' | 'autoComplete' | 'autoFocus' | 'inputMode' | 'spellCheck' | 'value' | 'onValueChange' | 'onKeyDown' | 'onKeyUp'
+            | 'ref'
+            | 'autoComplete'
+            | 'autoFocus'
+            | 'inputMode'
+            | 'spellCheck'
+            | 'value'
+            | 'onValueChange'
+            | 'onKeyDown'
+            | 'onKeyUp'
         >,
         Pick<FieldRootProps, 'disabled' | 'name' | 'validate' | 'validationMode'> {
     label: string;

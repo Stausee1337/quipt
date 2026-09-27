@@ -3,18 +3,17 @@ import { type JSX, useState, useEffect } from 'react';
 import { Button } from '@base-ui/react';
 
 import { CodeForm } from './code-form';
-import type { DataSubmitFunction } from '../flow';
+import type { FlowFormProps } from '../flow';
 
 const codeLength = 8;
 const initialTimerTime = 60;
 
-export interface EmailOtpFormProps {
+export interface EmailOtpFormProps extends FlowFormProps<{ code: 'invalid-code' }> {
     email: string;
     heading: string;
-    onDataSubmit?: DataSubmitFunction<{ code: 'invalid-code' }>;
 }
 
-export function EmailCodeForm({ heading, email, onDataSubmit }: EmailOtpFormProps): JSX.Element {
+export function EmailCodeForm({ heading, email, ...props }: EmailOtpFormProps): JSX.Element {
     const [timerValue, setTimerValue] =
         typeof window !== 'undefined' ? useState(initialTimerTime) : [initialTimerTime, () => {}];
 
@@ -40,7 +39,7 @@ export function EmailCodeForm({ heading, email, onDataSubmit }: EmailOtpFormProp
                     haben.
                 </>
             }
-            onDataSubmit={onDataSubmit}>
+            {...props}>
             <div className="flex">
                 <Button
                     disabled={timerValue > 0}

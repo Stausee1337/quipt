@@ -1,6 +1,12 @@
 import { type JSX, useState, useCallback } from 'react';
 
-import { type FormKind, type FormArgsOf, type FormDataOf, type FormErrorsOf, forms } from './components/forms';
+import {
+    type FormKind,
+    type FormArgsOf,
+    type FormDataOf,
+    type FormErrorsOf,
+    forms,
+} from './components/forms';
 
 // flowStep: number;
 // flowName: string;
@@ -15,13 +21,10 @@ export type FlowState<F extends FormKind | null> = FlowStateBase<F> &
         ? { args: FormArgsOf<F>; errors: FormErrorsOf<F> }
         : { args?: undefined; errors?: undefined });
 
-export type InitialFactory<F extends FormKind> = (data: FormDataOf<F>) => FlowState<F>;
-
 export type Reducer<F extends FormKind, G extends FormKind | null> = (
     current: Readonly<FlowState<F>>,
     formData: FormDataOf<F>,
-) => FlowState<F | G>;
-
+) => FlowState<F> | FlowState<G>;
 
 // type FlowData = {
 //     transactionToken: string | undefined;
@@ -31,7 +34,7 @@ export type Reducer<F extends FormKind, G extends FormKind | null> = (
 //     continueTo: string | undefined;
 // };
 // declare function useFlowData(): FlowData;
-// 
+//
 // function useFlowReducer(_flowData: FlowData): [] {
 //     // useReducer();
 //     console.log(useReducer);
@@ -51,14 +54,14 @@ export function FlowManager(): JSX.Element {
 export type Flow = () => JSX.Element;
 
 export function _flowErased(
-    initial: InitialFactory<FormKind>|FlowState<FormKind>,
+    initial: FlowState<FormKind>,
     reducers: Partial<Record<FormKind, Reducer<FormKind, FormKind | null>>>,
 ) {
-
     async function reduceStep(
         current: Readonly<FlowState<FormKind>>,
-        data: FormDataOf<FormKind>
+        data: FormDataOf<FormKind>,
     ): Promise<FlowState<FormKind | null>> {
+        await new Promise(resolve => setTimeout(resolve, 100));
         const newState = reducers[current.form]?.(current, data) ?? current;
         // TODO: reduce internal state (flowStep) as well.
         return newState;
@@ -66,26 +69,33 @@ export function _flowErased(
 
     return () => {
         console.log('rerender flow');
-        const [reducerState, setReducerState] = useState<FlowState<FormKind|null>>(
-            typeof initial === 'function'
-                ? initial({} as any) // FIXME: args either come from a dispatch action or from the transaction token
-                : initial
+        const [reducerState, setReducerState] = useState<FlowState<FormKind | null>>(initial);
+
+        const dispatch = useCallback(
+            async (data: FormDataOf<any>) => {
+                const x = await reduceStep(reducerState as FlowState<FormKind>, data as FormDataOf<FormKind>);
+                setReducerState(x);
+            },
+            [reducerState],
         );
 
-        const dispatch = useCallback(async (data: FormDataOf<FormKind>): Promise<FormErrorsOf<FormKind>> => {
-            const x = await reduceStep(reducerState as FlowState<FormKind>, data);
-            setReducerState(x);
-            return (x.errors ?? {}) as FormErrorsOf<FormKind>;
-        }, [reducerState]);
-
-        return <>{ reducerState.form && forms[reducerState.form].renderForm(reducerState.args as FormArgsOf<FormKind>, dispatch) }</>;
+        return (
+            <>
+                {reducerState.form &&
+                    forms[reducerState.form].renderForm(
+                        reducerState.args as FormArgsOf<FormKind>,
+                        reducerState.errors as FormErrorsOf<FormKind>,
+                        dispatch,
+                    )}
+            </>
+        );
     };
 }
 
 export function flow<I extends FormKind, TFormKinds extends FormKind>(
     _name: string,
-    initial: InitialFactory<I> | FlowState<I>,
-    reducers: { [P in (TFormKinds | I)]: Reducer<P, TFormKinds | null>; },
+    initial: FlowState<I>,
+    reducers: { [P in TFormKinds | I]: Reducer<P, TFormKinds | null> },
 ): Flow {
     return _flowErased(initial, reducers);
 }
@@ -100,6 +110,14 @@ const testFlow = flow(
     },
     {
         identify: (current, data) => {
+            if (data.email === 'test@email.com')
+                return {
+                    transactionToken: current.transactionToken,
+                    form: 'identify',
+                    args: {},
+                    errors: { email: 'invalid-email' },
+                };
+
             return {
                 transactionToken: current.transactionToken,
                 form: 'email-otp',
