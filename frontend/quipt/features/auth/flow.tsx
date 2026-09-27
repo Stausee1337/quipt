@@ -26,21 +26,6 @@ export type Reducer<F extends FormKind, G extends FormKind | null> = (
     formData: FormDataOf<F>,
 ) => FlowState<F> | FlowState<G>;
 
-// type FlowData = {
-//     transactionToken: string | undefined;
-//     flowName: string;
-//     flowStep: string | undefined;
-//     form: string;
-//     continueTo: string | undefined;
-// };
-// declare function useFlowData(): FlowData;
-//
-// function useFlowReducer(_flowData: FlowData): [] {
-//     // useReducer();
-//     console.log(useReducer);
-//     return [];
-// }
-
 export function FlowManager(): JSX.Element {
     // ReducerState + FlowState
     // const flowData = useFlowData();
@@ -73,7 +58,10 @@ export function _flowErased(
 
         const dispatch = useCallback(
             async (data: FormDataOf<any>) => {
-                const x = await reduceStep(reducerState as FlowState<FormKind>, data as FormDataOf<FormKind>);
+                const x = await reduceStep(
+                    reducerState as FlowState<FormKind>,
+                    data as FormDataOf<FormKind>,
+                );
                 setReducerState(x);
             },
             [reducerState],

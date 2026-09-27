@@ -1,11 +1,10 @@
 import { type JSX, type ReactNode, useRef, useState, useEffect } from 'react';
 
-import { Form, type FormContentProps } from './form';
+import { Form, type FormContentProps, type FormDataProps, useDataSubmit } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
-import { type FlowFormProps, useDataSubmit } from '../flow';
 
-export interface CodeFormProps extends FormContentProps, FlowFormProps<{ code: 'invalid-code' }> {
+export interface CodeFormProps extends FormContentProps, FormDataProps<{ code: 'invalid-code' }> {
     codeLength: number;
     children?: ReactNode | undefined;
 }
@@ -18,30 +17,19 @@ function isNumeric(value: string): boolean {
     return true;
 }
 
-export function CodeForm({
-    children,
-    codeLength,
-    errors,
-    onDataSubmit,
-    ...props
-}: CodeFormProps): JSX.Element {
+export function CodeForm({ children, codeLength, ...props }: CodeFormProps): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
 
     const [value, setValue] = useState('');
-    const [onSubmit, loading] = useDataSubmit(onDataSubmit, { code: inputRef });
+    const [_, loading] = useDataSubmit(null as unknown as any, { code: inputRef });
 
     useEffect(() => {
         if (value.length === codeLength) buttonRef.current && buttonRef.current.click();
     }, [value]);
 
     return (
-        <Form
-            submitButtonRef={buttonRef}
-            errors={errors}
-            loading={loading}
-            onFormSubmit={onSubmit}
-            {...props}>
+        <Form submitButtonRef={buttonRef} loading={loading} {...props}>
             <TextField
                 ref={inputRef}
                 name="code"

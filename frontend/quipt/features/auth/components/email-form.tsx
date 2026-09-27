@@ -1,33 +1,22 @@
 import { type JSX, useRef } from 'react';
 
-import { Form, type FormContentProps } from './form';
+import { Form, type FormContentProps, type FormDataProps, useDataSubmit } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
-import { type FlowFormProps, useDataSubmit } from '../flow';
 
 export interface EmailFormProps
     extends
         FormContentProps,
-        FlowFormProps<{
+        FormDataProps<{
             email: 'email-not-found' | 'email-already-used' | 'invalid-email';
         }> {}
 
-export function EmailForm({
-    heading,
-    helpInfo,
-    errors,
-    onDataSubmit,
-}: EmailFormProps): JSX.Element {
+export function EmailForm({ heading, helpInfo, ...props }: EmailFormProps): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null);
-    const [onSubmit, loading] = useDataSubmit(onDataSubmit, { email: inputRef });
+    const [_, loading] = useDataSubmit(null as unknown as any, { email: inputRef });
 
     return (
-        <Form
-            errors={errors}
-            heading={heading}
-            helpInfo={helpInfo}
-            loading={loading}
-            onFormSubmit={onSubmit}>
+        <Form heading={heading} helpInfo={helpInfo} loading={loading} {...props}>
             <TextField
                 ref={inputRef}
                 name="email"

@@ -3,12 +3,12 @@ import { type JSX, useState, useEffect } from 'react';
 import { Button } from '@base-ui/react';
 
 import { CodeForm } from './code-form';
-import type { FlowFormProps } from '../flow';
+import type { FormDataProps } from './form';
 
 const codeLength = 8;
 const initialTimerTime = 60;
 
-export interface EmailOtpFormProps extends FlowFormProps<{ code: 'invalid-code' }> {
+export interface EmailOtpFormProps extends FormDataProps<{ code: 'invalid-code' }> {
     email: string;
     heading: string;
 }

@@ -1,5 +1,5 @@
 import { type JSX } from 'react';
-import { FlowManager } from './flow-controller';
+import { FlowManager } from './flow';
 
 export function Authentication(): JSX.Element {
     return <FlowManager />;
