@@ -1,6 +1,6 @@
 import { type JSX, type ReactNode, useRef, useState, useEffect } from 'react';
 
-import { Form, type FormContentProps, type FormDataProps, useDataSubmit } from './form';
+import { Form, type FormContentProps, type FormDataProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
 
@@ -22,14 +22,13 @@ export function CodeForm({ children, codeLength, ...props }: CodeFormProps): JSX
     const buttonRef = useRef<HTMLButtonElement>(null);
 
     const [value, setValue] = useState('');
-    const [_, loading] = useDataSubmit(null as unknown as any, { code: inputRef });
 
     useEffect(() => {
         if (value.length === codeLength) buttonRef.current && buttonRef.current.click();
     }, [value]);
 
     return (
-        <Form submitButtonRef={buttonRef} loading={loading} {...props}>
+        <Form submitButtonRef={buttonRef} {...props}>
             <TextField
                 ref={inputRef}
                 name="code"
@@ -42,7 +41,7 @@ export function CodeForm({ children, codeLength, ...props }: CodeFormProps): JSX
                     validators.required(),
                     validators.lengthRange(codeLength),
                 )}
-                disabled={loading}
+                disabled={props.loading} // FIXME: maybe do *only* provide `loading` via context.
                 autoFocus
             />
             {children}

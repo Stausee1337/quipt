@@ -80,7 +80,7 @@ export function TextField({
                             {...props}
                         />
                     )}
-                    className="text-accent-100/50 bg-background sm:bg-accent-10 data-focused:not-data-error:text-primary absolute top-4 left-[calc(7*var(--spacing)-2.3px)] cursor-text px-[2.3px] transition-transform select-none data-filled:data-error:text-red-500 data-focused:data-error:text-red-400 data-open:-translate-y-[26.5px] data-open:scale-[0.875]">
+                    className="text-accent-100/50 z-0 bg-background sm:bg-accent-10 data-focused:not-data-error:text-primary absolute top-4 left-[calc(7*var(--spacing)-2.3px)] cursor-text px-[2.3px] transition-transform select-none data-filled:data-error:text-red-500 data-focused:data-error:text-red-400 data-open:-translate-y-[26.5px] data-open:scale-[0.875]">
                     {label}
                 </BaseField.Label>
                 <BaseField.Error

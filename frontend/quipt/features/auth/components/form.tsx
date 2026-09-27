@@ -3,11 +3,10 @@ import {
     type ComponentType,
     type ReactNode,
     type Ref,
-    type RefObject,
     useEffect,
     useRef,
-    useState,
     createElement,
+    useMemo,
 } from 'react';
 
 import classnames from 'classnames';
@@ -33,11 +32,11 @@ export interface FormContentProps {
 
 export interface FormDataProps<TErrors extends ErrorDescriptor> {
     errors: FormErrors<TErrors>;
-    onDataSubmit?: (formData: FormData<TErrors>) => Promise<void>;
+    loading: boolean;
+    onDataSubmit?: (formData: FormData<TErrors>) => void;
 }
 
 export interface FormProps<T extends ErrorDescriptor> extends FormDataProps<T>, FormContentProps {
-    loading?: boolean | undefined;
     submitButtonRef?: Ref<HTMLButtonElement | null> | undefined;
     children: ReactNode;
 }
@@ -58,6 +57,8 @@ export function Form<T extends ErrorDescriptor = ErrorDescriptor>({
         actionsRef.current?.validate();
     }, [actionsRef.current]);
 
+    const messages = useMemo(() => mapErrorsToMessages(errors), [errors]);
+
     return (
         <BaseForm<FormData<T>>
             actionsRef={actionsRef}
@@ -67,7 +68,7 @@ export function Form<T extends ErrorDescriptor = ErrorDescriptor>({
                 'sm:bg-accent-100/10 border-accent-100/30 flex w-full flex-col gap-6 overflow-hidden border p-8 data-loading:pointer-events-none data-loading:opacity-50 sm:mx-auto sm:w-120 sm:self-center sm:rounded-4xl',
             )}
 
-            errors={mapErrorsToMessages(errors)}
+            errors={messages}
             onFormSubmit={onDataSubmit}>
             <Icon iconName="quipt-logo" className="text-primary mx-auto h-12 w-auto" />
             <div>
@@ -109,11 +110,7 @@ export interface Form<
     TErrors extends ErrorDescriptor,
 > {
     name: TName;
-    renderForm: (
-        args: TArgs,
-        errors: FormErrors<TErrors>,
-        onDataSubmit: (formData: FormData<TErrors>) => Promise<void>,
-    ) => JSX.Element;
+    renderForm: (args: TArgs, dataProps: FormDataProps<TErrors>) => JSX.Element;
 }
 
 export function form<
@@ -125,15 +122,18 @@ export function form<
     name: TName,
     component: ComponentType<FormDataProps<TErrors> & TProps>,
     staticProps: TStaticProps,
-): Form<TName, Omit<TProps, 'errors' | 'onDataSubmit' | (keyof TStaticProps & string)>, TErrors> {
+): Form<
+    TName,
+    Omit<TProps, 'errors' | 'onDataSubmit' | 'loading' | (keyof TStaticProps & string)>,
+    TErrors
+> {
     return {
         name,
-        renderForm(args, errors, onDataSubmit) {
+        renderForm(args, dataProps) {
             const props = { ...staticProps, ...args } as TProps;
             return createElement(component, {
                 ...props,
-                errors,
-                onDataSubmit,
+                ...dataProps,
             });
         },
     };
@@ -175,29 +175,4 @@ function mapErrorsToMessages<TErrors extends ErrorDescriptor>(
             ) as [StringKeys<TErrors>, SubmitError][]
         ).map(([key, value]) => [key, mapErrorToMessage(value)]),
     ) as any;
-}
-
-export function useDataSubmit<
-    TFn extends (data: Record<TKeys, string>) => Promise<void>,
-    TKeys extends string,
->(
-    onDataSubmit: TFn | undefined,
-    refs?: Partial<Record<TKeys, RefObject<HTMLInputElement | null>>>,
-): [(data: Record<TKeys, string>) => void, boolean] {
-    const [loading, setLoading] = useState(false);
-
-    async function onSubmit(formData: Record<TKeys, string>) {
-        refs &&
-            Object.values<RefObject<HTMLInputElement | null> | undefined>(refs).map(ref => {
-                ref?.current?.blur();
-            });
-        if (onDataSubmit) {
-            setLoading(true);
-            await onDataSubmit(formData);
-            setLoading(false);
-            // setErrors(mapErrorsToMessages(result));
-        }
-    }
-
-    return [onSubmit, loading];
 }

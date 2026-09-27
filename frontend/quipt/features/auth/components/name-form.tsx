@@ -1,6 +1,6 @@
 import { type JSX, useRef } from 'react';
 
-import { Form, type FormContentProps, type FormDataProps, useDataSubmit } from './form';
+import { Form, type FormContentProps, type FormDataProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
 
@@ -10,10 +10,9 @@ export interface NameFormProps extends FormContentProps, FormDataProps<{ name: '
 
 export function NameForm({ heading, helpInfo, ...props }: NameFormProps): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null);
-    const [_, loading] = useDataSubmit(null as unknown as any, { name: inputRef });
 
     return (
-        <Form heading={heading} helpInfo={helpInfo} loading={loading} {...props}>
+        <Form heading={heading} helpInfo={helpInfo} {...props}>
             <TextField
                 ref={inputRef}
                 name="name"
@@ -23,7 +22,7 @@ export function NameForm({ heading, helpInfo, ...props }: NameFormProps): JSX.El
                     validators.required(),
                     validators.regex(nameRegex, 'Name enthält ungültige Zeichen'),
                 )}
-                disabled={loading}
+                disabled={props.loading}
                 autoFocus
             />
         </Form>

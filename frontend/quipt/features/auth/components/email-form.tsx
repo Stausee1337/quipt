@@ -1,6 +1,6 @@
 import { type JSX, useRef } from 'react';
 
-import { Form, type FormContentProps, type FormDataProps, useDataSubmit } from './form';
+import { Form, type FormContentProps, type FormDataProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
 
@@ -13,10 +13,9 @@ export interface EmailFormProps
 
 export function EmailForm({ heading, helpInfo, ...props }: EmailFormProps): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null);
-    const [_, loading] = useDataSubmit(null as unknown as any, { email: inputRef });
 
     return (
-        <Form heading={heading} helpInfo={helpInfo} loading={loading} {...props}>
+        <Form heading={heading} helpInfo={helpInfo} {...props}>
             <TextField
                 ref={inputRef}
                 name="email"
@@ -26,7 +25,7 @@ export function EmailForm({ heading, helpInfo, ...props }: EmailFormProps): JSX.
                 spellCheck="false"
 
                 validate={validators.multi(validators.required(), validators.email())}
-                disabled={loading}
+                disabled={props.loading}
                 autoFocus
             />
         </Form>

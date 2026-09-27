@@ -11,20 +11,18 @@ import {
 // flowStep: number;
 // flowName: string;
 // continueTo: string;
-type FlowStateBase<F extends FormKind | null> = {
+type FlowState<F extends FormKind> = {
     transactionToken: string | undefined;
+    loading: boolean;
     form: F;
+    args: FormArgsOf<F>;
+    errors: FormErrorsOf<F>;
 };
 
-export type FlowState<F extends FormKind | null> = FlowStateBase<F> &
-    (F extends FormKind
-        ? { args: FormArgsOf<F>; errors: FormErrorsOf<F> }
-        : { args?: undefined; errors?: undefined });
-
-export type Reducer<F extends FormKind, G extends FormKind | null> = (
+export type Reducer<F extends FormKind, G extends FormKind> = (
     current: Readonly<FlowState<F>>,
     formData: FormDataOf<F>,
-) => FlowState<F> | FlowState<G>;
+) => FlowState<F> | FlowState<G>|null;
 
 export function FlowManager(): JSX.Element {
     // ReducerState + FlowState
@@ -40,24 +38,29 @@ export type Flow = () => JSX.Element;
 
 export function _flowErased(
     initial: FlowState<FormKind>,
-    reducers: Partial<Record<FormKind, Reducer<FormKind, FormKind | null>>>,
+    reducers: Partial<Record<FormKind, Reducer<FormKind, FormKind>>>,
 ) {
     async function reduceStep(
         current: Readonly<FlowState<FormKind>>,
         data: FormDataOf<FormKind>,
-    ): Promise<FlowState<FormKind | null>> {
-        await new Promise(resolve => setTimeout(resolve, 100));
+    ): Promise<FlowState<FormKind>|null> {
+        await new Promise(resolve => setTimeout(resolve, 500));
         const newState = reducers[current.form]?.(current, data) ?? current;
         // TODO: reduce internal state (flowStep) as well.
         return newState;
     }
 
     return () => {
-        console.log('rerender flow');
-        const [reducerState, setReducerState] = useState<FlowState<FormKind | null>>(initial);
+        const [reducerState, setReducerState] = useState<FlowState<FormKind>|null>(initial);
 
         const dispatch = useCallback(
             async (data: FormDataOf<any>) => {
+                if (reducerState === null)
+                    return;
+                setReducerState({
+                    ...reducerState,
+                    loading: true,
+                });
                 const x = await reduceStep(
                     reducerState as FlowState<FormKind>,
                     data as FormDataOf<FormKind>,
@@ -69,12 +72,12 @@ export function _flowErased(
 
         return (
             <>
-                {reducerState.form &&
-                    forms[reducerState.form].renderForm(
-                        reducerState.args as FormArgsOf<FormKind>,
-                        reducerState.errors as FormErrorsOf<FormKind>,
-                        dispatch,
-                    )}
+                {reducerState &&
+                    forms[reducerState.form].renderForm(reducerState.args as FormArgsOf<FormKind>, {
+                        loading: reducerState.loading,
+                        errors: reducerState.errors as FormErrorsOf<FormKind>,
+                        onDataSubmit: dispatch,
+                    })}
             </>
         );
     };
@@ -83,7 +86,7 @@ export function _flowErased(
 export function flow<I extends FormKind, TFormKinds extends FormKind>(
     _name: string,
     initial: FlowState<I>,
-    reducers: { [P in TFormKinds | I]: Reducer<P, TFormKinds | null> },
+    reducers: { [P in TFormKinds | I]: Reducer<P, TFormKinds> },
 ): Flow {
     return _flowErased(initial, reducers);
 }
@@ -95,6 +98,7 @@ const testFlow = flow(
         form: 'identify',
         args: {},
         errors: {},
+        loading: false,
     },
     {
         identify: (current, data) => {
@@ -104,21 +108,27 @@ const testFlow = flow(
                     form: 'identify',
                     args: {},
                     errors: { email: 'invalid-email' },
+                    loading: false,
                 };
 
             return {
                 transactionToken: current.transactionToken,
                 form: 'email-otp',
                 args: { email: data.email },
-                errors: { code: 'invalid-code' },
+                errors: { },
+                loading: false,
             };
         },
-        'email-otp': (current, _data) => {
-            if (Math.floor(Math.random() * 10000) % 2 === 0) return current;
-            return {
-                transactionToken: current.transactionToken,
-                form: null,
-            };
+        'email-otp': (current, data) => {
+            if (data.code === '12345678')
+                return {
+                    transactionToken: current.transactionToken,
+                    form: 'email-otp',
+                    args: { email: current.args.email },
+                    errors: { code: 'invalid-code' },
+                    loading: false
+                };
+            return null;
         },
     },
 );

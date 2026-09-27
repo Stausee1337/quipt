@@ -1,7 +1,7 @@
 import { type JSX, useRef } from 'react';
 
 import { StyledLink } from 'quipt/components/link';
-import { Form, type FormContentProps, type FormDataProps, useDataSubmit } from './form';
+import { Form, type FormContentProps, type FormDataProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
 
@@ -10,10 +10,9 @@ export interface PasswordFormProps
 
 export function PasswordForm({ heading, helpInfo, ...props }: PasswordFormProps): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null);
-    const [_, loading] = useDataSubmit(null as unknown as any, { password: inputRef });
 
     return (
-        <Form heading={heading} helpInfo={helpInfo} loading={loading} {...props}>
+        <Form heading={heading} helpInfo={helpInfo} {...props}>
             <div className="flex flex-col gap-y-2">
                 <TextField
                     ref={inputRef}
@@ -22,7 +21,7 @@ export function PasswordForm({ heading, helpInfo, ...props }: PasswordFormProps)
                     type="password"
 
                     validate={validators.required()}
-                    disabled={loading}
+                    disabled={props.loading}
                     autoFocus
                 />
                 {/* FIXME: generate propper flow link */}
