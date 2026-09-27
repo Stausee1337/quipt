@@ -1,4 +1,4 @@
-import { type JSX, useRef } from 'react';
+import { type JSX } from 'react';
 
 import { Form, type FormContentProps, type FormDataProps } from './form';
 import { TextField } from './field';
@@ -9,12 +9,9 @@ const nameRegex = /^[\p{L}\p{M}]+(?:[ '-][\p{L}\p{M}]+)*$/u;
 export interface NameFormProps extends FormContentProps, FormDataProps<{ name: 'invalid-name' }> {}
 
 export function NameForm({ heading, helpInfo, ...props }: NameFormProps): JSX.Element {
-    const inputRef = useRef<HTMLInputElement>(null);
-
     return (
         <Form heading={heading} helpInfo={helpInfo} {...props}>
             <TextField
-                ref={inputRef}
                 name="name"
                 label="Ihr Name"
 

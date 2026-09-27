@@ -1,4 +1,4 @@
-import { type JSX, useRef } from 'react';
+import { type JSX } from 'react';
 
 import { StyledLink } from 'quipt/components/link';
 import { Form, type FormContentProps, type FormDataProps } from './form';
@@ -9,13 +9,10 @@ export interface PasswordFormProps
     extends FormContentProps, FormDataProps<{ password: 'incorrect-password' }> {}
 
 export function PasswordForm({ heading, helpInfo, ...props }: PasswordFormProps): JSX.Element {
-    const inputRef = useRef<HTMLInputElement>(null);
-
     return (
         <Form heading={heading} helpInfo={helpInfo} {...props}>
             <div className="flex flex-col gap-y-2">
                 <TextField
-                    ref={inputRef}
                     name="password"
                     label="Passwort"
                     type="password"

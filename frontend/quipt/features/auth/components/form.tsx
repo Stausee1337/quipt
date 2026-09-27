@@ -3,16 +3,16 @@ import {
     type ComponentType,
     type ReactNode,
     type Ref,
+    type RefObject,
     useEffect,
     useRef,
     createElement,
     useMemo,
+    useImperativeHandle,
 } from 'react';
 
-import classnames from 'classnames';
 import { Form as BaseForm } from '@base-ui/react';
 
-import { Icon } from 'quipt/components/icon';
 import { BigButton } from 'quipt/components/button';
 import { Loader } from 'quipt/components/loader';
 
@@ -24,6 +24,10 @@ export type FormData<TErrors extends ErrorDescriptor> = Record<StringKeys<TError
 export type FormErrors<TErrors extends ErrorDescriptor> = {
     [P in StringKeys<TErrors>]?: TErrors[P] | undefined;
 };
+
+export interface FormActions extends BaseForm.Actions {
+    submit: () => void;
+}
 
 export interface FormContentProps {
     heading: string;
@@ -37,7 +41,7 @@ export interface FormDataProps<TErrors extends ErrorDescriptor> {
 }
 
 export interface FormProps<T extends ErrorDescriptor> extends FormDataProps<T>, FormContentProps {
-    submitButtonRef?: Ref<HTMLButtonElement | null> | undefined;
+    actionsRef?: RefObject<FormActions | null> | undefined;
     children: ReactNode;
 }
 
@@ -47,41 +51,51 @@ export function Form<T extends ErrorDescriptor = ErrorDescriptor>({
     helpInfo,
     loading,
     children,
-    submitButtonRef,
+    actionsRef: formActionsRef,
 
     errors,
     onDataSubmit,
 }: FormProps<T>) {
-    const actionsRef = useRef<BaseForm.Actions | null>(null);
+    const submitButtonRef = useRef<HTMLButtonElement>(null);
+    const baseFormActionsRef = useRef<BaseForm.Actions | null>(null);
+
     useEffect(() => {
-        actionsRef.current?.validate();
-    }, [actionsRef.current]);
+        baseFormActionsRef.current?.validate();
+    }, [baseFormActionsRef.current]);
+
+    useImperativeHandle(
+        formActionsRef,
+        () => ({
+            submit: () => submitButtonRef.current?.click(),
+            validate: () => baseFormActionsRef.current?.validate(),
+        }),
+        [baseFormActionsRef.current],
+    );
 
     const messages = useMemo(() => mapErrorsToMessages(errors), [errors]);
 
     return (
         <BaseForm<FormData<T>>
-            actionsRef={actionsRef}
+            actionsRef={baseFormActionsRef}
             validationMode="onChange"
-            data-loading={loading ? '' : undefined}
-            className={classnames(
-                'sm:bg-accent-100/10 border-accent-100/30 flex w-full flex-col gap-6 overflow-hidden border p-8 data-loading:pointer-events-none data-loading:opacity-50 sm:mx-auto sm:w-120 sm:self-center sm:rounded-4xl',
-            )}
+            className="flex w-full flex-col gap-6 overflow-hidden"
 
             errors={messages}
             onFormSubmit={onDataSubmit}>
-            <Icon iconName="quipt-logo" className="text-primary mx-auto h-12 w-auto" />
             <div>
                 <h2 className="text-heading-2">{heading}</h2>
                 <p className="pt-1">{helpInfo}</p>
             </div>
             {children}
-            <FlowControl submitButtonRef={submitButtonRef} loading={loading} />
+            <FlowNav
+                submitButtonRef={submitButtonRef}
+                loading={loading} // Prop drilling: More evidence `loading` should be *only* be a context thing
+            />
         </BaseForm>
     );
 }
 
-function FlowControl(props: {
+function FlowNav(props: {
     submitButtonRef?: Ref<HTMLButtonElement | null> | undefined;
     loading?: boolean | undefined;
 }) {

@@ -1,6 +1,6 @@
 import { type JSX, type ReactNode, useRef, useState, useEffect } from 'react';
 
-import { Form, type FormContentProps, type FormDataProps } from './form';
+import { Form, type FormActions, type FormContentProps, type FormDataProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
 
@@ -18,19 +18,17 @@ function isNumeric(value: string): boolean {
 }
 
 export function CodeForm({ children, codeLength, ...props }: CodeFormProps): JSX.Element {
-    const inputRef = useRef<HTMLInputElement>(null);
-    const buttonRef = useRef<HTMLButtonElement>(null);
+    const actionsRef = useRef<FormActions>(null);
 
     const [value, setValue] = useState('');
 
     useEffect(() => {
-        if (value.length === codeLength) buttonRef.current && buttonRef.current.click();
+        value.length === codeLength && actionsRef.current && actionsRef.current.submit();
     }, [value]);
 
     return (
-        <Form submitButtonRef={buttonRef} {...props}>
+        <Form actionsRef={actionsRef} {...props}>
             <TextField
-                ref={inputRef}
                 name="code"
                 label="Code"
                 inputMode="numeric"

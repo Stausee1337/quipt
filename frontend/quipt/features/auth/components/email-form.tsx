@@ -1,4 +1,4 @@
-import { type JSX, useRef } from 'react';
+import { type JSX } from 'react';
 
 import { Form, type FormContentProps, type FormDataProps } from './form';
 import { TextField } from './field';
@@ -12,12 +12,9 @@ export interface EmailFormProps
         }> {}
 
 export function EmailForm({ heading, helpInfo, ...props }: EmailFormProps): JSX.Element {
-    const inputRef = useRef<HTMLInputElement>(null);
-
     return (
         <Form heading={heading} helpInfo={helpInfo} {...props}>
             <TextField
-                ref={inputRef}
                 name="email"
                 label="E-Mail"
                 inputMode="email"
