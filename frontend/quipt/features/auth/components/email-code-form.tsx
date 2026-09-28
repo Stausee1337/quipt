@@ -8,12 +8,12 @@ import type { FormDataProps } from './form';
 const codeLength = 8;
 const initialTimerTime = 60;
 
-export interface EmailOtpFormProps extends FormDataProps<{ code: 'invalid-code' }> {
-    email: string;
+export interface EmailCodeFormProps extends FormDataProps<'code'> {
+    email?: string | undefined;
     heading: string;
 }
 
-export function EmailCodeForm({ heading, email, ...props }: EmailOtpFormProps): JSX.Element {
+export function EmailCodeForm({ heading, email, ...props }: EmailCodeFormProps): JSX.Element {
     const [timerValue, setTimerValue] =
         typeof window !== 'undefined' ? useState(initialTimerTime) : [initialTimerTime, () => {}];
 
@@ -34,10 +34,17 @@ export function EmailCodeForm({ heading, email, ...props }: EmailOtpFormProps): 
             codeLength={codeLength}
             heading={heading}
             helpInfo={
-                <>
-                    Bitte geben Sie den Code ein, den wir an <strong>{email}</strong> gesendet
-                    haben.
-                </>
+                email ? (
+                    <>
+                        Bitte geben Sie den Code ein, den wir an <strong>{email}</strong> gesendet
+                        haben.
+                    </>
+                ) : (
+                    <>
+                        Bitte geben Sie den Code ein, den wir an ihre E-Mail Addresse gesendet
+                        haben.
+                    </>
+                )
             }
             {...props}>
             <div className="flex">

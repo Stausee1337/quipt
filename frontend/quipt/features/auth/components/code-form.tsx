@@ -3,8 +3,9 @@ import { type JSX, type ReactNode, useRef, useState, useEffect } from 'react';
 import { Form, type FormActions, type FormContentProps, type FormDataProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
+import { useFlow } from './flow';
 
-export interface CodeFormProps extends FormContentProps, FormDataProps<{ code: 'invalid-code' }> {
+export interface CodeFormProps extends FormContentProps, FormDataProps<'code'> {
     codeLength: number;
     children?: ReactNode | undefined;
 }
@@ -19,6 +20,8 @@ function isNumeric(value: string): boolean {
 
 export function CodeForm({ children, codeLength, ...props }: CodeFormProps): JSX.Element {
     const actionsRef = useRef<FormActions>(null);
+
+    const { loading } = useFlow();
 
     const [value, setValue] = useState('');
 
@@ -39,7 +42,7 @@ export function CodeForm({ children, codeLength, ...props }: CodeFormProps): JSX
                     validators.required(),
                     validators.lengthRange(codeLength),
                 )}
-                disabled={props.loading} // FIXME: maybe do *only* provide `loading` via context.
+                disabled={loading} // FIXME: maybe do *only* provide `loading` via context.
                 autoFocus
             />
             {children}

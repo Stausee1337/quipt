@@ -3,15 +3,13 @@ import { type JSX } from 'react';
 import { Form, type FormContentProps, type FormDataProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
+import { useFlow } from './flow';
 
-export interface EmailFormProps
-    extends
-        FormContentProps,
-        FormDataProps<{
-            email: 'email-not-found' | 'email-already-used' | 'invalid-email';
-        }> {}
+export interface EmailFormProps extends FormContentProps, FormDataProps<'email'> {}
 
 export function EmailForm({ heading, helpInfo, ...props }: EmailFormProps): JSX.Element {
+    const { loading } = useFlow();
+
     return (
         <Form heading={heading} helpInfo={helpInfo} {...props}>
             <TextField
@@ -22,7 +20,7 @@ export function EmailForm({ heading, helpInfo, ...props }: EmailFormProps): JSX.
                 spellCheck="false"
 
                 validate={validators.multi(validators.required(), validators.email())}
-                disabled={props.loading}
+                disabled={loading}
                 autoFocus
             />
         </Form>

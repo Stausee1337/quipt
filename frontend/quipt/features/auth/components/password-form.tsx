@@ -4,11 +4,13 @@ import { StyledLink } from 'quipt/components/link';
 import { Form, type FormContentProps, type FormDataProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
+import { useFlow } from './flow';
 
-export interface PasswordFormProps
-    extends FormContentProps, FormDataProps<{ password: 'incorrect-password' }> {}
+export interface PasswordFormProps extends FormContentProps, FormDataProps<'password'> {}
 
 export function PasswordForm({ heading, helpInfo, ...props }: PasswordFormProps): JSX.Element {
+    const { loading } = useFlow();
+
     return (
         <Form heading={heading} helpInfo={helpInfo} {...props}>
             <div className="flex flex-col gap-y-2">
@@ -18,7 +20,7 @@ export function PasswordForm({ heading, helpInfo, ...props }: PasswordFormProps)
                     type="password"
 
                     validate={validators.required()}
-                    disabled={props.loading}
+                    disabled={loading}
                     autoFocus
                 />
                 {/* FIXME: generate propper flow link */}
