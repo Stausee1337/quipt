@@ -16,7 +16,6 @@ import type { SubmitError } from './form';
 
 export interface BaseFlowStepState {
     step: string;
-    latentState: Record<string, unknown>;
     errors: Partial<Record<string, SubmitError>>;
 }
 
@@ -50,19 +49,25 @@ type SchemaReducer<TStep extends string, TKeys extends string, TOut extends stri
 type SchemaReducerOf<TState extends FlowStepState<string, any>, TOut extends string> =
     TState extends FlowStepState<infer TStep, infer TKeys> ? SchemaReducer<TStep, TKeys, TOut> : never;
 
-type SerializedFlowData = {
+type FlowData = {
     flowStep: string;
     flowStepIndex: number;
     transaction: string | undefined;
-    continueTo: string | undefined;
+    continueTo: string;
 };
 
-type Flow = {
-    loading: boolean;
-    stepState: BaseFlowStepState
-    step: number;
+export type FlowState = {
+    stepIndex: number;
+    stepState: ErasedFlowStepState;
     transaction: string | undefined;
-    continueTo: string | undefined;
+    data: Record<string, string>;
+};
+
+export type Flow = {
+    done: boolean;
+    loading: boolean;
+    continueTo: string;
+    state: FlowState;
 };
 
 const FlowContextObj = createContext<Flow | null>(null);
@@ -71,7 +76,7 @@ export function useFlow(): Flow {
     return useContext(FlowContextObj)!;
 }
 
-function parseFlowData(location: Location): SerializedFlowData | undefined {
+function parseFlowData(location: Location): FlowData | undefined {
     const params = new URLSearchParams(location.search);
 
     const step = params.get('step');
@@ -85,7 +90,9 @@ function parseFlowData(location: Location): SerializedFlowData | undefined {
     if (Number.isNaN(index)) return undefined;
 
     const transaction = params.get('t') ?? undefined;
-    const continueTo = params.get('continue') ?? undefined;
+    const continueTo = params.get('continue');
+    if (continueTo === null)
+        return undefined;
 
     return {
         flowStep: step,
@@ -95,121 +102,128 @@ function parseFlowData(location: Location): SerializedFlowData | undefined {
     };
 }
 
-type ProtoFlow = {
-    state: BaseFlowStepState;
-    index: number;
-    transaction: string | undefined;
-    continueTo: string;
-};
-
-function getProtoFlow(location: Location): ProtoFlow | undefined {
-    const data = parseFlowData(location);
-    if (data === undefined) return undefined;
+function toFlowData(flow: Flow): FlowData {
     return {
-        state: {
-            step: data.flowStep,
-            latentState: {},
-            errors: {},
-        },
-        index: data.flowStepIndex,
-        transaction: data.transaction,
-        // FIXME: validate continueTo on the server as not to have an open redirect
-        continueTo: data.continueTo ?? 'https://quipt.app/app',
+        flowStep: flow.state.stepState.step,
+        flowStepIndex: flow.state.stepIndex,
+        continueTo: flow.continueTo,
+        transaction: flow.state.transaction,
     };
 }
 
-function serializeFlowStepState(protoFlow: ProtoFlow, state: ErasedFlowStepState): string {
-    const serializedFlowData = {
-        flowStep: state.step,
-        flowStepIndex: protoFlow.index,
-        continueTo: protoFlow.continueTo,
-        transaction: protoFlow.transaction,
-    } satisfies SerializedFlowData;
+function isFlowDataEq(a: FlowData, b: FlowData): boolean {
+    return a.flowStep === b.flowStep
+        && a.flowStepIndex === b.flowStepIndex
+        && a.transaction === b.transaction
+        && a.continueTo === b.continueTo;
+}
 
+function serializeFlowDataToURLParams(flowData: FlowData): string {
     const params = new URLSearchParams();
-    if (serializedFlowData.transaction !== undefined)
-        params.append('t', serializedFlowData.transaction);
+    if (flowData.transaction !== undefined)
+        params.append('t', flowData.transaction);
 
-    if (serializedFlowData.continueTo !== undefined)
-        params.append('continue', serializedFlowData.continueTo);
+    if (flowData.continueTo !== undefined)
+        params.append('continue', flowData.continueTo);
 
-    params.append('step', serializedFlowData.flowStep);
+    params.append('step', flowData.flowStep);
 
-    if (serializedFlowData.flowStepIndex !== undefined)
-        params.append('index', String(serializedFlowData.flowStepIndex));
+    if (flowData.flowStepIndex !== undefined)
+        params.append('index', String(flowData.flowStepIndex));
 
     return params.toString();
 }
 
-type FlowDescriptor<TStates extends FlowStepState<string, any>> = {
+export type FlowDescriptor<TStates extends FlowStepState<string, any>> = {
     [F in TStates as F['step']]: SchemaReducerOf<F, TStates['step']>;
 };
 
-function isValidFlowStepState<TStates extends FlowStepState<string, any>>(
-    descriptor: FlowDescriptor<TStates>,
-    state: BaseFlowStepState,
+function isValidFlowStep(
+    descriptor: Record<string, SchemaReducer<string, string, string>>,
+    step: string,
 ): boolean {
-    return Object.keys(descriptor).includes(state.step);
+    return Object.keys(descriptor).includes(step);
 }
 
 type ErasedFlowStepState = BaseFlowStepState & {
     update(data: Record<string, string>): void;
 };
 
-type State =
-    | {
-          type: 'idle' | 'done';
-          stepState: ErasedFlowStepState | undefined;
-      }
-    | {
-          type: 'loading';
-          stepState: ErasedFlowStepState | undefined;
-          loadingID: string;
-      };
+type ResolveResult = {
+    stepState: ErasedFlowStepState | null;
+    transaction: string | undefined;
+    data: Record<string, string>;
+};
 
-type Transition<TState> =
-    | {
-          type: 'override';
-          stepState: TState | undefined;
-      }
-    | {
-          type: 'load';
-          loadingID: string;
-      }
-    | {
-          type: 'resolve';
-          loadingID: string;
-          stepState: TState | null;
-      };
+type ResolveTransition = ResolveResult & {
+    type: 'resolve';
+    loadingID: string;
+};
 
-type UseFlowReducer<TState> = [
-    {
-        done: boolean;
-        loading: boolean;
-        stepState: TState | undefined;
-    },
-    Dispatch<Transition<TState>>
+type Transition = {
+    type: 'override';
+    flowState: FlowState | undefined;
+} | {
+    type: 'load';
+    loadingID: string;
+} | ResolveTransition;
+
+type UseFlowReducer = [
+    Flow | undefined,
+    Dispatch<Transition>
 ];
 
-type UseErasedFlowReducer = UseFlowReducer<ErasedFlowStepState>;
+function createFlowState(
+    descriptorRef: RefObject<Record<string, SchemaReducer<string, string, string>>>,
+    flowData: FlowData,
+    disptach: Dispatch<Transition>,
+    data?: Record<string, string> | undefined
+): FlowState {
+    return {
+        stepState: createStepState(
+            descriptorRef,
+            disptach,
+            flowData.flowStep,
+        ),
+        stepIndex: flowData.flowStepIndex,
+        transaction: flowData.transaction,
+        data: data ?? {}
+    };
+}
 
-function useErasedFlowReducer(
-    initialState: () => ErasedFlowStepState | undefined,
-): UseErasedFlowReducer {
-    const [state, dispatcher] = useReducer<State, undefined, [Transition<ErasedFlowStepState>]>(
+function useFlowReducer(
+    descriptor: Record<string, SchemaReducer<string, string, string>>,
+    flowData: FlowData | undefined
+): UseFlowReducer {
+    const descriptorRef = useRef(descriptor);
+
+    // Internal State Machine State
+    type BaseState = {
+        type: 'idle' | 'done' | 'loading';
+        flowState: FlowState | undefined;
+        loadingID?: string;
+    };
+
+    type LoadingState = BaseState & {
+        loadingID: string;
+    };
+
+    type State = BaseState|LoadingState;
+
+    const [state, dispatch] = useReducer<State, undefined, [Transition]>(
         (state, transition) => {
-            console.log(state, transition);
+            console.log(transition);
             switch (transition.type) {
                 case 'override':
                     return {
                         type: 'idle',
-                        stepState: transition.stepState,
+                        flowState: transition.flowState,
                     };
                 case 'load':
                     if (state.type === 'idle')
                         return {
                             type: 'loading',
-                            stepState: state.stepState,
+                            flowState: state.flowState,
                             loadingID: transition.loadingID,
                         };
                     break;
@@ -218,11 +232,18 @@ function useErasedFlowReducer(
                         if (transition.stepState === null)
                             return {
                                 type: 'done',
-                                stepState: state.stepState
+                                flowState: state.flowState
                             };
                         return {
                             type: 'idle',
-                            stepState: transition.stepState,
+                            flowState: {
+                                stepIndex: state.flowState !== undefined 
+                                    ? state.flowState.stepIndex + 1
+                                    : 0,
+                                stepState: transition.stepState,
+                                transaction: transition.transaction ?? state.flowState?.transaction,
+                                data: { ...state.flowState?.data, ...transition.data }
+                            },
                             loadingID: transition.loadingID,
                         };
                     }
@@ -231,29 +252,61 @@ function useErasedFlowReducer(
             return state;
         },
         undefined,
-        () => ({ type: 'idle', stepState: initialState() }),
+        () => ({
+            type: 'idle',
+            flowState: flowData !== undefined
+                // FIXME: this initial setup depdends on server-computed state (`data`)
+                ? createFlowState(
+                    descriptorRef,
+                    flowData,
+                    t => dispatch(t)
+                )
+                : undefined
+        }),
     );
 
-    return [
-        {
+    const flow = useMemo(() =>
+        (state.flowState !== undefined && flowData !== undefined) ? {
             done: state.type === 'done',
             loading: state.type === 'loading',
-            stepState: state.stepState,
-        },
-        dispatcher,
-    ];
-}
+            state: state.flowState,
+            continueTo: flowData.continueTo
+        } : undefined,
+        [state, flowData?.continueTo]
+    );
 
-function useFlowReducer<TStates extends FlowStepState<string, any>>(
-    initialState: () => TStates | undefined,
-): UseFlowReducer<TStates> {
-    const [state, dispatcher] = useErasedFlowReducer(initialState);
+    useEffect(() => {
+        if (!flowData) {
+            dispatch({ type: 'override', flowState: undefined });
+            return;
+        }
+        if (!isValidFlowStep(descriptor, flowData.flowStep)) {
+            dispatch({ type: 'override', flowState: undefined });
+            return;
+        }
+        if (flow === undefined || !isFlowDataEq(flowData, toFlowData(flow))) {
+            dispatch({
+                type: 'override',
+                flowState: createFlowState(
+                    descriptorRef,
+                    flowData,
+                    t => dispatch(t),
+                    flow?.state.data
+                )
+            });
+        }
+    }, [flowData]);
+
+    useEffect(() => {
+        if (flowData === undefined) return;
+        if (!isValidFlowStep(descriptor, flowData.flowStep))
+            dispatch({ type: 'override', flowState: undefined });
+        descriptorRef.current = descriptor;
+    }, [descriptor]);
+
     return [
-        {
-            ...state,
-            stepState: state.stepState as TStates | undefined
-        },
-        dispatcher,
+        flow,
+        dispatch,
     ];
 }
 
@@ -268,44 +321,49 @@ function newID(length = 8): string {
     return id;
 }
 
-function createNewState(
+function createStepState(
     descriptorRef: RefObject<Record<string, SchemaReducer<string, string, string>>>,
-    dispatch: (transition: Transition<ErasedFlowStepState>) => void,
-    protoState: BaseFlowStepState,
+    dispatch: (transition: Transition) => void,
+    step: string,
+    errors?: Partial<Record<string, SubmitError>> | undefined
 ): ErasedFlowStepState {
     async function erasedReducer(
         thisState: ErasedFlowStepState,
         data: Record<string, string>,
-    ): Promise<ErasedFlowStepState | null> {
+    ): Promise<ResolveResult> {
         const erasedDescriptor = descriptorRef.current as Record<
             string,
             SchemaReducer<string, string, string>
         >;
         const result = await erasedDescriptor[thisState.step]({ state: thisState, data });
-        return result === null
-            ? null
-            : createNewState(descriptorRef, dispatch, {
-                  step: result.step,
-                  errors: result.errors,
-                  latentState: { ...thisState.latentState, ...data },
-              });
+        if (result === null)
+            return {
+                stepState: null,
+                transaction: undefined,
+                data: {}
+            };
+        const { step, errors, transaction } = result;
+        
+        const stepState = createStepState(descriptorRef, dispatch, step, errors);
+        return { stepState, transaction, data };
     }
 
     async function executeReduceUpdate(thisState: ErasedFlowStepState, data: Record<string, string>) {
         const loadingID = newID();
         dispatch({ type: 'load', loadingID });
-        const newState = await erasedReducer(thisState, data);
-        dispatch({ type: 'resolve', loadingID, stepState: newState });
+        const result = await erasedReducer(thisState, data);
+        dispatch({ type: 'resolve', loadingID, ...result });
     }
 
-    const flowState = {
-        ...protoState,
+    const stepState = {
+        step,
+        errors: errors ?? {},
         update(data) {
             executeReduceUpdate(this, data);
         },
     } satisfies ErasedFlowStepState;
-    flowState.update = flowState.update.bind(flowState);
-    return Object.freeze(flowState);
+    stepState.update = stepState.update.bind(stepState);
+    return Object.freeze(stepState);
 }
 
 export function useCreateFlow<TStates extends FlowStepState<string, any>>(
@@ -314,47 +372,31 @@ export function useCreateFlow<TStates extends FlowStepState<string, any>>(
     const location = useLocation();
     const navigate = useNavigate();
 
-    const descriptorRef = useRef(descriptor);
-    const protoFlow = useMemo(() => getProtoFlow(location), []);
+    const flowData = useMemo(() => parseFlowData(location), [location]);
 
-    const [state, dispatch] = useFlowReducer(() => {
-        if (protoFlow?.state === undefined) return undefined;
-        if (!isValidFlowStepState(descriptor, protoFlow.state)) return undefined;
-        return createNewState(
-            descriptorRef,
-            transition => dispatch(transition as Transition<TStates>),
-            protoFlow.state,
-        ) as TStates;
-    });
+    const [flow] = useFlowReducer(descriptor, flowData);
 
     useEffect(() => {
-        if (protoFlow?.state === undefined) return;
-        if (!isValidFlowStepState(descriptor, protoFlow.state))
-            dispatch({ type: 'override', stepState: undefined });
-        descriptorRef.current = descriptor;
-    }, [descriptor]);
+        if (flow === undefined) return;
+        const parsedFlowData = parseFlowData(location);
+        if (parsedFlowData === undefined) return;
+    
+        const flowData = toFlowData(flow);
+
+        if (!isFlowDataEq(flowData, parsedFlowData))
+            navigate({
+                search: serializeFlowDataToURLParams(flowData)
+            });
+    }, [flow?.state.stepState.step]);
 
     useEffect(() => {
-        protoFlow && state.stepState && navigate({
-            search: serializeFlowStepState(protoFlow, state.stepState)
-        });
-    }, [state.stepState?.step]);
+        if (flow?.done)
+            window.location.assign(flow.continueTo);
+    }, [flow?.done]);
 
-    useEffect(() => {
-        if (protoFlow !== undefined && state.done)
-            window.location.assign(protoFlow.continueTo);
-    }, [state.done]);
-
-    return (protoFlow !== undefined && state.stepState !== undefined) ? [
-        {
-            step: protoFlow.index,
-            stepState: state.stepState,
-            transaction: protoFlow.transaction,
-            continueTo: protoFlow.continueTo,
-            loading: state.loading,
-        },
-        state.stepState,
-    ] : [undefined, undefined];
+    return flow !== undefined
+        ? [flow, flow.state.stepState as TStates]
+        : [undefined, undefined];
 }
 
 export function Flow({ flow, children }: { flow: Flow; children: ReactNode; }) {

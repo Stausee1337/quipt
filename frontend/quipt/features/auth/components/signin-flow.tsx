@@ -16,16 +16,16 @@ type SigninStates = IdentifyState | AppOtpState | EmailOtpState | PasswordState;
 export function SigninFlow() {
     const authService = useAuthService();
 
-    const [flow, flowState] = useCreateFlow<SigninStates>({
+    const [flow, stepState] = useCreateFlow<SigninStates>({
         identify: authService.identify,
         'app-otp': authService.appOtp,
         'email-otp': authService.emailOtp,
         password: authService.password,
     });
 
-    if (flowState === undefined) return <></>;
+    if (stepState === undefined) return <></>;
 
-    const { latentState, errors, update, step } = flowState;
+    const { errors, update, step } = stepState;
 
     return (
         <Flow flow={flow}>
@@ -41,7 +41,7 @@ export function SigninFlow() {
                 {step === 'email-otp' && (
                     <EmailCodeForm
                         heading="Identität bestätigen"
-                        email={typeof latentState?.email === 'string' ? latentState.email : undefined}
+                        email={typeof flow.state.data?.email === 'string' ? flow.state.data.email : undefined}
                         errors={errors}
                         onDataSubmit={update}
                     />
