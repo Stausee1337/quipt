@@ -75,16 +75,12 @@ export function Form<TKeys extends string>({
                 <p className="pt-1">{helpInfo}</p>
             </div>
             {children}
-            <FlowNav
-                submitButtonRef={submitButtonRef}
-            />
+            <FlowNav submitButtonRef={submitButtonRef} />
         </BaseForm>
     );
 }
 
-function FlowNav(props: {
-    submitButtonRef?: Ref<HTMLButtonElement | null> | undefined;
-}) {
+function FlowNav(props: { submitButtonRef?: Ref<HTMLButtonElement | null> | undefined }) {
     const { loading } = useFlow();
 
     return (

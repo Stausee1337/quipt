@@ -1,51 +1,23 @@
-import { type JSX, type ReactNode } from 'react';
+import { type JSX } from 'react';
 
-import { Outlet, isRouteErrorResponse, useRouteError } from 'react-router';
+import { isRouteErrorResponse, useRouteError } from 'react-router';
 
 import { Head, Scripts } from 'quipt/components/ssr';
-import { Root } from 'quipt/pages/Root';
-import { App } from 'quipt/features/app';
 import { defineEntry } from '../../shared/routing';
 
 export default defineEntry({
-    path: '/app',
-    children: [
-        { index: true, Component: Root },
-        { path: 'test', element: <p>You are on the nested test page</p> },
-        {
-            id: 'xyz',
-            path: 'deeply',
-            Component: () => (
-                <>
-                    Deeply <Outlet />
-                </>
-            ),
-            children: [
-                {
-                    id: 'zyx',
-                    path: 'nested',
-                    Component: () => (
-                        <>
-                            Nested <Outlet />
-                        </>
-                    ),
-                    children: [{ path: 'route', element: <>Route</> }],
-                },
-            ],
-        },
-    ],
+    path: '',
     Layout,
-    Component: App,
     ErrorBoundary,
 });
 
-function Layout({ children }: { children: ReactNode }): JSX.Element {
+function Layout(): JSX.Element {
     return (
         <html>
             <Head />
             <body>
                 <div className="text-foreground bg-background relative flex h-svh w-svw">
-                    {children}
+                    <h1 className="text-heading-1">TODO: Landing Page</h1>
                 </div>
                 <Scripts />
             </body>
