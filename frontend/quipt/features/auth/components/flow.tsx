@@ -1,7 +1,7 @@
 import {
+    type Dispatch,
     type ReactNode,
     type RefObject,
-    type Dispatch,
     createContext,
     useContext,
     useEffect,
@@ -12,7 +12,8 @@ import {
 
 import { type Location, useLocation, useNavigate } from 'react-router';
 
-import type { SubmitError } from './form';
+import type { SubmitError } from '../schemas';
+import type { NavRenderFunction } from './form';
 
 export interface BaseFlowStepState {
     step: string;
@@ -70,9 +71,19 @@ export type Flow = {
     state: FlowState;
 };
 
-const FlowContextObj = createContext<Flow | null>(null);
+const FlowContextObj = createContext<FlowContext | null>(null);
+
+
+type FlowContext = {
+    flow: Flow;
+    renderNavContent: NavRenderFunction | undefined;
+};
 
 export function useFlow(): Flow {
+    return (useContext(FlowContextObj)!).flow;
+}
+
+export function INTERNAL_useFlowContext(): FlowContext {
     return useContext(FlowContextObj)!;
 }
 
@@ -399,9 +410,17 @@ export function useCreateFlow<TStates extends FlowStepState<string, any>>(
         : [undefined, undefined];
 }
 
-export function Flow({ flow, children }: { flow: Flow; children: ReactNode; }) {
+export function Flow({
+    flow,
+    children,
+    renderNavContent,
+}: {
+    flow: Flow;
+    children: ReactNode; 
+    renderNavContent?: NavRenderFunction;
+}) {
     return (
-        <FlowContextObj value={flow}>
+        <FlowContextObj value={{ flow, renderNavContent }}>
             {children}
         </FlowContextObj>
     );

@@ -1,4 +1,6 @@
 import {
+    type FunctionComponent,
+    type JSX,
     type ReactNode,
     type Ref,
     type RefObject,
@@ -6,14 +8,15 @@ import {
     useRef,
     useMemo,
     useImperativeHandle,
-    type FunctionComponent,
 } from 'react';
 
 import { Form as BaseForm } from '@base-ui/react';
 
 import { BigButton } from 'quipt/components/button';
 import { Loader } from 'quipt/components/loader';
-import { useFlow } from './flow';
+import { type Flow, INTERNAL_useFlowContext } from './flow';
+import { type SubmitError, mapErrorsToMessages } from '../schemas';
+import { useNavigate } from 'react-router';
 
 export interface FormActions extends BaseForm.Actions {
     submit: () => void;
@@ -47,6 +50,8 @@ export function Form<TKeys extends string>({
     const submitButtonRef = useRef<HTMLButtonElement>(null);
     const baseFormActionsRef = useRef<BaseForm.Actions | null>(null);
 
+    const { flow, renderNavContent } = INTERNAL_useFlowContext();
+
     useEffect(() => {
         baseFormActionsRef.current?.validate();
     }, [baseFormActionsRef.current]);
@@ -75,24 +80,43 @@ export function Form<TKeys extends string>({
                 <p className="pt-1">{helpInfo}</p>
             </div>
             {children}
-            <FlowNav submitButtonRef={submitButtonRef} />
+            <FlowNav
+                flow={flow}
+                render={renderNavContent}
+                submitButtonRef={submitButtonRef} />
         </BaseForm>
     );
 }
 
-function FlowNav(props: { submitButtonRef?: Ref<HTMLButtonElement | null> | undefined }) {
-    const { loading } = useFlow();
+export type NavRenderFunction = (flow: Flow) => JSX.Element|undefined;
+
+function FlowNav({
+    render,
+    flow,
+    submitButtonRef
+}: {
+    render: NavRenderFunction | undefined,
+    flow: Flow,
+    submitButtonRef?: Ref<HTMLButtonElement | null> | undefined
+}) {
+    const navigate = useNavigate();
 
     return (
         <div className="flex items-center justify-between">
-            <BigButton variant="secondary">Zurück</BigButton>
+            {
+                render?.(flow) ?? (
+                    <BigButton variant="secondary" onClick={() => navigate(-1)}>
+                        { flow.state.stepIndex === 0 ? 'Abbrechen' : 'Zurück' }
+                    </BigButton>
+                )
+            }
             <BigButton
-                ref={props.submitButtonRef}
+                ref={submitButtonRef}
                 variant="primary"
                 type="submit"
                 focusableWhenDisabled
-                disabled={loading}>
-                {loading ? <Loader /> : <>Weiter</>}
+                disabled={flow.loading}>
+                {flow.loading ? <Loader /> : <>Weiter</>}
             </BigButton>
         </div>
     );
@@ -107,34 +131,3 @@ export type FormKeysOf<TForm extends FunctionComponent<any>> =
 
 export type FormDataOf<TForm extends FunctionComponent<any>> = Record<FormKeysOf<TForm>, string>;
 
-type CodeError = 'invalid-code';
-type EmailError = 'email-not-found' | 'email-already-used' | 'invalid-email';
-type NameError = 'invalid-name';
-type PasswordError = 'incorrect-password';
-
-export type SubmitError = CodeError | EmailError | NameError | PasswordError;
-
-const errorMessages = {
-    'invalid-code': 'Ungültiger Code',
-    'email-not-found': 'Kein Konto zu dieser E-Mail gefunden',
-    'email-already-used': 'Es gibt bereits ein Konto zu dieser E-Mail',
-    'invalid-email': 'Ungültige E-Mail',
-    'invalid-name': 'Ungültiger Name',
-    'incorrect-password': 'Falsches Passwort',
-} satisfies { [P in SubmitError]: string };
-
-function mapErrorToMessage(error: SubmitError): string {
-    return errorMessages[error];
-}
-
-function mapErrorsToMessages<TKeys extends string>(
-    errors: Partial<Record<TKeys, SubmitError>>,
-): Record<TKeys, string> {
-    return Object.fromEntries(
-        (
-            (Object.entries(errors) as [TKeys, SubmitError | undefined][]).filter(
-                ([_, value]) => value !== undefined,
-            ) as [TKeys, SubmitError][]
-        ).map(([key, value]) => [key, mapErrorToMessage(value)]),
-    ) as any;
-}

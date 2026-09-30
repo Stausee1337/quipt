@@ -1,6 +1,6 @@
 import { type JSX } from 'react';
 
-import { isRouteErrorResponse, useRouteError } from 'react-router';
+import { Link, isRouteErrorResponse, useRouteError } from 'react-router';
 
 import { Head, Scripts } from 'quipt/components/ssr';
 import { defineEntry } from '../../shared/routing';
@@ -17,7 +17,15 @@ function Layout(): JSX.Element {
             <Head />
             <body>
                 <div className="text-foreground bg-background relative flex h-svh w-svw">
-                    <h1 className="text-heading-1">TODO: Landing Page</h1>
+                    <div className="p-1">
+                        <h1 className="text-heading-1">TODO: Landing Page</h1>
+                        <p>
+                            <a href="/auth/signin?continue=http%3A%2F%2Flocalhost%3A5173%2Fapp&step=identify&index=0">Login</a>
+                        </p>
+                        <p>
+                            <Link to="/signup">Register</Link>
+                        </p>
+                    </div>
                 </div>
                 <Scripts />
             </body>

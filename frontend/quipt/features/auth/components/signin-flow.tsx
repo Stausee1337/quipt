@@ -6,6 +6,7 @@ import { PasswordForm } from './password-form';
 import { Flow, type FlowStepState, useCreateFlow } from './flow';
 import { useAuthService } from '../schemas';
 import { FlowContainer } from './flow-container';
+import { StyledLink } from 'quipt/components/link';
 
 type IdentifyState = FlowStepState<'identify', FormKeysOf<typeof EmailForm>>;
 type AppOtpState = FlowStepState<'app-otp', FormKeysOf<typeof CodeForm>>;
@@ -28,12 +29,20 @@ export function SigninFlow() {
     const { errors, update, step } = stepState;
 
     return (
-        <Flow flow={flow}>
+        <Flow
+            flow={flow}
+            renderNavContent={flow => flow.state.stepIndex === 0 ? (
+                <StyledLink to="/auth/signup?continue=http%3A%2F%2Flocalhost%3A5173%2Fapp&step=collect-email&index=0">
+                    Konto erstellen
+                </StyledLink>
+            ) : undefined}
+        >
             <FlowContainer>
                 {step === 'identify' && (
                     <EmailForm
                         heading="Amnelden"
                         helpInfo="Bei Ihrem Quipt Konto anmelden."
+                        defaultValue={flow.state.data.email}
                         errors={errors}
                         onDataSubmit={update}
                     />
@@ -41,7 +50,7 @@ export function SigninFlow() {
                 {step === 'email-otp' && (
                     <EmailCodeForm
                         heading="Identität bestätigen"
-                        email={typeof flow.state.data?.email === 'string' ? flow.state.data.email : undefined}
+                        email={flow.state.data.email}
                         errors={errors}
                         onDataSubmit={update}
                     />

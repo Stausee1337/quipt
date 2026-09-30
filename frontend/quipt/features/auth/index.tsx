@@ -5,6 +5,6 @@ import { SigninFlow } from './components/signin-flow';
 
 export function Authentication(): JSX.Element {
     return (
-            <SigninFlow/>
+        <SigninFlow/>
     );
 }

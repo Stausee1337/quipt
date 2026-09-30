@@ -11,9 +11,10 @@ const initialTimerTime = 60;
 export interface EmailCodeFormProps extends FormDataProps<'code'> {
     email?: string | undefined;
     heading: string;
+    defaultValue?: string | undefined;
 }
 
-export function EmailCodeForm({ heading, email, ...props }: EmailCodeFormProps): JSX.Element {
+export function EmailCodeForm({ email, ...props }: EmailCodeFormProps): JSX.Element {
     const [timerValue, setTimerValue] =
         typeof window !== 'undefined' ? useState(initialTimerTime) : [initialTimerTime, () => {}];
 
@@ -32,7 +33,6 @@ export function EmailCodeForm({ heading, email, ...props }: EmailCodeFormProps):
     return (
         <CodeForm
             codeLength={codeLength}
-            heading={heading}
             helpInfo={
                 email ? (
                     <>

@@ -1,4 +1,35 @@
-import type { SubmitError } from './components/form';
+
+type CodeError = 'invalid-code';
+type EmailError = 'email-not-found' | 'email-already-used' | 'invalid-email';
+type NameError = 'invalid-name';
+type PasswordError = 'incorrect-password';
+
+export type SubmitError = CodeError | EmailError | NameError | PasswordError;
+
+const errorMessages = {
+    'invalid-code': 'Ungültiger Code',
+    'email-not-found': 'Kein Konto zu dieser E-Mail gefunden',
+    'email-already-used': 'Es gibt bereits ein Konto zu dieser E-Mail',
+    'invalid-email': 'Ungültige E-Mail',
+    'invalid-name': 'Ungültiger Name',
+    'incorrect-password': 'Falsches Passwort',
+} satisfies { [P in SubmitError]: string };
+
+export function mapErrorToMessage(error: SubmitError): string {
+    return errorMessages[error];
+}
+
+export function mapErrorsToMessages<TKeys extends string>(
+    errors: Partial<Record<TKeys, SubmitError>>,
+): Record<TKeys, string> {
+    return Object.fromEntries(
+        (
+            (Object.entries(errors) as [TKeys, SubmitError | undefined][]).filter(
+                ([_, value]) => value !== undefined,
+            ) as [TKeys, SubmitError][]
+        ).map(([key, value]) => [key, mapErrorToMessage(value)]),
+    ) as any;
+}
 
 export type FlowState<TStep extends string, TErrors extends Record<string, SubmitError> = {}> = {
     transaction?: string | undefined;
@@ -37,15 +68,21 @@ function delay(): Promise<void> {
 export function useAuthService(): AuthService {
     return {
         async identify({ state, data }) {
+            console.log('server hit');
             await delay();
             if (data.email === 'test@email.com')
                 return {
                     ...state,
                     errors: { email: 'email-not-found' },
                 };
+            
+            const source = new Uint8Array(24);
+            window.crypto.getRandomValues(source);
+            const transaction = source.toBase64({ alphabet: 'base64url', omitPadding: true });
             return {
                 ...state,
                 step: 'email-otp',
+                transaction,
                 errors: {},
             };
         },

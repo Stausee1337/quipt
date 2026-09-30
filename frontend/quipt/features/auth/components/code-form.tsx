@@ -8,6 +8,7 @@ import { useFlow } from './flow';
 export interface CodeFormProps extends FormContentProps, FormDataProps<'code'> {
     codeLength: number;
     children?: ReactNode | undefined;
+    defaultValue?: string | undefined;
 }
 
 function isNumeric(value: string): boolean {
@@ -18,12 +19,12 @@ function isNumeric(value: string): boolean {
     return true;
 }
 
-export function CodeForm({ children, codeLength, ...props }: CodeFormProps): JSX.Element {
+export function CodeForm({ children, codeLength, defaultValue, ...props }: CodeFormProps): JSX.Element {
     const actionsRef = useRef<FormActions>(null);
 
     const { loading } = useFlow();
 
-    const [value, setValue] = useState('');
+    const [value, setValue] = useState(defaultValue ?? '');
 
     useEffect(() => {
         value.length === codeLength && actionsRef.current && actionsRef.current.submit();
@@ -42,7 +43,7 @@ export function CodeForm({ children, codeLength, ...props }: CodeFormProps): JSX
                     validators.required(),
                     validators.lengthRange(codeLength),
                 )}
-                disabled={loading} // FIXME: maybe do *only* provide `loading` via context.
+                disabled={loading}
                 autoFocus
             />
             {children}

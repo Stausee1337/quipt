@@ -3,14 +3,13 @@ import { type JSX, type ReactNode } from 'react';
 import { Outlet, isRouteErrorResponse, useRouteError } from 'react-router';
 
 import { Head, Scripts } from 'quipt/components/ssr';
-import { Root } from 'quipt/pages/Root';
-import { App } from 'quipt/features/app';
+import { App, Home } from 'quipt/features/app';
 import { defineEntry } from '../../shared/routing';
 
 export default defineEntry({
     path: '/app',
     children: [
-        { index: true, Component: Root },
+        { index: true, Component: Home },
         { path: 'test', element: <p>You are on the nested test page</p> },
         {
             id: 'xyz',
