@@ -3,18 +3,18 @@ import { type JSX, useState, useEffect } from 'react';
 import { Button } from '@base-ui/react';
 
 import { CodeForm } from './code-form';
-import type { FormDataProps } from './form';
+import type { FormBaseProps } from './form';
+import { useFlow } from './flow';
 
 const codeLength = 8;
 const initialTimerTime = 60;
 
-export interface EmailCodeFormProps extends FormDataProps<'code'> {
-    email?: string | undefined;
-    heading: string;
-    defaultValue?: string | undefined;
+export interface EmailCodeFormProps extends FormBaseProps<'code'> {
 }
 
-export function EmailCodeForm({ email, ...props }: EmailCodeFormProps): JSX.Element {
+export function EmailCodeForm({ ...props }: EmailCodeFormProps): JSX.Element {
+    const { state } = useFlow();
+
     const [timerValue, setTimerValue] =
         typeof window !== 'undefined' ? useState(initialTimerTime) : [initialTimerTime, () => {}];
 
@@ -34,9 +34,9 @@ export function EmailCodeForm({ email, ...props }: EmailCodeFormProps): JSX.Elem
         <CodeForm
             codeLength={codeLength}
             helpInfo={
-                email ? (
+                state.data.email ? (
                     <>
-                        Bitte geben Sie den Code ein, den wir an <strong>{email}</strong> gesendet
+                        Bitte geben Sie den Code ein, den wir an <strong>{state.data.email}</strong> gesendet
                         haben.
                     </>
                 ) : (

@@ -1,4 +1,3 @@
-
 type CodeError = 'invalid-code';
 type EmailError = 'email-not-found' | 'email-already-used' | 'invalid-email';
 type NameError = 'invalid-name';
@@ -31,32 +30,35 @@ export function mapErrorsToMessages<TKeys extends string>(
     ) as any;
 }
 
-export type FlowState<TStep extends string, TErrors extends Record<string, SubmitError> = {}> = {
+type BaseFlowState = {
     transaction?: string | undefined;
+};
+
+type FlowState<TStep extends string, TErrors extends Record<string, SubmitError> = {}> = BaseFlowState & {
     step: TStep;
     errors: Partial<TErrors>;
 };
 
 export type AuthService = {
     identify(input: {
-        state: FlowState<'identify', any>;
+        state: BaseFlowState;
         data: { email: string };
     }): Promise<
-        | FlowState<'identify', { email: 'invalid-email' | 'email-not-found'; }>
+        | FlowState<'identify', { email: 'invalid-email' | 'email-not-found' }>
         | FlowState<'app-otp'>
         | FlowState<'email-otp'>
         | FlowState<'password'>
     >;
     appOtp(input: {
-        state: FlowState<'app-otp', any>;
+        state: BaseFlowState;
         data: { code: string };
     }): Promise<FlowState<'app-otp', { code: 'invalid-code' }> | null>;
     emailOtp(input: {
-        state: FlowState<'email-otp', any>;
+        state: BaseFlowState;
         data: { code: string };
     }): Promise<FlowState<'email-otp', { code: 'invalid-code' }> | null>;
     password(input: {
-        state: FlowState<'password', any>;
+        state: BaseFlowState;
         data: { password: string };
     }): Promise<FlowState<'password', { password: 'incorrect-password' }> | null>;
 };
@@ -73,9 +75,10 @@ export function useAuthService(): AuthService {
             if (data.email === 'test@email.com')
                 return {
                     ...state,
+                    step: 'identify',
                     errors: { email: 'email-not-found' },
                 };
-            
+
             const source = new Uint8Array(24);
             window.crypto.getRandomValues(source);
             const transaction = source.toBase64({ alphabet: 'base64url', omitPadding: true });
@@ -90,15 +93,16 @@ export function useAuthService(): AuthService {
             await delay();
             return {
                 ...state,
+                step: 'app-otp',
                 errors: {},
             };
         },
         async emailOtp({ state, data }) {
             await delay();
-            if (data.code === '29092026')
-                return null;
+            if (data.code === '29092026') return null;
             return {
                 ...state,
+                step: 'email-otp',
                 errors: {},
             };
         },
@@ -106,6 +110,7 @@ export function useAuthService(): AuthService {
             await delay();
             return {
                 ...state,
+                step: 'password',
                 errors: {},
             };
         },

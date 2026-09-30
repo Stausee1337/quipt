@@ -1,23 +1,24 @@
-import { type JSX, useState } from 'react';
+import { type JSX, type ReactNode, useState } from 'react';
 
-import { Form, type FormContentProps, type FormDataProps } from './form';
+import { Form, type FormBaseProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
 import { useFlow } from './flow';
 
 const nameRegex = /^[\p{L}\p{M}]+(?:[ '-][\p{L}\p{M}]+)*$/u;
 
-export interface NameFormProps extends FormContentProps, FormDataProps<'name'> {
-    defaultValue?: string | undefined;
+export interface NameFormProps extends FormBaseProps<'name'> {
+    helpInfo: ReactNode;
 }
 
-export function NameForm({ defaultValue, ...props }: NameFormProps): JSX.Element {
-    const { loading } = useFlow();
+export function NameForm({ ...props }: NameFormProps): JSX.Element {
+    const { loading, state } = useFlow();
 
-    const [value, setValue] = useState(defaultValue ?? '');
+    const [value, setValue] = useState(state.data.name ?? '');
 
     return (
-        <Form {...props}>
+        <Form 
+            {...props}>
             <TextField
                 name="name"
                 label="Ihr Name"

@@ -1,22 +1,24 @@
 import { type JSX, useState } from 'react';
 
 import { StyledLink } from 'quipt/components/link';
-import { Form, type FormContentProps, type FormDataProps } from './form';
+import { Form, type FormBaseProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
 import { useFlow } from './flow';
 
-export interface PasswordFormProps extends FormContentProps, FormDataProps<'password'> {
-    defaultValue?: string | undefined;
+export interface PasswordFormProps extends FormBaseProps<'password'> {
 }
 
-export function PasswordForm({ defaultValue, ...props }: PasswordFormProps): JSX.Element {
-    const { loading } = useFlow();
+export function PasswordForm({ ...props }: PasswordFormProps): JSX.Element {
+    const { loading, state } = useFlow();
 
-    const [value, setValue] = useState(defaultValue ?? '');
+    const [value, setValue] = useState(state.data.password ?? '');
 
     return (
-        <Form {...props}>
+        <Form 
+            helpInfo="Bitte geben Sie Ihr Passwort ein."
+            {...props}
+        >
             <div className="flex flex-col gap-y-2">
                 <TextField
                     name="password"

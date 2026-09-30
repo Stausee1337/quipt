@@ -1,30 +1,25 @@
-import { type JSX, type ReactNode, useRef, useState, useEffect } from 'react';
+import { type JSX, useRef, useState, useEffect } from 'react';
 
-import { Form, type FormActions, type FormContentProps, type FormDataProps } from './form';
+import { Form, type FormActions, type FormProps, type FormBaseProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
 import { useFlow } from './flow';
 
-export interface CodeFormProps extends FormContentProps, FormDataProps<'code'> {
+export interface CodeFormProps extends FormProps<'code'> {
     codeLength: number;
-    children?: ReactNode | undefined;
-    defaultValue?: string | undefined;
 }
 
-function isNumeric(value: string): boolean {
-    for (let idx = 0; idx < value.length; idx++) {
-        const code = value.charCodeAt(idx);
-        if (code < 0x30 || code > 0x39) return false;
-    }
-    return true;
-}
-
-export function CodeForm({ children, codeLength, defaultValue, ...props }: CodeFormProps): JSX.Element {
+export function CodeForm({
+    actionsRef: outerActionsRef,
+    children,
+    codeLength,
+    ...props
+}: CodeFormProps): JSX.Element {
     const actionsRef = useRef<FormActions>(null);
 
-    const { loading } = useFlow();
+    const { loading, state } = useFlow();
 
-    const [value, setValue] = useState(defaultValue ?? '');
+    const [value, setValue] = useState(state.data.code ?? '');
 
     useEffect(() => {
         value.length === codeLength && actionsRef.current && actionsRef.current.submit();
@@ -49,4 +44,24 @@ export function CodeForm({ children, codeLength, defaultValue, ...props }: CodeF
             {children}
         </Form>
     );
+}
+
+export interface AppCodeFormProps extends FormBaseProps<'code'> {
+}
+
+export function AppCodeForm(props: AppCodeFormProps): JSX.Element {
+    return (
+        <CodeForm codeLength={6}
+            helpInfo="Bitte geben Sie den Code aus Ihrer Zwei-Faktor-Authentisierungsapp ein."
+            {...props}
+        />
+    );
+}
+
+function isNumeric(value: string): boolean {
+    for (let idx = 0; idx < value.length; idx++) {
+        const code = value.charCodeAt(idx);
+        if (code < 0x30 || code > 0x39) return false;
+    }
+    return true;
 }

@@ -3,7 +3,7 @@ import { type ReactNode } from 'react';
 import { Icon } from 'quipt/components/icon';
 import { useFlow } from './flow';
 
-export function FlowContainer({ children }: { children: ReactNode; }) {
+export function FlowContainer({ children }: { children: ReactNode }) {
     const { loading } = useFlow();
     return (
         <div
@@ -14,4 +14,3 @@ export function FlowContainer({ children }: { children: ReactNode; }) {
         </div>
     );
 }
-

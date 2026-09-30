@@ -19,7 +19,6 @@ export function Head(): JSX.Element {
             <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
             <link rel="icon" type="image/svg+xml" href={faviconUrl} />
             <link rel="stylesheet" href={stylesUrl} />
-            <title>Quipt</title>
             <link rel="preconnect" href="https://rsms.me/" />
             <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
         </head>

@@ -22,19 +22,16 @@ export interface FormActions extends BaseForm.Actions {
     submit: () => void;
 }
 
-export interface FormContentProps {
+export interface FormBaseProps<TKeys extends string> {
     heading: string;
-    helpInfo: ReactNode;
-}
-
-export interface FormDataProps<TKeys extends string> {
     errors: Partial<Record<TKeys, SubmitError>>;
     onDataSubmit?: (formData: Record<TKeys, string>) => void;
 }
 
-export interface FormProps<TKeys extends string> extends FormDataProps<TKeys>, FormContentProps {
+export interface FormProps<TKeys extends string> extends FormBaseProps<TKeys> {
     actionsRef?: RefObject<FormActions | null> | undefined;
-    children: ReactNode;
+    children?: ReactNode | undefined;
+    helpInfo: ReactNode;
 }
 
 // FIXME: whats the difference between the two things named `Form` in that file
@@ -80,36 +77,31 @@ export function Form<TKeys extends string>({
                 <p className="pt-1">{helpInfo}</p>
             </div>
             {children}
-            <FlowNav
-                flow={flow}
-                render={renderNavContent}
-                submitButtonRef={submitButtonRef} />
+            <FlowNav flow={flow} render={renderNavContent} submitButtonRef={submitButtonRef} />
         </BaseForm>
     );
 }
 
-export type NavRenderFunction = (flow: Flow) => JSX.Element|undefined;
+export type NavRenderFunction = (flow: Flow) => JSX.Element | undefined;
 
 function FlowNav({
     render,
     flow,
-    submitButtonRef
+    submitButtonRef,
 }: {
-    render: NavRenderFunction | undefined,
-    flow: Flow,
-    submitButtonRef?: Ref<HTMLButtonElement | null> | undefined
+    render: NavRenderFunction | undefined;
+    flow: Flow;
+    submitButtonRef?: Ref<HTMLButtonElement | null> | undefined;
 }) {
     const navigate = useNavigate();
 
     return (
         <div className="flex items-center justify-between">
-            {
-                render?.(flow) ?? (
-                    <BigButton variant="secondary" onClick={() => navigate(-1)}>
-                        { flow.state.stepIndex === 0 ? 'Abbrechen' : 'Zurück' }
-                    </BigButton>
-                )
-            }
+            {render?.(flow) ?? (
+                <BigButton variant="secondary" onClick={() => navigate(-1)}>
+                    {flow.state.stepIndex === 0 ? 'Abbrechen' : 'Zurück'}
+                </BigButton>
+            )}
             <BigButton
                 ref={submitButtonRef}
                 variant="primary"
@@ -124,10 +116,9 @@ function FlowNav({
 
 export type FormKeysOf<TForm extends FunctionComponent<any>> =
     TForm extends FunctionComponent<infer TProps>
-        ? TProps extends FormDataProps<infer TKeys>
+        ? TProps extends FormBaseProps<infer TKeys>
             ? TKeys
             : never
         : never;
 
 export type FormDataOf<TForm extends FunctionComponent<any>> = Record<FormKeysOf<TForm>, string>;
-

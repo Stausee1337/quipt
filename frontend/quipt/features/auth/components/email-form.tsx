@@ -1,18 +1,18 @@
-import { type JSX, useState } from 'react';
+import { type JSX, type ReactNode, useState } from 'react';
 
-import { Form, type FormContentProps, type FormDataProps } from './form';
+import { Form, type FormBaseProps } from './form';
 import { TextField } from './field';
 import * as validators from '../validators';
 import { useFlow } from './flow';
 
-export interface EmailFormProps extends FormContentProps, FormDataProps<'email'> {
-    defaultValue?: string | undefined;
+export interface EmailFormProps extends FormBaseProps<'email'> {
+    helpInfo: ReactNode;
 }
 
-export function EmailForm({ defaultValue, ...props }: EmailFormProps): JSX.Element {
-    const { loading } = useFlow();
+export function EmailForm({ ...props }: EmailFormProps): JSX.Element {
+    const { loading, state } = useFlow();
 
-    const [value, setValue] = useState(defaultValue ?? '');
+    const [value, setValue] = useState(state.data.email ?? '');
 
     return (
         <Form {...props}>
