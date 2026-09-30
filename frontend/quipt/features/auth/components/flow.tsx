@@ -26,18 +26,18 @@ export interface FlowStepState<TStep extends string, TKeys extends string> exten
     update(data: Record<TKeys, string>): void;
 }
 
-type SchemaReducer<TStep extends string, TKeys extends string, TOut extends string> = (input: {
+type SchemaReducer<TStep extends string, TData extends Record<string, string>, TOut extends string> = (input: {
     state: {
         transaction?: string | undefined;
         step: TStep;
         errors: any;
     };
-    data: Record<TKeys, string>;
+    data: TData;
 }) => Promise<
     | {
           transaction?: string | undefined;
           step: TStep;
-          errors: Partial<Record<TKeys, SubmitError>>;
+          errors: Partial<Record<string, SubmitError>>;
       }
     | {
           transaction?: string | undefined;
@@ -47,8 +47,7 @@ type SchemaReducer<TStep extends string, TKeys extends string, TOut extends stri
     | null
 >;
 
-type SchemaReducerOf<TState extends FlowStepState<string, any>, TOut extends string> =
-    TState extends FlowStepState<infer TStep, infer TKeys> ? SchemaReducer<TStep, TKeys, TOut> : never;
+type ErasedSchemaReducer = SchemaReducer<string, Record<string, string>, string>;
 
 type FlowData = {
     flowStep: string;
@@ -145,12 +144,27 @@ function serializeFlowDataToURLParams(flowData: FlowData): string {
     return params.toString();
 }
 
-export type FlowDescriptor<TStates extends FlowStepState<string, any>> = {
-    [F in TStates as F['step']]: SchemaReducerOf<F, TStates['step']>;
-};
+export type FlowStepStateFor<
+    TStep extends string,
+    TData extends Record<string, Record<string, string>>
+> = TStep extends string
+    ? FlowStepState<TStep, keyof TData[TStep] & string>
+    : never;
+
+export type FlowStepStateOf<
+    TData extends Record<string, Record<string, string>>,
+> = FlowStepStateFor<keyof TData & string, TData>;
+
+export declare function test<
+    TData extends Record<string, Record<string, string>>,
+>(
+    reducers: {
+        [TStep in keyof TData & string]: SchemaReducer<TStep, TData[TStep], keyof TData & string>
+    }
+): FlowStepStateOf<TData>;
 
 function isValidFlowStep(
-    descriptor: Record<string, SchemaReducer<string, string, string>>,
+    descriptor: Record<string, ErasedSchemaReducer>,
     step: string,
 ): boolean {
     return Object.keys(descriptor).includes(step);
@@ -185,7 +199,7 @@ type UseFlowReducer = [
 ];
 
 function createFlowState(
-    descriptorRef: RefObject<Record<string, SchemaReducer<string, string, string>>>,
+    descriptorRef: RefObject<Record<string, ErasedSchemaReducer>>,
     flowData: FlowData,
     disptach: Dispatch<Transition>,
     data?: Record<string, string> | undefined
@@ -203,7 +217,7 @@ function createFlowState(
 }
 
 function useFlowReducer(
-    descriptor: Record<string, SchemaReducer<string, string, string>>,
+    descriptor: Record<string, ErasedSchemaReducer>,
     flowData: FlowData | undefined
 ): UseFlowReducer {
     const descriptorRef = useRef(descriptor);
@@ -333,7 +347,7 @@ function newID(length = 8): string {
 }
 
 function createStepState(
-    descriptorRef: RefObject<Record<string, SchemaReducer<string, string, string>>>,
+    descriptorRef: RefObject<Record<string, ErasedSchemaReducer>>,
     dispatch: (transition: Transition) => void,
     step: string,
     errors?: Partial<Record<string, SubmitError>> | undefined
@@ -344,7 +358,7 @@ function createStepState(
     ): Promise<ResolveResult> {
         const erasedDescriptor = descriptorRef.current as Record<
             string,
-            SchemaReducer<string, string, string>
+            ErasedSchemaReducer
         >;
         const result = await erasedDescriptor[thisState.step]({ state: thisState, data });
         if (result === null)
@@ -377,15 +391,19 @@ function createStepState(
     return Object.freeze(stepState);
 }
 
-export function useCreateFlow<TStates extends FlowStepState<string, any>>(
-    descriptor: FlowDescriptor<TStates>,
-): [Flow, TStates] | [undefined, undefined] {
+export function useCreateFlow<
+    TData extends Record<string, Record<string, string>>,
+>(
+    descriptor: {
+        [TStep in keyof TData & string]: SchemaReducer<TStep, TData[TStep], keyof TData & string>
+    }
+): [Flow, FlowStepStateOf<TData>] | [undefined, undefined] {
     const location = useLocation();
     const navigate = useNavigate();
 
     const flowData = useMemo(() => parseFlowData(location), [location]);
 
-    const [flow] = useFlowReducer(descriptor, flowData);
+    const [flow] = useFlowReducer(descriptor as unknown as Record<string, ErasedSchemaReducer>, flowData);
 
     useEffect(() => {
         if (flow === undefined) return;
@@ -406,7 +424,7 @@ export function useCreateFlow<TStates extends FlowStepState<string, any>>(
     }, [flow?.done]);
 
     return flow !== undefined
-        ? [flow, flow.state.stepState as TStates]
+        ? [flow, flow.state.stepState as FlowStepStateOf<TData>]
         : [undefined, undefined];
 }
 

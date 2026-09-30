@@ -1,23 +1,16 @@
-import type { FormKeysOf } from './form';
 import { EmailForm } from './email-form';
 import { CodeForm } from './code-form';
 import { EmailCodeForm } from './email-code-form';
 import { PasswordForm } from './password-form';
-import { Flow, type FlowStepState, useCreateFlow } from './flow';
+import { Flow, useCreateFlow } from './flow';
 import { useAuthService } from '../schemas';
 import { FlowContainer } from './flow-container';
 import { StyledLink } from 'quipt/components/link';
 
-type IdentifyState = FlowStepState<'identify', FormKeysOf<typeof EmailForm>>;
-type AppOtpState = FlowStepState<'app-otp', FormKeysOf<typeof CodeForm>>;
-type EmailOtpState = FlowStepState<'email-otp', FormKeysOf<typeof EmailCodeForm>>;
-type PasswordState = FlowStepState<'password', FormKeysOf<typeof PasswordForm>>;
-type SigninStates = IdentifyState | AppOtpState | EmailOtpState | PasswordState;
-
 export function SigninFlow() {
     const authService = useAuthService();
 
-    const [flow, stepState] = useCreateFlow<SigninStates>({
+    const [flow, stepState] = useCreateFlow({
         identify: authService.identify,
         'app-otp': authService.appOtp,
         'email-otp': authService.emailOtp,
@@ -25,6 +18,7 @@ export function SigninFlow() {
     });
 
     if (stepState === undefined) return <></>;
+
 
     const { errors, update, step } = stepState;
 

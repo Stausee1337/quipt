@@ -42,7 +42,7 @@ export type AuthService = {
         state: FlowState<'identify', any>;
         data: { email: string };
     }): Promise<
-        | FlowState<'identify', { email: 'invalid-email' | 'email-not-found' }>
+        | FlowState<'identify', { email: 'invalid-email' | 'email-not-found'; }>
         | FlowState<'app-otp'>
         | FlowState<'email-otp'>
         | FlowState<'password'>
