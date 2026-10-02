@@ -34,7 +34,10 @@ type BaseFlowState = {
     transaction?: string | undefined;
 };
 
-type FlowState<TStep extends string, TErrors extends Record<string, SubmitError> = {}> = BaseFlowState & {
+type FlowState<
+    TStep extends string,
+    TErrors extends Record<string, SubmitError> = {},
+> = BaseFlowState & {
     step: TStep;
     errors: Partial<TErrors>;
 };

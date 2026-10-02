@@ -46,12 +46,12 @@ export function CodeForm({
     );
 }
 
-export interface AppCodeFormProps extends FormBaseProps<'code'> {
-}
+export interface AppCodeFormProps extends FormBaseProps<'code'> {}
 
 export function AppCodeForm(props: AppCodeFormProps): JSX.Element {
     return (
-        <CodeForm codeLength={6}
+        <CodeForm
+            codeLength={6}
             helpInfo="Bitte geben Sie den Code aus Ihrer Zwei-Faktor-Authentisierungsapp ein."
             {...props}
         />

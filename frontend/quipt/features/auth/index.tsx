@@ -1,8 +1,8 @@
-import { type JSX } from 'react';
-
-import { SigninFlow } from './components/signin-flow';
+import xyz from './components/signin-flow';
+import type { RouteObject } from 'react-router';
 // import { HydrationBoundary } from 'quipt/components/hydration-boundary';
 
-export function Authentication(): JSX.Element {
-    return <SigninFlow />;
-}
+export default [
+    xyz.route,
+] satisfies RouteObject[];
+

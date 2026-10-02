@@ -17,8 +17,7 @@ export function NameForm({ ...props }: NameFormProps): JSX.Element {
     const [value, setValue] = useState(state.data.name ?? '');
 
     return (
-        <Form 
-            {...props}>
+        <Form {...props}>
             <TextField
                 name="name"
                 label="Ihr Name"

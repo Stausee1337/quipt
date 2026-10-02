@@ -3,14 +3,14 @@ import { type JSX, type ReactNode } from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router';
 
 import { Head, Scripts } from 'quipt/components/ssr';
-import { Authentication } from 'quipt/features/auth';
+import flows from 'quipt/features/auth';
 import { defineEntry } from '../../shared/routing';
 
 export default defineEntry({
-    path: 'auth/:formType',
+    path: 'auth',
     Layout,
     ErrorBoundary,
-    Component: Authentication,
+    children: flows,
 });
 
 function Layout({ children }: { children: ReactNode }): JSX.Element {

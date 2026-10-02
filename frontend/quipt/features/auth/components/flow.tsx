@@ -1,5 +1,4 @@
 import {
-    type ComponentType,
     type Dispatch,
     type ReactNode,
     type RefObject,
@@ -44,10 +43,7 @@ type FlowStepStateOf<TData extends Record<string, Record<string, string>>> = Flo
     TData
 >;
 
-type SchemaHandler<
-    TData extends Record<string, string>,
-    TOut extends string,
-> = (input: {
+type SchemaHandler<TData extends Record<string, string>, TOut extends string> = (input: {
     state: {
         transaction?: string | undefined;
         errors: any;
@@ -59,17 +55,12 @@ type SchemaHandler<
           step: TOut;
           errors: Partial<Record<keyof TData & string, SubmitError>>;
       }
-    // | {
-    //       transaction?: string | undefined;
-    //       step: TOut;
-    //       errors: {};
-    //   }
     | null
 >;
 
 type ErasedSchemaHandler = SchemaHandler<Record<string, string>, string>;
 
-type FlowData = {
+export type FlowData = {
     flowStep: string;
     flowStepIndex: number;
     transaction: string | undefined;
@@ -105,7 +96,7 @@ export function INTERNAL_useFlowContext(): FlowContext {
     return useContext(FlowContextObj)!;
 }
 
-function parseFlowData(location: Location): FlowData | undefined {
+export function parseFlowData(location: Location): FlowData | undefined {
     const params = new URLSearchParams(location.search);
 
     const step = params.get('step');
@@ -250,7 +241,7 @@ function useFlowReducer(
         () => ({
             type: 'idle',
             flowState:
-                flowData !== undefined
+                flowData !== undefined && isValidFlowStep(handlers, flowData.flowStep)
                     ? // FIXME: this initial setup depdends on server-computed state (`data`)
                       createFlowState(handlersRef, flowData, t => dispatch(t))
                     : undefined,
@@ -294,10 +285,10 @@ function useFlowReducer(
 
     useEffect(() => {
         if (flowData === undefined) return;
-        if (!isValidFlowStep(handlers, flowData.flowStep))
+        if (state.flowState !== undefined && !isValidFlowStep(handlers, flowData.flowStep))
             dispatch({ type: 'override', flowState: undefined });
         handlersRef.current = handlers;
-    }, [handlers]);
+    }, Object.keys(handlers));
 
     return flow;
 }
@@ -371,54 +362,22 @@ function newID(length = 8): string {
     return id;
 }
 
-type HandlerMap<TData extends Record<string, Record<string, string>>> = {
+export type HandlerMap<TData extends Record<string, Record<string, string>>> = {
     [TStep in keyof TData & string]: SchemaHandler<TData[TStep], keyof TData & string>;
 };
 
-// HACK: using `keyof` can destroy inference from some reason
-type KeyOf<TData extends Record<string, Record<string, string>>> = 
-    TData extends Record<infer TKey, Record<string, string>>
-    ? TKey
-    : never;
-
-type FlowStepProps<TKeys extends string> = {
-    heading: string;
-    errors: Partial<Record<TKeys, SubmitError>>;
-    onDataSubmit?: (data: Record<TKeys, string>) => void;
-}
-
-type FlowStepComponents<TData extends Record<string, Record<string, string>>> = {
-    [TStep in KeyOf<TData>]?: ComponentType<FlowStepProps<keyof TData[TStep] & string>>
+export type CreateFlowOptions = {
+    flowData?: FlowData | undefined;
 };
-
-// TODO: A flow actually needs to have invariants in order to be a safe, checked flow:
-// FLOW INDPENDENT:
-//  - `index` is required URL param 
-//  - `step` is required URL param 
-//  - `continue` is required URL param 
-//  - the `continue` URL needs to stay within origin (e.g. quipt.app)
-//  - if it has one, the `transaction` needs to be valid (speical 24byte binary string base64url encoded, no padding + present in redis)
-//    - the server provides for the `data` associated with the flow
-// FLOW DPENDENT:
-//  - some flows require the user to be signed in, others require the user to be signed out 
-// ALSO IMPORTANT:
-//  - flows that have no initial data (e.g. signin/signup) can be created fully by the client
-//  - flows that require initial data (e.g. an email for display) need to be crated by the server (e.g. password reset, login method change, etc)
-// -> we'll need to put this on the flow somewhere (probably ther'll also be a loader)
-export function defineFlow<TData extends Record<string, Record<string, string>>>(descriptor: {
-    name: string;
-    handlers: HandlerMap<TData> | (() => HandlerMap<TData>);
-    headings: Record<KeyOf<TData>, string>,
-    components: FlowStepComponents<TData>;
-}): void {}
 
 export function useCreateFlow<TData extends Record<string, Record<string, string>>>(
     handlers: HandlerMap<TData>,
+    options?: CreateFlowOptions
 ): [Flow, FlowStepStateOf<TData>] | [undefined, undefined] {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const flowData = useMemo(() => parseFlowData(location), [location]);
+    const flowData = useMemo(() => options?.flowData ?? parseFlowData(location), [options?.flowData, location]);
 
     const flow = useFlowReducer(
         handlers as unknown as Record<string, ErasedSchemaHandler>,

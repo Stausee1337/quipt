@@ -9,8 +9,7 @@ import { useFlow } from './flow';
 const codeLength = 8;
 const initialTimerTime = 60;
 
-export interface EmailCodeFormProps extends FormBaseProps<'code'> {
-}
+export interface EmailCodeFormProps extends FormBaseProps<'code'> {}
 
 export function EmailCodeForm({ ...props }: EmailCodeFormProps): JSX.Element {
     const { state } = useFlow();
@@ -36,8 +35,8 @@ export function EmailCodeForm({ ...props }: EmailCodeFormProps): JSX.Element {
             helpInfo={
                 state.data.email ? (
                     <>
-                        Bitte geben Sie den Code ein, den wir an <strong>{state.data.email}</strong> gesendet
-                        haben.
+                        Bitte geben Sie den Code ein, den wir an <strong>{state.data.email}</strong>{' '}
+                        gesendet haben.
                     </>
                 ) : (
                     <>

@@ -6,8 +6,7 @@ import { TextField } from './field';
 import * as validators from '../validators';
 import { useFlow } from './flow';
 
-export interface PasswordFormProps extends FormBaseProps<'password'> {
-}
+export interface PasswordFormProps extends FormBaseProps<'password'> {}
 
 export function PasswordForm({ ...props }: PasswordFormProps): JSX.Element {
     const { loading, state } = useFlow();
@@ -15,10 +14,7 @@ export function PasswordForm({ ...props }: PasswordFormProps): JSX.Element {
     const [value, setValue] = useState(state.data.password ?? '');
 
     return (
-        <Form 
-            helpInfo="Bitte geben Sie Ihr Passwort ein."
-            {...props}
-        >
+        <Form helpInfo="Bitte geben Sie Ihr Passwort ein." {...props}>
             <div className="flex flex-col gap-y-2">
                 <TextField
                     name="password"

@@ -1,24 +1,15 @@
 import { StyledLink } from 'quipt/components/link';
+import { withProps } from 'quipt/utils';
 import { EmailForm } from './email-form';
 import { AppCodeForm } from './code-form';
 import { EmailCodeForm } from './email-code-form';
 import { PasswordForm } from './password-form';
-import { FlowProvider, defineFlow, useCreateFlow } from './flow';
+import { FlowProvider, useCreateFlow } from './flow';
+import { defineFlow } from './flow-entry';
 import { FlowContainer } from './flow-container';
 import { useAuthService } from '../schemas';
 
-import type { ComponentType } from "react";
-
-type Without<T, K extends keyof any> = Omit<T, K>;
-
-function withProps<P extends object, Injected extends Partial<P>>(
-    Component: ComponentType<P>,
-    injectedProps: Injected,
-): ComponentType<Without<P, keyof Injected>> {
-    return (props) => <Component {...props as P} {...injectedProps}/>;
-}
-
-defineFlow({
+export default defineFlow({
     name: 'signin',
     handlers() {
         const authService = useAuthService();
