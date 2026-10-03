@@ -188,6 +188,15 @@ type LoadingMachineState = BaseMachineState & {
 
 type MachineState = BaseMachineState | LoadingMachineState;
 
+function computeStepIndex(flowState: FlowState | undefined, transition: ResolveTransition): number {
+    if (flowState === undefined)
+        return 0;
+    const errors = transition.stepState?.errors;
+    if (errors !== undefined && Object.values(errors).length > 0)
+        return flowState.stepIndex;
+    return flowState.stepIndex + 1;
+}
+
 function machineReducer(state: MachineState, transition: Transition): MachineState {
     switch (transition.type) {
         case 'override':
@@ -213,8 +222,7 @@ function machineReducer(state: MachineState, transition: Transition): MachineSta
                 return {
                     type: 'idle',
                     flowState: {
-                        stepIndex:
-                            state.flowState !== undefined ? state.flowState.stepIndex + 1 : 0,
+                        stepIndex: computeStepIndex(state.flowState, transition),
                         stepState: transition.stepState,
                         transaction: transition.transaction ?? state.flowState?.transaction,
                         data: { ...state.flowState?.data, ...transition.data },

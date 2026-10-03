@@ -155,8 +155,9 @@ function processMatches(matches: DataRouteMatch[], loaderData: Record<string, an
 }
 
 function FlowManager(): JSX.Element {
-    const { matches, loaderData } = useContext(UNSAFE_DataRouterStateContext)!;
-    const flowMatch = useMemo(() => processMatches(matches, loaderData), [matches]);
+    const dataContext = useContext(UNSAFE_DataRouterStateContext)!;
+    const loaderData = useMemo(() => dataContext.loaderData, []);
+    const flowMatch = useMemo(() => processMatches(dataContext.matches, loaderData), [dataContext.matches]);
     return <FlowRenderer match={flowMatch}/>;
 }
 
