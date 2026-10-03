@@ -152,6 +152,28 @@
     }
 }
 
+@layer utilities {
+    .icon-sm {
+        width: calc(var(--spacing) * 4);
+        height: calc(var(--spacing) * 4);
+        flex-grow: 0;
+        flex-shrink: 0;
+    }
+
+    .icon-md {
+        width: calc(var(--spacing) * 5);
+        height: calc(var(--spacing) * 5);
+        flex-grow: 0;
+        flex-shrink: 0;
+    }
+
+    .icon-lg {
+        width: calc(var(--spacing) * 8);
+        height: calc(var(--spacing) * 8);
+        flex-grow: 0;
+        flex-shrink: 0;
+    }
+}
 /* FIXME: this anchor positioning is fundamentally not correct */
 
 @layer components {
