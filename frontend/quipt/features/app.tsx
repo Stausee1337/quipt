@@ -1,4 +1,4 @@
-import { type JSX, type ReactNode } from 'react';
+import { type JSX } from 'react';
 
 import { Outlet } from 'react-router';
 
@@ -9,24 +9,6 @@ import { BigButton, Button } from 'quipt/components/button';
 import { BigInput, Input } from 'quipt/components/input';
 import { Icon } from 'quipt/components/icon';
 import { useBreakpoints } from 'quipt/responsive';
-
-import { QueryClientProvider } from '@tanstack/react-query';
-
-import { AuthenticationContextObj, createAuthenticationContext, queryClient } from 'quipt/client';
-import { ResponsiveBreakpointProivder } from 'quipt/responsive';
-
-function ClientProvider({ children }: { children: ReactNode }) {
-    const authenticationContext = createAuthenticationContext();
-    return (
-        <ResponsiveBreakpointProivder>
-            <QueryClientProvider client={queryClient}>
-                <AuthenticationContextObj.Provider value={authenticationContext}>
-                    {children}
-                </AuthenticationContextObj.Provider>
-            </QueryClientProvider>
-        </ResponsiveBreakpointProivder>
-    );
-}
 
 export function Home(): JSX.Element {
     return (
@@ -86,6 +68,5 @@ export function App(): JSX.Element {
         </div>
     );
 
-    if (typeof window !== 'undefined') return <ClientProvider>{content}</ClientProvider>;
     return content;
 }

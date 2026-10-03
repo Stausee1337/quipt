@@ -208,8 +208,7 @@ export function customSSR(entrypoints: string[]): Plugin[] {
                 const x = Object.values(virtual).find(vmod => vmod.id === id);
                 return x?.resolvedId;
             },
-
-            load(id) {
+            load(id, options) {
                 switch (id) {
                     case virtual.serverEntryConfig.resolvedId: {
                         if (viteCommand === 'build') {
@@ -224,6 +223,10 @@ export function customSSR(entrypoints: string[]): Plugin[] {
                         }
                     }
                 }
+                if ((id.endsWith('.server.ts') || id.endsWith('.server.tsx')) && !options?.ssr)
+                    return '';
+                if ((id.endsWith('.client.ts') || id.endsWith('.client.tsx')) && options?.ssr)
+                    return '';
             },
         },
     ];

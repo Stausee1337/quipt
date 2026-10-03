@@ -3,6 +3,7 @@ import { type JSX, type ReactNode } from 'react';
 
 import { Head, Scripts } from 'quipt/components/ssr';
 import { ErrorBoundary } from 'quipt/components/error-boundary';
+import { Providers } from 'quipt/components/global-contexts';
 import { FlowLink, signinFlow, signupFlow } from 'quipt/features/auth';
 import { defineEntry } from '../../shared/routing';
 
@@ -28,9 +29,11 @@ function Layout({ children }: { children: ReactNode }): JSX.Element {
         <html>
             <Head />
             <body>
-                <div className="text-foreground bg-background relative flex h-svh w-svw">
-                    {children}
-                </div>
+                <Providers>
+                    <div className="text-foreground bg-background relative flex h-svh w-svw">
+                        {children}
+                    </div>
+                </Providers>
                 <Scripts />
             </body>
         </html>

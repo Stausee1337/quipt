@@ -15,9 +15,9 @@ import {
     type Location,
     type RouteObject,
     UNSAFE_DataRouterStateContext,
-    data,
 } from 'react-router';
 
+import { StyledLink } from 'quipt/components/link';
 import type { FormBaseProps, NavRenderFunction } from './form';
 import {
     type FlowData,
@@ -31,7 +31,13 @@ import {
     type Flow,
 } from './flow';
 import { FlowContainer } from './flow-container';
-import { StyledLink } from 'quipt/components/link';
+import * as server from './flow-entry.server';
+
+export type TransactionData = {
+    flowName: string;
+    activatedSteps: string[];
+    containedData: Record<string, string> | null;
+};
 
 export type FlowLoaderFunction = (
     args: LoaderFunctionArgs,
@@ -86,7 +92,7 @@ type FlowMatch = FlowEntry & {
 
 function FlowRenderer({ match }: { match: FlowMatch | undefined }): JSX.Element | null {
     if (match === undefined) {
-        if (typeof window === 'undefined') throw 'Internal Server Error';
+        if (import.meta.env.SSR) throw 'Internal Server Error';
         window.location.reload();
         return null;
     }
@@ -158,65 +164,6 @@ function FlowManager(): JSX.Element {
     return <FlowRenderer match={flowMatch} key={flowMatch?.name} />;
 }
 
-function parseTransactionString(transaction: string | undefined): Uint8Array | undefined {
-    if (transaction === undefined) return undefined;
-    let array: Uint8Array;
-    try {
-        array = Uint8Array.fromBase64(transaction, {
-            alphabet: 'base64url',
-            lastChunkHandling: 'loose',
-        });
-    } catch (e) {
-        return undefined;
-    }
-    if (array.length !== 24) return undefined;
-    // FIXME: decide on specific format
-    return array;
-}
-
-type TransactionData = {
-    flowName: string;
-    activatedSteps: string[];
-    containedData: Record<string, string> | null;
-};
-
-function lookupTransaction(_transactionID: Uint8Array): TransactionData | undefined {
-    return undefined;
-}
-
-async function validateFlowDataServer(
-    entry: FlowEntry,
-    data: FlowData | undefined,
-): Promise<TransactionData | undefined> {
-    if (data === undefined) return undefined;
-    if (!Object.keys(entry.components).includes(data.flowStep)) return undefined;
-    if (data.transaction === undefined && data.flowStep === entry.clientEntrypoint)
-        return {
-            flowName: entry.name,
-            activatedSteps: [entry.clientEntrypoint],
-            containedData: null,
-        };
-    const transactionID = parseTransactionString(data.transaction);
-    if (transactionID === undefined) return undefined;
-    const transaction = lookupTransaction(transactionID);
-    if (transaction === undefined) return undefined;
-    if (transaction.flowName !== entry.name)
-        return undefined;
-    if (!transaction.activatedSteps.includes(data.flowStep)) return undefined;
-
-    return transaction;
-}
-
-function flowLoaderFactory(entry: FlowEntry) {
-    return async (args: LoaderFunctionArgs) => {
-        const flowData = parseFlowData(new URLSearchParams(args.url.search));
-        const transactionData = await validateFlowDataServer(entry, flowData);
-        if (transactionData === undefined) throw data('Invalid Request', { status: 400 });
-        await entry.loader?.(args, entry, flowData!, transactionData);
-        return transactionData.containedData;
-    };
-}
-
 function FlowEntry(_entry: FlowEntry): JSX.Element | null {
     throw 'INVALID: this element should never be rendered';
 }
@@ -226,7 +173,7 @@ export function routedFlowsManager(...entries: FlowEntry[]): RouteObject {
         path: entry.name,
         element: <FlowEntry {...entry} />,
         id: `flows.flow.${entry.name}`,
-        loader: typeof window === 'undefined' ? flowLoaderFactory(entry) : undefined,
+        loader: import.meta.env.SSR ? server.flowLoaderFactory(entry) : undefined,
     }));
     return {
         element: <FlowManager />,
