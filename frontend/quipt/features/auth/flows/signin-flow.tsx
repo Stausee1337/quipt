@@ -1,6 +1,7 @@
 import { withProps } from 'quipt/utils';
+import { useAuthService } from 'quipt/schemas/auth';
 import signupFlow from './signup-flow';
-import { useAuthService } from '../schemas';
+import { checkLoggedInLoader } from '../loader';
 import { FlowLink, defineFlow } from '../components/flow-entry';
 import { EmailForm } from '../components/email-form';
 import { AppCodeForm } from '../components/code-form';
@@ -18,6 +19,7 @@ export default defineFlow({
             password: authService.password.bind(authService),
         };
     },
+    loader: checkLoggedInLoader,
     clientEntrypoint: 'identify',
     headings: {
         identify: 'Anmelden',

@@ -4,6 +4,7 @@ import {
     type RouteObject,
     type StaticHandlerContext,
     StaticRouterProvider,
+    UNSAFE_ErrorResponseImpl,
     matchRoutes,
     createStaticHandler,
     createStaticRouter,
@@ -63,11 +64,9 @@ export function createRequestHandler(config: ServerEntryConfig): RequestHandler 
             context = {
                 basename: '/',
                 errors: {
-                    [matches?.[0].route.id ?? '']: {
-                        status: 500,
-                        statusText: 'Internal Server Error',
-                        data: error,
-                    },
+                    [matches?.[0].route.id ?? '']: new UNSAFE_ErrorResponseImpl(
+                        500, 'Internal Server Error', error
+                    ),
                 },
                 actionData: {},
                 loaderData: {},

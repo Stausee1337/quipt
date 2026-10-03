@@ -1,6 +1,7 @@
 import { withProps } from 'quipt/utils';
+import { useAuthService } from 'quipt/schemas/auth';
 import signinFlow from './signin-flow';
-import { useAuthService } from '../schemas';
+import { checkLoggedInLoader } from '../loader';
 import { FlowLink, defineFlow } from '../components/flow-entry';
 import { EmailForm } from '../components/email-form';
 import { EmailCodeForm } from '../components/email-code-form';
@@ -16,6 +17,7 @@ export default defineFlow({
             name: authService.name.bind(authService),
         };
     },
+    loader: checkLoggedInLoader,
     clientEntrypoint: 'collect-email',
     headings: {
         'collect-email': 'Quipt Konto erstellen',

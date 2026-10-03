@@ -5,8 +5,11 @@ import { isRouteErrorResponse, useRouteError } from 'react-router';
 export function ErrorBoundary(): JSX.Element {
     const error = useRouteError();
 
+    let body;
+    let title: string;
     if (isRouteErrorResponse(error)) {
-        return (
+        title = `Error ${error.status} (${error.statusText})!!!`
+        body = (
             <div>
                 <h1>
                     {error.status} {error.statusText}
@@ -15,7 +18,8 @@ export function ErrorBoundary(): JSX.Element {
             </div>
         );
     } else if (error instanceof Error && import.meta.env.DEV) {
-        return (
+        title = `Error (${error.message})`
+        body = (
             <div>
                 <h1>Error</h1>
                 <p>{error.message}</p>
@@ -23,9 +27,18 @@ export function ErrorBoundary(): JSX.Element {
                 <pre>{error.stack}</pre>
             </div>
         );
-    } else if (error instanceof Error && import.meta.env.DEV) {
-        return <div>Internal Error</div>;
+    } else if (error instanceof Error && !import.meta.env.DEV) {
+        title = `Error (Internal Error)`
+        body = <div>Internal Error</div>;
     } else {
-        return <h1>Unknown Error</h1>;
+        title = `Error (Unknown Error)`
+        body = <h1>Unknown Error</h1>;
     }
+
+    return (
+        <>
+            <title>{`${title}`}</title>
+            { body }
+        </>
+    );
 }

@@ -14,8 +14,8 @@ import { Form as BaseForm } from '@base-ui/react';
 
 import { BigButton } from 'quipt/components/button';
 import { Loader } from 'quipt/components/loader';
+import { type SubmitError, mapErrorsToMessages } from 'quipt/schemas/auth';
 import { type Flow, INTERNAL_useFlowContext } from './flow';
-import { type SubmitError, mapErrorsToMessages } from '../schemas';
 import { useNavigate } from 'react-router';
 
 export interface FormActions extends BaseForm.Actions {

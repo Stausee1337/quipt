@@ -12,7 +12,7 @@ import {
 
 import { useLocation, useNavigate } from 'react-router';
 
-import type { SubmitError } from '../schemas';
+import type { SubmitError } from 'quipt/schemas/auth';
 import type { NavRenderFunction } from './form';
 
 export interface BaseFlowStepState {
@@ -86,7 +86,7 @@ type FlowContext = {
 };
 
 export function useFlow(): Flow {
-    return useContext(FlowContextObj)!.flow;
+    return useContext(FlowContextObj)?.flow!;
 }
 
 export function INTERNAL_useFlowContext(): FlowContext {

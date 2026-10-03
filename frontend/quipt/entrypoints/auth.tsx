@@ -1,8 +1,9 @@
 import { type JSX, type ReactNode } from 'react';
 
-import { isRouteErrorResponse, useRouteError } from 'react-router';
+import { type LoaderFunctionArgs, UNSAFE_ErrorResponseImpl } from 'react-router';
 
 import { Head, Scripts } from 'quipt/components/ssr';
+import { ErrorBoundary } from 'quipt/components/error-boundary';
 import flows from 'quipt/features/auth';
 import { defineEntry } from '../../shared/routing';
 
@@ -11,7 +12,15 @@ export default defineEntry({
     Layout,
     ErrorBoundary,
     children: [flows],
+    loader: notARealUrl,
 });
+
+function notARealUrl(args: LoaderFunctionArgs) {
+    if (args.pattern === 'auth')
+        throw new UNSAFE_ErrorResponseImpl(
+            404, 'Not Found', new Error(`No route matches URL "${args.url.pathname}"`)
+        )
+}
 
 function Layout({ children }: { children: ReactNode }): JSX.Element {
     return (
@@ -29,31 +38,3 @@ function Layout({ children }: { children: ReactNode }): JSX.Element {
     );
 }
 
-// TODO: factor out into components
-function ErrorBoundary(): JSX.Element {
-    const error = useRouteError();
-
-    if (isRouteErrorResponse(error)) {
-        return (
-            <div>
-                <h1>
-                    {error.status} {error.statusText}
-                </h1>
-                <p>{error.data}</p>
-            </div>
-        );
-    } else if (error instanceof Error && import.meta.env.DEV) {
-        return (
-            <div>
-                <h1>Error</h1>
-                <p>{error.message}</p>
-                <p>The stack trace is:</p>
-                <pre>{error.stack}</pre>
-            </div>
-        );
-    } else if (error instanceof Error && import.meta.env.DEV) {
-        return <div>Internal Error</div>;
-    } else {
-        return <h1>Unknown Error</h1>;
-    }
-}

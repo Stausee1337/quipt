@@ -1,10 +1,10 @@
 import React, {
+    type ComponentProps,
     type ComponentType,
     type JSX,
     createElement,
     useMemo,
     useContext,
-    type ComponentProps,
     useState,
     useEffect,
 } from 'react';
@@ -12,10 +12,10 @@ import React, {
 import {
     type DataRouteMatch,
     type LoaderFunctionArgs,
+    type Location,
     type RouteObject,
     UNSAFE_DataRouterStateContext,
     data,
-    type Location,
 } from 'react-router';
 
 import type { FormBaseProps, NavRenderFunction } from './form';
@@ -28,9 +28,17 @@ import {
     serializeFlowDataToURLParams,
     useCreateFlow,
     useFlow,
+    type Flow,
 } from './flow';
 import { FlowContainer } from './flow-container';
 import { StyledLink } from 'quipt/components/link';
+
+export type FlowLoaderFunction = (
+    args: LoaderFunctionArgs,
+    entry: FlowEntry,
+    flowData: FlowData,
+    transaction: TransactionData
+) => Promise<void>;
 
 export type FlowEntry = {
     name: string;
@@ -38,8 +46,8 @@ export type FlowEntry = {
     handlers: () => Record<string, ErasedSchemaHandler>;
     headings: Record<string, string>;
     clientEntrypoint: string;
-    loader?: ((args: LoaderFunctionArgs) => void) | undefined;
-    renderNavContent?: NavRenderFunction;
+    loader?: FlowLoaderFunction | undefined;
+    renderNavContent?: NavRenderFunction | undefined;
 };
 
 // HACK: using `keyof` can destroy inference from some reason
@@ -50,35 +58,14 @@ type FlowStepComponents<TData extends Record<string, Record<string, string>>> = 
     [TStep in KeyOf<TData>]: ComponentType<FormBaseProps<keyof TData[TStep] & string>>;
 };
 
-// TODO: A flow actually needs to have invariants in order to be a safe, checked flow:
-// FLOW INDPENDENT:
-//  - `index` is required URL param
-//  - `step` is required URL param
-//  - `continue` is required URL param
-//  - the `continue` URL needs to stay within origin (e.g. quipt.app)
-//  - if it has one, the `transaction` needs to be valid (speical 24byte binary string base64url
-//    encoded, no padding + present in redis)
-//    - the server provides for the `data` associated with the flow
-// FLOW DEPENDENT:
-//  - some flows require the user to be signed in, others require the user to be signed out
-// ALSO IMPORTANT:
-//  - flows that have no initial data (e.g. signin/signup) can be created fully by the client
-//  - flows that require initial data (e.g. an email for display) need to be crated by the server
-//    (e.g. password reset, login method change, etc)
-//  - so it might seem like flows have an entrypoint, since you definitely shouldn't have access to
-//    some parts of the flow without being in others first. But there are also some flows, where
-//    even the entrypoints need to be checked.
-// -> we'll need to put this on the flow somewhere (probably ther'll also be a loader)
-//
-// IMPORATANT: You CAN SPA into a flow
 export function defineFlow<TData extends Record<string, Record<string, string>>>(descriptor: {
     name: string;
     handlers: HandlerMap<TData> | (() => HandlerMap<TData>);
     clientEntrypoint: KeyOf<TData>;
     headings: Record<KeyOf<TData>, string>;
     components: FlowStepComponents<TData>;
-    loader?: ((args: LoaderFunctionArgs) => void) | undefined;
-    renderNavContent?: NavRenderFunction;
+    loader?: FlowLoaderFunction | undefined;
+    renderNavContent?: NavRenderFunction | undefined;
 }): FlowEntry {
     const handlers =
         typeof descriptor.handlers === 'function' ? descriptor.handlers : () => descriptor.handlers;
@@ -111,7 +98,6 @@ function FlowRenderer({ match }: { match: FlowMatch | undefined }): JSX.Element 
     if (flow === undefined) throw 'Internal Server Error';
 
     const { errors, step, update } = stepState;
-    // console.log(step, Object.keys(match.components), match.components[step]);
 
     return (
         <>
@@ -189,26 +175,24 @@ function parseTransactionString(transaction: string | undefined): Uint8Array | u
 }
 
 type TransactionData = {
-    // flowName: string;
+    flowName: string;
     activatedSteps: string[];
     containedData: Record<string, string> | null;
 };
 
-function lookupTransaction(transactionID: Uint8Array): TransactionData | undefined {
-    return {
-        activatedSteps: [],
-        containedData: null,
-    };
+function lookupTransaction(_transactionID: Uint8Array): TransactionData | undefined {
+    return undefined;
 }
 
-function validateFlowDataServer(
+async function validateFlowDataServer(
     entry: FlowEntry,
     data: FlowData | undefined,
-): TransactionData | undefined {
+): Promise<TransactionData | undefined> {
     if (data === undefined) return undefined;
     if (!Object.keys(entry.components).includes(data.flowStep)) return undefined;
     if (data.transaction === undefined && data.flowStep === entry.clientEntrypoint)
         return {
+            flowName: entry.name,
             activatedSteps: [entry.clientEntrypoint],
             containedData: null,
         };
@@ -216,17 +200,19 @@ function validateFlowDataServer(
     if (transactionID === undefined) return undefined;
     const transaction = lookupTransaction(transactionID);
     if (transaction === undefined) return undefined;
-    // if (transaction.flowName !== entry.name)
-    //     return undefined;
+    if (transaction.flowName !== entry.name)
+        return undefined;
     if (!transaction.activatedSteps.includes(data.flowStep)) return undefined;
+
     return transaction;
 }
 
 function flowLoaderFactory(entry: FlowEntry) {
     return async (args: LoaderFunctionArgs) => {
         const flowData = parseFlowData(new URLSearchParams(args.url.search));
-        const transactionData = validateFlowDataServer(entry, flowData);
+        const transactionData = await validateFlowDataServer(entry, flowData);
         if (transactionData === undefined) throw data('Invalid Request', { status: 400 });
+        await entry.loader?.(args, entry, flowData!, transactionData);
         return transactionData.containedData;
     };
 }
@@ -249,9 +235,14 @@ export function routedFlowsManager(...entries: FlowEntry[]): RouteObject {
     };
 }
 
-export function useFlowUrl(flowEntry: FlowEntry): string | undefined {
+function normalizeUrl(urlOrPath: string): string {
+    const url = new URL(urlOrPath, window.location.origin);
+    return url.toString();
+}
+
+export function useFlowUrl(flowEntry: FlowEntry, continueTo?: string | undefined): string | undefined {
     const [isHydrated, setIsHydrated] = useState(false);
-    const currentFlow = useFlow();
+    const currentFlow = useFlow() as (Flow | undefined);
 
     useEffect(() => {
         setIsHydrated(true);
@@ -264,14 +255,18 @@ export function useFlowUrl(flowEntry: FlowEntry): string | undefined {
             flowStep: flowEntry.clientEntrypoint,
             flowStepIndex: 0,
             transaction: undefined,
-            continueTo: currentFlow.continueTo ?? window.location.toString(),
+            continueTo: continueTo !== undefined 
+                ? normalizeUrl(continueTo)
+            : (currentFlow?.continueTo ?? window.location.toString()),
         } satisfies FlowData;
 
         return `/auth/${flowEntry.name}?${serializeFlowDataToURLParams(flowData)}`;
     }, [flowEntry, isHydrated]);
 }
 
-interface FlowLinkPropsBase extends Omit<ComponentProps<'a'>, 'href'> {}
+interface FlowLinkPropsBase extends Omit<ComponentProps<'a'>, 'href'> {
+    continueTo?: string | undefined;
+}
 
 interface FlowLinkProps extends FlowLinkPropsBase {
     to: FlowEntry;
@@ -287,11 +282,11 @@ function isLinkProps(props: FlowAnchorProps | FlowLinkProps): props is FlowLinkP
 
 export function FlowLink(props: FlowAnchorProps | FlowLinkProps): JSX.Element {
     if (isLinkProps(props)) {
-        const { to, ...rest } = props;
-        const url = useFlowUrl(to);
+        const { to, continueTo, ...rest } = props;
+        const url = useFlowUrl(to, continueTo);
         return <StyledLink to={url} {...rest} />;
     }
-    const { href, ...rest } = props;
-    const url = useFlowUrl(href);
+    const { href, continueTo, ...rest } = props;
+    const url = useFlowUrl(href, continueTo);
     return <StyledLink href={url} {...rest} />;
 }
