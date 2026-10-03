@@ -10,7 +10,7 @@ import {
     useRef,
 } from 'react';
 
-import { type Location, useLocation, useNavigate } from 'react-router';
+import {  useLocation, useNavigate } from 'react-router';
 
 import type { SubmitError } from '../schemas';
 import type { NavRenderFunction } from './form';
@@ -43,7 +43,7 @@ type FlowStepStateOf<TData extends Record<string, Record<string, string>>> = Flo
     TData
 >;
 
-type SchemaHandler<TData extends Record<string, string>, TOut extends string> = (input: {
+export type SchemaHandler<TData extends Record<string, string>, TOut extends string> = (input: {
     state: {
         transaction?: string | undefined;
         errors: any;
@@ -58,7 +58,7 @@ type SchemaHandler<TData extends Record<string, string>, TOut extends string> = 
     | null
 >;
 
-type ErasedSchemaHandler = SchemaHandler<Record<string, string>, string>;
+export type ErasedSchemaHandler = SchemaHandler<Record<string, string>, string>;
 
 export type FlowData = {
     flowStep: string;
@@ -96,9 +96,7 @@ export function INTERNAL_useFlowContext(): FlowContext {
     return useContext(FlowContextObj)!;
 }
 
-export function parseFlowData(location: Location): FlowData | undefined {
-    const params = new URLSearchParams(location.search);
-
+export function parseFlowData(params: URLSearchParams): FlowData | undefined {
     const step = params.get('step');
     if (step === null) return undefined;
 
@@ -232,6 +230,7 @@ function machineReducer(state: MachineState, transition: Transition): MachineSta
 function useFlowReducer(
     handlers: Record<string, ErasedSchemaHandler>,
     flowData: FlowData | undefined,
+    data: Record<string, string> | undefined
 ): Flow | undefined {
     const handlersRef = useRef(handlers);
 
@@ -243,7 +242,7 @@ function useFlowReducer(
             flowState:
                 flowData !== undefined && isValidFlowStep(handlers, flowData.flowStep)
                     ? // FIXME: this initial setup depdends on server-computed state (`data`)
-                      createFlowState(handlersRef, flowData, t => dispatch(t))
+                      createFlowState(handlersRef, flowData, t => dispatch(t), data)
                     : undefined,
         }),
     );
@@ -297,7 +296,7 @@ function createFlowState(
     handlersRef: RefObject<Record<string, ErasedSchemaHandler>>,
     flowData: FlowData,
     disptach: Dispatch<Transition>,
-    data?: Record<string, string> | undefined,
+    data: Record<string, string> | undefined,
 ): FlowState {
     return {
         stepState: createStepState(handlersRef, disptach, flowData.flowStep),
@@ -366,27 +365,25 @@ export type HandlerMap<TData extends Record<string, Record<string, string>>> = {
     [TStep in keyof TData & string]: SchemaHandler<TData[TStep], keyof TData & string>;
 };
 
-export type CreateFlowOptions = {
-    flowData?: FlowData | undefined;
-};
-
 export function useCreateFlow<TData extends Record<string, Record<string, string>>>(
     handlers: HandlerMap<TData>,
-    options?: CreateFlowOptions
+    serverData?: Record<string, string>,
 ): [Flow, FlowStepStateOf<TData>] | [undefined, undefined] {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const flowData = useMemo(() => options?.flowData ?? parseFlowData(location), [options?.flowData, location]);
+    const flowData = useMemo(() => parseFlowData(new URLSearchParams(location.search)), [location]);
 
     const flow = useFlowReducer(
         handlers as unknown as Record<string, ErasedSchemaHandler>,
         flowData,
+        serverData,
     );
 
     useEffect(() => {
         if (flow === undefined) return;
-        const parsedFlowData = parseFlowData(location);
+        // FIXME: do we really need to reparse here, again?
+        const parsedFlowData = parseFlowData(new URLSearchParams(location.search));
         if (parsedFlowData === undefined) return;
 
         const flowData = toFlowData(flow);

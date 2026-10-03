@@ -1,5 +1,5 @@
 import { type JSX, type ComponentType, type ReactNode, createContext, useContext } from 'react';
-import { Outlet, type RouteObject } from 'react-router';
+import { Outlet, type LoaderFunction, type RouteObject } from 'react-router';
 
 export type ExportedRouteEntry = {
     route: RouteObject;
@@ -11,6 +11,7 @@ export type ExportedRouteEntry = {
 export type RouteConfigEntry = {
     path: string;
     children?: RouteObject[] | undefined;
+    loader?: LoaderFunction | undefined;
     Layout: ComponentType<{ children: ReactNode }>;
     Component?: ComponentType | undefined;
     ErrorBoundary?: ComponentType | undefined;
@@ -30,6 +31,7 @@ export type ServerEntryConfig = {
 export function createRouterRoute({
     path,
     children,
+    loader,
     Layout,
     Component,
     ErrorBoundary,
@@ -37,6 +39,7 @@ export function createRouterRoute({
     return {
         path,
         children,
+        loader,
         element: Component ? (
             <Layout>
                 <Component />

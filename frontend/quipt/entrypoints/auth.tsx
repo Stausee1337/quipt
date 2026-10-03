@@ -10,7 +10,7 @@ export default defineEntry({
     path: 'auth',
     Layout,
     ErrorBoundary,
-    children: flows,
+    children: [ flows ]
 });
 
 function Layout({ children }: { children: ReactNode }): JSX.Element {

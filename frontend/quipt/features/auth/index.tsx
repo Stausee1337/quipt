@@ -1,8 +1,10 @@
-import xyz from './components/signin-flow';
-import type { RouteObject } from 'react-router';
+
+import signinFlow from './components/signin-flow';
+import { routedFlowsManager } from './components/flow-entry';
 // import { HydrationBoundary } from 'quipt/components/hydration-boundary';
 
-export default [
-    xyz.route,
-] satisfies RouteObject[];
+export default routedFlowsManager({
+    basename: 'auth',
+    entries: [signinFlow]
+});
 

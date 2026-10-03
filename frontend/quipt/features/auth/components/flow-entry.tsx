@@ -1,18 +1,32 @@
-import {
+import React, {
     type ComponentType,
     type JSX,
-    createElement
+    createElement,
+    useMemo,
+    useContext,
 } from 'react';
 
-import { type LoaderFunctionArgs, type RouteObject, data, useLoaderData } from 'react-router'
+import {
+    type DataRouteMatch,
+    type LoaderFunctionArgs,
+    type RouteObject,
+    UNSAFE_DataRouterStateContext,
+    data,
+} from 'react-router'
 
-import type { FormBaseProps } from './form';
-import { type FlowData, FlowProvider, type HandlerMap, parseFlowData, useCreateFlow } from './flow';
+import type { FormBaseProps, NavRenderFunction } from './form';
+import { type FlowData, FlowProvider, type HandlerMap, type ErasedSchemaHandler, parseFlowData, useCreateFlow } from './flow';
 import { FlowContainer } from './flow-container';
 
 
 export type FlowEntry = {
-    route: RouteObject;
+    name: string;
+    components: Record<string, ComponentType<FormBaseProps<string>>>,
+    handlers: () => Record<string, ErasedSchemaHandler>,
+    headings: Record<string, string>,
+    clientEntrypoint: string;
+    loader?: ((args: LoaderFunctionArgs) => void) | undefined;
+    renderNavContent?: NavRenderFunction;
 };
 
 // HACK: using `keyof` can destroy inference from some reason
@@ -23,29 +37,7 @@ type FlowStepComponents<TData extends Record<string, Record<string, string>>> = 
     [TStep in KeyOf<TData>]: ComponentType<FormBaseProps<keyof TData[TStep] & string>>;
 };
 
-export type FlowServerData = FlowData & {
-    flowName: string;
-};
-
-export function useServerFlowData(flowName: string): FlowServerData | undefined {
-    // FIXME: Idk if this has stable identity
-    const data = useLoaderData<FlowServerData | undefined>();
-
-    if (import.meta.env.SSR)
-        return data;
-
-    // NOTE: this might be a bit much, since it relies on the assumption that
-    // `data === undefined` === Server Will Throw
-    if (data === undefined) {
-        // window.location.reload();
-        return undefined;
-    }
-
-    if (data.flowName !== flowName) // The data we got was meant for a different flow
-        return undefined;
-
-    return data; 
-}
+export declare function useServerFlowData(flowName: string): Record<string, string>;
 
 // TODO: A flow actually needs to have invariants in order to be a safe, checked flow:
 // FLOW INDPENDENT:
@@ -71,67 +63,184 @@ export function useServerFlowData(flowName: string): FlowServerData | undefined 
 export function defineFlow<TData extends Record<string, Record<string, string>>>(descriptor: {
     name: string;
     handlers: HandlerMap<TData> | (() => HandlerMap<TData>);
+    clientEntrypoint: KeyOf<TData>;
     headings: Record<KeyOf<TData>, string>;
     components: FlowStepComponents<TData>;
+    loader?: ((args: LoaderFunctionArgs) => void) | undefined;
+    renderNavContent?: NavRenderFunction;
 }): FlowEntry {
-    function FlowComponent(): JSX.Element {
-        const handlers = typeof descriptor.handlers === 'function'
-            ? descriptor.handlers()
-            : descriptor.handlers;
+    const handlers = typeof descriptor.handlers === 'function'
+            ? descriptor.handlers
+            : () => descriptor.handlers;
+    return {
+        name: descriptor.name,
+        components: descriptor.components,
+        clientEntrypoint: descriptor.clientEntrypoint,
+        handlers: handlers as any,
+        headings: descriptor.headings,
+        loader: descriptor.loader,
+        renderNavContent: descriptor.renderNavContent,
+    };
+}
 
-        const flowData = useServerFlowData(descriptor.name);
 
-        const [flow, stepState] = useCreateFlow<TData>(handlers, { flowData });
+type FlowMatch = FlowEntry & {
+    serverData: Record<string, string> | null
+};
 
-        if (flow === undefined) throw 'Internal Server Error';
-        
-        const { errors, step, update } = stepState;
-
-        return (
-            <>
-                <title>{`${descriptor.headings[step as KeyOf<TData>]} - Quipt`}</title>
-                <FlowProvider flow={flow}
-                    renderNavContent={undefined /* TODO: flowMangementContext */ }>
-                    <FlowContainer>
-                        {
-                            createElement(
-                                descriptor.components[step as KeyOf<TData>],
-                                { 
-                                    heading: descriptor.headings[step as KeyOf<TData>],
-                                    errors: errors,
-                                    onDataSubmit: update,
-                                }
-                            )
-                        }
-                    </FlowContainer>
-                </FlowProvider>
-            </>
-        );
+function FlowRenderer({ match }: { match: FlowMatch | undefined; }): JSX.Element | null {
+    if (match === undefined) {
+        if (typeof window === 'undefined')
+            throw 'Internal Server Error';
+        window.location.reload();
+        return null;
     }
+    
+    const handlers = match.handlers();
 
-    // FIXME: I don't think it is any smart to copy this same loader for every flow
-    async function flowLoader(args: LoaderFunctionArgs): Promise<FlowServerData> {
-        const flowData = parseFlowData({
-            search: args.url.search,
-            hash: args.url.hash,
-            pathname: args.url.pathname,
-            state: undefined,
-            key: 'default'
-        }); 
-        if (flowData === undefined)
-            throw data('Invalid Request', { status: 400 });
-        return {
-            ...flowData,
-            flowName: descriptor.name
-        };
-    }
+    const [flow, stepState] = useCreateFlow(handlers, match.serverData ?? undefined);
+
+    if (flow === undefined) throw 'Internal Server Error';
+    
+    const { errors, step, update } = stepState;
+
+    return (
+        <>
+            <title>{`${match.headings[step]} - Quipt`}</title>
+            <FlowProvider flow={flow}
+                renderNavContent={match.renderNavContent}>
+                <FlowContainer>
+                    {
+                        createElement(
+                            match.components[step],
+                            { 
+                                heading: match.headings[step],
+                                errors: errors,
+                                onDataSubmit: update,
+                            }
+                        )
+                    }
+                </FlowContainer>
+            </FlowProvider>
+        </>
+    );
+};
+
+const flowManagerId = 'flows.flowmanager';
+
+function processMatches(matches: DataRouteMatch[], loaderData: Record<string, any>): FlowMatch | undefined {
+    const flowManagerIdx = matches.findIndex(match => match.route.id === flowManagerId);
+    if (flowManagerIdx === -1) return undefined;
+    const flow = matches[flowManagerIdx + 1];
+    if (flow === undefined || !flow.route.id.startsWith('flows.flow.'))
+        return undefined;
+    const element = flow.route.element;
+    if (!React.isValidElement(element))
+        return undefined;
+    if (element.type !== FlowEntry)
+        return undefined;
+    const entry = element.props as FlowEntry;
+    const serverData = loaderData[flow.route.id];
+
+    // FIXME: serverData is just not available for flows that we SPA-ed to.
+    // This will persumably need to be a client fetch. At the moment returning
+    // undefined here, should cause it to reload.
+    if (serverData === undefined)
+        return undefined;
 
     return {
-        route: {
-            path: descriptor.name,
-            Component: FlowComponent,
-            loader: import.meta.env.SSR ? flowLoader : undefined
-        },
+        ...entry,
+        serverData
+    };
+}
+
+function FlowManager(): JSX.Element {
+    const { matches, loaderData } = useContext(UNSAFE_DataRouterStateContext)!;
+    const flowMatch = useMemo(() => processMatches(matches, loaderData), [matches]);
+    return <FlowRenderer match={flowMatch}/>;
+}
+
+function parseTransactionString(transaction: string | undefined): Uint8Array | undefined {
+    if (transaction === undefined)
+        return undefined;
+    let array: Uint8Array;
+    try {
+        array = Uint8Array.fromBase64(transaction, {
+            alphabet: 'base64url',
+            lastChunkHandling: 'loose'
+        });
+    } catch(e) {
+        return undefined;
+    }
+    if (array.length !== 24)
+        return undefined;
+    // FIXME: decide on specific format
+    return array;
+}
+
+type TransactionData = {
+    activatedSteps: string[];
+    containedData: Record<string, string> | null;
+};
+
+function lookupTransaction(transactionID: Uint8Array): TransactionData | undefined {
+    return {
+        activatedSteps: [],
+        containedData: null
+    };
+}
+
+function validateFlowData(entry: FlowEntry, data: FlowData | undefined): TransactionData | undefined {
+    if (data === undefined)
+        return undefined;
+    if (!Object.keys(entry.components).includes(data.flowStep))
+        return undefined;
+    if (data.transaction === undefined && data.flowStep === entry.clientEntrypoint)
+        return {
+            activatedSteps: [entry.clientEntrypoint],
+            containedData: null
+        };
+    const transactionID = parseTransactionString(data.transaction);
+    if (transactionID === undefined)
+        return undefined;
+    const transaction = lookupTransaction(transactionID);
+    if (transaction === undefined)
+        return undefined;
+    if (!transaction.activatedSteps.includes(data.flowStep))
+        return undefined;
+    return transaction;
+}
+
+function flowLoaderFactory(entry: FlowEntry) {
+    return async (args: LoaderFunctionArgs) => {
+        const flowData = parseFlowData(new URLSearchParams(args.url.search));
+        const transactionData = validateFlowData(entry, flowData);
+        if (transactionData === undefined)
+            throw data('Invalid Request', { status: 400 });
+        return transactionData.containedData;
+    };
+}
+
+function FlowEntry(_entry: FlowEntry): JSX.Element | null {
+    throw 'INVALID: this element should never be rendered';
+}
+
+export function routedFlowsManager(config: {
+    basename: string,
+    entries: FlowEntry[],
+}): RouteObject {
+    const routes = config.entries.map(entry => ({
+        path: entry.name,
+        element: <FlowEntry {...entry}/>,
+        id: `flows.flow.${entry.name}`,
+        loader: typeof window === 'undefined'
+            ? flowLoaderFactory(entry)
+            : undefined,
+    }));
+    return {
+        element: <FlowManager/>,
+        children: routes,
+        id: flowManagerId,
     };
 }
 

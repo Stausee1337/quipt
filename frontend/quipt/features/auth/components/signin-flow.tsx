@@ -20,6 +20,7 @@ export default defineFlow({
             password: authService.password.bind(authService),
         };
     },
+    clientEntrypoint: 'identify',
     headings: {
         identify: 'Anmelden',
         'app-otp': 'Identität bestätigen',
@@ -32,6 +33,13 @@ export default defineFlow({
         'app-otp': AppCodeForm,
         password: PasswordForm,
     },
+    renderNavContent(flow) {
+        return flow.state.stepIndex === 0 ? (
+            <StyledLink to="/auth/signup?continue=http%3A%2F%2Flocalhost%3A5173%2Fapp&step=collect-email&index=0">
+                Konto erstellen
+            </StyledLink>
+        ) : undefined;
+    }
 });
 
 export function SigninFlow() {
