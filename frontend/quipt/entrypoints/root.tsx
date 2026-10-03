@@ -13,8 +13,8 @@ export default defineEntry({
         {
             path: 'with-loader',
             loader,
-            Component: LoadedComponent
-        }
+            Component: LoadedComponent,
+        },
     ],
     Component: Root,
     Layout,
@@ -31,7 +31,7 @@ function loader(...stuff) {
 function LoadedComponent(): JSX.Element {
     const x = useLoaderData();
     console.log(x);
-    return <p>This is a test</p>
+    return <p>This is a test</p>;
 }
 
 function Root() {
@@ -46,12 +46,12 @@ function Root() {
             <p>
                 <Link to="/signup">Register</Link>
             </p>
-            <Outlet/>
+            <Outlet />
         </div>
     );
 }
 
-function Layout({ children }: { children: ReactNode; }): JSX.Element {
+function Layout({ children }: { children: ReactNode }): JSX.Element {
     return (
         <html>
             <Head />

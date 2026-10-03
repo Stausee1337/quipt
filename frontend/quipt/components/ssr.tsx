@@ -58,7 +58,7 @@ bootstrap({id: ${JSON.stringify(routeId)},entry});`;
 export function HydratingRouter({ args }: { args: HydrationEntryArgs }): JSX.Element {
     const routes = [{ id: args.id, ...createRouterRoute(args.entry) }];
     const router = createBrowserRouter(routes, {
-        hydrationData: window.__staticRouterHydrationData
+        hydrationData: window.__staticRouterHydrationData,
     });
 
     return <RouterProvider router={router} />;

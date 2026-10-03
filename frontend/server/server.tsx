@@ -30,17 +30,13 @@ export function createRequestHandler(config: ServerEntryConfig): RequestHandler 
     const routes = createServerRoutes(config);
     const staticHandler = createStaticHandler(routes);
 
-    async function handleNodeRequest(
-        nodeReq: http.IncomingMessage,
-        nodeResp: http.ServerResponse,
-    ) {
+    async function handleNodeRequest(nodeReq: http.IncomingMessage, nodeResp: http.ServerResponse) {
         const req = createRequest(nodeReq, nodeResp, {
             protocol: getForwardedProtocol(nodeReq),
         });
         const resp = await handleRequest(req);
         sendResponse(nodeResp, resp);
     }
-
 
     async function handleRequest(request: Request) {
         let context = await staticHandler.query(request);
@@ -63,11 +59,7 @@ export function createRequestHandler(config: ServerEntryConfig): RequestHandler 
             console.error(error);
 
             const baseContext = context;
-            const matches = matchRoutes(
-                staticHandler.dataRoutes,
-                { pathname: '/' },
-                '/'
-            ) ?? [];
+            const matches = matchRoutes(staticHandler.dataRoutes, { pathname: '/' }, '/') ?? [];
             context = {
                 basename: '/',
                 errors: {
@@ -75,7 +67,7 @@ export function createRequestHandler(config: ServerEntryConfig): RequestHandler 
                         status: 500,
                         statusText: 'Internal Server Error',
                         data: error,
-                    }
+                    },
                 },
                 actionData: {},
                 loaderData: {},
@@ -83,7 +75,7 @@ export function createRequestHandler(config: ServerEntryConfig): RequestHandler 
                 loaderHeaders: {},
                 actionHeaders: {},
                 location: baseContext.location,
-                statusCode: 500
+                statusCode: 500,
             } satisfies StaticHandlerContext;
 
             const router = createStaticRouter(staticHandler.dataRoutes, context);
@@ -107,7 +99,6 @@ export function createRequestHandler(config: ServerEntryConfig): RequestHandler 
         return await handleNodeRequest(nodeReq, nodeResp);
     };
 }
-
 
 function getForwardedProtocol(nodeReq: http.IncomingMessage): string | undefined {
     const forwardedProto = nodeReq.headers['x-forwarded-proto'];

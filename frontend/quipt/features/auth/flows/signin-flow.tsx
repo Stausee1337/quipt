@@ -1,11 +1,11 @@
-import { StyledLink } from 'quipt/components/link';
 import { withProps } from 'quipt/utils';
-import { EmailForm } from './email-form';
-import { AppCodeForm } from './code-form';
-import { EmailCodeForm } from './email-code-form';
-import { PasswordForm } from './password-form';
-import { defineFlow } from './flow-entry';
+import signupFlow from './signup-flow';
 import { useAuthService } from '../schemas';
+import { FlowLink, defineFlow } from '../components/flow-entry';
+import { EmailForm } from '../components/email-form';
+import { AppCodeForm } from '../components/code-form';
+import { EmailCodeForm } from '../components/email-code-form';
+import { PasswordForm } from '../components/password-form';
 
 export default defineFlow({
     name: 'signin',
@@ -33,10 +33,7 @@ export default defineFlow({
     },
     renderNavContent(flow) {
         return flow.state.stepIndex === 0 ? (
-            <StyledLink to="/auth/signup?continue=http%3A%2F%2Flocalhost%3A5173%2Fapp&step=collect-email&index=0">
-                Konto erstellen
-            </StyledLink>
+            <FlowLink to={signupFlow}>Konto erstellen</FlowLink>
         ) : undefined;
-    }
+    },
 });
-

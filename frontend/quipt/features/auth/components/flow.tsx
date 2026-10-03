@@ -10,7 +10,7 @@ import {
     useRef,
 } from 'react';
 
-import {  useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 
 import type { SubmitError } from '../schemas';
 import type { NavRenderFunction } from './form';
@@ -49,14 +49,11 @@ export type SchemaHandler<TData extends Record<string, string>, TOut extends str
         errors: any;
     };
     data: TData;
-}) => Promise<
-    | {
-          transaction?: string | undefined;
-          step: TOut;
-          errors: Partial<Record<keyof TData & string, SubmitError>>;
-      }
-    | null
->;
+}) => Promise<{
+    transaction?: string | undefined;
+    step: TOut;
+    errors: Partial<Record<keyof TData & string, SubmitError>>;
+} | null>;
 
 export type ErasedSchemaHandler = SchemaHandler<Record<string, string>, string>;
 
@@ -136,7 +133,7 @@ function isFlowDataEq(a: FlowData, b: FlowData): boolean {
     );
 }
 
-function serializeFlowDataToURLParams(flowData: FlowData): string {
+export function serializeFlowDataToURLParams(flowData: FlowData): string {
     const params = new URLSearchParams();
     if (flowData.transaction !== undefined) params.append('t', flowData.transaction);
 
@@ -189,11 +186,9 @@ type LoadingMachineState = BaseMachineState & {
 type MachineState = BaseMachineState | LoadingMachineState;
 
 function computeStepIndex(flowState: FlowState | undefined, transition: ResolveTransition): number {
-    if (flowState === undefined)
-        return 0;
+    if (flowState === undefined) return 0;
     const errors = transition.stepState?.errors;
-    if (errors !== undefined && Object.values(errors).length > 0)
-        return flowState.stepIndex;
+    if (errors !== undefined && Object.values(errors).length > 0) return flowState.stepIndex;
     return flowState.stepIndex + 1;
 }
 
@@ -238,7 +233,7 @@ function machineReducer(state: MachineState, transition: Transition): MachineSta
 function useFlowReducer(
     handlers: Record<string, ErasedSchemaHandler>,
     flowData: FlowData | undefined,
-    data: Record<string, string> | undefined
+    data: Record<string, string> | undefined,
 ): Flow | undefined {
     const handlersRef = useRef(handlers);
 

@@ -64,16 +64,54 @@ export type AuthService = {
         state: BaseFlowState;
         data: { password: string };
     }): Promise<FlowState<'password', { password: 'incorrect-password' }> | null>;
+
+    collectEmail(input: {
+        state: BaseFlowState;
+        data: { email: string };
+    }): Promise<
+        | FlowState<'collect-email', { email: 'invalid-email' | 'email-already-used' }>
+        | FlowState<'verify-email'>
+    >;
+    verifyEmail(input: {
+        state: BaseFlowState;
+        data: { code: string };
+    }): Promise<FlowState<'verify-email', { code: 'invalid-code' }> | FlowState<'name'>>;
+    name(input: {
+        state: BaseFlowState;
+        data: { name: string };
+    }): Promise<FlowState<'name', { name: 'invalid-name' }> | null>;
 };
 
 function delay(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, 1000));
 }
 
+function newTransaction(): string {
+    const source = new Uint8Array(24);
+    window.crypto.getRandomValues(source);
+    return source.toBase64({ alphabet: 'base64url', omitPadding: true });
+}
+
 export function useAuthService(): AuthService {
     return {
+        async collectEmail({ state }) {
+            return {
+                ...state,
+                step: 'verify-email',
+                errors: {},
+            };
+        },
+        async verifyEmail({ state }) {
+            return {
+                ...state,
+                step: 'name',
+                errors: {},
+            };
+        },
+        async name() {
+            return null;
+        },
         async identify({ state, data }) {
-            console.log('server hit');
             await delay();
             if (data.email === 'test@email.com')
                 return {
@@ -82,13 +120,10 @@ export function useAuthService(): AuthService {
                     errors: { email: 'email-not-found' },
                 };
 
-            const source = new Uint8Array(24);
-            window.crypto.getRandomValues(source);
-            const transaction = source.toBase64({ alphabet: 'base64url', omitPadding: true });
             return {
                 ...state,
                 step: 'email-otp',
-                transaction,
+                transaction: newTransaction(),
                 errors: {},
             };
         },
@@ -106,7 +141,7 @@ export function useAuthService(): AuthService {
             return {
                 ...state,
                 step: 'email-otp',
-                errors: {},
+                errors: { code: 'invalid-code' },
             };
         },
         async password({ state }) {

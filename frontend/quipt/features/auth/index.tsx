@@ -1,10 +1,5 @@
-
-import signinFlow from './components/signin-flow';
+import signinFlow from './flows/signin-flow';
+import signupFlow from './flows/signup-flow';
 import { routedFlowsManager } from './components/flow-entry';
-// import { HydrationBoundary } from 'quipt/components/hydration-boundary';
 
-export default routedFlowsManager({
-    basename: 'auth',
-    entries: [signinFlow]
-});
-
+export default routedFlowsManager(signinFlow, signupFlow);

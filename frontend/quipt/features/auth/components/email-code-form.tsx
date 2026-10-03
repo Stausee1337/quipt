@@ -2,6 +2,7 @@ import { type JSX, useState, useEffect } from 'react';
 
 import { Button } from '@base-ui/react';
 
+import { linkStyle } from 'quipt/components/link';
 import { CodeForm } from './code-form';
 import type { FormBaseProps } from './form';
 import { useFlow } from './flow';
@@ -49,8 +50,8 @@ export function EmailCodeForm({ ...props }: EmailCodeFormProps): JSX.Element {
             <div className="flex">
                 <Button
                     disabled={timerValue > 0}
-                    onClick={onCodeResend}
-                    className="text-link cursor-pointer font-medium underline data-disabled:pointer-events-none data-disabled:cursor-not-allowed data-disabled:opacity-50">
+                    onClick={() => timerValue > 0 && onCodeResend()}
+                    className={linkStyle}>
                     {timerValue > 0
                         ? `Code in ${timerValue} Sekunden erneut senden`
                         : 'Code erneut senden'}
