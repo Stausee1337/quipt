@@ -51,6 +51,10 @@
     --text-heading-2: 1.5rem;
     --text-heading-3: 1.25rem;
 
+    --text-info: 0.875rem;
+    --text-info--line-height: 1.25;
+    --text-info--font-weight: 300;
+
     --sct-scroll-padding: 60;
     --sct-button-height: 8;
 

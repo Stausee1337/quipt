@@ -8,7 +8,7 @@ import { Providers } from 'quipt/components/global-contexts';
 import { defineEntry } from '../../shared/routing';
 
 export default defineEntry({
-    path: '/app',
+    path: '/app/*',
     Layout,
     Component: App,
     ErrorBoundary,
