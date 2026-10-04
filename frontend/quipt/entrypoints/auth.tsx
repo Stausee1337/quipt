@@ -12,16 +12,15 @@ export default defineEntry({
     path: 'auth',
     Layout,
     ErrorBoundary,
-    children: [
-        { index: true, loader: notARealUrl },
-        flows
-    ],
+    children: [{ index: true, loader: notARealUrl }, flows],
 });
 
 function notARealUrl(args: LoaderFunctionArgs) {
     throw new UNSAFE_ErrorResponseImpl(
-        404, 'Not Found', new Error(`No route matches URL "${args.url.pathname}"`)
-    )
+        404,
+        'Not Found',
+        new Error(`No route matches URL "${args.url.pathname}"`),
+    );
 }
 
 function Layout({ children }: { children: ReactNode }): JSX.Element {
@@ -41,4 +40,3 @@ function Layout({ children }: { children: ReactNode }): JSX.Element {
         </html>
     );
 }
-

@@ -1,7 +1,4 @@
-import {
-    type LoaderFunctionArgs,
-    data,
-} from 'react-router';
+import { type LoaderFunctionArgs, data } from 'react-router';
 
 import { type FlowData, parseFlowData } from './flow';
 import type { FlowEntry, TransactionData } from './flow-entry';
@@ -42,8 +39,7 @@ async function validateFlowDataServer(
     if (transactionID === undefined) return undefined;
     const transaction = lookupTransaction(transactionID);
     if (transaction === undefined) return undefined;
-    if (transaction.flowName !== entry.name)
-        return undefined;
+    if (transaction.flowName !== entry.name) return undefined;
     if (!transaction.activatedSteps.includes(data.flowStep)) return undefined;
 
     return transaction;
@@ -58,4 +54,3 @@ export function flowLoaderFactory(entry: FlowEntry) {
         return transactionData.containedData;
     };
 }
-

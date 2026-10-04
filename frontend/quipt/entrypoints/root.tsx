@@ -1,6 +1,5 @@
 import { type JSX, type ReactNode } from 'react';
 
-
 import { Head, Scripts } from 'quipt/components/ssr';
 import { ErrorBoundary } from 'quipt/components/error-boundary';
 import { Providers } from 'quipt/components/global-contexts';
@@ -16,10 +15,14 @@ export default defineEntry({
 
 function Root() {
     return (
-        <div className="p-1 flex flex-col gap-x-1">
+        <div className="flex flex-col gap-x-1 p-1">
             <h1 className="text-heading-1">TODO: Landing Page</h1>
-            <FlowLink href={signinFlow} continueTo="/app">Anmelden</FlowLink>
-            <FlowLink href={signupFlow} continueTo="/app">Konto erstellen</FlowLink>
+            <FlowLink href={signinFlow} continueTo="/app">
+                Anmelden
+            </FlowLink>
+            <FlowLink href={signupFlow} continueTo="/app">
+                Konto erstellen
+            </FlowLink>
         </div>
     );
 }
@@ -39,4 +42,3 @@ function Layout({ children }: { children: ReactNode }): JSX.Element {
         </html>
     );
 }
-

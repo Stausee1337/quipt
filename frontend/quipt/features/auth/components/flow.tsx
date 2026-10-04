@@ -13,6 +13,7 @@ import {
 import { useLocation, useNavigate } from 'react-router';
 
 import type { SubmitError } from 'quipt/schemas/auth';
+import { randomID } from 'quipt/utils';
 import type { NavRenderFunction } from './form';
 
 export interface BaseFlowStepState {
@@ -336,7 +337,7 @@ function createStepState(
         thisState: ErasedFlowStepState,
         data: Record<string, string>,
     ) {
-        const loadingID = newID();
+        const loadingID = randomID();
         dispatch({ type: 'load', loadingID });
         const result = await erasedHandlerWrapper(thisState, data);
         dispatch({ type: 'resolve', loadingID, ...result });
@@ -351,17 +352,6 @@ function createStepState(
     } satisfies ErasedFlowStepState;
     stepState.update = stepState.update.bind(stepState);
     return Object.freeze(stepState);
-}
-
-function newID(length = 8): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let id = '';
-
-    for (let i = 0; i < length; i++) {
-        id += chars[Math.floor(Math.random() * chars.length)];
-    }
-
-    return id;
 }
 
 export type HandlerMap<TData extends Record<string, Record<string, string>>> = {

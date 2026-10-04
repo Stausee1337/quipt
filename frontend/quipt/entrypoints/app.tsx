@@ -21,11 +21,9 @@ function Layout({ children }: { children: ReactNode }): JSX.Element {
             <Head />
             <body>
                 <Providers>
-                    <title>{ title }</title>
+                    <title>{title}</title>
                     <div className="text-foreground bg-background relative flex h-svh w-svw">
-                        <HydrationBoundary>
-                            {children}
-                        </HydrationBoundary>
+                        <HydrationBoundary>{children}</HydrationBoundary>
                     </div>
                 </Providers>
                 <Scripts />
@@ -33,4 +31,3 @@ function Layout({ children }: { children: ReactNode }): JSX.Element {
         </html>
     );
 }
-

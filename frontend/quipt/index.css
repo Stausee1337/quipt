@@ -177,6 +177,20 @@
         flex-grow: 0;
         flex-shrink: 0;
     }
+
+    .icon-xl {
+        width: calc(var(--spacing) * 9);
+        height: calc(var(--spacing) * 9);
+        flex-grow: 0;
+        flex-shrink: 0;
+    }
+
+    .icon-2xl {
+        width: calc(var(--spacing) * 12);
+        height: calc(var(--spacing) * 12);
+        flex-grow: 0;
+        flex-shrink: 0;
+    }
 }
 /* FIXME: this anchor positioning is fundamentally not correct */
 

@@ -1,4 +1,4 @@
-import { type Plugin } from 'vite';
+import { type MinimalPluginContextWithoutEnvironment, type Plugin, type ViteDevServer } from 'vite';
 
 import path from 'node:path';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -14,20 +14,35 @@ interface SvgSpritePluginOptions {
     iconDir: string;
 }
 
-export function svgSprite({ iconDir }: SvgSpritePluginOptions): Plugin {
-    let { data: svgSpriteData, meta } = compileToSprite(iconDir);
-    let spriteMetaData = JSON.stringify(meta);
-    function dirChange() {
-        console.log('Icon Direcotry Changed');
+export function svgSprite(options: SvgSpritePluginOptions): Plugin {
+    let iconDir: string;
+    let svgSpriteData: string, spriteMetaData: string;
+
+    function compileIconDir(ctx: MinimalPluginContextWithoutEnvironment) {
+        ctx.info('compile icon direcotry');
         const { data, meta } = compileToSprite(iconDir);
         svgSpriteData = data;
         spriteMetaData = JSON.stringify(meta);
+    }
+
+    function recompileAndUpdate(
+        ctx: MinimalPluginContextWithoutEnvironment,
+        server: ViteDevServer,
+    ) {
+        compileIconDir(ctx);
+        const mod = server.moduleGraph.getModuleById(virtualIconsMeta.resolvedId);
+        if (mod === undefined) return;
+        server.moduleGraph.invalidateModule(mod);
     }
 
     let assetId: string | undefined;
 
     return {
         name: 'svg-sprite',
+        configResolved(config) {
+            iconDir = path.resolve(config.root, options.iconDir);
+            compileIconDir(this);
+        },
 
         configureServer(server) {
             server.middlewares.use('/icon-sprites.svg', (_req, res) => {
@@ -37,9 +52,19 @@ export function svgSprite({ iconDir }: SvgSpritePluginOptions): Plugin {
 
             server.watcher.add(iconDir);
 
-            server.watcher.on('add', filterEvents(iconDir, dirChange));
-            server.watcher.on('change', filterEvents(iconDir, dirChange));
-            server.watcher.on('unlink', filterEvents(iconDir, dirChange));
+            server.watcher.on(
+                'add',
+                filterEvents(iconDir, () => recompileAndUpdate(this, server)),
+            );
+            server.watcher.on(
+                'change',
+                filterEvents(iconDir, () => recompileAndUpdate(this, server)),
+            );
+            server.watcher.on(
+                'unlink',
+                filterEvents(iconDir, () => recompileAndUpdate(this, server)),
+            );
+            server.ws.send({ type: 'full-reload' });
         },
         buildStart() {
             if (this.environment.mode === 'build') {

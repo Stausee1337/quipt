@@ -8,7 +8,7 @@ export function ErrorBoundary(): JSX.Element {
     let body;
     let title: string;
     if (isRouteErrorResponse(error)) {
-        title = `Error ${error.status} (${error.statusText})!!!`
+        title = `Error ${error.status} (${error.statusText})!!!`;
         body = (
             <div>
                 <h1>
@@ -18,7 +18,7 @@ export function ErrorBoundary(): JSX.Element {
             </div>
         );
     } else if (error instanceof Error && import.meta.env.DEV) {
-        title = `Error (${error.message})`
+        title = `Error (${error.message})`;
         body = (
             <div>
                 <h1>Error</h1>
@@ -28,17 +28,17 @@ export function ErrorBoundary(): JSX.Element {
             </div>
         );
     } else if (error instanceof Error && !import.meta.env.DEV) {
-        title = `Error (Internal Error)`
+        title = `Error (Internal Error)`;
         body = <div>Internal Error</div>;
     } else {
-        title = `Error (Unknown Error)`
+        title = `Error (Unknown Error)`;
         body = <h1>Unknown Error</h1>;
     }
 
     return (
         <>
             <title>{`${title}`}</title>
-            { body }
+            {body}
         </>
     );
 }

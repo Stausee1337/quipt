@@ -4,39 +4,56 @@ import { Link } from 'react-router';
 
 import { Icon } from 'quipt/components/icon';
 import { IconButton } from 'quipt/components/icon-button';
-import { Tooltip as Tooltip2 } from 'quipt/components/tooltip';
+import { Tooltip } from 'quipt/components/tooltip';
 
 export function SideNav(): JSX.Element {
     return (
-        <div className="flex flex-col justify-between h-full border-accent-30 border-r p-3">
+        <div className="border-accent-30 flex h-full flex-col justify-between border-r p-3">
             <div className="flex flex-col gap-8">
-                <Link to="/app">
-                    <Icon iconName="quipt-q" className="icon-lg"/>
+                <Link to="/app" aria-label="Home">
+                    <Icon iconName="quipt-q" className="icon-lg" aria-hidden="true" />
                 </Link>
                 <div className="flex flex-col gap-4">
-                    <Tooltip2 label="Neues Skript" side="right">
-                        <IconButton className="text-foreground"
+                    <Tooltip label="Neues Skript" side="right">
+                        <IconButton
+                            className="text-foreground"
                             iconName="pencil-square"
                             nativeButton={false}
-                            render={<Tooltip2.Trigger
-                                render={<Link to={{ hash: '#create-script' }}/>}/>}
+                            render={
+                                <Tooltip.Trigger
+                                    delay={0}
+                                    render={
+                                        <Link
+                                            to="/app/new-script"
+                                            state={{ backgroundLocation: location.pathname }}
+                                        />
+                                    }
+                                />
+                            }
                         />
-                    </Tooltip2>
+                    </Tooltip>
 
-                    <Tooltip2 label="Üben" side="right">
-                        <IconButton className="text-foreground"
+                    <Tooltip label="Üben" side="right">
+                        <IconButton
+                            className="text-foreground"
                             iconName="chat-right-quote"
                             nativeButton={false}
-                            render={<Tooltip2.Trigger
-                                render={<Link to={{ hash: '#training-start' }}/>}/>}
+                            render={
+                                <Tooltip.Trigger
+                                    delay={0}
+                                    render={
+                                        <Link
+                                            to="/app/practice-start"
+                                            state={{ backgroundLocation: location.pathname }}
+                                        />
+                                    }
+                                />
+                            }
                         />
-                    </Tooltip2>
+                    </Tooltip>
                 </div>
             </div>
-            <div className="bg-text w-8 h-8 bg-foreground rounded-full">
-
-            </div>
+            <div className="bg-text bg-foreground h-8 w-8 rounded-full"></div>
         </div>
     );
 }
-

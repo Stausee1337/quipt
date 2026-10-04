@@ -4,10 +4,4 @@ import { FlowLink, routedFlowsManager, useFlowUrl } from './components/flow-entr
 
 export default routedFlowsManager(signinFlow, signupFlow);
 
-export {
-    FlowLink,
-    signinFlow,
-    signupFlow,
-    useFlowUrl,
-};
-
+export { FlowLink, signinFlow, signupFlow, useFlowUrl };

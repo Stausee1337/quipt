@@ -43,7 +43,7 @@ export type FlowLoaderFunction = (
     args: LoaderFunctionArgs,
     entry: FlowEntry,
     flowData: FlowData,
-    transaction: TransactionData
+    transaction: TransactionData,
 ) => Promise<void>;
 
 export type FlowEntry = {
@@ -187,9 +187,12 @@ function normalizeUrl(urlOrPath: string): string {
     return url.toString();
 }
 
-export function useFlowUrl(flowEntry: FlowEntry, continueTo?: string | undefined): string | undefined {
+export function useFlowUrl(
+    flowEntry: FlowEntry,
+    continueTo?: string | undefined,
+): string | undefined {
     const [isHydrated, setIsHydrated] = useState(false);
-    const currentFlow = useFlow() as (Flow | undefined);
+    const currentFlow = useFlow() as Flow | undefined;
 
     useEffect(() => {
         setIsHydrated(true);
@@ -202,9 +205,10 @@ export function useFlowUrl(flowEntry: FlowEntry, continueTo?: string | undefined
             flowStep: flowEntry.clientEntrypoint,
             flowStepIndex: 0,
             transaction: undefined,
-            continueTo: continueTo !== undefined 
-                ? normalizeUrl(continueTo)
-            : (currentFlow?.continueTo ?? window.location.toString()),
+            continueTo:
+                continueTo !== undefined
+                    ? normalizeUrl(continueTo)
+                    : (currentFlow?.continueTo ?? window.location.toString()),
         } satisfies FlowData;
 
         return `/auth/${flowEntry.name}?${serializeFlowDataToURLParams(flowData)}`;

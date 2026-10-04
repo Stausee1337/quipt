@@ -65,7 +65,9 @@ export function createRequestHandler(config: ServerEntryConfig): RequestHandler 
                 basename: '/',
                 errors: {
                     [matches?.[0].route.id ?? '']: new UNSAFE_ErrorResponseImpl(
-                        500, 'Internal Server Error', error
+                        500,
+                        'Internal Server Error',
+                        error,
                     ),
                 },
                 actionData: {},

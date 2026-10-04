@@ -8,8 +8,10 @@ export function isLoggedIn(_args: Headers): boolean {
     return false;
 }
 
-export async function checkLoggedInLoader(args: LoaderFunctionArgs, _entry: FlowEntry, flowData: FlowData) {
-    if (isLoggedIn(args.request.headers))
-        throw redirect(flowData.continueTo);
+export async function checkLoggedInLoader(
+    args: LoaderFunctionArgs,
+    _entry: FlowEntry,
+    flowData: FlowData,
+) {
+    if (isLoggedIn(args.request.headers)) throw redirect(flowData.continueTo);
 }
-
