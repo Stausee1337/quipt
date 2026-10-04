@@ -1,76 +1,7 @@
-import React, {
-    type JSX,
-    type RefObject,
-    useId,
-    useRef,
-    useReducer,
-    useEffect,
-    useState,
-} from 'react';
+import React, { type JSX, type RefObject, useId, useRef, useEffect, useState } from 'react';
 
-import { Dialog } from '@base-ui/react';
-
-import { Modal } from 'quipt/components/modal';
-import { BigButton } from 'quipt/components/button';
 import { Icon } from 'quipt/components/icon';
-import { randomID } from 'quipt/utils';
-import { Loader } from 'quipt/components/loader';
-
-type Transition =
-    | {
-          kind: 'upload';
-          file: File;
-          loadingID: string;
-      }
-    | {
-          kind: 'resolve';
-          loadingID: string;
-          error: string | undefined;
-      }
-    | {
-          kind: 'error';
-          error: string;
-      };
-
-type UploadIdleState = {
-    kind: 'idle';
-    error?: string | undefined;
-};
-
-type UploadLoadingState = {
-    kind: 'loading';
-    loadingID: string;
-    file: File;
-};
-
-type UploadState = UploadIdleState | UploadLoadingState;
-
-function machineReducer(state: UploadState, transition: Transition): UploadState {
-    switch (transition.kind) {
-        case 'upload':
-            return {
-                kind: 'loading',
-                file: transition.file,
-                loadingID: transition.loadingID,
-            };
-        case 'resolve':
-            if (state.kind === 'loading' && state.loadingID === transition.loadingID)
-                return { kind: 'idle', error: transition.error };
-            return state;
-        case 'error':
-            if (state.kind === 'idle')
-                return {
-                    kind: 'idle',
-                    error: transition.error,
-                };
-            return state;
-    }
-}
-
-interface FileUploadFormProps {
-    error: string | undefined;
-    onFileSubmit: (file: File[]) => void;
-}
+import { Modal } from 'quipt/components/modal';
 
 function makePreventHandlers(labelRef: RefObject<HTMLLabelElement | null>) {
     function dropHandler(e: DragEvent) {
@@ -92,7 +23,12 @@ function makePreventHandlers(labelRef: RefObject<HTMLLabelElement | null>) {
     return [dropHandler, dragHandler];
 }
 
-function FileUploadForm({ error, onFileSubmit }: FileUploadFormProps) {
+export interface FileUploadFormProps {
+    error: string | undefined;
+    onFileSubmit: (file: File[]) => void;
+}
+
+export function FileUploadForm({ error, onFileSubmit }: FileUploadFormProps): JSX.Element {
     const inputRef = useRef<HTMLInputElement>(null);
     const labelRef = useRef<HTMLLabelElement>(null);
 
@@ -114,7 +50,7 @@ function FileUploadForm({ error, onFileSubmit }: FileUploadFormProps) {
 
             window.removeEventListener('dragenter', dragActiveHandler);
         };
-    });
+    }, []);
 
     function dragActiveHandler(e: DragEvent) {
         labelRef.current && setDragActive(labelRef.current.contains(e.target as Node | null));
@@ -188,79 +124,5 @@ function FileUploadForm({ error, onFileSubmit }: FileUploadFormProps) {
                 </div>
             )}
         </>
-    );
-}
-
-const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-
-function formatFileSize(bytes: number): string {
-    let size = bytes;
-    let unit = 0;
-
-    while (size >= 1024 && unit < units.length - 1) {
-        size /= 1024;
-        unit++;
-    }
-
-    return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
-}
-
-function FileInfoView({ file }: { file: File }): JSX.Element {
-    return (
-        <div className="flex p-2">
-            <Icon iconName="file-pdf" className="icon-2xl" aria-hidden="true" />
-            <div className="flex flex-col">
-                <p>{file.name}</p>
-                <p className="text-info text-accent-100">{formatFileSize(file.size)}</p>
-            </div>
-        </div>
-    );
-}
-
-export function NewScriptModal(): JSX.Element {
-    const [state, dispatch] = useReducer(machineReducer, { kind: 'idle' });
-
-    async function startFileAnalysis(files: File[]) {
-        const loadingID = randomID();
-        if (files.length !== 1) {
-            dispatch({ kind: 'error', error: 'Uploadfehler: Sie können nur eine Datei hochladen' });
-            return;
-        }
-
-        const file = files[0];
-        if (file.type !== 'application/pdf') {
-            dispatch({ kind: 'error', error: 'Uploadfehler: Bitte laden Sie eine PDF-Datei hoch' });
-            return;
-        }
-
-
-        dispatch({ kind: 'upload', loadingID, file });
-        const worker = await import('../../pdf-ir?worker');
-        const w = new worker.default();
-        console.log(w);
-
-        console.log(files);
-        dispatch({
-            kind: 'resolve',
-            loadingID,
-            error: 'Konvertierungsfehler: Noch nicht implementiert',
-        });
-    }
-
-    return (
-        <Modal className="w-170" heading="Datei in Skript konvertieren">
-            {state.kind === 'idle' && (
-                <FileUploadForm onFileSubmit={startFileAnalysis} error={state.error} />
-            )}
-            {state.kind === 'loading' && <FileInfoView file={state.file} />}
-            <div className="flex justify-between">
-                <BigButton variant="secondary" render={<Dialog.Close />}>
-                    Abbrechen
-                </BigButton>
-                <BigButton variant="primary" disabled={state.kind === 'idle'}>
-                    {state.kind === 'loading' ? <Loader /> : 'Weiter'}
-                </BigButton>
-            </div>
-        </Modal>
     );
 }

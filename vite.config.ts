@@ -24,6 +24,9 @@ export default defineConfig({
     optimizeDeps: {
         include: ['difflib'],
     },
+    worker: {
+        format: 'es'
+    }
 });
 
 function findEntryPoints() {

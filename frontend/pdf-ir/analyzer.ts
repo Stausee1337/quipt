@@ -10,50 +10,49 @@ import {
     isSameFont,
 } from './pdf-ir';
 
-export type BlockType = 'dialog'|'action'|'section'|'unknown'|'header'|'footer';
+export type BlockType = 'dialogue' | 'action' | 'section' | 'unknown' | 'header' | 'footer';
 
 export interface BaseBlockData {
     type: BlockType;
     text: string;
-    formattedString: string|undefined;
-    actorNames: string[]|undefined;
+    formattedString: string | undefined;
+    actorNames: string[] | undefined;
 }
 
 export interface OtherBlockData extends BaseBlockData {
-    type: 'section'|'unknown'|'header'|'footer';
-};
+    type: 'section' | 'unknown' | 'header' | 'footer';
+}
 
 export interface ActionBlockData extends BaseBlockData {
     type: 'action';
     formattedString: string;
-};
+}
 
-export interface DialogBlockData extends BaseBlockData {
-    type: 'dialog';
+export interface DialogueBlockData extends BaseBlockData {
+    type: 'dialogue';
     formattedString: string;
     actorNames: string[];
 }
 
-export type BlockData = DialogBlockData|ActionBlockData|OtherBlockData;
+export type BlockData = DialogueBlockData | ActionBlockData | OtherBlockData;
 
 export type Block = IRBlock & BlockData;
 
 export type Page = {
     blocks: Block[];
-}
+};
 
 function getLineText(line: BlockLine): string {
-    return line 
-            .styledText
-            .map(span => span.text)
-            .join('')
-            .trimEnd();
+    return line.styledText
+        .map(span => span.text)
+        .join('')
+        .trimEnd();
 }
 
 const tokenizers = {
     word: /^(\p{Lu}\p{Ll}+|\p{Ll}{2,})/u,
     punctuation: /^[!"\#\$%\&'\(\)\*\+,\-\./:;<=>\?@\[\\\]\^_`\{\|\}\~]/,
-    numeric: /^\d+/
+    numeric: /^\d+/,
 };
 
 type Tokenizers = typeof tokenizers;
@@ -72,7 +71,39 @@ type TokenStream<Type = never> = {
     next(): Token<Type>;
 };
 
-type Punctuation = '!'|'"'|'#'|'$'|'%'|'&'|"'"|'('|')'|'*'|'+'|','|'-'|'.'|'/'|':'|';'|'<'|'='|'>'|'?'|'@'|'['|'\\'|']'|'^'|'_'|'`'|'{'|'|'|'}'|'~';
+type Punctuation =
+    | '!'
+    | '"'
+    | '#'
+    | '$'
+    | '%'
+    | '&'
+    | "'"
+    | '('
+    | ')'
+    | '*'
+    | '+'
+    | ','
+    | '-'
+    | '.'
+    | '/'
+    | ':'
+    | ';'
+    | '<'
+    | '='
+    | '>'
+    | '?'
+    | '@'
+    | '['
+    | '\\'
+    | ']'
+    | '^'
+    | '_'
+    | '`'
+    | '{'
+    | '|'
+    | '}'
+    | '~';
 
 function isPunct<Type>(token: Token<Type>, punct: Punctuation): boolean {
     return token.type === 'punctuation' && token.text === punct;
@@ -86,7 +117,7 @@ function tokenizeImpl(input: string): Token[] {
     const tokens: Token[] = [];
     const innerTokenizers = {
         ...tokenizers,
-        whitespace: /^\s+/
+        whitespace: /^\s+/,
     };
 
     let offset = 0;
@@ -94,8 +125,7 @@ function tokenizeImpl(input: string): Token[] {
         let found = false;
         for (const [name, pattern] of Object.entries(innerTokenizers)) {
             const match = input.match(pattern);
-            if (match === null)
-                continue;
+            if (match === null) continue;
             found = true;
             const matchedString = match[0];
             input = input.slice(matchedString.length);
@@ -104,7 +134,7 @@ function tokenizeImpl(input: string): Token[] {
                 tokens.push({
                     type: name as unknown as TokenTypeBase,
                     text: matchedString,
-                    offset
+                    offset,
                 });
             break;
         }
@@ -113,7 +143,10 @@ function tokenizeImpl(input: string): Token[] {
     return tokens;
 }
 
-function tokenize<Type = never>(input: string, extendTokenKind?: (token: Token) => Token<Type>): TokenStream<Type> {
+function tokenize<Type = never>(
+    input: string,
+    extendTokenKind?: (token: Token) => Token<Type>,
+): TokenStream<Type> {
     let tokenOffset = 0;
     const offsetStack: number[] = [];
     const tokens = tokenizeImpl(input);
@@ -125,7 +158,7 @@ function tokenize<Type = never>(input: string, extendTokenKind?: (token: Token) 
         return extendTokenKind ? extendTokenKind(token) : token;
     }
 
-    let lastOffset: number|undefined = undefined;
+    let lastOffset: number | undefined = undefined;
     return {
         save() {
             offsetStack.push(tokenOffset);
@@ -135,13 +168,11 @@ function tokenize<Type = never>(input: string, extendTokenKind?: (token: Token) 
             if (rv) tokenOffset = rv;
         },
         next() {
-            if (lastOffset)
-                return { type: 'eos', text: '', offset: lastOffset };
+            if (lastOffset) return { type: 'eos', text: '', offset: lastOffset };
             const token = next();
-            if (token.type === 'eos')
-                lastOffset = token.offset;
+            if (token.type === 'eos') lastOffset = token.offset;
             return token;
-        }
+        },
     };
 }
 
@@ -179,43 +210,37 @@ function theNameParser(stream: TokenStream<NameTokenType>): string[] {
         stream.restore();
         return rv;
     }
- 
-    function parseDrSubPrefix(): string|undefined {
-        if (currentToken.text !== 'Dr')
-            return undefined;
-        if (!isPunct(lookahead(), '.'))
-            return undefined;
+
+    function parseDrSubPrefix(): string | undefined {
+        if (currentToken.text !== 'Dr') return undefined;
+        if (!isPunct(lookahead(), '.')) return undefined;
         advance();
         advance();
         return 'Dr.';
     }
 
-    function parsePrefix(): string|undefined {
+    function parsePrefix(): string | undefined {
         if (currentToken.text === 'Prof') {
-            if (!isPunct(lookahead(), '.'))
-                return undefined;
+            if (!isPunct(lookahead(), '.')) return undefined;
             advance();
             advance();
             const drSubPrefix = parseDrSubPrefix();
             return drSubPrefix ? 'Prof.' : `Prof. ${drSubPrefix}`;
         } else if (currentToken.type === 'numeric') {
-            if (!isPunct(lookahead(), '.'))
-                return undefined;
+            if (!isPunct(lookahead(), '.')) return undefined;
             const number = currentToken.text;
             advance();
             advance();
-            return `${number}.`
+            return `${number}.`;
         }
         return parseDrSubPrefix();
     }
 
     function isLowercaseWord(token: Token): boolean {
-        return token.type === 'word' &&
-            token.text !== 'und' &&
-            token.text !== 'http';
+        return token.type === 'word' && token.text !== 'und' && token.text !== 'http';
     }
 
-    function parseName(): string|undefined {
+    function parseName(): string | undefined {
         const prefix = parsePrefix();
 
         const parts: Token[] = [];
@@ -225,18 +250,20 @@ function theNameParser(stream: TokenStream<NameTokenType>): string[] {
         }
 
         if (!parts.length) return undefined;
-        if (parts.at(-1)?.type !== 'noun' 
-                && !parts.some(x => x.text.match(/alle/i) !== null)
-                && !parts.some(x => x.text.match(/zusammen/i) !== null)
-                && !parts.some(x => x.text.match(/miteinander/i) !== null)) return undefined;
+        if (
+            parts.at(-1)?.type !== 'noun' &&
+            !parts.some(x => x.text.match(/alle/i) !== null) &&
+            !parts.some(x => x.text.match(/zusammen/i) !== null) &&
+            !parts.some(x => x.text.match(/miteinander/i) !== null)
+        )
+            return undefined;
 
         if (currentToken.type === 'numeric') {
             parts.push(currentToken);
             advance();
         }
 
-        if (prefix)
-            return `${prefix} ${parts.map(t => t.text).join(' ')}`
+        if (prefix) return `${prefix} ${parts.map(t => t.text).join(' ')}`;
         return parts.map(t => t.text).join(' ');
     }
 
@@ -248,8 +275,7 @@ function theNameParser(stream: TokenStream<NameTokenType>): string[] {
             if (!name) return [];
             names.push(name);
 
-            if (isPunct(currentToken, ',') || isKeyword(currentToken, 'und'))
-                advance();
+            if (isPunct(currentToken, ',') || isKeyword(currentToken, 'und')) advance();
         }
 
         return names;
@@ -285,16 +311,15 @@ function isNounString(string: string): boolean {
     return string[0] === string[0].toUpperCase();
 }
 
-type ParseNamesResult = { names: string[], offset: number };
+type ParseNamesResult = { names: string[]; offset: number };
 
-function parseNames(text: string): ParseNamesResult|undefined {
+function parseNames(text: string): ParseNamesResult | undefined {
     if (!text.includes(':')) return undefined;
     let hitColon = false;
-    let lastToken: Token|undefined;
+    let lastToken: Token | undefined;
     const stream = tokenize<NameTokenType>(text, token => {
         lastToken = token;
-        if (token.type === 'word' && isNounString(token.text))
-            return { ...token, type: 'noun' };
+        if (token.type === 'word' && isNounString(token.text)) return { ...token, type: 'noun' };
         else if (isPunct(token, ':')) {
             hitColon = true;
             return { ...token, type: 'eos' };
@@ -303,7 +328,7 @@ function parseNames(text: string): ParseNamesResult|undefined {
     });
     const names = theNameParser(stream).filter(name => !isCommonTheaterWord(name));
     if (!hitColon) return undefined;
-    if (!names.length) return undefined
+    if (!names.length) return undefined;
     return { names, offset: lastToken?.offset ?? 0 };
 }
 
@@ -318,14 +343,11 @@ function theSectionParser(stream: TokenStream): boolean {
     }
 
     function isActOrScene(token: Token): boolean {
-        return token.type === 'word' && (
-            token.text === 'Akt' || token.text === 'Szene'
-        );
+        return token.type === 'word' && (token.text === 'Akt' || token.text === 'Szene');
     }
 
     function parsePrefixSection(currentToken: Token): boolean {
-        if (!isPunct(currentToken, '.'))
-            return false;
+        if (!isPunct(currentToken, '.')) return false;
         return isActOrScene(advance());
     }
 
@@ -334,10 +356,8 @@ function theSectionParser(stream: TokenStream): boolean {
     }
 
     function parseSection(currentToken: Token): boolean {
-        if (currentToken.type === 'numeric')
-            return parsePrefixSection(advance());
-        else if (isActOrScene(currentToken))
-            return parseSuffixSection(advance());
+        if (currentToken.type === 'numeric') return parsePrefixSection(advance());
+        else if (isActOrScene(currentToken)) return parseSuffixSection(advance());
         return false;
     }
 
@@ -350,35 +370,30 @@ function matchSection(text: string): boolean {
     let token: Token;
     do {
         stream.save();
-        if (theSectionParser(stream))
-            return true;
+        if (theSectionParser(stream)) return true;
         stream.restore();
         token = stream.next();
     } while (token.type !== 'eos');
     return false;
 }
 
-function getNameFont(name: string, spans: StyledTextSpan[]): Font|undefined {
+function getNameFont(name: string, spans: StyledTextSpan[]): Font | undefined {
     return spans.find(span => span.text.includes(name))?.font;
 }
 
-function checkIllSeparatedNames(name: string): string[]|undefined {
+function checkIllSeparatedNames(name: string): string[] | undefined {
     if (!name.includes(' ')) return undefined;
 
     const illSeparatedNames = name.split(' ');
-    return illSeparatedNames.every(name => isNounString(name)) 
-        ? illSeparatedNames 
-        : undefined; 
+    return illSeparatedNames.every(name => isNounString(name)) ? illSeparatedNames : undefined;
 }
 
-function parseDialogActors(text: string, likelyNames: Set<string>): ParseNamesResult|undefined {
+function parseDialogActors(text: string, likelyNames: Set<string>): ParseNamesResult | undefined {
     const parseResult = parseNames(text);
     if (!parseResult) return undefined;
     const { names, offset } = parseResult;
 
-    const illSeparatedNames = names.length === 1
-        ? checkIllSeparatedNames(names[0])
-        : undefined;
+    const illSeparatedNames = names.length === 1 ? checkIllSeparatedNames(names[0]) : undefined;
     if (illSeparatedNames && illSeparatedNames.every(name => likelyNames.has(name)))
         return { names: illSeparatedNames, offset };
     return names.every(name => likelyNames.has(name)) ? { names, offset } : undefined;
@@ -396,32 +411,30 @@ function computeSpanStyleRatios(lines: BlockLine[]): SpanStyleRatios {
     let normal = 0;
     let italic = 0;
     for (let span of Iterator.from(lines).flatMap(line => line.styledText)) {
-        if (span.font.style & FontStyles.Bold)
-            bold += span.text.length;
-        if (span.font.style & FontStyles.Italic)
-            italic += span.text.length;
-        if (!(span.font.style & (FontStyles.Italic | FontStyles.Bold)))
-            normal += span.text.length;
+        if (span.font.style & FontStyles.Bold) bold += span.text.length;
+        if (span.font.style & FontStyles.Italic) italic += span.text.length;
+        if (!(span.font.style & (FontStyles.Italic | FontStyles.Bold))) normal += span.text.length;
         total += span.text.length;
     }
     return {
-        bold: bold/total,
-        normal: normal/total,
-        italic: italic/total
+        bold: bold / total,
+        normal: normal / total,
+        italic: italic / total,
     };
 }
 
-
 function getStyledBlockText(lines: BlockLine[]): StyledTextSpan[] {
-    return lines.flatMap(line => line.styledText.length
-        ? [
-            ...line.styledText.slice(0, -1),
-            {
-                font: line.styledText.at(-1)!.font,
-                text: line.styledText.at(-1)!.text + '\n'
-            }
-        ]
-        : []);
+    return lines.flatMap(line =>
+        line.styledText.length
+            ? [
+                  ...line.styledText.slice(0, -1),
+                  {
+                      font: line.styledText.at(-1)!.font,
+                      text: line.styledText.at(-1)!.text + '\n',
+                  },
+              ]
+            : [],
+    );
 }
 
 function sliceStyledText(styledText: StyledTextSpan[], start: number): StyledTextSpan[] {
@@ -437,7 +450,7 @@ function sliceStyledText(styledText: StyledTextSpan[], start: number): StyledTex
         }
         slicedText.push({
             text: currentText.slice(start - offset),
-            font: span.font
+            font: span.font,
         });
         break;
     }
@@ -450,19 +463,75 @@ function escapeBBCode(code: string): string {
     return code.split(/(?=\[)/).reduce((prev, next) => prev + '[' + next);
 }
 
-function displayStyles(styles: FontStyles): string {
-    const display: string[] = [];
-    if (styles & FontStyles.Bold)
-        display.push('bold');
-    if (styles & FontStyles.Italic)
-        display.push('italic');
-    return display.join(',');
-}
-
-type SimpleStyledTextSpan = { styles: FontStyles, text: string };
+type SimpleStyledTextSpan = { styles: FontStyles; text: string };
 
 function trimOneSpace(string: string): string {
     return string.replace(/^\s+(?=\S)/, ' ').replace(/(?<=\S)\s+$/, ' ');
+}
+
+type FontStyle = 'bold' | 'italic';
+
+function contains(target: FontStyles, format: FontStyle): boolean {
+    const converted = format === 'bold' ? FontStyles.Bold : FontStyles.Italic;
+    return (target & converted) !== 0;
+}
+
+function computeLongestPrefix(openStyles: FontStyle[], target: FontStyles): FontStyle[] {
+    const longest: FontStyle[] = [];
+    for (let format of openStyles) {
+        if (!contains(target, format)) break;
+        longest.push(format);
+    }
+    return longest;
+}
+
+function emitOpeningTag(output: string[], style: FontStyle) {
+    switch (style) {
+        case 'bold':
+            output.push('[b]');
+            break;
+        case 'italic':
+            output.push('[i]');
+            break;
+    }
+}
+
+function emitClosingTag(output: string[], style: FontStyle) {
+    switch (style) {
+        case 'bold':
+            output.push('[/b]');
+            break;
+        case 'italic':
+            output.push('[/i]');
+            break;
+    }
+}
+
+function convertToFormattedStringSimple(simpleSpans: SimpleStyledTextSpan[]): string {
+    let openStyles: FontStyle[] = [];
+    const output: string[] = [];
+
+    for (let span of simpleSpans) {
+        const target = span.styles;
+        const longest = computeLongestPrefix(openStyles, target);
+
+        for (let style of openStyles.slice(longest.length).reverse()) emitClosingTag(output, style);
+
+        openStyles.length = longest.length;
+        for (let style of ['bold', 'italic'] as const) {
+            if (contains(target, style) && !longest.includes(style)) {
+                emitOpeningTag(output, style);
+                openStyles.push(style);
+            }
+        }
+
+        output.push(escapeBBCode(span.text));
+    }
+
+    for (let style of openStyles.reverse()) {
+        emitClosingTag(output, style);
+    }
+    return output.join('');
 }
 
 function convertToFormattedString(styledText: StyledTextSpan[]): string {
@@ -476,20 +545,12 @@ function convertToFormattedString(styledText: StyledTextSpan[]): string {
             ...previous.slice(0, -1),
             {
                 styles: last.styles,
-                text: trimOneSpace(last.text) + text
-            }
+                text: trimOneSpace(last.text) + text,
+            },
         ];
     }, []);
- 
-    const strings: string[] = []
-    for (const span of simpleSpans) {
-        if (span.styles)
-            strings.push(`[${displayStyles(span.styles)}]${escapeBBCode(span.text)}[/]`);
-        else
-            strings.push(span.text);
-    }
 
-    return strings.join('');
+    return convertToFormattedStringSimple(simpleSpans);
 }
 
 type BlockDataWithLines = BlockData & {
@@ -501,17 +562,21 @@ function makeBlockData(line: BlockLine, likelyNames: Set<string>): BlockDataWith
     const parseResult = parseDialogActors(lineText, likelyNames);
     if (parseResult)
         return {
-            type: 'dialog',
+            type: 'dialogue',
             text: lineText,
             lines: [line],
             actorNames: parseResult.names,
             formattedString: parseResult.offset as unknown as string,
         };
-    const font = line.styledText.map(span => span.font).reduce((previousSpan, currentSpan) => ({
-        family: currentSpan.family,
-        size: currentSpan.size,
-        style: Number(previousSpan.size === currentSpan.size) && (previousSpan.style & currentSpan.style)
-    }));
+    const font = line.styledText
+        .map(span => span.font)
+        .reduce((previousSpan, currentSpan) => ({
+            family: currentSpan.family,
+            size: currentSpan.size,
+            style:
+                Number(previousSpan.size === currentSpan.size) &&
+                previousSpan.style & currentSpan.style,
+        }));
 
     if (font.style & FontStyles.Bold && matchSection(lineText))
         return {
@@ -519,63 +584,64 @@ function makeBlockData(line: BlockLine, likelyNames: Set<string>): BlockDataWith
             text: lineText,
             lines: [line],
             actorNames: undefined,
-            formattedString: undefined
+            formattedString: undefined,
         };
     return {
         type: 'unknown',
         text: lineText,
         lines: [line],
         actorNames: undefined,
-        formattedString: undefined
+        formattedString: undefined,
     };
 }
 
 function joinTypes(currentType: BlockType, lineType: BlockType): boolean {
-    if (currentType === 'action' && lineType === 'action')
-        return true;
-    if (currentType === 'dialog' && lineType === 'action')
-        return true;
-    if (currentType === 'dialog' && lineType === 'unknown')
-        return true;
-    if (currentType === 'unknown' && lineType === 'unknown')
-        return true;
+    if (currentType === 'action' && lineType === 'action') return true;
+    if (currentType === 'dialogue' && lineType === 'action') return true;
+    if (currentType === 'dialogue' && lineType === 'unknown') return true;
+    if (currentType === 'unknown' && lineType === 'unknown') return true;
     return false;
 }
 
 function addMoreMetadata(blockData: BlockDataWithLines): BlockDataWithLines {
-    if (blockData.type === 'dialog' && typeof blockData.formattedString === 'number') {
+    if (blockData.type === 'dialogue' && typeof blockData.formattedString === 'number') {
         const formattedString = convertToFormattedString(
-            sliceStyledText(getStyledBlockText(blockData.lines), blockData.formattedString as number)); 
+            sliceStyledText(
+                getStyledBlockText(blockData.lines),
+                blockData.formattedString as number,
+            ),
+        );
         return {
             ...blockData,
-            formattedString
+            formattedString,
         };
     } else if (blockData.type === 'unknown') {
         const ratios = computeSpanStyleRatios(blockData.lines);
         return ratios.italic >= 0.5
             ? {
-                ...blockData,
-                type: 'action',
-                formattedString: convertToFormattedString(getStyledBlockText(blockData.lines))
-            }
+                  ...blockData,
+                  type: 'action',
+                  formattedString: convertToFormattedString(getStyledBlockText(blockData.lines)),
+              }
             : blockData;
     }
     return blockData;
 }
 
-function combineBlocks(prevBlockData: BlockDataWithLines|undefined, newBlockData: BlockDataWithLines): BlockDataWithLines[] {
-    if (prevBlockData === undefined)
-        return [newBlockData];
- 
-    if (!joinTypes(prevBlockData.type, newBlockData.type))
-        return [prevBlockData, newBlockData];
+function combineBlocks(
+    prevBlockData: BlockDataWithLines | undefined,
+    newBlockData: BlockDataWithLines,
+): BlockDataWithLines[] {
+    if (prevBlockData === undefined) return [newBlockData];
+
+    if (!joinTypes(prevBlockData.type, newBlockData.type)) return [prevBlockData, newBlockData];
 
     return [
         {
             ...prevBlockData,
             text: prevBlockData.text + '\n' + newBlockData.text,
             lines: [...prevBlockData.lines, ...newBlockData.lines],
-        }
+        },
     ];
 }
 
@@ -594,7 +660,7 @@ function analyzeBlock(block: IRBlock, likelyNames: Set<string>): Block[] {
         .map(blockData => ({
             ...block,
             verticalDistance: ADDED_SPACE,
-            ...blockData
+            ...blockData,
         }));
 
     blocks[0].verticalDistance = block.verticalDistance;
@@ -622,7 +688,7 @@ type Cluster = {
 
 const THRESHOLD = 0.95;
 
-function getMostSimilarStringTemplateByGreedyClustering(strings: string[]): string|undefined {
+function getMostSimilarStringTemplateByGreedyClustering(strings: string[]): string | undefined {
     const clusters: Cluster[] = [];
 
     for (let x of strings) {
@@ -630,39 +696,41 @@ function getMostSimilarStringTemplateByGreedyClustering(strings: string[]): stri
         let best_similarity = 0;
 
         for (let cluster of clusters) {
-            const s = similarity(x, cluster.representative)
+            const s = similarity(x, cluster.representative);
 
             if (s > best_similarity) {
-                best_similarity = s
-                best_cluster = cluster
+                best_similarity = s;
+                best_cluster = cluster;
             }
         }
 
-        if (best_similarity >= THRESHOLD)
-            best_cluster!.items.push(x)
-        else
-            clusters.push({ representative: x, items: [] })
+        if (best_similarity >= THRESHOLD) best_cluster!.items.push(x);
+        else clusters.push({ representative: x, items: [] });
     }
 
-    let maxCluster: Cluster|undefined;
+    let maxCluster: Cluster | undefined;
     for (let cluster of clusters) {
-        if (cluster.items.length > (maxCluster?.items?.length ?? 0))
-            maxCluster = cluster;
+        if (cluster.items.length > (maxCluster?.items?.length ?? 0)) maxCluster = cluster;
     }
     return maxCluster?.representative;
 }
 
 type DecorationTemplate = {
     text: string;
-    font: UnstyledFont|undefined;
+    font: UnstyledFont | undefined;
 };
 
 function headerMatchAndConvert(templates: DecorationTemplate[], page: Page) {
-    const matches = templates.length > 0 && templates.every((template, idx) => {
-        const block = page.blocks[idx];
-        const blockText = block.text;
-        return isSameFont(block.font, template.font) && similarity(blockText, template.text) >= THRESHOLD;
-    });
+    const matches =
+        templates.length > 0 &&
+        templates.every((template, idx) => {
+            const block = page.blocks[idx];
+            const blockText = block.text;
+            return (
+                isSameFont(block.font, template.font) &&
+                similarity(blockText, template.text) >= THRESHOLD
+            );
+        });
 
     if (!matches) return;
 
@@ -671,11 +739,16 @@ function headerMatchAndConvert(templates: DecorationTemplate[], page: Page) {
 }
 
 function footerMatchAndConvert(templates: DecorationTemplate[], page: Page) {
-    const matches = templates.length > 0 && templates.every((template, idx) => {
-        const block = page.blocks.at(-(idx + 1))!;
-        const blockText = block.text;
-        return isSameFont(block.font, template.font) && similarity(blockText, template.text) >= THRESHOLD;
-    });
+    const matches =
+        templates.length > 0 &&
+        templates.every((template, idx) => {
+            const block = page.blocks.at(-(idx + 1))!;
+            const blockText = block.text;
+            return (
+                isSameFont(block.font, template.font) &&
+                similarity(blockText, template.text) >= THRESHOLD
+            );
+        });
 
     if (!matches) return;
 
@@ -685,15 +758,16 @@ function footerMatchAndConvert(templates: DecorationTemplate[], page: Page) {
 
 function getTemplatesWithCallback(
     pages: Page[],
-    accessPage: (page: Page, idx: number) => Block|undefined): DecorationTemplate[] {
+    accessPage: (page: Page, idx: number) => Block | undefined,
+): DecorationTemplate[] {
     let decorationBlockCount = 0;
     const threshold = Math.floor(pages.length * 0.95);
 
     while (true) {
-        const unknownFirstBlocks = pages.filter(page => 
-            accessPage(page, decorationBlockCount)?.type === 'unknown').length;
-        if (unknownFirstBlocks < threshold)
-            break;
+        const unknownFirstBlocks = pages.filter(
+            page => accessPage(page, decorationBlockCount)?.type === 'unknown',
+        ).length;
+        if (unknownFirstBlocks < threshold) break;
         decorationBlockCount++;
     }
 
@@ -702,19 +776,18 @@ function getTemplatesWithCallback(
     const templates: DecorationTemplate[] = [];
     for (let decorationBlock = 0; decorationBlock < decorationBlockCount; decorationBlock++) {
         const texts: string[] = [];
-        const fonts: (UnstyledFont|undefined)[] = [];
+        const fonts: (UnstyledFont | undefined)[] = [];
         for (let page of pages) {
             const block = accessPage(page, decorationBlock)!;
             texts.push(block.text);
             fonts.push(block.font);
         }
         const templateString = getMostSimilarStringTemplateByGreedyClustering(texts);
-        if (!templateString)
-            break;
+        if (!templateString) break;
         const index = texts.indexOf(templateString);
         templates.push({
             text: templateString,
-            font: fonts[index]
+            font: fonts[index],
         });
     }
 
@@ -723,9 +796,11 @@ function getTemplatesWithCallback(
 
 function decorationPass(pages: Page[]) {
     if (pages.length < 2) return;
-    
+
     const headerTemplates = getTemplatesWithCallback(pages, (page, idx) => page.blocks[idx]);
-    const footerTemplates = getTemplatesWithCallback(pages, (page, idx) => page.blocks.at(-(idx + 1))!);
+    const footerTemplates = getTemplatesWithCallback(pages, (page, idx) =>
+        page.blocks.at(-(idx + 1))!,
+    );
 
     for (const page of pages) {
         headerMatchAndConvert(headerTemplates, page);
@@ -733,40 +808,44 @@ function decorationPass(pages: Page[]) {
     }
 }
 
-
 function couldBeDialogContinuation(previousBlock: Block, block: Block): boolean {
-    if (block.type !== 'unknown' 
-        || previousBlock.horizontalSpace !== block.horizontalSpace
-        || !isSameFont(previousBlock.font, block.font))
+    if (
+        block.type !== 'unknown' ||
+        previousBlock.horizontalSpace !== block.horizontalSpace ||
+        !isSameFont(previousBlock.font, block.font)
+    )
         return false;
     const ratios = computeSpanStyleRatios(block.lines);
     return ratios.normal + ratios.italic >= 0.5;
 }
 
 function movePass(pages: Page[]) {
-    let previousBlock: Block|undefined;
+    let previousBlock: Block | undefined;
     for (const page of pages) {
-        page.blocks = Array.from(page.blocks.filter(block => {
-            if (block.type === 'header' || block.type === 'footer')
-                return true;
-            if (previousBlock?.type === 'dialog' && couldBeDialogContinuation(previousBlock, block)) {
-                previousBlock.lines.push(...block.lines);
-                previousBlock = block;
-                return false;
-            }
+        page.blocks = Array.from(
+            page.blocks.filter(block => {
+                if (block.type === 'header' || block.type === 'footer') return true;
+                if (
+                    previousBlock?.type === 'dialogue' &&
+                    couldBeDialogContinuation(previousBlock, block)
+                ) {
+                    previousBlock.lines.push(...block.lines);
+                    previousBlock = block;
+                    return false;
+                }
 
-            previousBlock = block;
-            return true;
-        }));
+                previousBlock = block;
+                return true;
+            }),
+        );
     }
 }
 
 function scanNamesPass(document: IRPage[]): Set<string> {
     const likelyNames = new Set<string>();
-    const linesIterator = Iterator.from(document)
-        .flatMap(page => page
-            .blocks
-            .flatMap(block => block.lines));
+    const linesIterator = Iterator.from(document).flatMap(page =>
+        page.blocks.flatMap(block => block.lines),
+    );
 
     for (let line of linesIterator) {
         const lineText = getLineText(line);
@@ -788,4 +867,3 @@ export function analyzeDocument(document: IRPage[]): Page[] {
 
     return pages;
 }
-

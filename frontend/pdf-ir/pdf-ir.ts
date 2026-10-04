@@ -9,33 +9,32 @@ export type ViewLine = {
     styledText: StyledTextSpan[];
 };
 
-
 export type ViewBlock = {
     x: number;
     y: number;
     width: number;
     height: number;
 
-    font: UnstyledFont|undefined;
+    font: UnstyledFont | undefined;
     lines: BlockLine[];
 };
 
 export type BlockLine = {
-    // The UnstyledFont is maintained over the entire line. If the line does not maintain an 
+    // The UnstyledFont is maintained over the entire line. If the line does not maintain an
     // UnstyledFont over its width (aka font size or family vary throughout) it is set undefined
-    font: UnstyledFont|undefined;
-    styledText: StyledTextSpan[]
+    font: UnstyledFont | undefined;
+    styledText: StyledTextSpan[];
 };
 
 export type Block = {
     horizontalSpace: number;
     verticalDistance: number;
 
-    // The UnstyledFont is maintained over the entire block. That means every block lines font 
-    // is set to the same UnstyledFont. If it is set to undefined, the block carries one or more 
+    // The UnstyledFont is maintained over the entire block. That means every block lines font
+    // is set to the same UnstyledFont. If it is set to undefined, the block carries one or more
     // lines with varying font size or family.
-    font: UnstyledFont|undefined;
-    lines: BlockLine[],
+    font: UnstyledFont | undefined;
+    lines: BlockLine[];
 };
 
 export type StyledTextSpan = {
@@ -43,7 +42,7 @@ export type StyledTextSpan = {
     font: Font;
 };
 
-export type FontFamily = 'sans-serif'|'serif'|'monospace';
+export type FontFamily = 'sans-serif' | 'serif' | 'monospace';
 
 export type UnstyledFont = {
     size: number;
@@ -67,13 +66,14 @@ export type Page = {
     blocks: Block[];
 };
 
-export function isSameFont(a: UnstyledFont|undefined, b: UnstyledFont|undefined): boolean {
+export function isSameFont(a: UnstyledFont | undefined, b: UnstyledFont | undefined): boolean {
     return a?.size === b?.size && a?.family === b?.family;
 }
 
 export function convertDocument(pdfDoc: PDFDocument): Page[] {
-    const allPages = Array.from({ length: pdfDoc.countPages() })
-        .map((_, idx) => pdfDoc.loadPage(idx));
+    const allPages = Array.from({ length: pdfDoc.countPages() }).map((_, idx) =>
+        pdfDoc.loadPage(idx),
+    );
 
     return allPages.map(page => convertPage(page));
 }
@@ -96,30 +96,26 @@ export function convertPage(page: PDFPage): Page {
 
 function mapFont(font: PDFFont, size: number): Font {
     let style: FontStyles = FontStyles.None;
-    if (font.isItalic())
-        style |= FontStyles.Italic;
-    if (font.isBold())
-        style |= FontStyles.Bold;
+    if (font.isItalic()) style |= FontStyles.Italic;
+    if (font.isBold()) style |= FontStyles.Bold;
 
     let family: FontFamily = 'sans-serif';
-    if (font.isSerif())
-        family = 'serif';
-    else if (font.isMono())
-        family = 'monospace';
+    if (font.isSerif()) family = 'serif';
+    else if (font.isMono()) family = 'monospace';
 
     return { size: Math.round(size), style, family };
 }
 
 type LineBuilder = {
     pushChar(char: string, font: PDFFont, size: number): void;
-    build(): ViewLine|undefined;
+    build(): ViewLine | undefined;
 };
 
 function createLineBuilder(bbox: PDFRect): LineBuilder {
     const textSpanAccumulator: StyledTextSpan[] = [];
 
     let textAccumulator: string[] = [];
-    let currentFont: undefined|Font = undefined;
+    let currentFont: undefined | Font = undefined;
     return {
         pushChar(char, font, size) {
             const newFont = mapFont(font, size);
@@ -129,28 +125,28 @@ function createLineBuilder(bbox: PDFRect): LineBuilder {
             }
             if (textAccumulator && currentFont)
                 textSpanAccumulator.push({ text: textAccumulator.join(''), font: currentFont });
-            textAccumulator = [char]
+            textAccumulator = [char];
             currentFont = newFont;
         },
-        build(): ViewLine|undefined {
+        build(): ViewLine | undefined {
             const [ulx, uly, lrx, lry] = bbox;
 
             if (textAccumulator && currentFont)
                 textSpanAccumulator.push({ text: textAccumulator.join(''), font: currentFont });
 
-            const textSpans = textSpanAccumulator.filter(span => span.text.trim().length > 0)
+            const textSpans = textSpanAccumulator.filter(span => span.text.trim().length > 0);
             if (textSpans.length === 0) return undefined;
 
             const width = Math.round(lrx - ulx);
             const height = Math.round(lry - uly);
-            
+
             return {
                 x: Math.floor(ulx),
                 y: Math.floor(uly),
                 width,
                 height,
                 minHeight: Math.min(height, ...textSpanAccumulator.map(span => span.font.size)),
-                styledText: textSpans
+                styledText: textSpans,
             };
         },
     };
@@ -159,10 +155,10 @@ function createLineBuilder(bbox: PDFRect): LineBuilder {
 function buildViewLines(structuredText: StructuredText): ViewLine[] {
     const lines: ViewLine[] = [];
 
-    let lineBuilder: LineBuilder|undefined = undefined;
+    let lineBuilder: LineBuilder | undefined = undefined;
     structuredText.walk({
         beginLine(bbox) {
-            lineBuilder = createLineBuilder([...bbox]); 
+            lineBuilder = createLineBuilder([...bbox]);
         },
         onChar(char, _origin, font, size) {
             lineBuilder && lineBuilder.pushChar(char, font, size);
@@ -171,7 +167,7 @@ function buildViewLines(structuredText: StructuredText): ViewLine[] {
             const result = lineBuilder && lineBuilder.build();
             if (result) lines.push(result);
             lineBuilder = undefined;
-        }
+        },
     });
 
     return lines.sort((a, b) => a.y - b.y);
@@ -221,10 +217,10 @@ function buildViewBlocks(viewLines: ViewLine[]): ViewBlock[] {
 }
 
 function isSameBlockLine(reference: ViewLine, line: ViewLine): boolean {
-    return line.y < (reference.y + reference.minHeight);
+    return line.y < reference.y + reference.minHeight;
 }
 
-function getConsistentFont(textSpans: StyledTextSpan[]): UnstyledFont|undefined {
+function getConsistentFont(textSpans: StyledTextSpan[]): UnstyledFont | undefined {
     let currentFont = textSpans[0].font;
     for (let i = 1; i < textSpans.length; i++) {
         const span = textSpans[i];
@@ -234,8 +230,10 @@ function getConsistentFont(textSpans: StyledTextSpan[]): UnstyledFont|undefined 
 }
 
 type BlockLineWithPosition = BlockLine & {
-    xMin: number, yMin: number,
-    xMax: number, yMax: number,
+    xMin: number;
+    yMin: number;
+    xMax: number;
+    yMax: number;
 };
 
 function makeViewBlock(lines: BlockLineWithPosition[]): ViewBlock {
@@ -251,7 +249,7 @@ function makeViewBlock(lines: BlockLineWithPosition[]): ViewBlock {
         width: xMax - xMin,
         height: yMax - yMin,
         font: lines[0].font,
-        lines: lines.map(line => ({ font: line.font, styledText: line.styledText }))
+        lines: lines.map(line => ({ font: line.font, styledText: line.styledText })),
     };
 }
 
@@ -264,8 +262,7 @@ function subBildViewBlocks(viewLines: ViewLine[], viewBlocks: ViewBlock[]) {
 
         while (++i < viewLines.length) {
             const currentLine = viewLines[i];
-            if (!isSameBlockLine(start, currentLine))
-                break;
+            if (!isSameBlockLine(start, currentLine)) break;
             currentLineAccumulator.push(currentLine);
         }
 
@@ -273,7 +270,7 @@ function subBildViewBlocks(viewLines: ViewLine[], viewBlocks: ViewBlock[]) {
             .sort((a, b) => a.x - b.x)
             .flatMap(line => [
                 ...line.styledText.slice(0, -1),
-                { text: line.styledText.at(-1)!.text + ' ', font: line.styledText.at(-1)!.font }
+                { text: line.styledText.at(-1)!.text + ' ', font: line.styledText.at(-1)!.font },
             ]);
 
         const xMin = Math.min(...currentLineAccumulator.map(line => line.x));
@@ -285,7 +282,10 @@ function subBildViewBlocks(viewLines: ViewLine[], viewBlocks: ViewBlock[]) {
         tmpLines.push({
             styledText: textSpans,
             font: getConsistentFont(textSpans),
-            xMin, yMin, xMax, yMax
+            xMin,
+            yMin,
+            xMax,
+            yMax,
         });
     }
 
