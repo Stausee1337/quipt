@@ -233,9 +233,13 @@ export function NewScriptModal(): JSX.Element {
             return;
         }
 
+
         dispatch({ kind: 'upload', loadingID, file });
+        const worker = await import('../../pdf-ir?worker');
+        const w = new worker.default();
+        console.log(w);
+
         console.log(files);
-        await new Promise(resolve => setTimeout(resolve, 1000));
         dispatch({
             kind: 'resolve',
             loadingID,

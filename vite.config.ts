@@ -21,6 +21,9 @@ export default defineConfig({
     resolve: {
         tsconfigPaths: true
     },
+    optimizeDeps: {
+        include: ['difflib'],
+    },
 });
 
 function findEntryPoints() {
