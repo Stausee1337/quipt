@@ -1,6 +1,6 @@
 import { type Script } from 'quipt/schemas/script';
 
-export type Error = 'invalid-file-format';
+export type Error = 'invalid-file-format' | 'internal-error';
 
 export type File = {
     fileName: string;
@@ -31,4 +31,3 @@ export type API = {
     processFile(file: File): Result;
 };
 
-export { type Script };

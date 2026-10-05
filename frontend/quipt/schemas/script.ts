@@ -31,5 +31,5 @@ export type ScriptItemKind = 'action' | 'dialogue';
 export type ScriptItem = {
     kind: ScriptItemKind;
     actors: string[];
-    content: string[];
+    content: string;
 };
