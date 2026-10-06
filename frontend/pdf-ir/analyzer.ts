@@ -10,7 +10,8 @@ import {
     isSameFont,
 } from './pdf-ir';
 
-export type BlockType = 'dialogue' | 'action' | 'section' | 'unknown' | 'header' | 'footer' | 'title';
+export type BlockType =
+    'dialogue' | 'action' | 'section' | 'unknown' | 'header' | 'footer' | 'title' | 'summary';
 
 export interface BaseBlockData {
     type: BlockType;
@@ -23,7 +24,7 @@ export interface BaseBlockData {
 }
 
 export interface OtherBlockData extends BaseBlockData {
-    type: 'section' | 'unknown' | 'header' | 'footer' | 'title';
+    type: 'section' | 'unknown' | 'header' | 'footer' | 'title' | 'summary';
 }
 
 export interface ActionBlockData extends BaseBlockData {
@@ -329,7 +330,7 @@ function parseNames(text: string): ParseNamesResult | undefined {
         }
         return token;
     });
-    
+
     const names = theNameParser(stream).filter(name => !isCommonTheaterWord(name));
     if (!hitColon) return undefined;
     if (!names.length) return undefined;
@@ -628,10 +629,7 @@ function addMoreMetadata(blockData: BlockData): BlockData {
     return blockData;
 }
 
-function combineBlocks(
-    prevBlockData: BlockData | undefined,
-    newBlockData: BlockData,
-): BlockData[] {
+function combineBlocks(prevBlockData: BlockData | undefined, newBlockData: BlockData): BlockData[] {
     if (prevBlockData === undefined) return [newBlockData];
 
     if (!joinTypes(prevBlockData.type, newBlockData.type)) return [prevBlockData, newBlockData];
@@ -873,8 +871,7 @@ function isNonScript(pages: Page[]): boolean {
         switch (block.type) {
             case 'dialogue':
                 dialogueCount++;
-                if (block.text.trim().length === 0)
-                    malformedDialogueCount++;
+                if (block.text.trim().length === 0) malformedDialogueCount++;
                 block.actorNames.forEach(actors.add.bind(actors));
                 break;
             case 'action':
@@ -894,22 +891,14 @@ function isNonScript(pages: Page[]): boolean {
     }
 
     let score = 0;
-    if (pages.length < 5)
-        score++;
-    if (dialogueCount < pages.length)
-        score++;
-    if (dialogueCount < 30)
-        score++;
-    if (unknownCount > dialogueCount)
-        score++;
-    if (unknownCount >= blockCount * 0.5)
-        score++;
-    if (malformedDialogueCount > dialogueCount * 0.05)
-        score++;
-    if (actionCount < Math.min(sectionCount, 1))
-        score++;
-    if (actors.size < 5)
-        score++;
+    if (pages.length < 5) score++;
+    if (dialogueCount < pages.length) score++;
+    if (dialogueCount < 30) score++;
+    if (unknownCount > dialogueCount) score++;
+    if (unknownCount >= blockCount * 0.5) score++;
+    if (malformedDialogueCount > dialogueCount * 0.05) score++;
+    if (actionCount < Math.min(sectionCount, 1)) score++;
+    if (actors.size < 5) score++;
 
     return score >= 4;
 }
@@ -918,24 +907,35 @@ function detectExtraMetadataBlocks(pages: Page[]) {
     const firstPage = pages[0];
     let biggestBlock: Block | undefined = undefined;
     for (let block of firstPage.blocks)
-        if ((block.font?.size ?? 0) > (biggestBlock?.font?.size ?? 0))
-            biggestBlock = block;
+        if ((block.font?.size ?? 0) > (biggestBlock?.font?.size ?? 0)) biggestBlock = block;
 
-    if (biggestBlock !== undefined && biggestBlock.lines.length > 0) {
-        const firstLine = getLineText(biggestBlock.lines[0]).trim();
-        const titleBlock = pages[0]
-            .blocks
-            .find(block => block.text.includes(firstLine)); 
-        if (titleBlock !== undefined && titleBlock.type === 'unknown')
-            titleBlock.type = 'title';
+    if (
+        biggestBlock !== undefined &&
+        biggestBlock.lines.length > 0 &&
+        biggestBlock.type === 'unknown'
+    )
+        biggestBlock.type = 'title';
+
+    const contentStart = pages.findIndex(
+        page => page.blocks.filter(block => block.type === 'dialogue').length > 3,
+    );
+
+    for (let page of pages.slice(0, contentStart)) {
+        const summaryBlock = page.blocks.find(
+            block => block.type === 'unknown' && block.text.startsWith('Inhalt:'),
+        );
+        if (summaryBlock === undefined) continue;
+        const summary = summaryBlock.text.slice(7).trim();
+        if (summary.length === 0) continue;
+        summaryBlock.type = 'summary';
+        break;
     }
 }
 
 export function analyzeDocument(document: IRPage[]): Page[] | undefined {
     const likelyNames = scanNamesPass(document);
     const pages = conversionPass(document, likelyNames);
-    if (isNonScript(pages))
-        return undefined;
+    if (isNonScript(pages)) return undefined;
     decorationPass(pages);
     movePass(pages);
 

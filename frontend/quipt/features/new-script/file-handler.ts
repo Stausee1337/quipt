@@ -16,7 +16,7 @@ import {
     type OtherBlock,
     type Page,
     analyzeDocument,
-    convertDocument
+    convertDocument,
 } from '../../../pdf-ir';
 
 import type * as types from './types';
@@ -63,10 +63,18 @@ function isItemsContent(content: ItemsContent | SubsectionContent): content is I
     return Object.keys(content).includes('items');
 }
 
+function flattenBlockText(block: BaseBlock): string {
+    return block.text
+        .split('\n')
+        .map(line => line.trimEnd() + ' ')
+        .join('');
+}
+
 class ScriptBuilder {
     currentItems: ScriptItem[] = [];
     collectedActors: Set<string> = new Set();
     layer: Layer;
+    title: string | undefined = undefined;
 
     constructor() {
         this.layer = { type: 'items', content: this.currentItems };
@@ -76,17 +84,16 @@ class ScriptBuilder {
         this.currentItems.push({
             kind: 'action',
             content: block.formattedString,
-            actors: []
+            actors: [],
         });
     }
 
     visitDialogueBlock(block: DialogueBlock) {
-        for (let actor of block.actorNames)
-            this.collectedActors.add(actor);
+        for (let actor of block.actorNames) this.collectedActors.add(actor);
         this.currentItems.push({
             kind: 'dialogue',
             content: block.formattedString,
-            actors: block.actorNames
+            actors: block.actorNames,
         });
     }
 
@@ -117,7 +124,7 @@ class ScriptBuilder {
                     if (currentSection.content.items.length > 0)
                         subsections.push({
                             name: 'Unbenannter Unterabschnitt',
-                            content: currentSection.content
+                            content: currentSection.content,
                         });
                     currentSection.content = { subsections };
                 }
@@ -126,7 +133,7 @@ class ScriptBuilder {
                     type: 'subsection',
                     sectionName,
                     parent: this.layer,
-                    content: currentSection.content.subsections
+                    content: currentSection.content.subsections,
                 };
             } else if (this.layer.type === 'subsection') {
                 // decrease the level
@@ -136,10 +143,15 @@ class ScriptBuilder {
 
         const items: ScriptItem[] = [];
         this.layer.content.push({
-            name: block.text,
-            content: { items }
+            name: flattenBlockText(block).trim(),
+            content: { items },
         });
         this.currentItems = items;
+    }
+
+    visitTitleBlock(block: OtherBlock) {
+        if (this.title !== undefined) return;
+        this.title = flattenBlockText(block).trim();
     }
 
     visitBlock(block: BaseBlock) {
@@ -153,6 +165,10 @@ class ScriptBuilder {
             case 'section':
                 this.visitSectionBlock(block);
                 break;
+            case 'title':
+                this.visitTitleBlock(block);
+                break;
+            case 'summary':
             case 'unknown':
             case 'header':
             case 'footer':
@@ -161,33 +177,30 @@ class ScriptBuilder {
     }
 
     visitPage(page: Page) {
-        for (let block of page.blocks)
-            this.visitBlock(block);
+        for (let block of page.blocks) this.visitBlock(block);
     }
 
     visitDocument(document: Page[]) {
-        for (let page of document)
-            this.visitPage(page);
+        for (let page of document) this.visitPage(page);
     }
 
-    build(name: string): Script {
+    build(fileName: string): Script {
         return {
-            name,
+            name: this.title ?? fileName,
             content: layerToContent(this.layer),
-            allActors: Array.from(this.collectedActors)
+            allActors: Array.from(this.collectedActors),
         };
     }
 }
 
-function mapToScript(name: string, document: Page[]): Script {
+function mapToScript(document: Page[], fileName: string): Script {
     const builder = new ScriptBuilder();
     builder.visitDocument(document);
-    return builder.build(name);
+    return builder.build(fileName);
 }
 
 function stripName(name: string): string {
-    if (name.toLowerCase().endsWith('.pdf'))
-        return name.slice(0, -4);
+    if (name.toLowerCase().endsWith('.pdf')) return name.slice(0, -4);
     return name;
 }
 
@@ -204,12 +217,11 @@ export function processFile(file: types.File): types.Result {
         return { kind: 'error', error: 'internal-error' };
     }
 
-    if (annotatedIR === undefined)
-        return { kind: 'error', error: 'non-script-document' };
+    if (annotatedIR === undefined) return { kind: 'error', error: 'non-script-document' };
 
     let script;
     try {
-        script = mapToScript(stripName(file.fileName), annotatedIR);
+        script = mapToScript(annotatedIR, stripName(file.fileName));
     } catch (e) {
         console.error(e);
         return { kind: 'error', error: 'internal-error' };
@@ -217,6 +229,7 @@ export function processFile(file: types.File): types.Result {
 
     return {
         kind: 'success',
-        script: script,
+        script,
+        document: annotatedIR,
     };
 }
