@@ -10,17 +10,20 @@ import {
     isSameFont,
 } from './pdf-ir';
 
-export type BlockType = 'dialogue' | 'action' | 'section' | 'unknown' | 'header' | 'footer';
+export type BlockType = 'dialogue' | 'action' | 'section' | 'unknown' | 'header' | 'footer' | 'title';
 
 export interface BaseBlockData {
     type: BlockType;
     text: string;
     formattedString: string | undefined;
     actorNames: string[] | undefined;
+    // NOTE: This `lines` ends up doubling with the `lines` in `IRBlock`. These are here to make it
+    // more clear, that we override theirs.
+    lines: BlockLine[];
 }
 
 export interface OtherBlockData extends BaseBlockData {
-    type: 'section' | 'unknown' | 'header' | 'footer';
+    type: 'section' | 'unknown' | 'header' | 'footer' | 'title';
 }
 
 export interface ActionBlockData extends BaseBlockData {
@@ -326,6 +329,7 @@ function parseNames(text: string): ParseNamesResult | undefined {
         }
         return token;
     });
+    
     const names = theNameParser(stream).filter(name => !isCommonTheaterWord(name));
     if (!hitColon) return undefined;
     if (!names.length) return undefined;
@@ -553,11 +557,7 @@ function convertToFormattedString(styledText: StyledTextSpan[]): string {
     return convertToFormattedStringSimple(simpleSpans);
 }
 
-type BlockDataWithLines = BlockData & {
-    lines: BlockLine[];
-};
-
-function makeBlockData(line: BlockLine, likelyNames: Set<string>): BlockDataWithLines {
+function makeBlockData(line: BlockLine, likelyNames: Set<string>): BlockData {
     const lineText = getLineText(line);
     const parseResult = parseDialogActors(lineText, likelyNames);
     if (parseResult)
@@ -603,7 +603,7 @@ function joinTypes(currentType: BlockType, lineType: BlockType): boolean {
     return false;
 }
 
-function addMoreMetadata(blockData: BlockDataWithLines): BlockDataWithLines {
+function addMoreMetadata(blockData: BlockData): BlockData {
     if (blockData.type === 'dialogue' && typeof blockData.formattedString === 'number') {
         const formattedString = convertToFormattedString(
             sliceStyledText(
@@ -629,9 +629,9 @@ function addMoreMetadata(blockData: BlockDataWithLines): BlockDataWithLines {
 }
 
 function combineBlocks(
-    prevBlockData: BlockDataWithLines | undefined,
-    newBlockData: BlockDataWithLines,
-): BlockDataWithLines[] {
+    prevBlockData: BlockData | undefined,
+    newBlockData: BlockData,
+): BlockData[] {
     if (prevBlockData === undefined) return [newBlockData];
 
     if (!joinTypes(prevBlockData.type, newBlockData.type)) return [prevBlockData, newBlockData];
@@ -648,7 +648,7 @@ function combineBlocks(
 const ADDED_SPACE = 0;
 
 function analyzeBlock(block: IRBlock, likelyNames: Set<string>): Block[] {
-    function reduceStep(blocks: BlockDataWithLines[], line: BlockLine): BlockDataWithLines[] {
+    function reduceStep(blocks: BlockData[], line: BlockLine): BlockData[] {
         const previousBlock = blocks.at(-1);
         const currentBlock = makeBlockData(line, likelyNames);
         return [...blocks.slice(0, -1), ...combineBlocks(previousBlock, currentBlock)];
@@ -657,7 +657,7 @@ function analyzeBlock(block: IRBlock, likelyNames: Set<string>): Block[] {
     const blocks = block.lines
         .reduce(reduceStep, [])
         .map(addMoreMetadata)
-        .map(({ lines, ...blockData }) => ({
+        .map(({ ...blockData }) => ({
             ...block,
             verticalDistance: ADDED_SPACE,
             ...blockData,
@@ -914,6 +914,23 @@ function isNonScript(pages: Page[]): boolean {
     return score >= 4;
 }
 
+function detectExtraMetadataBlocks(pages: Page[]) {
+    const firstPage = pages[0];
+    let biggestBlock: Block | undefined = undefined;
+    for (let block of firstPage.blocks)
+        if ((block.font?.size ?? 0) > (biggestBlock?.font?.size ?? 0))
+            biggestBlock = block;
+
+    if (biggestBlock !== undefined && biggestBlock.lines.length > 0) {
+        const firstLine = getLineText(biggestBlock.lines[0]).trim();
+        const titleBlock = pages[0]
+            .blocks
+            .find(block => block.text.includes(firstLine)); 
+        if (titleBlock !== undefined && titleBlock.type === 'unknown')
+            titleBlock.type = 'title';
+    }
+}
+
 export function analyzeDocument(document: IRPage[]): Page[] | undefined {
     const likelyNames = scanNamesPass(document);
     const pages = conversionPass(document, likelyNames);
@@ -921,6 +938,8 @@ export function analyzeDocument(document: IRPage[]): Page[] | undefined {
         return undefined;
     decorationPass(pages);
     movePass(pages);
+
+    detectExtraMetadataBlocks(pages);
 
     return pages;
 }
