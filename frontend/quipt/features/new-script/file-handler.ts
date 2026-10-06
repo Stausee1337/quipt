@@ -195,7 +195,7 @@ export function processFile(file: types.File): types.Result {
     const doc = Document.openDocument(file.data);
     if (!doc.isPDF()) return { kind: 'error', error: 'invalid-file-format' };
 
-    let annotatedIR: Page[];
+    let annotatedIR: Page[] | undefined;
     try {
         const baseIR = convertDocument(doc as PDFDocument);
         annotatedIR = analyzeDocument(baseIR);
@@ -203,6 +203,9 @@ export function processFile(file: types.File): types.Result {
         console.error(e);
         return { kind: 'error', error: 'internal-error' };
     }
+
+    if (annotatedIR === undefined)
+        return { kind: 'error', error: 'non-script-document' };
 
     let script;
     try {

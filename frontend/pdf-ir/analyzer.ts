@@ -657,7 +657,7 @@ function analyzeBlock(block: IRBlock, likelyNames: Set<string>): Block[] {
     const blocks = block.lines
         .reduce(reduceStep, [])
         .map(addMoreMetadata)
-        .map(blockData => ({
+        .map(({ lines, ...blockData }) => ({
             ...block,
             verticalDistance: ADDED_SPACE,
             ...blockData,
@@ -859,9 +859,66 @@ function scanNamesPass(document: IRPage[]): Set<string> {
     return likelyNames;
 }
 
-export function analyzeDocument(document: IRPage[]): Page[] {
+function isNonScript(pages: Page[]): boolean {
+    const blocks = Iterator.from(pages).flatMap(page => page.blocks);
+    let dialogueCount = 0;
+    let malformedDialogueCount = 0;
+    let actionCount = 0;
+    let sectionCount = 0;
+    let unknownCount = 0;
+    let blockCount = 0;
+    let actors: Set<string> = new Set();
+    for (let block of blocks) {
+        blockCount++;
+        switch (block.type) {
+            case 'dialogue':
+                dialogueCount++;
+                if (block.text.trim().length === 0)
+                    malformedDialogueCount++;
+                block.actorNames.forEach(actors.add.bind(actors));
+                break;
+            case 'action':
+                actionCount++;
+                break;
+            case 'section':
+                sectionCount++;
+                break;
+            case 'unknown':
+                unknownCount++;
+                break;
+            case 'header':
+                break;
+            case 'footer':
+                break;
+        }
+    }
+
+    let score = 0;
+    if (pages.length < 5)
+        score++;
+    if (dialogueCount < pages.length)
+        score++;
+    if (dialogueCount < 30)
+        score++;
+    if (unknownCount > dialogueCount)
+        score++;
+    if (unknownCount >= blockCount * 0.5)
+        score++;
+    if (malformedDialogueCount > dialogueCount * 0.05)
+        score++;
+    if (actionCount < Math.min(sectionCount, 1))
+        score++;
+    if (actors.size < 5)
+        score++;
+
+    return score >= 4;
+}
+
+export function analyzeDocument(document: IRPage[]): Page[] | undefined {
     const likelyNames = scanNamesPass(document);
     const pages = conversionPass(document, likelyNames);
+    if (isNonScript(pages))
+        return undefined;
     decorationPass(pages);
     movePass(pages);
 

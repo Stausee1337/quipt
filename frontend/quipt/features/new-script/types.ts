@@ -1,6 +1,6 @@
 import { type Script } from 'quipt/schemas/script';
 
-export type Error = 'invalid-file-format' | 'internal-error';
+export type Error = 'invalid-file-format' | 'internal-error' | 'non-script-document';
 
 export type File = {
     fileName: string;
