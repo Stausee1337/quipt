@@ -30,7 +30,7 @@ const ModalTitle = ({ className, ...props }: Dialog.Title.Props) => (
 );
 
 const ModalClose = ({ className, ...props }: Omit<Dialog.Close.Props, 'children'>) => (
-    <Dialog.Close className="cursor-pointer" aria-label="Close" {...props}>
+    <Dialog.Close className="cursor-pointer" aria-label="schließen" {...props}>
         <Icon iconName="x" className="h-7.5 w-7.5" aria-hidden="true" />
     </Dialog.Close>
 );
