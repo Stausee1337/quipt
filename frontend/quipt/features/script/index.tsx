@@ -1,4 +1,4 @@
-import { type ComponentProps, type JSX, type ReactNode, useMemo } from 'react';
+import { type ComponentProps, type JSX, type ReactNode, useMemo, useState } from 'react';
 
 import { Button as BaseButton, Separator, type SeparatorProps } from '@base-ui/react';
 import classnames from 'classnames';
@@ -145,14 +145,47 @@ function ScriptInfoView(): JSX.Element {
     );
 }
 
+function PlayButton({
+    className,
+    ...props
+}: Omit<ComponentProps<typeof BaseButton>, 'children'>): JSX.Element {
+    return (
+        <BaseButton
+            className={classnames(
+                'bg-primary hover:bg-light-primary active:bg-dark-primary cursor-pointer rounded-full p-2 transition-[color,scale] duration-250 hover:scale-[1.1] active:scale-[0.98]',
+                className,
+            )}
+            {...props}>
+            <Icon iconName="play-fill" className="icon-lg text-background" />
+        </BaseButton>
+    );
+}
+
+type SectionInfoState = 'expanded' | 'collapsed';
+
 function SectionInfoHeader(): JSX.Element {
+    const breakpoints = useBreakpoints();
+    const [sectionState, setSectionState] = useState<SectionInfoState>(() =>
+        breakpoints.sm ? 'expanded' : 'collapsed',
+    );
+
+    function handleStateToggle() {
+        setSectionState(sectionState === 'expanded' ? 'collapsed' : 'expanded');
+    }
+
     return (
         <header className="flex flex-col gap-y-3 px-3 sm:px-6">
-            <div className="flex items-center gap-x-5">
+            <div className="relative flex items-center gap-x-5">
                 <h2 className="text-heading-2">1. Akt</h2>
                 <div className="flex gap-x-2">
-                    <Tooltip label="Einklappen">
-                        <IconButton iconName="chevron-contract" render={<Tooltip.Trigger />} />
+                    <Tooltip label={sectionState === 'expanded' ? 'Einklappen' : 'Aufklappen'}>
+                        <IconButton
+                            iconName={
+                                sectionState === 'expanded' ? 'chevron-contract' : 'chevron-expand'
+                            }
+                            render={<Tooltip.Trigger />}
+                            onClick={handleStateToggle}
+                        />
                     </Tooltip>
                     <Tooltip label="Bearbeiten">
                         <IconButton iconName="pencil" render={<Tooltip.Trigger />} />
@@ -161,18 +194,21 @@ function SectionInfoHeader(): JSX.Element {
                         <IconButton iconName="trash" render={<Tooltip.Trigger />} />
                     </Tooltip>
                 </div>
+                <PlayButton className="absolute top-1/2 right-0 -translate-y-1/2" />
             </div>
-            <div className="flex flex-col gap-y-3 sm:max-w-3/4">
-                <ActorsContainer />
-                <InfoText>
-                    <Icon iconName="person-standing" className="me-2" />
-                    {`${testNames.length} Spieler`}
-                </InfoText>
-                <InfoText>
-                    <Icon iconName="chat-text" className="me-2" />
-                    {`${testNames.length * 50} Einsätze`}
-                </InfoText>
-            </div>
+            {sectionState === 'expanded' && (
+                <div className="flex flex-col gap-y-3 sm:max-w-3/4">
+                    <ActorsContainer />
+                    <InfoText>
+                        <Icon iconName="person-standing" className="me-2" />
+                        {`${testNames.length} Spieler`}
+                    </InfoText>
+                    <InfoText>
+                        <Icon iconName="chat-text" className="me-2" />
+                        {`${testNames.length * 50} Einsätze`}
+                    </InfoText>
+                </div>
+            )}
         </header>
     );
 }
@@ -357,9 +393,9 @@ function makeActors(...indecies: number[]): Actor[] {
     return indecies.map(idx => ({ name: testNames[idx], color: (idx + 1) as Color }));
 }
 
-function SectionView(): JSX.Element {
+function SectionView({ editing }: { editing: boolean }): JSX.Element {
     return (
-        <section className="flex flex-col gap-y-1 sm:gap-y-2 sm:p-3">
+        <section className="flex flex-col gap-y-1 pt-2 sm:gap-y-2 sm:p-3 sm:pb-1">
             <SectionInfoHeader />
             <AddItemThing />
             <SubsectionDivider name="1. Szene" />
@@ -370,33 +406,15 @@ function SectionView(): JSX.Element {
             <AddItemThing />
             <DialogueItem actors={makeActors(3)} content={lipsum} />
             <AddItemThing />
-            <ActionItem content={lorem} editing />
+            <ActionItem content={lorem} editing={editing} />
             <AddItemThing />
             <DialogueItem actors={makeActors(4)} content={lipsum} />
             <AddItemThing />
-            <DialogueItem actors={makeActors(5, 6, 7)} content={lipsum} editing />
+            <DialogueItem actors={makeActors(5, 6, 7)} content={lipsum} editing={editing} />
             <AddItemThing />
-            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <DialogueItem actors={makeActors(8)} content={lipsum} />
             <AddItemThing />
-            <DialogueItem actors={makeActors(0)} content={lipsum} />
-            <AddItemThing />
-            <DialogueItem actors={makeActors(0)} content={lipsum} />
-            <AddItemThing />
-            <DialogueItem actors={makeActors(0)} content={lipsum} />
-            <AddItemThing />
-            <DialogueItem actors={makeActors(0)} content={lipsum} />
-            <AddItemThing />
-            <DialogueItem actors={makeActors(0)} content={lipsum} />
-            <AddItemThing />
-            <DialogueItem actors={makeActors(0)} content={lipsum} />
-            <AddItemThing />
-            <DialogueItem actors={makeActors(0)} content={lipsum} />
-            <AddItemThing />
-            <DialogueItem actors={makeActors(0)} content={lipsum} />
-            <AddItemThing />
-            <DialogueItem actors={makeActors(0)} content={lipsum} />
-            <AddItemThing />
-            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <DialogueItem actors={makeActors(9)} content={lipsum} />
             <AddItemThing />
         </section>
     );
@@ -433,7 +451,9 @@ function ScriptContentView(): JSX.Element {
                 </div>
             </header>
             <HLine className="mx-3 sm:mx-9" />
-            <SectionView />
+            <SectionView editing={true} />
+            <HLine className="mx-3 sm:mx-9" />
+            <SectionView editing={false} />
         </div>
     );
 }
