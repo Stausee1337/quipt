@@ -14,7 +14,7 @@ export function SideNav(): JSX.Element {
                     <Icon iconName="quipt-q" className="icon-lg" aria-hidden="true" />
                 </Link>
                 <div className="flex flex-col gap-4">
-                    <Tooltip label="Neues Skript" side="right">
+                    <Tooltip label="Neues Skript" side="right" instant>
                         <IconButton
                             className="text-foreground"
                             iconName="pencil-square"
@@ -33,7 +33,7 @@ export function SideNav(): JSX.Element {
                         />
                     </Tooltip>
 
-                    <Tooltip label="Üben" side="right">
+                    <Tooltip label="Üben" side="right" instant>
                         <IconButton
                             className="text-foreground"
                             iconName="chat-right-quote"

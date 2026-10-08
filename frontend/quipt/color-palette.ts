@@ -2,48 +2,6 @@
 export type Color = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
                    13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24;
 
-function unused(_x: any) {}
-
-const tailwindClassNames = [
-    // blues
-    'bg-sky-300',
-    'bg-sky-400',
-    'bg-blue-600',
-    'bg-blue-900',
-
-    // greens
-    'bg-green-300',
-    'bg-lime-400',
-    'bg-green-500',
-    'bg-emerald-700',
-
-    // yellows
-    'bg-yellow-200',
-    'bg-yellow-300',
-    'bg-yellow-400',
-    'bg-amber-500',
-
-    // red(ish)s
-    'bg-red-200',
-    'bg-orange-500',
-    'bg-red-600',
-    'bg-rose-700',
-
-    // purples & pinks
-    'bg-indigo-300',
-    'bg-pink-400',
-    'bg-violet-700',
-    'bg-purple-900',
-
-    // browns
-    'bg-orange-200',
-    'bg-orange-300',
-    'bg-amber-700',
-    'bg-amber-900',
-];
-
-unused(tailwindClassNames);
-
 const colorPaletteMapping = [
     // blues
     'sky-300',
