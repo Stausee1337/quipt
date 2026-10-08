@@ -1,34 +1,36 @@
 import { type ComponentProps, type JSX, type ReactNode, useMemo } from 'react';
 
-import { Button, Separator, type SeparatorProps } from '@base-ui/react'
+import { Button as BaseButton, Separator, type SeparatorProps } from '@base-ui/react';
 import classnames from 'classnames';
 
 import { type Color, colorToString } from 'quipt/color-palette';
+import { Button } from 'quipt/components/button';
 import { Icon } from 'quipt/components/icon';
 import { ActorPill } from 'quipt/components/actor-pill';
 import { SearchInput } from 'quipt/components/input';
 import { IconButton } from 'quipt/components/icon-button';
 import { Tooltip } from 'quipt/components/tooltip';
 import { type FormattedString, FormattedStringView } from 'quipt/components/formatted-string-view';
+import { useBreakpoints } from 'quipt/responsive';
 
 function HLine({ className, ...props }: Omit<SeparatorProps, 'orientation'>): JSX.Element {
-    return <Separator
-        orientation="horizontal"
-        className={classnames(
-            'border-accent-30 border-b-1',
-            className,
-        )}
-        {...props}/>;
+    return (
+        <Separator
+            orientation="horizontal"
+            className={classnames('border-accent-30 border-b-1', className)}
+            {...props}
+        />
+    );
 }
 
 function VLine({ className, ...props }: Omit<SeparatorProps, 'orientation'>): JSX.Element {
-    return <Separator
-        orientation="vertical"
-        className={classnames(
-            'border-accent-30 border-r-1',
-            className,
-        )}
-        {...props}/>;
+    return (
+        <Separator
+            orientation="vertical"
+            className={classnames('border-accent-30 border-r-1', className)}
+            {...props}
+        />
+    );
 }
 
 function ScriptViewHeader(): JSX.Element {
@@ -36,14 +38,11 @@ function ScriptViewHeader(): JSX.Element {
         <header className="flex flex-col gap-y-2 px-9 py-2">
             <div className="flex items-center">
                 <h1 className="text-heading-1">KI und K.O.</h1>
-                <Button className="cursor-pointer ms-auto" aria-label="Optionen">
-                    <Icon
-                        iconName="three-dots-vertical"
-                        className="w-7.5 h-7.5 text-accent-100"
-                    />
-                </Button>
+                <BaseButton className="ms-auto cursor-pointer" aria-label="Optionen">
+                    <Icon iconName="three-dots-vertical" className="text-accent-100 h-7.5 w-7.5" />
+                </BaseButton>
             </div>
-            <HLine/>
+            <HLine />
         </header>
     );
 }
@@ -76,14 +75,14 @@ const testNames = [
     'Harper',
     'Evelyn',
     'Abigail',
-    'Emily'
+    'Emily',
 ];
 
 function InfoSection({ children, heading, ...props }: InfoSectionProps): JSX.Element {
     return (
         <div className="flex flex-col gap-y-4" {...props}>
-            <h3 className="font-medium">{ heading }</h3>
-            { children }
+            <h3 className="font-medium">{heading}</h3>
+            {children}
         </div>
     );
 }
@@ -91,23 +90,22 @@ function InfoSection({ children, heading, ...props }: InfoSectionProps): JSX.Ele
 function ActorsContainer(): JSX.Element {
     return (
         <div className="flex flex-wrap gap-2">
-            {
-                testNames.map((name, idx) => 
-                    <ActorPill 
-                        key={name}
-                        className="cursor-pointer"
-                        actorColor={(idx + 1) as Color}
-                        children={name}
-                    />)
-            }
+            {testNames.map((name, idx) => (
+                <ActorPill
+                    key={name}
+                    className="cursor-pointer"
+                    actorColor={(idx + 1) as Color}
+                    children={name}
+                />
+            ))}
         </div>
     );
 }
 
 function InfoText({ className, ...props }: ComponentProps<'p'>): JSX.Element {
     return (
-        <p 
-            className={classnames('flex items-center text-info text-accent-100', className)}
+        <p
+            className={classnames('text-info text-accent-100 flex items-center', className)}
             {...props}
         />
     );
@@ -115,8 +113,8 @@ function InfoText({ className, ...props }: ComponentProps<'p'>): JSX.Element {
 
 function UserView(): JSX.Element {
     return (
-        <div className="flex gap-x-2 items-center cursor-pointer">
-            <div className="bg-text bg-foreground h-8 w-8 rounded-full"/>
+        <div className="flex cursor-pointer items-center gap-x-2">
+            <div className="bg-text bg-foreground h-8 w-8 rounded-full" />
             <div className="flex flex-col">
                 <p>Max Mustermann</p>
                 <p className="text-info text-accent-100">@Maxl</p>
@@ -127,21 +125,21 @@ function UserView(): JSX.Element {
 
 function ScriptInfoView(): JSX.Element {
     return (
-        <div className="flex flex-col gap-y-4 mx-9 my-2 w-70">
+        <div className="mx-9 my-2 flex w-70 flex-col gap-y-4">
             <InfoSection heading="Über dieses Skript">
-                <ActorsContainer/>
+                <ActorsContainer />
                 <InfoText>
-                    <Icon iconName="person-standing" className="me-2"/>
-                    { `${testNames.length} Spieler` }
+                    <Icon iconName="person-standing" className="me-2" />
+                    {`${testNames.length} Spieler`}
                 </InfoText>
                 <InfoText>
-                    <Icon iconName="chat-text" className="me-2"/>
-                    { `${testNames.length * 50} Einsätze` }
+                    <Icon iconName="chat-text" className="me-2" />
+                    {`${testNames.length * 50} Einsätze`}
                 </InfoText>
             </InfoSection>
-            <HLine/>
+            <HLine />
             <InfoSection heading="Mitwirkende (1)">
-                <UserView/>
+                <UserView />
             </InfoSection>
         </div>
     );
@@ -149,30 +147,30 @@ function ScriptInfoView(): JSX.Element {
 
 function SectionInfoHeader(): JSX.Element {
     return (
-        <header className="flex flex-col px-6 gap-y-3">
+        <header className="flex flex-col gap-y-3 px-3 sm:px-6">
             <div className="flex items-center gap-x-5">
                 <h2 className="text-heading-2">1. Akt</h2>
                 <div className="flex gap-x-2">
                     <Tooltip label="Einklappen">
-                        <IconButton iconName="chevron-contract" render={<Tooltip.Trigger/>}/>
+                        <IconButton iconName="chevron-contract" render={<Tooltip.Trigger />} />
                     </Tooltip>
                     <Tooltip label="Bearbeiten">
-                        <IconButton iconName="pencil" render={<Tooltip.Trigger/>}/>
+                        <IconButton iconName="pencil" render={<Tooltip.Trigger />} />
                     </Tooltip>
                     <Tooltip label="Löschen">
-                        <IconButton iconName="trash" render={<Tooltip.Trigger/>}/>
-                    </Tooltip> 
+                        <IconButton iconName="trash" render={<Tooltip.Trigger />} />
+                    </Tooltip>
                 </div>
             </div>
-            <div className="flex flex-col gap-y-3 max-w-3/4">
-                <ActorsContainer/>
+            <div className="flex flex-col gap-y-3 sm:max-w-3/4">
+                <ActorsContainer />
                 <InfoText>
-                    <Icon iconName="person-standing" className="me-2"/>
-                    { `${testNames.length} Spieler` }
+                    <Icon iconName="person-standing" className="me-2" />
+                    {`${testNames.length} Spieler`}
                 </InfoText>
                 <InfoText>
-                    <Icon iconName="chat-text" className="me-2"/>
-                    { `${testNames.length * 50} Einsätze` }
+                    <Icon iconName="chat-text" className="me-2" />
+                    {`${testNames.length * 50} Einsätze`}
                 </InfoText>
             </div>
         </header>
@@ -183,8 +181,8 @@ function HoverableSectionItem({ className, ...props }: ComponentProps<'div'>): J
     return (
         <div
             className={classnames(
-                'relative flex flex-col px-6 before:absolute before:left-0 before:right-0 before:-top-2 before:-bottom-2 before:rounded-xl before:-z-1 hover:before:bg-accent-100/10 group',
-                className
+                'hover:before:bg-accent-100/10 group relative flex flex-col px-3 before:absolute before:-top-1 before:right-0 before:-bottom-1 before:left-0 before:-z-1 before:rounded-xl sm:px-6 sm:before:-top-2 sm:before:-bottom-2',
+                className,
             )}
             {...props}
         />
@@ -193,10 +191,10 @@ function HoverableSectionItem({ className, ...props }: ComponentProps<'div'>): J
 
 function SubsectionDivider({ name }: { name: string }): JSX.Element {
     return (
-        <div className="flex px-6 items-center gap-x-3">
-            <HLine className="flex-1"/>
+        <div className="flex items-center gap-x-3 px-3 sm:px-6">
+            <HLine className="flex-1" />
             <span className="text-info text-accent-100">{name}</span>
-            <HLine className="flex-1"/>
+            <HLine className="flex-1" />
         </div>
     );
 }
@@ -218,11 +216,10 @@ interface DialogueItemProps extends ScriptItemProps {
 function formatActorsArray(actors: Actor[]): FormattedString {
     if (actors.length === 0) return [];
 
-    const result: FormattedString = actors
-        .map(actor => ({
-            style: { color: `var(--color-${colorToString(actor.color)})` },
-            string: actor.name
-        }));
+    const result: FormattedString = actors.map(actor => ({
+        style: { color: `var(--color-${colorToString(actor.color)})` },
+        string: actor.name,
+    }));
 
     if (result.length === 1) {
         return result;
@@ -235,13 +232,13 @@ function formatActorsArray(actors: Actor[]): FormattedString {
             string: index === result.length - 1 ? ' und ' : ', ',
         });
     }
-    
+
     return result;
 }
 
 function MyselfMarker(): JSX.Element {
     return (
-        <span className="text-info rounded-full text-accent-100 border border-accent-100 py-0.5 px-2">
+        <span className="text-info text-accent-100 border-accent-100 rounded-full border px-2 py-0.5">
             ich selbst
         </span>
     );
@@ -249,11 +246,11 @@ function MyselfMarker(): JSX.Element {
 
 function ActionsContainer({ className, ...props }: ComponentProps<'div'>): JSX.Element {
     return (
-        <div 
+        <div
             className={classnames(
-                'absolute -top-7 right-6 z-2 flex p-1 gap-x-2 bg-background border border-accent-30 rounded-xl shadow-lg/50',
-                className
-            )} 
+                'bg-background border-accent-30 absolute -top-7 right-6 z-2 flex gap-x-2 rounded-xl border p-1 shadow-lg/50',
+                className,
+            )}
             {...props}
         />
     );
@@ -261,17 +258,18 @@ function ActionsContainer({ className, ...props }: ComponentProps<'div'>): JSX.E
 
 function AddActorButton(): JSX.Element {
     return (
-        <Button className="rounded-full bg-primary p-1.5 cursor-pointer hover:bg-light-primary"
+        <BaseButton
+            className="bg-primary hover:bg-light-primary cursor-pointer rounded-full p-1.5"
             aria-label="Spieler hinzufügen">
-            <Icon iconName="plus-lg" className="text-white"/>
-        </Button>
+            <Icon iconName="plus-lg" className="text-white" />
+        </BaseButton>
     );
 }
 
 function HoverActionsContainer(): JSX.Element {
     return (
         <ActionsContainer className="invisible group-hover:not-group-data-editing:visible">
-            <IconButton iconName="three-dots-vertical" className="text-foreground"/>
+            <IconButton iconName="three-dots-vertical" className="text-foreground" />
         </ActionsContainer>
     );
 }
@@ -279,8 +277,8 @@ function HoverActionsContainer(): JSX.Element {
 function EditActionsContainer(): JSX.Element {
     return (
         <ActionsContainer>
-            <IconButton iconName="check2" className="text-foreground"/>
-            <IconButton iconName="x" className="text-foreground"/>
+            <IconButton iconName="check2" className="text-foreground" />
+            <IconButton iconName="x" className="text-foreground" />
         </ActionsContainer>
     );
 }
@@ -288,28 +286,33 @@ function EditActionsContainer(): JSX.Element {
 function DialogueItem({ actors, content, editing }: DialogueItemProps): JSX.Element {
     const formattedActorsString = useMemo(() => formatActorsArray(actors), [actors]);
     return (
-        <HoverableSectionItem className="data-editing:before:bg-accent-100/20 data-editing:gap-y-2"
+        <HoverableSectionItem
+            className="data-editing:before:bg-accent-100/20 data-editing:gap-y-1 sm:data-editing:gap-y-2"
             data-editing={editing ? '' : undefined}>
-            <HoverActionsContainer/>
-            { editing && <EditActionsContainer/> }
-            <div className="flex gap-x-2 items-center">
+            <HoverActionsContainer />
+            {editing && <EditActionsContainer />}
+            <div className="flex items-center gap-x-2">
                 {!editing ? (
                     <p className="font-semibold">
-                        <FormattedStringView string={formattedActorsString}/>
+                        <FormattedStringView string={formattedActorsString} />
                     </p>
                 ) : (
                     <div className="flex gap-x-1">
-                        { actors.map(actor => <ActorPill actorColor={actor.color} children={actor.name}/>) }
-                        <AddActorButton/>
+                        {actors.map(actor => (
+                            <ActorPill
+                                key={actor.name}
+                                actorColor={actor.color}
+                                children={actor.name}
+                            />
+                        ))}
+                        <AddActorButton />
                     </div>
-                )
-                }
+                )}
             </div>
-            <div className="relative before:absolute before:-top-1 before:-left-2 before:-right-2 before:-bottom-1 before:rounded-lg before:border-accent-30 before:-z-1 data-editing:py-1 data-editing:before:bg-accent-10 data-editing:before:border"
+            <div
+                className="before:border-accent-30 data-editing:before:bg-accent-10 relative before:absolute before:top-0 before:-right-2 before:bottom-0 before:-left-2 before:-z-1 before:rounded-lg data-editing:py-1 data-editing:before:border sm:before:-top-1 sm:before:-bottom-1"
                 data-editing={editing ? '' : undefined}>
-                <p className="whitespace-pre-wrap">
-                    { content }
-                </p>
+                <p className="whitespace-pre-wrap">{content}</p>
             </div>
         </HoverableSectionItem>
     );
@@ -317,16 +320,15 @@ function DialogueItem({ actors, content, editing }: DialogueItemProps): JSX.Elem
 
 function ActionItem({ content, editing }: ScriptItemProps): JSX.Element {
     return (
-        <HoverableSectionItem className="data-editing:before:bg-accent-100/20"
+        <HoverableSectionItem
+            className="data-editing:before:bg-accent-100/20"
             data-editing={editing ? '' : undefined}>
-            <HoverActionsContainer/>
-            { editing && <EditActionsContainer/> }
-            <div className="relative w-31/40 mx-auto before:absolute before:-top-1 before:-left-2 before:-right-2 before:-bottom-1 before:rounded-lg before:border-accent-30 before:-z-1 data-editing:py-1 data-editing:before:bg-accent-10 data-editing:before:border"
-                data-editing={editing ? '' : undefined}
-            >
-                <p className="whitespace-pre-wrap">
-                    { content }
-                </p>
+            <HoverActionsContainer />
+            {editing && <EditActionsContainer />}
+            <div
+                className="before:border-accent-30 data-editing:before:bg-accent-10 relative mx-auto w-31/40 before:absolute before:top-0 before:-right-2 before:bottom-0 before:-left-2 before:-z-1 before:rounded-lg data-editing:py-1 data-editing:before:border sm:before:-top-1 sm:before:-bottom-1"
+                data-editing={editing ? '' : undefined}>
+                <p className="whitespace-pre-wrap">{content}</p>
             </div>
         </HoverableSectionItem>
     );
@@ -335,113 +337,165 @@ function ActionItem({ content, editing }: ScriptItemProps): JSX.Element {
 function AddItemThing(): JSX.Element {
     return (
         <div className="relative">
-            <div className="absolute px-6 flex gap-x-3 left-0 right-0 items-center -top-2 cursor-pointer group">
-                <HLine className="flex-1 border-accent-100 invisible group-hover:visible"/>
-                <Icon iconName="plus-circle" className="text-accent-100 invisible group-hover:visible"/>
-                <HLine className="flex-1 border-accent-100 invisible group-hover:visible"/>
+            <div className="group absolute -top-2 right-0 left-0 flex cursor-pointer items-center gap-x-3 px-3 sm:px-6">
+                <HLine className="border-accent-100 invisible flex-1 group-hover:visible" />
+                <Icon
+                    iconName="plus-circle"
+                    className="text-accent-100 invisible group-hover:visible"
+                />
+                <HLine className="border-accent-100 invisible flex-1 group-hover:visible" />
             </div>
         </div>
     );
 }
 
-const lipsum = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla sed malesuada justo. Aenean eget diam fringilla, tincidunt quam sed, eleifend odio. Morbi orci lorem, blandit non venenatis vitae, vulputate eget justo.`
+const lipsum = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla sed malesuada justo. Aenean eget diam fringilla, tincidunt quam sed, eleifend odio. Morbi orci lorem, blandit non venenatis vitae, vulputate eget justo.`;
 
 const lorem = `Integer tincidunt sodales enim, quis pretium tellus sagittis non. Aliquam at consequat metus. Mauris nibh velit, viverra congue sapien eu, commodo imperdiet arcu.`;
 
 function makeActors(...indecies: number[]): Actor[] {
-    return indecies.map(idx => ({ name: testNames[idx], color: idx + 1 as Color }))
+    return indecies.map(idx => ({ name: testNames[idx], color: (idx + 1) as Color }));
 }
 
 function SectionView(): JSX.Element {
     return (
-        <section className="flex flex-col p-3 gap-y-2">
-            <SectionInfoHeader/>
-            <AddItemThing/>
-            <SubsectionDivider name="1. Szene"/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(1, 2)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(3)} content={lipsum}/>
-            <AddItemThing/>
-            <ActionItem content={lorem} editing/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(4)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(5, 6, 7)} content={lipsum} editing/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
-            <DialogueItem actors={makeActors(0)} content={lipsum}/>
-            <AddItemThing/>
+        <section className="flex flex-col gap-y-1 sm:gap-y-2 sm:p-3">
+            <SectionInfoHeader />
+            <AddItemThing />
+            <SubsectionDivider name="1. Szene" />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(1, 2)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(3)} content={lipsum} />
+            <AddItemThing />
+            <ActionItem content={lorem} editing />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(4)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(5, 6, 7)} content={lipsum} editing />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
+            <DialogueItem actors={makeActors(0)} content={lipsum} />
+            <AddItemThing />
         </section>
     );
 }
 
 function ScriptContentView(): JSX.Element {
+    const breakpoints = useBreakpoints();
     return (
-        <div className="flex flex-col flex-1 gap-y-4">
-            <header className="flex mx-9 my-1">
-                <SearchInput placeholder="Skript durchsuchen"/>
-                <div className="flex gap-x-2 ms-auto">
+        <div className="flex flex-1 flex-col gap-y-2 sm:gap-y-4">
+            <header className="mx-3 flex sm:mx-9 sm:my-1">
+                {breakpoints.sm ? (
+                    <SearchInput placeholder="Skript durchsuchen" />
+                ) : (
+                    <Button
+                        variant="secondary"
+                        className="flex items-center gap-x-2"
+                        aria-label="Suchen">
+                        <Icon iconName="search" /> Suchen
+                    </Button>
+                )}
+                <div className="ms-auto flex gap-x-2">
                     <Tooltip label="Rückgängig">
-                        <IconButton iconName="arrow-counterclockwise" render={<Tooltip.Trigger/>}/>
+                        <IconButton
+                            iconName="arrow-counterclockwise"
+                            render={<Tooltip.Trigger />}
+                        />
                     </Tooltip>
                     <Tooltip label="Kontext ausblenden">
-                        <IconButton iconName="eye-slash" render={<Tooltip.Trigger/>}/>
+                        <IconButton iconName="eye-slash" render={<Tooltip.Trigger />} />
                     </Tooltip>
                     <Tooltip label="Übersicht">
-                        <IconButton iconName="list-nested" render={<Tooltip.Trigger/>}/>
+                        <IconButton iconName="list-nested" render={<Tooltip.Trigger />} />
                     </Tooltip>
                 </div>
             </header>
-            <HLine className="mx-9"/>
-            <SectionView/>
+            <HLine className="mx-3 sm:mx-9" />
+            <SectionView />
+        </div>
+    );
+}
+
+function MobileScriptHeader(): JSX.Element {
+    return (
+        <div className="flex flex-col items-start gap-y-2 px-3 pt-2">
+            <BaseButton className="bg-accent-10 rounded-full p-2">
+                <Icon iconName="chevron-left" className="icon-lg" />
+            </BaseButton>
+            <h1 className="text-heading-1">KI und K.O.</h1>
         </div>
     );
 }
 
 function ScriptView(): JSX.Element {
+    const breakpoints = useBreakpoints();
 
     return (
-        <div className="flex flex-col mx-auto gap-y-4 w-full max-w-343">
-            <ScriptViewHeader/>
-            <div className="flex flex-1 max-w-full">
-                <ScriptContentView/>
-                <div className="pointer-events-none">
-                    <VLine className="absolute top-4 bottom-4 -z-2"/> 
-                    <VLine className="relative border-background -z-1 -translate-y-196 h-200"/> 
-                </div>
-                <ScriptInfoView/>
-            </div>
+        <div className="mx-auto flex w-full max-w-343 flex-col gap-y-2 sm:gap-y-4">
+            {breakpoints.sm ? (
+                <>
+                    <ScriptViewHeader />
+                    <div className="flex max-w-full flex-1">
+                        <ScriptContentView />
+                        {breakpoints.lg && (
+                            <>
+                                <div className="pointer-events-none">
+                                    <VLine className="absolute top-4 bottom-4 -z-2" />
+                                    <VLine className="border-background relative -z-1 h-200 -translate-y-196" />
+                                </div>
+                                <ScriptInfoView />
+                            </>
+                        )}
+                    </div>
+                </>
+            ) : (
+                <>
+                    <MobileScriptHeader />
+                    <div className="flex flex-col gap-y-3 px-3">
+                        <ActorsContainer />
+                        <InfoText>
+                            <Icon iconName="person-standing" className="me-2" />
+                            {`${testNames.length} Spieler`}
+                        </InfoText>
+                        <InfoText>
+                            <Icon iconName="chat-text" className="me-2" />
+                            {`${testNames.length * 50} Einsätze`}
+                        </InfoText>
+                    </div>
+                    <HLine className="mx-3" />
+                    <ScriptContentView />
+                </>
+            )}
         </div>
     );
 }
 
-export default function(): JSX.Element {
+export default function (): JSX.Element {
     return (
-        <div className="w-full flex flex-col sm:px-16 overflow-y-auto">
-            <ScriptView/>
+        <div className="flex w-full flex-col overflow-y-auto sm:ps-16">
+            <ScriptView />
         </div>
-    )
+    );
 }
-

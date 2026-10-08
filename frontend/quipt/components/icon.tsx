@@ -19,6 +19,6 @@ export function Icon({ iconName, ...props }: IconProps): JSX.Element {
             </svg>
         );
     } catch {
-        return <img/>
+        return <img />;
     }
 }

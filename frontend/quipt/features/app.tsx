@@ -26,7 +26,7 @@ export function App(): JSX.Element {
 
     return (
         <div className="relative z-0 flex min-h-0 w-full flex-1 flex-col">
-            {!breakpoints.sm && null /* TODO: add mobile "bootom nav" */ }
+            {!breakpoints.sm && null /* TODO: add mobile "bootom nav" */}
             <div className="relative z-0 flex min-h-0 w-full flex-1">
                 <div className="absolute top-0 bottom-0 left-0">
                     {breakpoints.sm && <SideNav />}

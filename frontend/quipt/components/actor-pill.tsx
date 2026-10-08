@@ -8,15 +8,9 @@ export interface PillProps extends ComponentProps<'span'> {
     actorColor: Color;
 }
 
-export function ActorPill({
-    actorColor,
-    className,
-    style,
-    ...rest
-}: PillProps): JSX.Element {
-    const textColor = getColorLightness(actorColor) === 'light'
-        ? 'text-background'
-        : 'text-foreground';
+export function ActorPill({ actorColor, className, style, ...rest }: PillProps): JSX.Element {
+    const textColor =
+        getColorLightness(actorColor) === 'light' ? 'text-background' : 'text-foreground';
 
     return (
         <span
@@ -25,6 +19,7 @@ export function ActorPill({
                 className,
             )}
             style={{ '--actor-color': `var(--color-${colorToString(actorColor)})`, ...style }}
-            {...rest}/>
+            {...rest}
+        />
     );
 }

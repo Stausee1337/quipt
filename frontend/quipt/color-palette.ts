@@ -1,6 +1,28 @@
-
-export type Color = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
-                   13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24;
+export type Color =
+    | 1
+    | 2
+    | 3
+    | 4
+    | 5
+    | 6
+    | 7
+    | 8
+    | 9
+    | 10
+    | 11
+    | 12
+    | 13
+    | 14
+    | 15
+    | 16
+    | 17
+    | 18
+    | 19
+    | 20
+    | 21
+    | 22
+    | 23
+    | 24;
 
 const colorPaletteMapping = [
     // blues
@@ -40,7 +62,9 @@ const colorPaletteMapping = [
     'amber-900',
 ];
 
-export const allColors = Object.freeze(Array.from({ length: 24 }).map((_, i) => i + 1)) as Readonly<Color[]>;
+export const allColors = Object.freeze(Array.from({ length: 24 }).map((_, i) => i + 1)) as Readonly<
+    Color[]
+>;
 
 export function colorToString(color: Color): string {
     return colorPaletteMapping[color - 1];
@@ -83,4 +107,3 @@ const lightnessMapping: Lightness[] = [
 export function getColorLightness(color: Color): Lightness {
     return lightnessMapping[color - 1];
 }
-

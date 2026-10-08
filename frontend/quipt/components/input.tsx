@@ -22,10 +22,15 @@ export function BigInput({ className, ...props }: InputProps): JSX.Element {
 export function SearchInput({ className, placeholder, ...props }: InputProps): JSX.Element {
     return (
         <div className="relative">
-            <Icon iconName="search" className="absolute left-[8px] top-[6px] w-5 h-5 text-accent-100/50"/>
+            <Icon
+                iconName="search"
+                className="text-accent-100/50 absolute top-[6px] left-[8px] h-5 w-5"
+            />
             <BaseInput
-                className={classnames('ps-9 pe-4 py-1', commonInputStyle, className)}
-                placeholder={placeholder ?? 'Suchen'} {...props}/>
+                className={classnames('py-1 ps-9 pe-4', commonInputStyle, className)}
+                placeholder={placeholder ?? 'Suchen'}
+                {...props}
+            />
         </div>
     );
 }
