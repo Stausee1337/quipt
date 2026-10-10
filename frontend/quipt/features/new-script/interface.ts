@@ -5,6 +5,17 @@ import type * as types from './types';
 
 let globalInterface: Remote<types.API> | undefined;
 
+export function getErrorMessage(error: types.Error): string {
+    switch (error) {
+        case 'invalid-file-format':
+            return 'Datei konnte nichg gelesen werden';
+        case 'non-script-document':
+            return 'Die Datei konnte nicht als Skript errkant werden';
+        case 'internal-error':
+            return 'interner Fehler';
+    }
+}
+
 export function initialize(api: types.API) {
     expose(api);
     self.postMessage({ type: 'ready' });

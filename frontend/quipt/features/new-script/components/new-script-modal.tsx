@@ -1,14 +1,16 @@
 import { type JSX, useReducer } from 'react';
 
 import { Dialog } from '@base-ui/react';
+import { useNavigate } from 'react-router';
 
 import { Modal } from 'quipt/components/modal';
 import { BigButton } from 'quipt/components/button';
 import { randomID } from 'quipt/utils';
 import { Loader } from 'quipt/components/loader';
+import { ScriptViewState, setGlobalScriptViewState } from 'quipt/features/script/state';
 import { FileInfoView } from './file-info-view';
 import { FileUploadForm } from './file-upload-form';
-import { processFile as workerProcessFile } from '../interface';
+import { getErrorMessage, processFile as workerProcessFile } from '../interface';
 
 type Transition =
     | {
@@ -63,6 +65,7 @@ function machineReducer(state: UploadState, transition: Transition): UploadState
 
 export function NewScriptModal(): JSX.Element {
     const [state, dispatch] = useReducer(machineReducer, { kind: 'idle' });
+    const navigate = useNavigate();
 
     async function startFileAnalysis(files: File[]) {
         const loadingID = randomID();
@@ -79,13 +82,19 @@ export function NewScriptModal(): JSX.Element {
 
         dispatch({ kind: 'upload', loadingID, file });
 
-        console.log(await workerProcessFile(file));
+        const processResult = await workerProcessFile(file);
+        if (processResult.kind === 'error') {
+            dispatch({
+                kind: 'resolve',
+                loadingID,
+                error: `Konvertierungsfehler: ${getErrorMessage(processResult.error)}`,
+            });
+            return;
+        }
 
-        dispatch({
-            kind: 'resolve',
-            loadingID,
-            error: 'Konvertierungsfehler: Noch nicht implementiert',
-        });
+        const state = ScriptViewState.create(processResult.script);
+        setGlobalScriptViewState(state);
+        navigate('/app/dev-script-route');
     }
 
     return (

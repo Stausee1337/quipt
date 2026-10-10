@@ -1,21 +1,21 @@
-import React, { type CSSProperties, type JSX } from 'react';
+import { Fragment, type JSX } from 'react';
 
-export type FormattedStringElement = {
-    style: CSSProperties | null;
-    string: string;
-};
-export type FormattedString = FormattedStringElement[];
+import { FormattedString } from 'quipt/formatted-string';
 
 export function FormattedStringView({ string }: { string: FormattedString }): JSX.Element {
     return (
         <>
             {string.map(item =>
-                item.style ? (
-                    <span style={item.style} key={item.string}>
-                        {item.string}
-                    </span>
+                item.string.trim().length > 0 ? (
+                    item.style ? (
+                        <span style={item.style} key={item.string}>
+                            {item.string}
+                        </span>
+                    ) : (
+                        <Fragment key={item.string}>{item.string}</Fragment>
+                    )
                 ) : (
-                    <React.Fragment key={item.string}>{item.string}</React.Fragment>
+                    item.string
                 ),
             )}
         </>

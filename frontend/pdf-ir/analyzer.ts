@@ -542,8 +542,9 @@ function convertToFormattedStringSimple(simpleSpans: SimpleStyledTextSpan[]): st
 function convertToFormattedString(styledText: StyledTextSpan[]): string {
     const simpleSpans = styledText.reduce<SimpleStyledTextSpan[]>((previous, current) => {
         const last = previous.at(-1);
-        const text = trimOneSpace(current.text);
+        let text = trimOneSpace(current.text);
         if (!text.trim().length) return previous;
+        if (last === undefined) text = text.trimStart();
         if (last?.styles !== current.font.style)
             return [...previous, { styles: current.font.style, text }];
         return [

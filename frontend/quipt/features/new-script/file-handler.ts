@@ -205,7 +205,13 @@ function stripName(name: string): string {
 }
 
 export function processFile(file: types.File): types.Result {
-    const doc = Document.openDocument(file.data);
+    let doc: Document;
+    try {
+        doc = Document.openDocument(file.data);
+    } catch {
+        return { kind: 'error', error: 'invalid-file-format' };
+    }
+
     if (!doc.isPDF()) return { kind: 'error', error: 'invalid-file-format' };
 
     let annotatedIR: Page[] | undefined;
