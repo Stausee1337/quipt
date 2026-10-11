@@ -13,7 +13,6 @@ export abstract class SectionItem {
 }
 
 export class ActionItem extends SectionItem {
-
     public constructor(
         ID: string,
         public readonly content: FormattedString,
@@ -28,7 +27,6 @@ export class ActionItem extends SectionItem {
 }
 
 export class DialogueItem extends SectionItem {
-
     public constructor(
         ID: string,
         public readonly actors: readonly ActorKey[],
@@ -148,8 +146,7 @@ export class ScriptViewState {
     getItem(itemID: string): SectionItem | undefined {
         for (let section of this.sections) {
             const item = section.items.find(item => item.ID === itemID);
-            if (item !== undefined)
-                return item;
+            if (item !== undefined) return item;
         }
         return undefined;
     }
@@ -162,16 +159,12 @@ export class ScriptViewState {
             if (itemIdx === -1) continue;
             sections = [
                 ...this.sections.slice(0, sectionIdx),
-                new Section(
-                    section.ID,
-                    section.name,
-                    [
-                        ...section.items.slice(0, itemIdx),
-                        newItem,
-                        ...section.items.slice(itemIdx + 1)
-                    ]
-                ),
-                ...this.sections.slice(sectionIdx + 1)
+                new Section(section.ID, section.name, [
+                    ...section.items.slice(0, itemIdx),
+                    newItem,
+                    ...section.items.slice(itemIdx + 1),
+                ]),
+                ...this.sections.slice(sectionIdx + 1),
             ];
             break;
         }

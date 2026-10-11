@@ -21,4 +21,4 @@ export const Icon = memo(({ iconName, ...props }: IconProps): JSX.Element => {
     } catch {
         return <img />;
     }
-})
+});

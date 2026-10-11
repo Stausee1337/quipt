@@ -1,8 +1,7 @@
 import { type Script } from 'quipt/schemas/script';
 import { randomID } from 'quipt/utils';
 
-if (typeof window !== 'undefined')
-    window.scriptMap = {};
+if (typeof window !== 'undefined') window.scriptMap = {};
 
 export function newScript(script: Script): string {
     const id = randomID();

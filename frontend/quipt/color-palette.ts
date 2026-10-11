@@ -107,3 +107,31 @@ const lightnessMapping: Lightness[] = [
 export function getColorLightness(color: Color): Lightness {
     return lightnessMapping[color - 1];
 }
+
+function colorToParts(color: Color): [string, number] {
+    const string = colorToString(color);
+    const [name, intensity] = string.split('-');
+    return [name, parseInt(intensity)];
+}
+
+const lighterColorCache: Partial<Record<Color, string>> = {};
+
+export function asLighterColor(color: Color): string {
+    let lighterColor = lighterColorCache[color];
+    if (lighterColor !== undefined) return lighterColor;
+    const [name, intensity] = colorToParts(color);
+    lighterColor = `${name}-${intensity === 100 ? 50 : intensity - 100}`;
+    lighterColorCache[color] = lighterColor;
+    return lighterColor;
+}
+
+const darkerColorCache: Partial<Record<Color, string>> = {};
+
+export function asDarkerColor(color: Color): string {
+    let darkerColor = darkerColorCache[color];
+    if (darkerColor !== undefined) return darkerColor;
+    const [name, intensity] = colorToParts(color);
+    darkerColor = `${name}-${intensity === 900 ? 950 : intensity + 100}`;
+    darkerColorCache[color] = darkerColor;
+    return darkerColor;
+}

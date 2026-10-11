@@ -4,9 +4,8 @@ import { Button as BaseButton, Separator, type SeparatorProps } from '@base-ui/r
 import classnames from 'classnames';
 
 import { Icon } from 'quipt/components/icon';
-import { ActorPill } from 'quipt/components/actor-pill';
 import { pluralize } from 'quipt/utils';
-import { useScriptViewState } from './script';
+import { ActorsContainer } from './actors-container';
 import { type ActorKey } from '../state';
 
 export function HLine({ className, ...props }: Omit<SeparatorProps, 'orientation'>): JSX.Element {
@@ -42,17 +41,6 @@ export function PlayButton({
             {...props}>
             <Icon iconName="play-fill" className="icon-lg text-background" />
         </BaseButton>
-    );
-}
-
-export function ActorsContainer({ actors }: { actors: readonly ActorKey[] }): JSX.Element {
-    const state = useScriptViewState();
-    return (
-        <div className="flex flex-wrap gap-2">
-            {actors.map(actor => (
-                <ActorPill key={actor} actor={state.lookupActor(actor)} interactable />
-            ))}
-        </div>
     );
 }
 

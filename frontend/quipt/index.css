@@ -30,6 +30,7 @@
     --color-dark-primary: #00a056;
 
     --color-accent-100: var(--color-neutral-400);
+    --color-accent-50: #5d5d5d;
     --color-accent-30: #414141;
     --color-accent-20: #333333;
     --color-accent-10: #262626;

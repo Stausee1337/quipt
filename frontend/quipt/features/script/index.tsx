@@ -13,8 +13,17 @@ export function ScriptRoute(): JSX.Element {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     return (
-        <div ref={scrollContainerRef} className="flex w-full flex-col overflow-y-auto sm:ps-16" id="scroll-container">
-            { script && <ScriptView key={scriptID} scrollContainerRef={scrollContainerRef} script={script}/> }
+        <div
+            ref={scrollContainerRef}
+            className="flex w-full flex-col overflow-y-auto sm:ps-16"
+            id="scroll-container">
+            {script && (
+                <ScriptView
+                    key={scriptID}
+                    scrollContainerRef={scrollContainerRef}
+                    script={script}
+                />
+            )}
         </div>
     );
 }
