@@ -10,7 +10,7 @@ import ScriptRoute from 'quipt/features/script';
 
 const normalRoutes = [
     { path: '', element: <p>Home</p> },
-    { path: 'dev-script-route', Component: ScriptRoute },
+    { path: 'dev-script-route/:scriptID', Component: ScriptRoute },
 ] satisfies RouteObject[];
 
 const modalRoutes = [

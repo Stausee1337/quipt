@@ -5,8 +5,9 @@ import classnames from 'classnames';
 
 import { Icon } from 'quipt/components/icon';
 import { ActorPill } from 'quipt/components/actor-pill';
-import { type ActorKey, useScriptViewState } from '../state';
 import { pluralize } from 'quipt/utils';
+import { useScriptViewState } from './script';
+import { type ActorKey } from '../state';
 
 export function HLine({ className, ...props }: Omit<SeparatorProps, 'orientation'>): JSX.Element {
     return (

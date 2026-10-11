@@ -1,11 +1,11 @@
-import { type ComponentProps, type JSX } from 'react';
+import { type ComponentProps, type JSX, memo } from 'react';
 import meta from 'virtual:icons-meta';
 
 interface IconProps extends ComponentProps<'svg'> {
     iconName: string;
 }
 
-export function Icon({ iconName, ...props }: IconProps): JSX.Element {
+export const Icon = memo(({ iconName, ...props }: IconProps): JSX.Element => {
     try {
         const { viewBox, width, height } = meta.iconData[iconName];
         return (
@@ -21,4 +21,4 @@ export function Icon({ iconName, ...props }: IconProps): JSX.Element {
     } catch {
         return <img />;
     }
-}
+})

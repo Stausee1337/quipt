@@ -8,24 +8,38 @@ export type ActorKey = string & { [brand]: ActorKey };
 
 export abstract class SectionItem {
     protected constructor(public readonly ID: string) {}
+
+    abstract setEditing(): SectionItem;
 }
 
 export class ActionItem extends SectionItem {
+
     public constructor(
         ID: string,
         public readonly content: FormattedString,
+        public readonly editing: boolean = false,
     ) {
         super(ID);
+    }
+
+    setEditing(): ActionItem {
+        return new ActionItem(this.ID, this.content, true);
     }
 }
 
 export class DialogueItem extends SectionItem {
+
     public constructor(
         ID: string,
         public readonly actors: readonly ActorKey[],
         public readonly content: FormattedString,
+        public readonly editing: boolean = false,
     ) {
         super(ID);
+    }
+
+    setEditing(): DialogueItem {
+        return new DialogueItem(this.ID, this.actors, this.content, true);
     }
 }
 
@@ -35,6 +49,10 @@ export class DividerItem extends SectionItem {
         public readonly name: string,
     ) {
         super(ID);
+    }
+
+    setEditing(): DividerItem {
+        return this;
     }
 }
 
@@ -46,7 +64,7 @@ export class Section {
     public readonly actors: readonly ActorKey[];
     public readonly dialogueCount: number;
 
-    private constructor(
+    public constructor(
         public readonly ID: string,
         public readonly name: string | null,
         public readonly items: SectionItem[],
@@ -127,6 +145,39 @@ export class ScriptViewState {
         return actor;
     }
 
+    getItem(itemID: string): SectionItem | undefined {
+        for (let section of this.sections) {
+            const item = section.items.find(item => item.ID === itemID);
+            if (item !== undefined)
+                return item;
+        }
+        return undefined;
+    }
+
+    replaceItem(newItem: SectionItem): ScriptViewState {
+        let sections = this.sections;
+        for (let sectionIdx = 0; sectionIdx < this.sections.length; sectionIdx++) {
+            const section = sections[sectionIdx];
+            const itemIdx = section.items.findIndex(item => item.ID === newItem.ID);
+            if (itemIdx === -1) continue;
+            sections = [
+                ...this.sections.slice(0, sectionIdx),
+                new Section(
+                    section.ID,
+                    section.name,
+                    [
+                        ...section.items.slice(0, itemIdx),
+                        newItem,
+                        ...section.items.slice(itemIdx + 1)
+                    ]
+                ),
+                ...this.sections.slice(sectionIdx + 1)
+            ];
+            break;
+        }
+        return new ScriptViewState(this.name, sections, this.actorLookup);
+    }
+
     static create(script: Script): ScriptViewState {
         const actors: Record<ActorKey, Actor> = {};
         const reverseActorLookup: Record<string, ActorKey> = {};
@@ -142,15 +193,5 @@ export class ScriptViewState {
 }
 
 function randomColor(): Color {
-    return Math.floor(24 * Math.random()) as Color;
-}
-
-let globalScriptViewState: ScriptViewState | undefined;
-
-export function useScriptViewState(): ScriptViewState {
-    return globalScriptViewState!;
-}
-
-export function setGlobalScriptViewState(state: ScriptViewState) {
-    globalScriptViewState = state;
+    return (Math.floor(24 * Math.random()) + 1) as Color;
 }

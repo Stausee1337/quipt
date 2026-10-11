@@ -7,7 +7,7 @@ import { Modal } from 'quipt/components/modal';
 import { BigButton } from 'quipt/components/button';
 import { randomID } from 'quipt/utils';
 import { Loader } from 'quipt/components/loader';
-import { ScriptViewState, setGlobalScriptViewState } from 'quipt/features/script/state';
+import { newScript } from 'quipt/features/script';
 import { FileInfoView } from './file-info-view';
 import { FileUploadForm } from './file-upload-form';
 import { getErrorMessage, processFile as workerProcessFile } from '../interface';
@@ -92,9 +92,8 @@ export function NewScriptModal(): JSX.Element {
             return;
         }
 
-        const state = ScriptViewState.create(processResult.script);
-        setGlobalScriptViewState(state);
-        navigate('/app/dev-script-route');
+        const scriptID = newScript(processResult.script);
+        navigate(`/app/dev-script-route/${scriptID}`);
     }
 
     return (

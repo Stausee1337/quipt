@@ -1,4 +1,4 @@
-import { type ComponentProps, type JSX, type ReactNode } from 'react';
+import { type ComponentProps, type JSX, type ReactNode, createContext, useContext, useRef, useSyncExternalStore } from 'react';
 
 import { Button as BaseButton } from '@base-ui/react';
 
@@ -8,9 +8,10 @@ import { SearchInput } from 'quipt/components/input';
 import { IconButton } from 'quipt/components/icon-button';
 import { Tooltip } from 'quipt/components/tooltip';
 import { useBreakpoints } from 'quipt/responsive';
+import { type Script } from 'quipt/schemas/script';
 import { SectionView } from './section';
 import { HLine, VLine, ContentInfoView, addSeparators } from './common';
-import { useScriptViewState, type Section } from '../state';
+import { ScriptViewState, type Section } from '../state';
 
 function ScriptViewHeader(): JSX.Element {
     return (
@@ -121,44 +122,99 @@ function ScriptInfoView(props: ComponentProps<typeof ContentInfoView>): JSX.Elem
     );
 }
 
-export function ScriptView(): JSX.Element {
+export class Action<Input> {
+    public constructor(
+        public readonly name: string,
+        public readonly action: (
+            state: ScriptViewState,
+            input: Input
+        ) => ScriptViewState
+    ) {}
+}
+
+function doEditItem(state: ScriptViewState, { itemID }: { itemID: string }): ScriptViewState {
+    return state.replaceItem(state.getItem(itemID)!.setEditing());
+}
+
+export class ScriptViewManager {
+    static readonly EDIT_ITEM = new Action<{ itemID: string; }>('EDIT_ITEM', doEditItem);
+
+    state: ScriptViewState;
+    onChangeListener: (() => void) | undefined = undefined;
+
+    constructor(script: Script) {
+        this.state = ScriptViewState.create(script);
+    }
+
+    dispatch<Input>(action: Action<Input>, input: Input) {
+        this.state = action.action(this.state, input);
+        this.onChangeListener?.();
+    }
+
+}
+
+export function useScriptViewManager(): ScriptViewManager {
+    return useContext(ScriptViewContextObject)!;
+}
+
+const ScriptViewContextObject = createContext<ScriptViewManager | null>(null);
+
+export function useScriptViewState(): ScriptViewState {
+    return useContext(ScriptViewContextObject)!.state;
+}
+
+export function ScriptView({ script }: { script: Script; }): JSX.Element {
+    const managerRef = useRef<ScriptViewManager>(null);
+    if (managerRef.current === null)
+        managerRef.current = new ScriptViewManager(script);
+
     const breakpoints = useBreakpoints();
-    const state = useScriptViewState();
+    const state = useSyncExternalStore(cb => {
+        if (managerRef.current)
+            managerRef.current.onChangeListener = cb;
+        return () => {
+            if (managerRef.current)
+                managerRef.current.onChangeListener = undefined;
+        };
+    },
+    () => managerRef.current!.state);
 
     return (
-        <div className="mx-auto flex w-full max-w-343 flex-col gap-y-2 sm:gap-y-4">
-            {breakpoints.lg ? (
-                <>
-                    <ScriptViewHeader />
-                    <div className="flex max-w-full flex-1">
+        <ScriptViewContextObject.Provider value={managerRef.current}>
+            <div className="mx-auto flex w-full max-w-343 flex-col gap-y-2 sm:gap-y-4">
+                {breakpoints.lg ? (
+                    <>
+                        <ScriptViewHeader />
+                        <div className="flex max-w-full flex-1">
+                            <ScriptContentView sections={state.sections} />
+                            {breakpoints.lg && (
+                                <>
+                                    <div className="pointer-events-none">
+                                        <VLine className="absolute top-4 bottom-4 -z-2" />
+                                        <VLine className="border-background relative -z-1 h-200 -translate-y-196" />
+                                    </div>
+                                    <ScriptInfoView
+                                        actors={state.actors}
+                                        dialogueCount={state.dialogueCount}
+                                    />
+                                </>
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        {breakpoints.sm ? <ScriptViewHeader /> : <MobileScriptViewHeader />}
+                        <div className="flex flex-col gap-y-3 px-3 sm:px-9">
+                            <ContentInfoView
+                                actors={state.actors}
+                                dialogueCount={state.dialogueCount}
+                            />
+                        </div>
+                        <HLine className="mx-3 sm:mx-9" />
                         <ScriptContentView sections={state.sections} />
-                        {breakpoints.lg && (
-                            <>
-                                <div className="pointer-events-none">
-                                    <VLine className="absolute top-4 bottom-4 -z-2" />
-                                    <VLine className="border-background relative -z-1 h-200 -translate-y-196" />
-                                </div>
-                                <ScriptInfoView
-                                    actors={state.actors}
-                                    dialogueCount={state.dialogueCount}
-                                />
-                            </>
-                        )}
-                    </div>
-                </>
-            ) : (
-                <>
-                    {breakpoints.sm ? <ScriptViewHeader /> : <MobileScriptViewHeader />}
-                    <div className="flex flex-col gap-y-3 px-3 sm:px-9">
-                        <ContentInfoView
-                            actors={state.actors}
-                            dialogueCount={state.dialogueCount}
-                        />
-                    </div>
-                    <HLine className="mx-3 sm:mx-9" />
-                    <ScriptContentView sections={state.sections} />
-                </>
-            )}
-        </div>
+                    </>
+                )}
+            </div>
+        </ScriptViewContextObject.Provider>
     );
 }
