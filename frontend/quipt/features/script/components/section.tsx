@@ -1,4 +1,4 @@
-import { type ComponentProps, type JSX, type ReactElement, memo, useMemo, useState } from 'react';
+import { type ComponentProps, type JSX, type ReactElement, useMemo, useState } from 'react';
 
 import { Menu, Button as BaseButton } from '@base-ui/react';
 import classnames from 'classnames';
@@ -11,7 +11,7 @@ import { FormattedStringView } from 'quipt/components/formatted-string-view';
 import { FormattedString } from 'quipt/formatted-string';
 import { useBreakpoints } from 'quipt/responsive';
 import { formatActorsArray } from 'quipt/utils';
-import { ContentInfoView, HLine, PlayButton, addSeparators } from './common';
+import { ContentInfoView, HLine, PlayButton } from './common';
 import { ScriptViewManager, useScriptViewManager, useScriptViewState } from './script';
 import {
     ActionItem,
@@ -22,30 +22,18 @@ import {
     type SectionItem,
 } from '../state';
 
-const AddItemControl = memo(function AddItemControl(): JSX.Element {
-    return (
-        <div className="relative">
-            <div className="group absolute -top-2 right-0 left-0 flex cursor-pointer items-center gap-x-3 px-3 sm:px-6">
-                <HLine className="border-accent-100 invisible flex-1 group-hover:visible" />
-                <Icon
-                    iconName="plus-circle"
-                    className="text-accent-100 invisible group-hover:visible"
-                />
-                <HLine className="border-accent-100 invisible flex-1 group-hover:visible" />
-            </div>
-        </div>
-    );
-});
+type VirtualizedElementProps = Omit<ComponentProps<'div'>, 'className'>;
 
-function SectionInfoHeader({
+export function SectionInfoHeader({
     name,
     actors,
     dialogueCount,
+    ...props
 }: {
     name: string;
     actors: readonly ActorKey[];
     dialogueCount: number;
-}): JSX.Element {
+} & VirtualizedElementProps): JSX.Element {
     type SectionInfoState = 'expanded' | 'collapsed';
 
     const breakpoints = useBreakpoints();
@@ -58,7 +46,7 @@ function SectionInfoHeader({
     }
 
     return (
-        <header className="flex flex-col gap-y-3 px-3 sm:px-6">
+        <div className="absolute top-0 left-0 right-0 w-auto flex flex-col gap-y-3 px-3 sm:px-6 sm:mx-3 pt-2 sm:pt-3" {...props}>
             <div className="relative flex items-center gap-x-5">
                 <h2 className="text-heading-2">{name}</h2>
                 <div className="flex gap-x-2">
@@ -85,7 +73,7 @@ function SectionInfoHeader({
                     <ContentInfoView actors={actors} dialogueCount={dialogueCount} />
                 </div>
             )}
-        </header>
+        </div>
     );
 }
 
@@ -172,7 +160,7 @@ function ContentRenderer({
     );
 }
 
-const DialogueView = memo(function DialogueView({ dialogue }: { dialogue: DialogueItem; }): JSX.Element {
+function DialogueView({ dialogue, ...props }: { dialogue: DialogueItem; } & VirtualizedElementProps): JSX.Element {
     const [menuOpen, setMenuOpen] = useState(false);
     const state = useScriptViewState();
     const formattedActorsString = useMemo(
@@ -183,7 +171,8 @@ const DialogueView = memo(function DialogueView({ dialogue }: { dialogue: Dialog
         <HoverableSectionItem
             className="data-editing:before:bg-accent-100/20 data-editing:gap-y-1 sm:data-editing:gap-y-2"
             data-menu-open={menuOpen ? '' : undefined}
-            data-editing={dialogue.editing ? '' : undefined}>
+            data-editing={dialogue.editing ? '' : undefined}
+            {...props}>
             <HoverActionsContainer itemID={dialogue.ID} onMenuOpenChange={setMenuOpen}/>
             {dialogue.editing && <EditActionsContainer />}
             <div className="flex items-center gap-x-2">
@@ -207,25 +196,26 @@ const DialogueView = memo(function DialogueView({ dialogue }: { dialogue: Dialog
             <ContentRenderer content={dialogue.content} editing={dialogue.editing} />
         </HoverableSectionItem>
     );
-});
+}
 
-const ActionView = memo(function ActionView({ action }: { action: ActionItem; }): JSX.Element {
+function ActionView({ action, ...props }: { action: ActionItem; } & VirtualizedElementProps): JSX.Element {
     return (
         <HoverableSectionItem
             className="data-editing:before:bg-accent-100/20"
-            data-editing={action.editing ? '' : undefined}>
+            data-editing={action.editing ? '' : undefined}
+            {...props}>
             <HoverActionsContainer itemID={action.ID}/>
             {action.editing && <EditActionsContainer />}
             <ContentRenderer className="mx-auto w-31/40" content={action.content} editing={action.editing} />
         </HoverableSectionItem>
     );
-});
+}
 
 function HoverableSectionItem({ className, ...props }: ComponentProps<'div'>): JSX.Element {
     return (
         <div
             className={classnames(
-                'data-menu-open:before:bg-accent-100/10 hover:before:bg-accent-100/10 group relative flex flex-col px-3 before:absolute before:-top-1 before:right-0 before:-bottom-1 before:left-0 before:-z-1 before:rounded-xl sm:px-6 sm:before:-top-2 sm:before:-bottom-2',
+                'absolute top-0 left-0 right-0 w-auto data-menu-open:before:bg-accent-100/10 hover:before:bg-accent-100/10 group flex flex-col px-3 before:absolute before:-top-1 before:right-0 before:-bottom-1 before:left-0 before:-z-1 before:rounded-xl sm:px-6 sm:mx-3 sm:before:-top-2 sm:before:-bottom-2',
                 className,
             )}
             {...props}
@@ -233,15 +223,15 @@ function HoverableSectionItem({ className, ...props }: ComponentProps<'div'>): J
     );
 }
 
-const SubsectionDivider = memo(function SubsectionDivider({ name }: { name: string }): JSX.Element {
+function SubsectionDivider({ name, ...props }: { name: string } & VirtualizedElementProps): JSX.Element {
     return (
-        <div className="flex items-center gap-x-3 px-3 sm:px-6">
+        <div className="absolute top-0 left-0 right-0 w-auto flex items-center gap-x-3 px-3 sm:px-6 sm:mx-3" {...props}>
             <HLine className="flex-1" />
             <span className="text-info text-accent-100">{name}</span>
             <HLine className="flex-1" />
         </div>
     );
-});
+}
 
 function* generateContentElements(items: SectionItem[]): Generator<ReactElement> {
     for (let item of items) {
@@ -254,17 +244,20 @@ function* generateContentElements(items: SectionItem[]): Generator<ReactElement>
     }
 }
 
-export const SectionView = memo(function SectionView({ section }: { section: Section }): JSX.Element {
-    return (
-        <section className="flex flex-col gap-y-1 pt-2 sm:gap-y-2 sm:p-3 sm:pb-1">
-            {section.name && (
-                <SectionInfoHeader
-                    name={section.name}
-                    actors={section.actors}
-                    dialogueCount={section.dialogueCount}
-                />
-            )}
-            {Array.from(addSeparators(generateContentElements(section.items), <AddItemControl />))}
-        </section>
-    );
-});
+export function renderSection(section: Section): ReactElement[] {
+    const content = generateContentElements(section.items);
+    if (section.name !== null)
+        return [
+            <SectionInfoHeader
+                name={section.name}
+                actors={section.actors}
+                dialogueCount={section.dialogueCount}
+            />,
+            ...content,
+            <HLine className="absolute top-0 left-0 right-0 w-auto mx-3 sm:mx-9 sm:pb-2 pt-1 sm:my-2"/>
+        ];
+    return [
+        ...content,
+        <HLine className="absolute top-0 left-0 right-0 w-auto mx-3 sm:mx-9 sm:pb-2 pt-1 sm:my-2"/>
+    ];
+}

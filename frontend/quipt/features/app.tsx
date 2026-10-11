@@ -6,7 +6,7 @@ import { SideNav } from 'quipt/components/side-nav';
 import { Modal } from 'quipt/components/modal';
 import { useBreakpoints } from 'quipt/responsive';
 import { NewScriptModal } from 'quipt/features/new-script';
-import ScriptRoute from 'quipt/features/script';
+import { ScriptRoute } from 'quipt/features/script';
 
 const normalRoutes = [
     { path: '', element: <p>Home</p> },

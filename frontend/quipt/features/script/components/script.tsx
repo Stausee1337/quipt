@@ -1,6 +1,8 @@
-import { type ComponentProps, type JSX, type ReactNode, createContext, useContext, useRef, useSyncExternalStore } from 'react';
+import { type ComponentProps, type JSX, type ReactNode, type RefObject, createContext, useContext, useEffect, useMemo, useRef, useSyncExternalStore, cloneElement, memo, useState } from 'react';
 
 import { Button as BaseButton } from '@base-ui/react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import classnames from 'classnames';
 
 import { Button } from 'quipt/components/button';
 import { Icon } from 'quipt/components/icon';
@@ -9,8 +11,8 @@ import { IconButton } from 'quipt/components/icon-button';
 import { Tooltip } from 'quipt/components/tooltip';
 import { useBreakpoints } from 'quipt/responsive';
 import { type Script } from 'quipt/schemas/script';
-import { SectionView } from './section';
-import { HLine, VLine, ContentInfoView, addSeparators } from './common';
+import { SectionInfoHeader, renderSection } from './section';
+import { HLine, VLine, ContentInfoView } from './common';
 import { ScriptViewState, type Section } from '../state';
 
 function ScriptViewHeader(): JSX.Element {
@@ -67,19 +69,68 @@ function ScriptContentViewHeader(): JSX.Element {
     );
 }
 
-function ScriptContentView({ sections }: { sections: readonly Section[] }): JSX.Element {
+const ScriptContentView = memo(function ScriptContentView({ sections, className, scrollContainerRef }: { scrollContainerRef: RefObject<HTMLElement | null>; sections: readonly Section[]; className?: string; }): JSX.Element {
+    const x = useRef<HTMLDivElement | null>(null);
+    const breakpoints = useBreakpoints();
+    const items = useMemo(() => sections.flatMap(section => renderSection(section)), [sections]);
+    const [enabled, setEnabled] = useState(false);
+    const [scrollMargin, setScrollMargin] = useState(0);
+    const virtual = useVirtualizer({
+        count: items.length,
+        getScrollElement: () => scrollContainerRef.current,
+        estimateSize: idx => {
+            const item = items[idx];
+            if (item.type === SectionInfoHeader)
+                return 150;
+            return 48;
+        },
+        getItemKey: idx => items[idx].key ?? idx,
+        scrollMargin,
+        enabled,
+        directDomUpdates: true,
+        laneAssignmentMode: 'measured',
+        gap: breakpoints.sm ? 16 : 8
+    });
+
+    useEffect(() => {
+        setEnabled(scrollContainerRef.current !== null);
+    }, [scrollContainerRef.current]);
+
+    useEffect(() => {
+        if (x.current !== null) {
+            const rect = x.current.getBoundingClientRect();
+            console.log(rect.top);
+            setScrollMargin(rect.top);
+        } else {
+            setScrollMargin(0);
+        }
+    }, [x.current]);
+
+    function onContainerRefUpdate(element: HTMLDivElement | null) {
+        virtual.containerRef(element);
+        x.current = element;
+    }
+
     return (
-        <div className="flex flex-1 flex-col gap-y-2 sm:gap-y-4">
-            <ScriptContentViewHeader />
-            {Array.from(
-                addSeparators(
-                    sections.map(section => <SectionView key={section.ID} section={section} />),
-                    <HLine className="mx-3 sm:mx-9" />,
-                ),
-            )}
+        <div className={classnames('flex flex-col gap-y-2 sm:gap-y-4', className)}>
+            <ScriptContentViewHeader/>
+            <HLine className="mx-3 sm:mx-9" />
+            <div className="relative" ref={onContainerRefUpdate}>
+                {
+                    virtual.getVirtualItems().map(item => cloneElement(items[item.index], {
+                        key: item.key,
+                        'data-index': item.index,
+                        'data-size': item.size,
+                        ref: virtual.measureElement,
+                        // style: { transform: `translateY(${item.start}px)` }
+                    }))
+                }
+            </div>
         </div>
     );
-}
+},
+(a, b) => a.sections === b.sections && a.scrollContainerRef.current === b.scrollContainerRef.current
+);
 
 function UserView(): JSX.Element {
     return (
@@ -163,7 +214,7 @@ export function useScriptViewState(): ScriptViewState {
     return useContext(ScriptViewContextObject)!.state;
 }
 
-export function ScriptView({ script }: { script: Script; }): JSX.Element {
+export function ScriptView({ scrollContainerRef, script }: { scrollContainerRef: RefObject<HTMLElement | null>; script: Script; }): JSX.Element {
     const managerRef = useRef<ScriptViewManager>(null);
     if (managerRef.current === null)
         managerRef.current = new ScriptViewManager(script);
@@ -186,7 +237,9 @@ export function ScriptView({ script }: { script: Script; }): JSX.Element {
                     <>
                         <ScriptViewHeader />
                         <div className="flex max-w-full flex-1">
-                            <ScriptContentView sections={state.sections} />
+                            <ScriptContentView className="flex-1"
+                                scrollContainerRef={scrollContainerRef}
+                                sections={state.sections} />
                             {breakpoints.lg && (
                                 <>
                                     <div className="pointer-events-none">
@@ -211,7 +264,7 @@ export function ScriptView({ script }: { script: Script; }): JSX.Element {
                             />
                         </div>
                         <HLine className="mx-3 sm:mx-9" />
-                        <ScriptContentView sections={state.sections} />
+                        <ScriptContentView scrollContainerRef={scrollContainerRef} sections={state.sections} />
                     </>
                 )}
             </div>

@@ -1,4 +1,4 @@
-import { type ComponentProps, type JSX, type ReactElement, cloneElement } from 'react';
+import { type ComponentProps, type JSX } from 'react';
 
 import { Button as BaseButton, Separator, type SeparatorProps } from '@base-ui/react';
 import classnames from 'classnames';
@@ -84,23 +84,4 @@ export function ContentInfoView({
             </p>
         </>
     );
-}
-
-export function* addSeparators(
-    elements: Iterable<ReactElement>,
-    separator: ReactElement,
-): Generator<ReactElement> {
-    yield cloneElement(separator, { key: 'separator-first' });
-
-    let idx = 0;
-    for (let element of elements) {
-        const key = element.key;
-
-        yield element;
-        if (key !== undefined) yield cloneElement(separator, { key: `${key}-separator` });
-        else yield cloneElement(separator, { key: idx });
-        idx++;
-    }
-
-    yield cloneElement(separator, { key: 'separator-last' });
 }
