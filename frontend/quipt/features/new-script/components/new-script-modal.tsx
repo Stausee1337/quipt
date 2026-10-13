@@ -83,6 +83,7 @@ export function NewScriptModal(): JSX.Element {
         dispatch({ kind: 'upload', loadingID, file });
 
         const processResult = await workerProcessFile(file);
+        console.log(processResult);
         if (processResult.kind === 'error') {
             dispatch({
                 kind: 'resolve',
@@ -92,8 +93,8 @@ export function NewScriptModal(): JSX.Element {
             return;
         }
 
-        const scriptID = newScript(processResult.script);
-        navigate(`/app/dev-script-route/${scriptID}`);
+        // const scriptID = newScript(processResult.script);
+        // navigate(`/app/dev-script-route/${scriptID}`);
     }
 
     return (

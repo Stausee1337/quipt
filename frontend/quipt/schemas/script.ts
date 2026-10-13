@@ -1,7 +1,17 @@
 export type Script = {
     allActors: string[];
-    content: SectionContent | ItemsContent;
+    content: SupersectionContent | SectionContent | ItemsContent;
     name: string;
+};
+
+export type SupersectionContent = {
+    supersections: Supersection[];
+};
+
+// FIXME: maybe make name optional so sections and subsections can be decided during rendering
+export type Supersection = {
+    name: string;
+    content: SectionContent;
 };
 
 export type SectionContent = {
@@ -9,15 +19,6 @@ export type SectionContent = {
 };
 
 export type Section = {
-    name: string;
-    content: SubsectionContent | ItemsContent;
-};
-
-export type SubsectionContent = {
-    subsections: Subsection[];
-};
-
-export type Subsection = {
     name: string;
     content: ItemsContent;
 };

@@ -6,8 +6,8 @@ import {
     type ScriptItem,
     type Section,
     type SectionContent,
-    type Subsection,
-    type SubsectionContent,
+    type Supersection,
+    type SupersectionContent,
 } from 'quipt/schemas/script';
 import {
     type ActionBlock,
@@ -36,31 +36,26 @@ type SectionLayer = {
     type: 'section';
     sectionName: SectionName;
     content: Section[];
+    parent?: Supersection;
 };
 
-type SubsectionLayer = {
-    type: 'subsection';
+type SupersectionLayer = {
+    type: 'supersection';
     sectionName: SectionName;
-    parent: SectionLayer;
-    content: Subsection[];
+    content: Supersection[];
 };
 
-type Layer = ItemsLayer | SectionLayer | SubsectionLayer;
+type Layer = SupersectionLayer | SectionLayer | ItemsLayer;
 
-function layerToContent(layer: Layer, depth: number = 0): ItemsContent | SectionContent {
+function layerToContent(layer: Layer): ItemsContent | SectionContent | SupersectionContent {
     switch (layer.type) {
         case 'items':
             return { items: layer.content };
         case 'section':
             return { sections: layer.content };
-        case 'subsection':
-            if (depth > 0) throw 'recursion error';
-            return layerToContent(layer.parent, depth + 1);
+        case 'supersection':
+            return { supersections: layer.content };
     }
-}
-
-function isItemsContent(content: ItemsContent | SubsectionContent): content is ItemsContent {
-    return Object.keys(content).includes('items');
 }
 
 function flattenBlockText(block: BaseBlock): string {
@@ -68,6 +63,74 @@ function flattenBlockText(block: BaseBlock): string {
         .split('\n')
         .map(line => line.trimEnd() + ' ')
         .join('');
+}
+
+function createSectionLayer(sectionName: SectionName, currentItems: ScriptItem[]): SectionLayer {
+    const sections: Section[] = [];
+    if (currentItems.length > 0)
+        sections.push({
+            name: 'Unbenannter Abschnitt',
+            content: { items: currentItems },
+        });
+    return {
+        type: 'section',
+        sectionName,
+        content: sections,
+    };
+}
+
+function convertToSupersectionLayer(layer: SectionLayer): SupersectionLayer {
+    const supersections: Supersection[] = [];
+    if (layer.content.length === 0)
+        throw new Error('invalid empty SectionLayer');
+
+    if (layer.content.length > 1)
+        supersections.push({
+            name: 'Unbenannter Überabschnitt',
+            content: { 
+                sections: [
+                    ...layer.content.slice(-1)
+                ]
+            },
+        });
+    const last = layer.content.at(-1)!;
+
+    const sections: Section[] = [];
+    supersections.push({
+        name: last.name,
+        content: { sections }
+    });
+    if (last.content.items.length > 0)
+        sections.push({
+            name: 'Unbenannter Abschnitt',
+            content: last.content,
+        })
+
+    return {
+        type: 'supersection',
+        sectionName: layer.sectionName,
+        content: supersections,
+    };
+}
+
+// THIS should become a method
+function createSection(items: ScriptItem[], blockOrName: string | OtherBlock): Section {
+    return {
+        name: typeof blockOrName === 'string'
+            ? blockOrName
+            : flattenBlockText(blockOrName).trim(),
+        content: { items },
+    };
+}
+
+// THIS should become a method
+function createSupersection(block: string | OtherBlock): Supersection {
+    return {
+        name: typeof block === 'string'
+            ? block
+            : flattenBlockText(block).trim(),
+        content: { sections: [] },
+    };
 }
 
 class ScriptBuilder {
@@ -100,53 +163,27 @@ class ScriptBuilder {
     visitSectionBlock(block: OtherBlock) {
         const sectionName = detectSectionName(block);
         if (this.layer.type === 'items') {
-            // ensure sections layer
-            const sections: Section[] = [];
-            if (this.currentItems.length > 0) {
-                // add current items to on-the-fly section retrospectively
-                sections.push({
-                    name: 'Unbenannter Abschnitt',
-                    content: { items: this.currentItems },
-                });
+            this.layer = createSectionLayer(sectionName, this.currentItems);
+            this.currentItems = [];
+            this.layer.content.push(createSection(this.currentItems, block));
+        } else if (this.layer.type === 'section') {
+            if (sectionName === this.layer.sectionName) {
                 this.currentItems = [];
+                this.layer.content.push(createSection(this.currentItems, block));
+                return;
             }
-            this.layer = {
-                type: 'section',
-                sectionName,
-                content: sections,
-            };
-        } else if (this.layer.sectionName !== sectionName) {
-            if (this.layer.type === 'section') {
-                // create "lower" subsection
-                let currentSection = this.layer.content.at(-1)!;
-                if (isItemsContent(currentSection.content)) {
-                    const subsections: Subsection[] = [];
-                    if (currentSection.content.items.length > 0)
-                        subsections.push({
-                            name: 'Unbenannter Unterabschnitt',
-                            content: currentSection.content,
-                        });
-                    currentSection.content = { subsections };
-                }
-
-                this.layer = {
-                    type: 'subsection',
-                    sectionName,
-                    parent: this.layer,
-                    content: currentSection.content.subsections,
-                };
-            } else if (this.layer.type === 'subsection') {
-                // decrease the level
-                this.layer = this.layer.parent;
+            this.layer = convertToSupersectionLayer(this.layer);
+            this.currentItems = [];
+            this.layer.content.at(-1)!.content.sections.push(createSection(this.currentItems, block));
+        } else if (this.layer.type === 'supersection') {
+            if (sectionName === this.layer.sectionName) {
+                this.currentItems = [];
+                this.layer.content.push(createSupersection(block));
+                return;
             }
+            this.currentItems = [];
+            this.layer.content.at(-1)!.content.sections.push(createSection(this.currentItems, block));
         }
-
-        const items: ScriptItem[] = [];
-        this.layer.content.push({
-            name: flattenBlockText(block).trim(),
-            content: { items },
-        });
-        this.currentItems = items;
     }
 
     visitTitleBlock(block: OtherBlock) {
