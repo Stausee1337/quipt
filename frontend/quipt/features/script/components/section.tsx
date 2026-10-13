@@ -1,6 +1,6 @@
 import { type ComponentProps, type JSX, type ReactElement, useMemo, useState } from 'react';
 
-import { Button as BaseButton, Menu, Toggle, ToggleGroup, type HTMLProps } from '@base-ui/react';
+import { Button as BaseButton, Menu, Toggle, ToggleGroup } from '@base-ui/react';
 import classnames from 'classnames';
 
 import { Icon } from 'quipt/components/icon';
@@ -15,13 +15,16 @@ import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
 import { ContentInfoView, HLine, PlayButton } from './common';
 import { ScriptViewManager, useScriptViewManager, useScriptViewState } from './script';
 import {
-    ActionItem,
+    ActionNode,
     type ActorKey,
-    DialogueItem,
-    DividerItem,
-    ScriptViewState,
-    type Section,
-    type SectionItem,
+    DialogueNode,
+    type EditableSectionNode,
+    type Key,
+    type Keyed,
+    type ScriptNode,
+    type ScriptViewState,
+    SectionNode,
+    keyOfType
 } from '../state';
 
 type VirtualizedElementProps = Omit<ComponentProps<'div'>, 'className'>;
@@ -49,8 +52,9 @@ export function SectionInfoHeader({
 
     return (
         <div
-            className="absolute top-0 right-0 left-0 flex w-auto flex-col gap-y-3 px-3 pt-2 sm:mx-3 sm:px-6 sm:pt-3"
+            className="absolute top-0 right-0 left-0 flex w-auto flex-col gap-y-3 px-3 sm:mx-3 sm:px-6"
             {...props}>
+            <HLine className="mb-2 sm:mb-4" />
             <div className="relative flex items-center gap-x-5">
                 <h2 className="text-heading-2">{name}</h2>
                 <div className="flex gap-x-2">
@@ -81,7 +85,7 @@ export function SectionInfoHeader({
     );
 }
 
-function ScriptItemMenu({ itemID }: { itemID: string }) {
+function ScriptItemMenu({ itemKey }: { itemKey: Key<EditableSectionNode> }) {
     const manager = useScriptViewManager();
 
     return (
@@ -89,7 +93,7 @@ function ScriptItemMenu({ itemID }: { itemID: string }) {
             <MenuItem iconName="check2-circle">Auswählen</MenuItem>
             <MenuItem
                 iconName="pencil"
-                onClick={() => manager.dispatch(ScriptViewManager.EDIT_ITEM, { itemID })}>
+                onClick={() => manager.dispatch(ScriptViewManager.EDIT_ITEM, { itemKey })}>
                 Bearbeiten
             </MenuItem>
             <MenuItem iconName="play-fill">Ab hier üben</MenuItem>
@@ -107,10 +111,10 @@ function ScriptItemMenu({ itemID }: { itemID: string }) {
 
 function HoverActionsContainer({
     onMenuOpenChange,
-    itemID,
+    itemKey,
 }: {
     onMenuOpenChange?: (open: boolean) => void;
-    itemID: string;
+    itemKey: Key<EditableSectionNode>;
 }): JSX.Element {
     return (
         <ActionsContainer className="invisible group-hover:not-group-data-editing:visible group-data-menu-open:visible">
@@ -123,7 +127,7 @@ function HoverActionsContainer({
                 <Menu.Portal>
                     <Menu.Positioner sideOffset={8} align="start" className="outline-hidden">
                         <Menu.Popup className={popupClass}>
-                            <ScriptItemMenu itemID={itemID} />
+                            <ScriptItemMenu itemKey={itemKey} />
                         </Menu.Popup>
                     </Menu.Positioner>
                 </Menu.Portal>
@@ -186,12 +190,7 @@ function makeRenderActor(state: ScriptViewState): (actor: ActorKey) => JSX.Eleme
         <Toggle
             value={`${actor}`}
             render={(props, { pressed }) => (
-                <ActorPill
-                    actor={state.lookupActor(actor)}
-                    selected={pressed}
-                    interactable
-                    {...props}
-                />
+                <ActorPill actor={state.lookup(actor)} selected={pressed} interactable {...props} />
             )}
         />
     );
@@ -217,14 +216,20 @@ function DialogueActorsEditMenu({ actors }: { actors: readonly ActorKey[] }): JS
     );
 }
 
+function useKeyedState<T extends Keyed<T>>(key: Key<T>): Readonly<T> {
+    const state = useScriptViewState();
+    return state.lookup(key);
+}
+
 function DialogueView({
-    dialogue,
+    dialogueKey,
     ...props
-}: { dialogue: DialogueItem } & VirtualizedElementProps): JSX.Element {
+}: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element {
     const [menuOpen, setMenuOpen] = useState(false);
     const state = useScriptViewState();
+    const dialogue = useKeyedState(dialogueKey);
     const formattedActorsString = useMemo(
-        () => formatActorsArray(dialogue.actors.map(actor => state.lookupActor(actor))),
+        () => formatActorsArray(dialogue.actors.map(actor => state.lookup(actor))),
         [dialogue],
     );
     return (
@@ -233,7 +238,7 @@ function DialogueView({
             data-menu-open={menuOpen ? '' : undefined}
             data-editing={dialogue.editing ? '' : undefined}
             {...props}>
-            <HoverActionsContainer itemID={dialogue.ID} onMenuOpenChange={setMenuOpen} />
+            <HoverActionsContainer itemKey={dialogue.key} onMenuOpenChange={setMenuOpen} />
             {dialogue.editing && <EditActionsContainer />}
             <div className="flex items-center gap-x-2">
                 {!dialogue.editing ? (
@@ -243,7 +248,7 @@ function DialogueView({
                 ) : (
                     <div className="flex gap-x-1">
                         {dialogue.actors.map(actor => (
-                            <ActorPill key={actor} actor={state.lookupActor(actor)} />
+                            <ActorPill key={actor} actor={state.lookup(actor)} />
                         ))}
                         <Menu.Root>
                             <BaseButton
@@ -272,15 +277,17 @@ function DialogueView({
 }
 
 function ActionView({
-    action,
+    actionKey,
     ...props
-}: { action: ActionItem } & VirtualizedElementProps): JSX.Element {
+}: { actionKey: Key<ActionNode> } & VirtualizedElementProps): JSX.Element {
+    const action = useKeyedState(actionKey);
+
     return (
         <HoverableSectionItem
             className="data-editing:before:bg-accent-100/20"
             data-editing={action.editing ? '' : undefined}
             {...props}>
-            <HoverActionsContainer itemID={action.ID} />
+            <HoverActionsContainer itemKey={action.key} />
             {action.editing && <EditActionsContainer />}
             <ContentRenderer
                 className="mx-auto w-31/40"
@@ -318,29 +325,24 @@ function SubsectionDivider({
     );
 }
 
-function* generateContentElements(items: SectionItem[]): Generator<ReactElement> {
-    for (let item of items) {
-        if (item instanceof ActionItem) yield <ActionView key={item.ID} action={item} />;
-        else if (item instanceof DialogueItem) yield <DialogueView key={item.ID} dialogue={item} />;
-        else if (item instanceof DividerItem)
-            yield <SubsectionDivider key={item.ID} name={item.name} />;
-    }
-}
-
-export function renderSection(section: Section): ReactElement[] {
-    const content = generateContentElements(section.items);
-    if (section.name !== null)
-        return [
+function SectionRenderer({ sectionKey, ...props }: { sectionKey: Key<SectionNode> } & VirtualizedElementProps): JSX.Element {
+    const section = useKeyedState(sectionKey);
+    if (section.depth === 0)
+        return (
             <SectionInfoHeader
                 name={section.name}
                 actors={section.actors}
                 dialogueCount={section.dialogueCount}
-            />,
-            ...content,
-            <HLine className="absolute top-0 right-0 left-0 mx-3 w-auto pt-1 sm:mx-9 sm:my-2 sm:pb-2" />,
-        ];
-    return [
-        ...content,
-        <HLine className="absolute top-0 right-0 left-0 mx-3 w-auto pt-1 sm:mx-9 sm:my-2 sm:pb-2" />,
-    ];
+                {...props}
+            />
+        );
+    return <SubsectionDivider name={section.name} {...props}/>
 }
+
+export function renderContentNode(item: Key<ScriptNode>): ReactElement<any> | null {
+    if (keyOfType<ActionNode>(item, ActionNode)) return <ActionView actionKey={item} />;
+    else if (keyOfType(item, DialogueNode)) return <DialogueView dialogueKey={item} />;
+    else if (keyOfType(item, SectionNode)) return <SectionRenderer sectionKey={item} />;
+    return null;
+}
+

@@ -81,16 +81,13 @@ function createSectionLayer(sectionName: SectionName, currentItems: ScriptItem[]
 
 function convertToSupersectionLayer(layer: SectionLayer): SupersectionLayer {
     const supersections: Supersection[] = [];
-    if (layer.content.length === 0)
-        throw new Error('invalid empty SectionLayer');
+    if (layer.content.length === 0) throw new Error('invalid empty SectionLayer');
 
     if (layer.content.length > 1)
         supersections.push({
             name: 'Unbenannter Überabschnitt',
-            content: { 
-                sections: [
-                    ...layer.content.slice(-1)
-                ]
+            content: {
+                sections: [...layer.content.slice(-1)],
             },
         });
     const last = layer.content.at(-1)!;
@@ -98,13 +95,13 @@ function convertToSupersectionLayer(layer: SectionLayer): SupersectionLayer {
     const sections: Section[] = [];
     supersections.push({
         name: last.name,
-        content: { sections }
+        content: { sections },
     });
     if (last.content.items.length > 0)
         sections.push({
             name: 'Unbenannter Abschnitt',
             content: last.content,
-        })
+        });
 
     return {
         type: 'supersection',
@@ -116,9 +113,7 @@ function convertToSupersectionLayer(layer: SectionLayer): SupersectionLayer {
 // THIS should become a method
 function createSection(items: ScriptItem[], blockOrName: string | OtherBlock): Section {
     return {
-        name: typeof blockOrName === 'string'
-            ? blockOrName
-            : flattenBlockText(blockOrName).trim(),
+        name: typeof blockOrName === 'string' ? blockOrName : flattenBlockText(blockOrName).trim(),
         content: { items },
     };
 }
@@ -126,9 +121,7 @@ function createSection(items: ScriptItem[], blockOrName: string | OtherBlock): S
 // THIS should become a method
 function createSupersection(block: string | OtherBlock): Supersection {
     return {
-        name: typeof block === 'string'
-            ? block
-            : flattenBlockText(block).trim(),
+        name: typeof block === 'string' ? block : flattenBlockText(block).trim(),
         content: { sections: [] },
     };
 }
@@ -174,7 +167,9 @@ class ScriptBuilder {
             }
             this.layer = convertToSupersectionLayer(this.layer);
             this.currentItems = [];
-            this.layer.content.at(-1)!.content.sections.push(createSection(this.currentItems, block));
+            this.layer.content
+                .at(-1)!
+                .content.sections.push(createSection(this.currentItems, block));
         } else if (this.layer.type === 'supersection') {
             if (sectionName === this.layer.sectionName) {
                 this.currentItems = [];
@@ -182,7 +177,9 @@ class ScriptBuilder {
                 return;
             }
             this.currentItems = [];
-            this.layer.content.at(-1)!.content.sections.push(createSection(this.currentItems, block));
+            this.layer.content
+                .at(-1)!
+                .content.sections.push(createSection(this.currentItems, block));
         }
     }
 

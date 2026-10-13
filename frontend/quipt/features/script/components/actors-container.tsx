@@ -1,4 +1,4 @@
-import { type JSX } from 'react';
+import { useRef, type JSX } from 'react';
 
 import { Menu, Toggle, ToggleGroup } from '@base-ui/react';
 
@@ -48,7 +48,7 @@ function ColorPicker({ color, onColorPicked }: ColorPickerProps): JSX.Element {
 
 function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
     const state = useScriptViewState();
-    const actor = state.lookupActor(props.actor);
+    const actor = state.lookup(props.actor);
 
     return (
         <MenuBox>
@@ -63,23 +63,24 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
     );
 }
 
-const actorMenuHandle = Menu.createHandle<{ actor: ActorKey }>();
 
 export function ActorsContainer({ actors }: { actors: readonly ActorKey[] }): JSX.Element {
+    const actorMenuHandleRef = useRef<Menu.Handle<{ actor: ActorKey }>>(undefined);
+    if (actorMenuHandleRef.current === undefined)
+        actorMenuHandleRef.current = Menu.createHandle<{ actor: ActorKey }>();
+
     const state = useScriptViewState();
     return (
         <div className="flex flex-wrap gap-2">
             {actors.map((actor, idx) => (
                 <Menu.Trigger
                     key={actor}
-                    handle={actorMenuHandle}
+                    handle={actorMenuHandleRef.current}
                     payload={{ actor }}
-                    render={
-                        <ActorPill actor={state.lookupActor(actor)} selected={!idx} interactable />
-                    }
+                    render={<ActorPill actor={state.lookup(actor)} selected={!idx} interactable />}
                 />
             ))}
-            <Menu.Root handle={actorMenuHandle}>
+            <Menu.Root handle={actorMenuHandleRef.current}>
                 {({ payload }) => (
                     <Menu.Portal>
                         <Menu.Positioner sideOffset={8} align="start" className="outline-hidden">

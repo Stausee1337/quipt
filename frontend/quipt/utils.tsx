@@ -24,8 +24,8 @@ export function randomID(length = 8): string {
 }
 
 export type Actor = {
-    readonly name: string;
-    readonly color: Color;
+    name: string;
+    color: Color;
 };
 
 // TODO: move to formatted-string.ts as renderActorsArray

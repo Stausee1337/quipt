@@ -3,15 +3,15 @@ import {
     type JSX,
     type ReactNode,
     type RefObject,
+    cloneElement,
     createContext,
+    memo,
     useContext,
     useEffect,
     useMemo,
     useRef,
-    useSyncExternalStore,
-    cloneElement,
-    memo,
     useState,
+    useSyncExternalStore,
 } from 'react';
 
 import { Button as BaseButton } from '@base-ui/react';
@@ -25,9 +25,15 @@ import { IconButton } from 'quipt/components/icon-button';
 import { Tooltip } from 'quipt/components/tooltip';
 import { useBreakpoints } from 'quipt/responsive';
 import { type Script } from 'quipt/schemas/script';
-import { SectionInfoHeader, renderSection } from './section';
+import { renderContentNode } from './section';
 import { HLine, VLine, ContentInfoView } from './common';
-import { ScriptViewState, type Section } from '../state';
+import {
+    type EditableSectionNode,
+    type Key,
+    type ScriptNode,
+    ScriptViewState,
+    type Structure,
+} from '../state';
 
 function ScriptViewHeader({ name }: { name: string }): JSX.Element {
     return (
@@ -83,33 +89,56 @@ function ScriptContentViewHeader(): JSX.Element {
     );
 }
 
+type FlatContentItem = {
+    key: Key<ScriptNode>;
+    estimatedHeight: number
+};
+
+function toFlatContent(structure: Readonly<Structure>): FlatContentItem[] {
+    switch (structure.depth) {
+        case 0:
+            return structure.children.map(key => ({ key, estimatedHeight: 48 }));
+        case 1:
+            return structure.children.flatMap(sectionPack => [
+                { key: sectionPack.key, estimatedHeight: 150 },
+                ...sectionPack.children.map(key => ({ key, estimatedHeight: 48 }))
+            ]);
+        case 2:
+            return structure.children.flatMap(supersectionPack => [
+                { key: supersectionPack.key, estimatedHeight: 150 },
+                ...supersectionPack.children.flatMap(sectionPack => [
+                    { key: sectionPack.key, estimatedHeight: 16 },
+                    ...sectionPack.children.map(key => ({ key, estimatedHeight: 48 }))
+                ])
+            ]);
+    }
+
+}
+
 const ScriptContentView = memo(
     function ScriptContentView({
-        sections,
+        structure,
         className,
         scrollContainerRef,
     }: {
-        scrollContainerRef: RefObject<HTMLElement | null>;
-        sections: readonly Section[];
         className?: string;
+        structure: Readonly<Structure>;
+        scrollContainerRef: RefObject<HTMLElement | null>;
     }): JSX.Element {
-        const x = useRef<HTMLDivElement | null>(null);
         const breakpoints = useBreakpoints();
-        const items = useMemo(
-            () => sections.flatMap(section => renderSection(section)),
-            [sections],
-        );
+
+        const containerRef = useRef<HTMLDivElement | null>(null);
+
         const [enabled, setEnabled] = useState(false);
         const [scrollMargin, setScrollMargin] = useState(0);
+
+        const content = useMemo(() => toFlatContent(structure), [structure]);
+
         const virtual = useVirtualizer({
-            count: items.length,
+            count: content.length,
             getScrollElement: () => scrollContainerRef.current,
-            estimateSize: idx => {
-                const item = items[idx];
-                if (item.type === SectionInfoHeader) return 150;
-                return 48;
-            },
-            getItemKey: idx => items[idx].key ?? idx,
+            estimateSize: idx => content[idx].estimatedHeight,
+            getItemKey: idx => content[idx].key,
             scrollMargin,
             enabled,
             directDomUpdates: true,
@@ -122,40 +151,41 @@ const ScriptContentView = memo(
         }, [scrollContainerRef.current]);
 
         useEffect(() => {
-            if (x.current !== null) {
-                const rect = x.current.getBoundingClientRect();
-                console.log(rect.top);
+            if (containerRef.current !== null) {
+                const rect = containerRef.current.getBoundingClientRect();
                 setScrollMargin(rect.top);
             } else {
                 setScrollMargin(0);
             }
-        }, [x.current]);
+        }, [containerRef.current]);
 
         function onContainerRefUpdate(element: HTMLDivElement | null) {
             virtual.containerRef(element);
-            x.current = element;
+            containerRef.current = element;
         }
 
         return (
             <div className={classnames('flex flex-col gap-y-2 sm:gap-y-4', className)}>
                 <ScriptContentViewHeader />
-                <HLine className="mx-3 sm:mx-9" />
+                {/*<HLine className="mx-3 sm:mx-9" /> */}
                 <div className="relative" ref={onContainerRefUpdate}>
-                    {virtual.getVirtualItems().map(item =>
-                        cloneElement(items[item.index], {
+                    {virtual.getVirtualItems().map(item => {
+                        const node = renderContentNode(content[item.index].key);
+                        if (node === null) return null;
+                        return cloneElement(node, {
                             key: item.key,
+                            ref: virtual.measureElement,
                             'data-index': item.index,
                             'data-size': item.size,
-                            ref: virtual.measureElement,
-                            // style: { transform: `translateY(${item.start}px)` }
-                        }),
-                    )}
+                        });
+                    })}
                 </div>
             </div>
         );
     },
     (a, b) =>
-        a.sections === b.sections && a.scrollContainerRef.current === b.scrollContainerRef.current,
+        a.structure === b.structure &&
+        a.scrollContainerRef.current === b.scrollContainerRef.current,
 );
 
 function UserView(): JSX.Element {
@@ -206,18 +236,24 @@ export class Action<Input> {
     ) {}
 }
 
-function doEditItem(state: ScriptViewState, { itemID }: { itemID: string }): ScriptViewState {
-    return state.replaceItem(state.getItem(itemID)!.setEditing());
+function doEditItem(
+    state: ScriptViewState,
+    { itemKey }: { itemKey: Key<EditableSectionNode> },
+): ScriptViewState {
+    return state;
 }
 
 export class ScriptViewManager {
-    static readonly EDIT_ITEM = new Action<{ itemID: string }>('EDIT_ITEM', doEditItem);
+    static readonly EDIT_ITEM = new Action<{ itemKey: Key<EditableSectionNode> }>(
+        'EDIT_ITEM',
+        doEditItem,
+    );
 
     state: ScriptViewState;
     onChangeListener: (() => void) | undefined = undefined;
 
     constructor(script: Script) {
-        this.state = ScriptViewState.create(script);
+        this.state = ScriptViewState.build(script);
     }
 
     dispatch<Input>(action: Action<Input>, input: Input) {
@@ -267,7 +303,7 @@ export function ScriptView({
                             <ScriptContentView
                                 className="flex-1"
                                 scrollContainerRef={scrollContainerRef}
-                                sections={state.sections}
+                                structure={state.structure}
                             />
                             {breakpoints.lg && (
                                 <>
@@ -299,7 +335,7 @@ export function ScriptView({
                         <HLine className="mx-3 sm:mx-9" />
                         <ScriptContentView
                             scrollContainerRef={scrollContainerRef}
-                            sections={state.sections}
+                            structure={state.structure}
                         />
                     </>
                 )}

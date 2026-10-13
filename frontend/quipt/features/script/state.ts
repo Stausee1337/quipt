@@ -1,187 +1,323 @@
+import { Map } from 'immutable';
+
 import { FormattedString, renderBBCode } from 'quipt/formatted-string';
-import type { Script, ScriptItem, ItemsContent } from 'quipt/schemas/script';
-import { type Actor, randomID } from 'quipt/utils';
+import type {
+    Script,
+    ItemsContent,
+    SectionContent,
+    SupersectionContent,
+} from 'quipt/schemas/script';
+import { type Actor as BaseActor, randomID } from 'quipt/utils';
 import type { Color } from 'quipt/color-palette';
 
+type SectionKeyPack<TChild> = { key: Key<SectionNode>; children: TChild[] };
+type RootPack<TDepth extends number, TChild> = { depth: TDepth; children: TChild[] };
+
+type SupersectionPack = SectionKeyPack<SectionPack>;
+type SectionPack = SectionKeyPack<ScriptItemKey>;
+type ScriptItemKey = Key<ActionNode> | Key<DialogueNode>;
+
+export type Structure =
+    RootPack<0, ScriptItemKey> | RootPack<1, SectionPack> | RootPack<2, SupersectionPack>;
+
+function buildScriptItems(
+    content: ItemsContent,
+    actorLookup: Record<string, Actor>,
+    pool: PoolType,
+): [ScriptItemKey[], (ActionNode | DialogueNode)[]] {
+    const keys: ScriptItemKey[] = [];
+    const nodes: (ActionNode | DialogueNode)[] = [];
+    for (const item of content.items) {
+        switch (item.kind) {
+            case 'action': {
+                const node = allocateIn(pool, ActionNode, renderBBCode(item.content));
+                nodes.push(node);
+                keys.push(node.key);
+                break;
+            }
+            case 'dialogue': {
+                const node = allocateIn(
+                    pool,
+                    DialogueNode,
+                    item.actors.map(actor => actorLookup[actor].key),
+                    renderBBCode(item.content),
+                );
+                nodes.push(node);
+                keys.push(node.key);
+                break;
+            }
+        }
+    }
+    return [keys, nodes];
+}
+
+function buildSections(
+    content: SectionContent,
+    actorLookup: Record<string, Actor>,
+    pool: PoolType,
+    depth: 0 | 1
+): [SectionPack[], SectionNode[]] {
+    const packs: SectionPack[] = [];
+    const nodes: SectionNode[] = [];
+    for (const section of content.sections) {
+        const [childKeys, childNodes] = buildScriptItems(section.content, actorLookup, pool);
+        const node = allocateIn(pool, SectionNode, section.name, depth, childNodes);
+        nodes.push(node);
+        packs.push({
+            key: node.key,
+            children: childKeys,
+        });
+    }
+    return [packs, nodes];
+}
+
+function buildSupersections(
+    content: SupersectionContent,
+    actorLookup: Record<string, Actor>,
+    pool: PoolType,
+): [SupersectionPack[], SectionNode[]] {
+    const packs: SupersectionPack[] = [];
+    const nodes: SectionNode[] = [];
+    for (const supersection of content.supersections) {
+        const [childKeys, childNodes] = buildSections(supersection.content, actorLookup, pool, 1);
+        const node = allocateIn(pool, SectionNode, supersection.name, 0, childNodes);
+        nodes.push(node);
+        packs.push({
+            key: node.key,
+            children: childKeys,
+        });
+    }
+    return [packs, nodes];
+}
+
+function buildStructure(
+    content: SupersectionContent | SectionContent | ItemsContent,
+    actorLookup: Record<string, Actor>,
+    pool: PoolType,
+): [Structure, (ActionNode | DialogueNode | SectionNode)[]] {
+    if (isItemsContent(content)) {
+        const [keys, nodes] = buildScriptItems(content, actorLookup, pool);
+        return [
+            {
+                depth: 0,
+                children: keys,
+            },
+            nodes,
+        ];
+    } else if (isSectionContent(content)) {
+        const [packs, nodes] = buildSections(content, actorLookup, pool, 0);
+        return [
+            {
+                depth: 1,
+                children: packs,
+            },
+            nodes,
+        ];
+    }
+    const [packs, nodes] = buildSupersections(content, actorLookup, pool);
+    return [
+        {
+            depth: 2,
+            children: packs,
+        },
+        nodes,
+    ];
+}
+
 declare const brand: unique symbol;
-export type ActorKey = string & { [brand]: ActorKey };
+export type Keyed<T extends Keyed<T>> = { key: Key<T> };
+export type Key<T extends Keyed<T>> = string & { [brand]: T };
 
-export abstract class SectionItem {
-    protected constructor(public readonly ID: string) {}
+type Prefix = string & { [brand]: Prefix; };
 
-    abstract setEditing(): SectionItem;
+const reversePrefixLookup: Record<string, object> = {};
+
+function makePrefix(): Prefix {
+    return randomID(4) as Prefix;
 }
 
-export class ActionItem extends SectionItem {
-    public constructor(
-        ID: string,
-        public readonly content: FormattedString,
-        public readonly editing: boolean = false,
-    ) {
-        super(ID);
-    }
-
-    setEditing(): ActionItem {
-        return new ActionItem(this.ID, this.content, true);
-    }
+function makeKey<T extends Keyed<T>>(klass: Constructor<T>): Key<T> {
+    reversePrefixLookup[klass.prefix] = klass.prototype;
+    return `${klass.prefix}-${randomID()}` as Key<T>;
 }
 
-export class DialogueItem extends SectionItem {
-    public constructor(
-        ID: string,
-        public readonly actors: readonly ActorKey[],
-        public readonly content: FormattedString,
-        public readonly editing: boolean = false,
-    ) {
-        super(ID);
-    }
-
-    setEditing(): DialogueItem {
-        return new DialogueItem(this.ID, this.actors, this.content, true);
-    }
+export function keyOfType<T extends Keyed<T>>(key: Key<any>, klass: Constructor<T>): key is Key<T> {
+    const prototype = reversePrefixLookup[key.slice(0, 4)];
+    if (prototype === undefined) return false;
+    return klass.prototype === prototype || klass.prototype.isPrototypeOf(prototype);
 }
 
-export class DividerItem extends SectionItem {
-    public constructor(
-        ID: string,
-        public readonly name: string,
-    ) {
-        super(ID);
-    }
+export class Actor implements BaseActor {
+    static readonly prefix = makePrefix();
 
-    setEditing(): DividerItem {
-        return this;
-    }
+    constructor(
+        public key: ActorKey,
+        public name: string,
+        public color: Color,
+    ) {}
+}
+
+export type ActorKey = Key<Actor>;
+
+export interface ScriptNode {
+    key: Key<ScriptNode>;
+}
+
+export interface EditableSectionNode extends ScriptNode {
+    key: Key<EditableSectionNode>;
+    content: FormattedString;
+}
+
+export class ActionNode implements EditableSectionNode {
+    public editing = false;
+    static readonly prefix = makePrefix();
+
+    constructor(
+        public key: Key<ActionNode>,
+        public content: Readonly<FormattedString>,
+    ) {}
+}
+
+export class DialogueNode implements EditableSectionNode {
+    public editing = false;
+    static readonly prefix = makePrefix();
+
+    constructor(
+        public key: Key<DialogueNode>,
+        public actors: readonly ActorKey[],
+        public content: Readonly<FormattedString>,
+    ) {}
 }
 
 function isItemsContent(content: object | ItemsContent): content is ItemsContent {
     return 'items' in content;
 }
 
-export class Section {
-    public readonly actors: readonly ActorKey[];
-    public readonly dialogueCount: number;
+function isSectionContent(content: object | SectionContent): content is SectionContent {
+    return 'sections' in content;
+}
 
-    public constructor(
-        public readonly ID: string,
-        public readonly name: string | null,
-        public readonly items: SectionItem[],
+// NOTE: These have to be kept like that (physically containing thier children, since an updat to a
+// child *might* cause these to update as well (e.g. adding/removing an actor not prevoiusly/only
+// once in the section). Building around that seems painful and unstable, so definetely won't do
+// that for now. Update the stateful parts as you're supposed to!
+// NOTE: changes to the strcture are different from the issues mentioned in the comment above
+
+export class SectionNode implements ScriptNode {
+    public actors: readonly ActorKey[];
+    public dialogueCount: number;
+    static readonly prefix = makePrefix();
+
+    constructor(
+        public key: Key<SectionNode>,
+        public name: string,
+        public depth: 0 | 1,
+        public children: (ActionNode | DialogueNode | SectionNode)[],
     ) {
-        let dialogueCount = 0;
-        const collection = new Set<ActorKey>();
-        const add = collection.add.bind(collection);
+        const [actors, dialogueCount] = computeMetaInformation(children);
+        this.actors = actors;
+        this.dialogueCount = dialogueCount;
+    }
+}
 
-        for (let item of this.items) {
-            if (item instanceof DialogueItem) item.actors.forEach(add);
+function computeMetaInformation(
+    nodes: (ActionNode | DialogueNode | SectionNode)[],
+): [ActorKey[], number] {
+    const actors = new Set<ActorKey>();
+    const add = actors.add.bind(actors);
+    let dialogueCount = 0;
+    for (let node of nodes) {
+        if (node instanceof DialogueNode) {
             dialogueCount++;
+            node.actors.forEach(add);
+        } else if (node instanceof SectionNode) {
+            dialogueCount += node.dialogueCount;
+            node.actors.forEach(add);
         }
-        this.actors = Array.from(collection);
+    }
+    return [Array.from(actors), dialogueCount];
+}
+
+interface Constructor<T extends Keyed<T>, Args extends unknown[] = any[]> {
+    prefix: Prefix;
+    prototype: object;
+    new (key: Key<T>, ...args: Args): T;
+}
+
+function cloneUpdate<T extends Keyed<T>>(obj: T, update: Partial<T>): T {
+    return Object.assign(Object.create(Object.getPrototypeOf(obj)), obj, update);
+}
+
+type PoolType = Map<Key<any>, Keyed<any>>;
+
+function withNewPool<T>(f: (pool: PoolType) => T): [PoolType, T] {
+    const tempMap = Map<Key<any>, Keyed<any>>();
+    let result: T | undefined;
+    const map = tempMap.withMutations(map => {
+        result = f(map);
+    });
+    if (result === undefined) throw new Error("callback didn't produce result");
+
+    return [map, result];
+}
+
+function allocateIn<T extends Keyed<T>, Args extends unknown[]>(
+    pool: PoolType,
+    klass: Constructor<T, Args>,
+    ...args: Args
+): Readonly<T> {
+    const key: Key<T> = makeKey(klass);
+    const object = new klass(key, ...args);
+    pool.set(key, object);
+    return object;
+}
+
+function lookupIn<T extends Keyed<T>>(pool: PoolType, key: Key<T>): Readonly<T> {
+    const object = pool.get(key);
+    if (object === undefined) throw new Error(`key '${key}' not in pool`);
+    return object as T;
+}
+
+// Remember: no getters in here, everything is computed at creation
+export class ScriptViewState {
+    public readonly name: string;
+    public readonly actors: readonly ActorKey[];
+    public readonly structure: Readonly<Structure>;
+    public readonly dialogueCount: number;
+    private readonly pool: PoolType;
+
+    constructor(
+        name: string,
+        actors: readonly ActorKey[],
+        structure: Structure,
+        nodes: (ActionNode | DialogueNode | SectionNode)[],
+        nodePool: PoolType,
+    ) {
+        this.name = name;
+        this.actors = actors;
+        this.structure = structure;
+        this.pool = nodePool;
+        const [_, dialogueCount] = computeMetaInformation(nodes);
         this.dialogueCount = dialogueCount;
     }
 
-    static build(script: Script, reverseActorLookup: Record<string, ActorKey>): Section[] {
-        if (isItemsContent(script.content))
-            return [
-                new Section(
-                    randomID(),
-                    null,
-                    mapScriptItems(script.content.items, reverseActorLookup),
-                ),
-            ];
+    lookup<T extends Keyed<T>>(key: Key<T>): Readonly<T> {
+        return lookupIn(this.pool, key);
+    }
 
-        return script.content.sections.map(section => {
-            const items = isItemsContent(section.content)
-                ? mapScriptItems(section.content.items, reverseActorLookup)
-                : section.content.subsections.flatMap(subsection => [
-                      new DividerItem(randomID(), subsection.name),
-                      ...mapScriptItems(subsection.content.items, reverseActorLookup),
-                  ]);
+    static build(script: Script): ScriptViewState {
+        const [pool, [actors, structure, nodes]] = withNewPool(pool => {
+            const actorLookup: Record<string, Actor> = {};
+            const actors = script.allActors.map(name => {
+                const actor = allocateIn(pool, Actor, name, randomColor());
+                actorLookup[name] = actor;
+                return actor.key;
+            });
 
-            return new Section(randomID(), section.name, items);
+            const [structure, nodes] = buildStructure(script.content, actorLookup, pool);
+            return [actors, structure, nodes];
         });
-    }
-}
-
-function mapScriptItems(
-    items: ScriptItem[],
-    reverseActorLookup: Record<string, ActorKey>,
-): SectionItem[] {
-    return items.map(item => {
-        switch (item.kind) {
-            case 'action':
-                return new ActionItem(randomID(), renderBBCode(item.content));
-            case 'dialogue':
-                return new DialogueItem(
-                    randomID(),
-                    item.actors
-                        .map(name => reverseActorLookup[name])
-                        .filter(actor => actor !== undefined),
-                    renderBBCode(item.content),
-                );
-        }
-    });
-}
-
-export class ScriptViewState {
-    public readonly dialogueCount: number;
-    public readonly actors: readonly ActorKey[];
-    private readonly actorLookup: Record<ActorKey, Actor>;
-
-    private constructor(
-        public readonly name: string,
-        public readonly sections: readonly Section[],
-        actors: Record<ActorKey, Actor>,
-    ) {
-        this.dialogueCount = sections.reduce((count, section) => count + section.dialogueCount, 0);
-        this.actors = Object.keys(actors) as ActorKey[];
-        this.actorLookup = actors;
-    }
-
-    lookupActor(key: ActorKey): Actor {
-        const actor = this.actorLookup[key];
-        if (actor === undefined) throw new Error('Invalid `ActorKey` used on state.');
-        return actor;
-    }
-
-    getItem(itemID: string): SectionItem | undefined {
-        for (let section of this.sections) {
-            const item = section.items.find(item => item.ID === itemID);
-            if (item !== undefined) return item;
-        }
-        return undefined;
-    }
-
-    replaceItem(newItem: SectionItem): ScriptViewState {
-        let sections = this.sections;
-        for (let sectionIdx = 0; sectionIdx < this.sections.length; sectionIdx++) {
-            const section = sections[sectionIdx];
-            const itemIdx = section.items.findIndex(item => item.ID === newItem.ID);
-            if (itemIdx === -1) continue;
-            sections = [
-                ...this.sections.slice(0, sectionIdx),
-                new Section(section.ID, section.name, [
-                    ...section.items.slice(0, itemIdx),
-                    newItem,
-                    ...section.items.slice(itemIdx + 1),
-                ]),
-                ...this.sections.slice(sectionIdx + 1),
-            ];
-            break;
-        }
-        return new ScriptViewState(this.name, sections, this.actorLookup);
-    }
-
-    static create(script: Script): ScriptViewState {
-        const actors: Record<ActorKey, Actor> = {};
-        const reverseActorLookup: Record<string, ActorKey> = {};
-        for (let name of script.allActors) {
-            const id = randomID() as ActorKey;
-            actors[id] = { name: name, color: randomColor() };
-            reverseActorLookup[name] = id;
-        }
-
-        const sections = Section.build(script, reverseActorLookup);
-        return new ScriptViewState(script.name, sections, actors);
+        return new ScriptViewState(script.name, actors, structure, nodes, pool);
     }
 }
 
