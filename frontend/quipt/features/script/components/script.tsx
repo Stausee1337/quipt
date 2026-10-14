@@ -24,10 +24,12 @@ import { SearchInput } from 'quipt/components/input';
 import { IconButton } from 'quipt/components/icon-button';
 import { Tooltip } from 'quipt/components/tooltip';
 import { useBreakpoints } from 'quipt/responsive';
+import { type Color } from 'quipt/color-palette';
 import { type Script } from 'quipt/schemas/script';
 import { renderContentNode } from './section';
 import { HLine, VLine, ContentInfoView } from './common';
 import {
+    type ActorKey,
     type EditableSectionNode,
     type Key,
     type ScriptNode,
@@ -243,22 +245,52 @@ function doEditItem(
     return state;
 }
 
+type ChangeActorColorParams = { actorKey: ActorKey; newColor: Color; };
+
+function doChangeActorColor(
+    state: ScriptViewState,
+    { actorKey, newColor }: ChangeActorColorParams
+): ScriptViewState {
+    return state.update({
+        key: actorKey,
+        data: { color: newColor }
+    });
+}
+
 export class ScriptViewManager {
     static readonly EDIT_ITEM = new Action<{ itemKey: Key<EditableSectionNode> }>(
         'EDIT_ITEM',
         doEditItem,
     );
 
+    static readonly CHANGE_ACTOR_COLOR = new Action<ChangeActorColorParams>(
+        'CHANGE_ACTOR_COLOR',
+        doChangeActorColor
+    );
+
     state: ScriptViewState;
-    onChangeListener: (() => void) | undefined = undefined;
+    listeners = new Set<(() => void)>;
 
     constructor(script: Script) {
         this.state = ScriptViewState.build(script);
+        this.subscribe = this.subscribe.bind(this);
+    }
+
+    subscribe(listener: () => void): () => void {
+        this.listeners.add(listener);
+        return () => {
+            this.listeners.delete(listener);
+        };
     }
 
     dispatch<Input>(action: Action<Input>, input: Input) {
         this.state = action.action(this.state, input);
-        this.onChangeListener?.();
+        this.runChangeListeners();
+    }
+
+    private runChangeListeners() {
+        for (let listener of this.listeners.values())
+            listener();
     }
 }
 
@@ -269,7 +301,11 @@ export function useScriptViewManager(): ScriptViewManager {
 const ScriptViewContextObject = createContext<ScriptViewManager | null>(null);
 
 export function useScriptViewState(): ScriptViewState {
-    return useContext(ScriptViewContextObject)!.state;
+    const manager = useContext(ScriptViewContextObject)!;
+    return useSyncExternalStore(
+        manager.subscribe,
+        () => manager.state
+    );
 }
 
 export function ScriptView({
@@ -284,12 +320,7 @@ export function ScriptView({
 
     const breakpoints = useBreakpoints();
     const state = useSyncExternalStore(
-        cb => {
-            if (managerRef.current) managerRef.current.onChangeListener = cb;
-            return () => {
-                if (managerRef.current) managerRef.current.onChangeListener = undefined;
-            };
-        },
+        managerRef.current.subscribe,
         () => managerRef.current!.state,
     );
 

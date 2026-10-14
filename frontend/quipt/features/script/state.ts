@@ -159,26 +159,28 @@ export class Actor implements BaseActor {
 
 export type ActorKey = Key<Actor>;
 
-export interface ScriptNode {
-    key: Key<ScriptNode>;
+export abstract class ScriptNode {
+    abstract key: Key<ScriptNode>;
 }
 
-export interface EditableSectionNode extends ScriptNode {
-    key: Key<EditableSectionNode>;
-    content: FormattedString;
+export abstract class EditableSectionNode extends ScriptNode {
+    abstract key: Key<EditableSectionNode>;
+    abstract content: FormattedString;
 }
 
-export class ActionNode implements EditableSectionNode {
+export class ActionNode extends EditableSectionNode {
     public editing = false;
     static readonly prefix = makePrefix();
 
     constructor(
         public key: Key<ActionNode>,
         public content: Readonly<FormattedString>,
-    ) {}
+    ) {
+        super();
+    }
 }
 
-export class DialogueNode implements EditableSectionNode {
+export class DialogueNode extends EditableSectionNode {
     public editing = false;
     static readonly prefix = makePrefix();
 
@@ -186,7 +188,9 @@ export class DialogueNode implements EditableSectionNode {
         public key: Key<DialogueNode>,
         public actors: readonly ActorKey[],
         public content: Readonly<FormattedString>,
-    ) {}
+    ) {
+        super();
+    }
 }
 
 function isItemsContent(content: object | ItemsContent): content is ItemsContent {
@@ -244,7 +248,7 @@ interface Constructor<T extends Keyed<T>, Args extends unknown[] = any[]> {
     new (key: Key<T>, ...args: Args): T;
 }
 
-function cloneUpdate<T extends Keyed<T>>(obj: T, update: Partial<T>): T {
+function cloneUpdate<T>(obj: T, update: Partial<T>): T {
     return Object.assign(Object.create(Object.getPrototypeOf(obj)), obj, update);
 }
 
@@ -278,13 +282,18 @@ function lookupIn<T extends Keyed<T>>(pool: PoolType, key: Key<T>): Readonly<T> 
     return object as T;
 }
 
+type UpdateDesc<T extends Keyed<T>> = {
+    key: Key<T>;
+    data: Partial<T>;
+};
+
 // Remember: no getters in here, everything is computed at creation
 export class ScriptViewState {
-    public readonly name: string;
-    public readonly actors: readonly ActorKey[];
-    public readonly structure: Readonly<Structure>;
-    public readonly dialogueCount: number;
-    private readonly pool: PoolType;
+    public name: string;
+    public actors: readonly ActorKey[];
+    public structure: Readonly<Structure>;
+    public dialogueCount: number;
+    private pool: PoolType;
 
     constructor(
         name: string,
@@ -303,6 +312,16 @@ export class ScriptViewState {
 
     lookup<T extends Keyed<T>>(key: Key<T>): Readonly<T> {
         return lookupIn(this.pool, key);
+    }
+
+    update<T extends Keyed<T>>(update: UpdateDesc<T>): ScriptViewState {
+        const pool = this.pool.withMutations(pool => {
+            const object = lookupIn(pool, update.key);
+            const newObject = cloneUpdate(object, update.data);
+            pool.set(update.key, newObject);
+        });
+        
+        return cloneUpdate<any>(this, { pool });
     }
 
     static build(script: Script): ScriptViewState {

@@ -6,7 +6,7 @@ import { Input } from 'quipt/components/input';
 import { ActorPill } from 'quipt/components/actor-pill';
 import { type Color, colorToString, asLighterColor } from 'quipt/color-palette';
 import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
-import { useScriptViewState } from './script';
+import { ScriptViewManager, useScriptViewManager, useScriptViewState } from './script';
 import { type ActorKey } from '../state';
 
 export interface ColorPickerProps {
@@ -48,13 +48,16 @@ function ColorPicker({ color, onColorPicked }: ColorPickerProps): JSX.Element {
 
 function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
     const state = useScriptViewState();
+    const manager = useScriptViewManager();
     const actor = state.lookup(props.actor);
 
     return (
         <MenuBox>
             <Input className="mx-2" placeholder="Spieler benennen" value={actor.name} autoFocus />
             <MenuSeparator />
-            <ColorPicker color={actor.color} />
+            <ColorPicker
+                color={actor.color}
+                onColorPicked={color => manager.dispatch(ScriptViewManager.CHANGE_ACTOR_COLOR, { actorKey: props.actor, newColor: color })}/>
             <MenuSeparator />
             <MenuItem>Als "ich selbst" markieren</MenuItem>
             <MenuSeparator />

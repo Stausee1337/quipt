@@ -67,8 +67,8 @@ export function SectionInfoHeader({
                             onClick={handleStateToggle}
                         />
                     </Tooltip>
-                    <Tooltip label="Bearbeiten">
-                        <IconButton iconName="pencil" render={<Tooltip.Trigger />} />
+                    <Tooltip label="Umbenennen">
+                        <IconButton iconName="input-cursor-text" render={<Tooltip.Trigger />} />
                     </Tooltip>
                     <Tooltip label="Löschen">
                         <IconButton iconName="trash" render={<Tooltip.Trigger />} />
@@ -230,7 +230,7 @@ function DialogueView({
     const dialogue = useKeyedState(dialogueKey);
     const formattedActorsString = useMemo(
         () => formatActorsArray(dialogue.actors.map(actor => state.lookup(actor))),
-        [dialogue],
+        [dialogue, state],
     );
     return (
         <HoverableSectionItem
