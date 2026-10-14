@@ -13,14 +13,14 @@ import {
 import { type Actor } from 'quipt/utils';
 
 type ElementProps = React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
-export interface PillProps extends Omit<ElementProps, 'children'> {
+export interface ActorPillProps extends Omit<ElementProps, 'children'> {
     actor: Actor;
     interactable?: boolean;
     selected?: boolean;
 }
 
 export const ActorPill = memo(
-    ({ actor, className, interactable, selected, style, ...rest }: PillProps): JSX.Element => {
+    ({ actor, className, interactable, selected, style, ...rest }: ActorPillProps): JSX.Element => {
         const textColor =
             getColorLightness(actor.color) === 'light' ? 'text-background' : 'text-foreground';
 

@@ -1,10 +1,9 @@
-import { type ComponentProps, type JSX, type ReactElement, useMemo, useState } from 'react';
+import { type ComponentProps, type JSX, type ReactElement, memo, useState } from 'react';
 
 import { Button as BaseButton, Menu, Toggle, ToggleGroup } from '@base-ui/react';
 import classnames from 'classnames';
 
 import { Icon } from 'quipt/components/icon';
-import { ActorPill } from 'quipt/components/actor-pill';
 import { IconButton } from 'quipt/components/icon-button';
 import { Tooltip } from 'quipt/components/tooltip';
 import { FormattedStringView } from 'quipt/components/formatted-string-view';
@@ -13,19 +12,18 @@ import { useBreakpoints } from 'quipt/responsive';
 import { formatActorsArray } from 'quipt/utils';
 import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
 import { ContentInfoView, HLine, PlayButton } from './common';
-import { ScriptViewManager, useScriptViewManager, useScriptViewState } from './script';
+import { ScriptViewManager, useKeyedState, useScriptViewManager, useScriptViewState } from './script';
 import {
     ActionNode,
     type ActorKey,
     DialogueNode,
     type EditableSectionNode,
     type Key,
-    type Keyed,
     type ScriptNode,
-    type ScriptViewState,
     SectionNode,
     keyOfType
 } from '../state';
+import { ActorKeyPill } from './actors-container';
 
 type VirtualizedElementProps = Omit<ComponentProps<'div'>, 'className'>;
 
@@ -185,12 +183,12 @@ interface ActorsSelectorProps {
     onActorsChange?: (x: ActorKey[]) => void;
 }
 
-function makeRenderActor(state: ScriptViewState): (actor: ActorKey) => JSX.Element {
+function makeRenderActor(): (actor: ActorKey) => JSX.Element {
     return (actor: ActorKey) => (
         <Toggle
             value={`${actor}`}
             render={(props, { pressed }) => (
-                <ActorPill actor={state.lookup(actor)} selected={pressed} interactable {...props} />
+                <ActorKeyPill actorKey={actor} selected={pressed} interactable {...props} />
             )}
         />
     );
@@ -200,8 +198,8 @@ function ActorsSelector({ actors, onActorsChange }: ActorsSelectorProps): JSX.El
     const state = useScriptViewState();
     return (
         <ToggleGroup className="flex flex-wrap gap-2 p-2" onValueChange={onActorsChange} multiple>
-            {actors.map(makeRenderActor(state))}
-            {state.actors.filter(actor => !actors.includes(actor)).map(makeRenderActor(state))}
+            {actors.map(makeRenderActor())}
+            {state.actors.filter(actor => !actors.includes(actor)).map(makeRenderActor())}
         </ToggleGroup>
     );
 }
@@ -216,22 +214,23 @@ function DialogueActorsEditMenu({ actors }: { actors: readonly ActorKey[] }): JS
     );
 }
 
-function useKeyedState<T extends Keyed<T>>(key: Key<T>): Readonly<T> {
-    const state = useScriptViewState();
-    return state.lookup(key);
+function ActorsLineRenderer({ actorKeys }: { actorKeys: readonly ActorKey[] }): JSX.Element {
+    const actors = useKeyedState(actorKeys);
+    const string = formatActorsArray(actors);
+    return (
+        <p className="font-semibold">
+            <FormattedStringView string={string} />
+        </p>
+    );
 }
 
+const DialogueView = memo(
 function DialogueView({
     dialogueKey,
     ...props
 }: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element {
     const [menuOpen, setMenuOpen] = useState(false);
-    const state = useScriptViewState();
     const dialogue = useKeyedState(dialogueKey);
-    const formattedActorsString = useMemo(
-        () => formatActorsArray(dialogue.actors.map(actor => state.lookup(actor))),
-        [dialogue, state],
-    );
     return (
         <HoverableSectionItem
             className="data-editing:before:bg-accent-100/20 data-editing:gap-y-1 sm:data-editing:gap-y-2"
@@ -242,13 +241,11 @@ function DialogueView({
             {dialogue.editing && <EditActionsContainer />}
             <div className="flex items-center gap-x-2">
                 {!dialogue.editing ? (
-                    <p className="font-semibold">
-                        <FormattedStringView string={formattedActorsString} />
-                    </p>
+                    <ActorsLineRenderer actorKeys={dialogue.actors}/>
                 ) : (
                     <div className="flex gap-x-1">
                         {dialogue.actors.map(actor => (
-                            <ActorPill key={actor} actor={state.lookup(actor)} />
+                            <ActorKeyPill key={actor} actorKey={actor}/>
                         ))}
                         <Menu.Root>
                             <BaseButton
@@ -275,7 +272,9 @@ function DialogueView({
         </HoverableSectionItem>
     );
 }
+);
 
+const ActionView = memo(
 function ActionView({
     actionKey,
     ...props
@@ -297,6 +296,7 @@ function ActionView({
         </HoverableSectionItem>
     );
 }
+);
 
 function HoverableSectionItem({ className, ...props }: ComponentProps<'div'>): JSX.Element {
     return (
@@ -325,6 +325,7 @@ function SubsectionDivider({
     );
 }
 
+const SectionRenderer = memo(
 function SectionRenderer({ sectionKey, ...props }: { sectionKey: Key<SectionNode> } & VirtualizedElementProps): JSX.Element {
     const section = useKeyedState(sectionKey);
     if (section.depth === 0)
@@ -338,11 +339,12 @@ function SectionRenderer({ sectionKey, ...props }: { sectionKey: Key<SectionNode
         );
     return <SubsectionDivider name={section.name} {...props}/>
 }
+);
 
 export function renderContentNode(item: Key<ScriptNode>): ReactElement<any> | null {
-    if (keyOfType<ActionNode>(item, ActionNode)) return <ActionView actionKey={item} />;
-    else if (keyOfType(item, DialogueNode)) return <DialogueView dialogueKey={item} />;
-    else if (keyOfType(item, SectionNode)) return <SectionRenderer sectionKey={item} />;
+    if (keyOfType<ActionNode>(item, ActionNode)) return <ActionView actionKey={item}/>;
+    else if (keyOfType(item, DialogueNode)) return <DialogueView dialogueKey={item}/>;
+    else if (keyOfType(item, SectionNode)) return <SectionRenderer sectionKey={item}/>;
     return null;
 }
 

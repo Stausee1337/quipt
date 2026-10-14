@@ -3,11 +3,20 @@ import { useRef, type JSX } from 'react';
 import { Menu, Toggle, ToggleGroup } from '@base-ui/react';
 
 import { Input } from 'quipt/components/input';
-import { ActorPill } from 'quipt/components/actor-pill';
+import { ActorPill, type ActorPillProps } from 'quipt/components/actor-pill';
 import { type Color, colorToString, asLighterColor } from 'quipt/color-palette';
 import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
-import { ScriptViewManager, useScriptViewManager, useScriptViewState } from './script';
+import { ScriptViewManager, useKeyedState, useScriptViewManager } from './script';
 import { type ActorKey } from '../state';
+
+export interface ActorKeyPillProps extends Omit<ActorPillProps, 'actor'> {
+    actorKey: ActorKey;
+}
+
+export function ActorKeyPill({ actorKey, ...props }: ActorKeyPillProps) {
+    const actor = useKeyedState(actorKey);
+    return <ActorPill actor={actor} {...props}/>
+}
 
 export interface ColorPickerProps {
     color: Color;
@@ -47,13 +56,18 @@ function ColorPicker({ color, onColorPicked }: ColorPickerProps): JSX.Element {
 }
 
 function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
-    const state = useScriptViewState();
     const manager = useScriptViewManager();
-    const actor = state.lookup(props.actor);
+    const actor = useKeyedState(props.actor);
 
     return (
         <MenuBox>
-            <Input className="mx-2" placeholder="Spieler benennen" value={actor.name} autoFocus />
+            <Input className="mx-2"
+                placeholder="Spieler benennen"
+                value={actor.name}
+                onValueChange={value => manager.dispatch(ScriptViewManager.RENAME_ACTOR, { actorKey: props.actor, newName: value})}
+                onKeyDown={e => e.stopPropagation()}
+                onKeyUp={e => e.stopPropagation()}
+                autoFocus/>
             <MenuSeparator />
             <ColorPicker
                 color={actor.color}
@@ -72,7 +86,6 @@ export function ActorsContainer({ actors }: { actors: readonly ActorKey[] }): JS
     if (actorMenuHandleRef.current === undefined)
         actorMenuHandleRef.current = Menu.createHandle<{ actor: ActorKey }>();
 
-    const state = useScriptViewState();
     return (
         <div className="flex flex-wrap gap-2">
             {actors.map((actor, idx) => (
@@ -80,7 +93,7 @@ export function ActorsContainer({ actors }: { actors: readonly ActorKey[] }): JS
                     key={actor}
                     handle={actorMenuHandleRef.current}
                     payload={{ actor }}
-                    render={<ActorPill actor={state.lookup(actor)} selected={!idx} interactable />}
+                    render={<ActorKeyPill actorKey={actor} selected={!idx} interactable />}
                 />
             ))}
             <Menu.Root handle={actorMenuHandleRef.current}>

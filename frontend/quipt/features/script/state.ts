@@ -161,16 +161,19 @@ export type ActorKey = Key<Actor>;
 
 export abstract class ScriptNode {
     abstract key: Key<ScriptNode>;
+    public parent: Key<SectionNode> | null = null;
 }
 
+// FXIME: This is obviously a case of ViewState in the wrong place
 export abstract class EditableSectionNode extends ScriptNode {
     abstract key: Key<EditableSectionNode>;
     abstract content: FormattedString;
 }
 
 export class ActionNode extends EditableSectionNode {
-    public editing = false;
     static readonly prefix = makePrefix();
+
+    public editing = false;
 
     constructor(
         public key: Key<ActionNode>,
@@ -181,8 +184,9 @@ export class ActionNode extends EditableSectionNode {
 }
 
 export class DialogueNode extends EditableSectionNode {
-    public editing = false;
     static readonly prefix = makePrefix();
+
+    public editing = false;
 
     constructor(
         public key: Key<DialogueNode>,
@@ -207,10 +211,11 @@ function isSectionContent(content: object | SectionContent): content is SectionC
 // that for now. Update the stateful parts as you're supposed to!
 // NOTE: changes to the strcture are different from the issues mentioned in the comment above
 
-export class SectionNode implements ScriptNode {
+export class SectionNode extends ScriptNode {
+    static readonly prefix = makePrefix();
+
     public actors: readonly ActorKey[];
     public dialogueCount: number;
-    static readonly prefix = makePrefix();
 
     constructor(
         public key: Key<SectionNode>,
@@ -218,9 +223,12 @@ export class SectionNode implements ScriptNode {
         public depth: 0 | 1,
         public children: (ActionNode | DialogueNode | SectionNode)[],
     ) {
+        super() 
         const [actors, dialogueCount] = computeMetaInformation(children);
         this.actors = actors;
         this.dialogueCount = dialogueCount;
+        for (let child of children)
+            child.parent = key;
     }
 }
 
@@ -288,6 +296,7 @@ type UpdateDesc<T extends Keyed<T>> = {
 };
 
 // Remember: no getters in here, everything is computed at creation
+// FIXME: Calling this ScriptViewState is misleading. It is no ViewState whatsoever
 export class ScriptViewState {
     public name: string;
     public actors: readonly ActorKey[];
@@ -314,14 +323,54 @@ export class ScriptViewState {
         return lookupIn(this.pool, key);
     }
 
-    update<T extends Keyed<T>>(update: UpdateDesc<T>): ScriptViewState {
+    update<T extends Keyed<T[number]>[]>(
+        ...updates: { [K in keyof T]: UpdateDesc<T[K]> }
+    ): [ScriptViewState, Set<Key<any>>] {
+        const changes = new Set<Key<any>>;
         const pool = this.pool.withMutations(pool => {
-            const object = lookupIn(pool, update.key);
-            const newObject = cloneUpdate(object, update.data);
-            pool.set(update.key, newObject);
+            for (let update of updates) {
+                const object = lookupIn(pool, update.key);
+                const newObject = cloneUpdate(object, update.data);
+                pool.set(update.key, newObject);
+                changes.add(object.key);
+                // TODO: listen for structural changes
+                if (object instanceof ScriptNode && object.parent !== null) {
+                    // FIXME: really this is incorrect, we'd need to ensure all updates are 
+                    // independent from another, and even fail on update conflict. This would 
+                    // involve the following steps:
+                    //  - build the update list (adding more updates if tree invariants are 
+                    //    violated)
+                    //  - adjust the update list, combine updates, make sure there are no conflics
+                    //    (this is the step that could potentially fail)
+                    //  - run the updates
+                    // FIXME: building this `UpdateDesc` before running the updates means 
+                    // `newObject` is a time traveller. There might be a better approach using a
+                    // pass based update system, where this would lead to a new updatePass instead
+
+                    const parent = lookupIn(pool, object.parent);
+                    const index = parent.children.indexOf(object as any);
+                    if (index === -1)
+                        throw Error('invariant violated: parent needs to contain its child');
+                    const children = [
+                        ...parent.children.slice(0, index),
+                        newObject as any,
+                        ...parent.children.slice(index + 1),
+                    ];
+                    const [actors, dialogueCount] = computeMetaInformation(children);
+                    const update: UpdateDesc<SectionNode> = {
+                        key: parent.key,
+                        data: {
+                            children,
+                            actors,
+                            dialogueCount
+                        }
+                    };
+                    updates.push(update);
+                }
+            }
         });
-        
-        return cloneUpdate<any>(this, { pool });
+
+        return [cloneUpdate<any>(this, { pool }), changes];
     }
 
     static build(script: Script): ScriptViewState {

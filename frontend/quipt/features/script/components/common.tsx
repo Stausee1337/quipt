@@ -1,4 +1,4 @@
-import { type ComponentProps, type JSX } from 'react';
+import { type ComponentProps, type JSX, memo } from 'react';
 
 import { Button as BaseButton, Separator, type SeparatorProps } from '@base-ui/react';
 import classnames from 'classnames';
@@ -52,7 +52,8 @@ export function MyselfMarker(): JSX.Element {
     );
 }
 
-export function ContentInfoView({
+export const ContentInfoView = memo(
+function ContentInfoView({
     actors,
     dialogueCount,
 }: {
@@ -73,3 +74,4 @@ export function ContentInfoView({
         </>
     );
 }
+);

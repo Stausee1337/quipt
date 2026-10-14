@@ -32,6 +32,7 @@ import {
     type ActorKey,
     type EditableSectionNode,
     type Key,
+    type Keyed,
     type ScriptNode,
     ScriptViewState,
     type Structure,
@@ -117,35 +118,31 @@ function toFlatContent(structure: Readonly<Structure>): FlatContentItem[] {
 
 }
 
-const ScriptContentView = memo(
-    function ScriptContentView({
-        structure,
-        className,
+const VirtualizedContentList = memo(
+    function VirtualizedContentList({
+        gap,
+        content,
         scrollContainerRef,
     }: {
-        className?: string;
-        structure: Readonly<Structure>;
+        gap: number
+        content: FlatContentItem[],
         scrollContainerRef: RefObject<HTMLElement | null>;
-    }): JSX.Element {
-        const breakpoints = useBreakpoints();
-
+    }) {
         const containerRef = useRef<HTMLDivElement | null>(null);
 
         const [enabled, setEnabled] = useState(false);
         const [scrollMargin, setScrollMargin] = useState(0);
-
-        const content = useMemo(() => toFlatContent(structure), [structure]);
 
         const virtual = useVirtualizer({
             count: content.length,
             getScrollElement: () => scrollContainerRef.current,
             estimateSize: idx => content[idx].estimatedHeight,
             getItemKey: idx => content[idx].key,
-            scrollMargin,
+            gap,
             enabled,
+            scrollMargin,
             directDomUpdates: true,
-            laneAssignmentMode: 'measured',
-            gap: breakpoints.sm ? 16 : 8,
+            laneAssignmentMode: 'measured'
         });
 
         useEffect(() => {
@@ -167,28 +164,49 @@ const ScriptContentView = memo(
         }
 
         return (
-            <div className={classnames('flex flex-col gap-y-2 sm:gap-y-4', className)}>
-                <ScriptContentViewHeader />
-                {/*<HLine className="mx-3 sm:mx-9" /> */}
-                <div className="relative" ref={onContainerRefUpdate}>
-                    {virtual.getVirtualItems().map(item => {
-                        const node = renderContentNode(content[item.index].key);
-                        if (node === null) return null;
-                        return cloneElement(node, {
-                            key: item.key,
-                            ref: virtual.measureElement,
-                            'data-index': item.index,
-                            'data-size': item.size,
-                        });
-                    })}
-                </div>
+            <div className="relative" ref={onContainerRefUpdate}>
+                {virtual.getVirtualItems().map(item => {
+                    const node = renderContentNode(content[item.index].key);
+                    if (node === null) return null;
+                    return cloneElement(node, {
+                        key: item.key,
+                        ref: virtual.measureElement,
+                        'data-index': item.index,
+                        'data-size': item.size,
+                    });
+                })}
             </div>
         );
     },
     (a, b) =>
-        a.structure === b.structure &&
-        a.scrollContainerRef.current === b.scrollContainerRef.current,
+        a.gap == b.gap
+            && a.content === b.content 
+            && a.scrollContainerRef.current === b.scrollContainerRef.current
 );
+
+function ScriptContentView({
+    className,
+    structure,
+    scrollContainerRef,
+}: {
+    className?: string;
+    structure: Readonly<Structure>;
+    scrollContainerRef: RefObject<HTMLElement | null>;
+}): JSX.Element {
+    const breakpoints = useBreakpoints();
+    const content = useMemo(() => toFlatContent(structure), [structure]);
+
+    return (
+        <div className={classnames('flex flex-col gap-y-2 sm:gap-y-4', className)}>
+            <ScriptContentViewHeader />
+            <VirtualizedContentList 
+                gap={breakpoints.sm ? 16 : 8}
+                content={content}
+                scrollContainerRef={scrollContainerRef}
+            />
+        </div>
+    );
+}
 
 function UserView(): JSX.Element {
     return (
@@ -231,30 +249,56 @@ function ScriptInfoView(props: ComponentProps<typeof ContentInfoView>): JSX.Elem
     );
 }
 
+type UpdateOutput = [ScriptViewState, Set<Key<any>>];
 export class Action<Input> {
     public constructor(
         public readonly name: string,
-        public readonly action: (state: ScriptViewState, input: Input) => ScriptViewState,
+        public readonly action: (state: ScriptViewState, input: Input) => UpdateOutput,
     ) {}
 }
 
 function doEditItem(
     state: ScriptViewState,
     { itemKey }: { itemKey: Key<EditableSectionNode> },
-): ScriptViewState {
-    return state;
+): UpdateOutput {
+    return [state, new Set()];
 }
 
 type ChangeActorColorParams = { actorKey: ActorKey; newColor: Color; };
+type RenameActorParams = { actorKey: ActorKey; newName: string; };
 
 function doChangeActorColor(
     state: ScriptViewState,
     { actorKey, newColor }: ChangeActorColorParams
-): ScriptViewState {
+): UpdateOutput {
     return state.update({
         key: actorKey,
         data: { color: newColor }
     });
+}
+
+function doRenameActor(
+    state: ScriptViewState,
+    { actorKey, newName }: RenameActorParams
+): UpdateOutput {
+    return state.update({
+        key: actorKey,
+        data: { name: newName }
+    });
+}
+
+function mapAdd(map: Map<string, Set<(() => void)>>, key: string, listener: () => void) {
+    let set = map.get(key);
+    if (set === undefined) {
+        set = new Set<() => void>();
+        map.set(key, set);
+    }
+    set.add(listener);
+}
+
+function mapDelete(map: Map<string, Set<(() => void)>>, key: string, listener: () => void) {
+    const set = map.get(key);
+    set?.delete(listener);
 }
 
 export class ScriptViewManager {
@@ -268,29 +312,46 @@ export class ScriptViewManager {
         doChangeActorColor
     );
 
+    static readonly RENAME_ACTOR = new Action<RenameActorParams>(
+        'RENAME_ACTOR',
+        doRenameActor
+    );
+
     state: ScriptViewState;
-    listeners = new Set<(() => void)>;
+    private listeners = new Map<string, Set<(() => void)>>;
 
     constructor(script: Script) {
         this.state = ScriptViewState.build(script);
-        this.subscribe = this.subscribe.bind(this);
     }
 
-    subscribe(listener: () => void): () => void {
-        this.listeners.add(listener);
+    subscribe<T extends Keyed<T[number]>[]>(
+        listener: () => void,
+        keys?: { readonly [K in keyof T]: Key<T[K]> }
+    ): () => void {
+        const keysArray = keys !== undefined
+            ? Array.from(keys)
+            : [''];
+        for (let key of keysArray)
+            mapAdd(this.listeners, key, listener);
         return () => {
-            this.listeners.delete(listener);
+            for (let key of keysArray)
+                mapDelete(this.listeners, key, listener);
         };
     }
 
     dispatch<Input>(action: Action<Input>, input: Input) {
-        this.state = action.action(this.state, input);
-        this.runChangeListeners();
+        const [state, changes] = action.action(this.state, input);
+        this.state = state;
+        this.runChangeListeners(changes);
     }
 
-    private runChangeListeners() {
-        for (let listener of this.listeners.values())
+    private runChangeListeners(changes: Set<Key<any>>) {
+        for (let listener of this.listeners.get('') ?? [])
             listener();
+
+        for (let key of changes.values())
+            for (let listener of this.listeners.get(key) ?? [])
+                listener();
     }
 }
 
@@ -303,8 +364,98 @@ const ScriptViewContextObject = createContext<ScriptViewManager | null>(null);
 export function useScriptViewState(): ScriptViewState {
     const manager = useContext(ScriptViewContextObject)!;
     return useSyncExternalStore(
-        manager.subscribe,
+        listener => manager.subscribe(listener),
         () => manager.state
+    );
+}
+
+export function useScriptViewStateAccessor<T>(
+    accessor: (state: ScriptViewState) => T,
+    // valuesAreEqual?: (prev: T, next: T) => boolean
+): T {
+    const manager = useContext(ScriptViewContextObject)!;
+    return useSyncExternalStore(
+        listener => manager.subscribe(listener),
+        () => accessor(manager.state)
+    );
+}
+
+export function useKeyedState<T extends Keyed<T>>(key: Key<T>): Readonly<T>;
+export function useKeyedState<T extends Keyed<T>>(key: readonly Key<T>[]): Readonly<T>[];
+export function useKeyedState<T extends Keyed<T>>(keyOrKeys: Key<T>|(readonly Key<T>[])): Readonly<T>[] | Readonly<T> {
+    const manager = useContext(ScriptViewContextObject)!;
+    const cache = useRef<{ state: ScriptViewState; keys: readonly Key<T>[]; result: Readonly<T>[]; }>(null);
+    return useSyncExternalStore(
+        listener => manager.subscribe(listener, typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys),
+        () => {
+            if (typeof keyOrKeys === 'string')
+                return manager.state.lookup(keyOrKeys)
+            if (cache.current === null 
+                || cache.current.state !== manager.state
+                || cache.current.keys !== keyOrKeys) {
+                const result = keyOrKeys.map(key => manager.state.lookup(key))
+                cache.current = {
+                    state: manager.state,
+                    keys: keyOrKeys,
+                    result
+                };
+                return result;
+            }
+            return cache.current.result;
+        }
+    );
+}
+
+function ScriptViewLayout({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLElement | null>; }): JSX.Element {
+    const breakpoints = useBreakpoints();
+    const state = useScriptViewState();
+
+    return (
+        <div className="mx-auto flex w-full max-w-343 flex-col gap-y-2 sm:gap-y-4">
+            {breakpoints.lg ? (
+                <>
+                    <ScriptViewHeader name={state.name} />
+                    <div className="flex max-w-full flex-1">
+                        <ScriptContentView
+                            className="flex-1"
+                            scrollContainerRef={scrollContainerRef}
+                            structure={state.structure}
+                        />
+                        {breakpoints.lg && (
+                            <>
+                                <div className="pointer-events-none">
+                                    <VLine className="absolute top-4 bottom-4 -z-2" />
+                                    <VLine className="border-background relative -z-1 h-200 -translate-y-196" />
+                                </div>
+                                <ScriptInfoView
+                                    actors={state.actors}
+                                    dialogueCount={state.dialogueCount}
+                                />
+                            </>
+                        )}
+                    </div>
+                </>
+            ) : (
+                <>
+                    {breakpoints.sm ? (
+                        <ScriptViewHeader name={state.name} />
+                    ) : (
+                        <MobileScriptViewHeader name={state.name} />
+                    )}
+                    <div className="flex flex-col gap-y-3 px-3 sm:px-9">
+                        <ContentInfoView
+                            actors={state.actors}
+                            dialogueCount={state.dialogueCount}
+                        />
+                    </div>
+                    <HLine className="mx-3 sm:mx-9" />
+                    <ScriptContentView
+                        scrollContainerRef={scrollContainerRef}
+                        structure={state.structure}
+                    />
+                </>
+            )}
+        </div>
     );
 }
 
@@ -318,59 +469,9 @@ export function ScriptView({
     const managerRef = useRef<ScriptViewManager>(null);
     if (managerRef.current === null) managerRef.current = new ScriptViewManager(script);
 
-    const breakpoints = useBreakpoints();
-    const state = useSyncExternalStore(
-        managerRef.current.subscribe,
-        () => managerRef.current!.state,
-    );
-
     return (
         <ScriptViewContextObject.Provider value={managerRef.current}>
-            <div className="mx-auto flex w-full max-w-343 flex-col gap-y-2 sm:gap-y-4">
-                {breakpoints.lg ? (
-                    <>
-                        <ScriptViewHeader name={state.name} />
-                        <div className="flex max-w-full flex-1">
-                            <ScriptContentView
-                                className="flex-1"
-                                scrollContainerRef={scrollContainerRef}
-                                structure={state.structure}
-                            />
-                            {breakpoints.lg && (
-                                <>
-                                    <div className="pointer-events-none">
-                                        <VLine className="absolute top-4 bottom-4 -z-2" />
-                                        <VLine className="border-background relative -z-1 h-200 -translate-y-196" />
-                                    </div>
-                                    <ScriptInfoView
-                                        actors={state.actors}
-                                        dialogueCount={state.dialogueCount}
-                                    />
-                                </>
-                            )}
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        {breakpoints.sm ? (
-                            <ScriptViewHeader name={state.name} />
-                        ) : (
-                            <MobileScriptViewHeader name={state.name} />
-                        )}
-                        <div className="flex flex-col gap-y-3 px-3 sm:px-9">
-                            <ContentInfoView
-                                actors={state.actors}
-                                dialogueCount={state.dialogueCount}
-                            />
-                        </div>
-                        <HLine className="mx-3 sm:mx-9" />
-                        <ScriptContentView
-                            scrollContainerRef={scrollContainerRef}
-                            structure={state.structure}
-                        />
-                    </>
-                )}
-            </div>
+            <ScriptViewLayout scrollContainerRef={scrollContainerRef}/>
         </ScriptViewContextObject.Provider>
     );
 }
