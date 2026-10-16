@@ -52,8 +52,7 @@ export function MyselfMarker(): JSX.Element {
     );
 }
 
-export const ContentInfoView = memo(
-function ContentInfoView({
+export const ContentInfoView = memo(function ContentInfoView({
     actors,
     dialogueCount,
 }: {
@@ -73,5 +72,4 @@ function ContentInfoView({
             </p>
         </>
     );
-}
-);
+});

@@ -1,6 +1,5 @@
-
 declare const brand: unique symbol;
-export type Ref<T> = string & { [brand]: T; };
+export type Ref<T> = string & { [brand]: T };
 
 export type User = {};
 

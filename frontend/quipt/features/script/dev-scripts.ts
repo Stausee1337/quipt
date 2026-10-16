@@ -1,4 +1,10 @@
-import { type Ref, type ScriptDocument, type ScriptRepo, type User, type ScriptCommit } from 'quipt/schemas/script';
+import {
+    type Ref,
+    type ScriptDocument,
+    type ScriptRepo,
+    type User,
+    type ScriptCommit,
+} from 'quipt/schemas/script';
 import { type Color, allColors } from 'quipt/color-palette';
 
 function pickARandomColor(colors: Color[]): Color {
@@ -11,8 +17,7 @@ function pickARandomColor(colors: Color[]): Color {
 function* assignColors(allActors: string[]): Generator<[string, Color]> {
     let currentColors = [...allColors];
     for (let actor of allActors) {
-        if (currentColors.length === 0)
-            currentColors.push(...allColors);
+        if (currentColors.length === 0) currentColors.push(...allColors);
         yield [actor, pickARandomColor(currentColors)];
     }
 }
@@ -23,7 +28,7 @@ export function createScript(name: string, document: ScriptDocument): Ref<Script
         document,
         commiter: window.currentUser,
         parent: null,
-        commitedAt: Date.now()
+        commitedAt: Date.now(),
     };
 
     const colors = Object.fromEntries(assignColors(document.allActors));
@@ -35,23 +40,21 @@ export function createScript(name: string, document: ScriptDocument): Ref<Script
         commit: commitID,
         settings: {
             selfActor: null,
-            colors
-        }
+            colors,
+        },
     };
     return repoID as Ref<ScriptRepo>;
 }
 
 export async function getScriptRepo(ID: Ref<ScriptRepo>): Promise<ScriptRepo> {
     const result = window.scriptRepoMap[ID];
-    if (result === undefined)
-        throw Error('invalid ID');
+    if (result === undefined) throw Error('invalid ID');
     return result;
 }
 
 export async function getCommit(ID: Ref<ScriptCommit>): Promise<ScriptCommit> {
     const result = window.commitMap[ID];
-    if (result === undefined)
-        throw Error('invalid ID');
+    if (result === undefined) throw Error('invalid ID');
     return result;
 }
 
@@ -64,7 +67,7 @@ if (typeof window !== 'undefined') {
 declare global {
     interface Window {
         scriptRepoMap: Record<Ref<ScriptRepo>, ScriptRepo>;
-        commitMap: Record<Ref<ScriptCommit>, ScriptCommit>
+        commitMap: Record<Ref<ScriptCommit>, ScriptCommit>;
         currentUser: Ref<User>;
     }
 }

@@ -3,7 +3,7 @@ import { type JSX, useRef } from 'react';
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
-import { ScriptView } from './components/script';
+import { ScriptEditorView } from './components/script';
 import type { Ref, ScriptRepo } from 'quipt/schemas/script';
 import { scriptQueryOptions } from './script';
 
@@ -27,7 +27,7 @@ export function ScriptRoute(): JSX.Element {
             className="flex w-full flex-col overflow-y-auto sm:ps-16"
             id="scroll-container">
             {script.isSuccess && (
-                <ScriptView
+                <ScriptEditorView
                     key={repoID}
                     scrollContainerRef={scrollContainerRef}
                     script={script.data}

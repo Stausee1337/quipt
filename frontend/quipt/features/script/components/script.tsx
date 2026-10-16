@@ -34,8 +34,10 @@ import {
     type Key,
     type Keyed,
     type ScriptNode,
-    ScriptViewState,
+    ScriptEditorState,
     type Structure,
+    TransientState,
+    runUpdate,
 } from '../state';
 
 function ScriptViewHeader({ name }: { name: string }): JSX.Element {
@@ -94,7 +96,7 @@ function ScriptContentViewHeader(): JSX.Element {
 
 type FlatContentItem = {
     key: Key<ScriptNode>;
-    estimatedHeight: number
+    estimatedHeight: number;
 };
 
 function toFlatContent(structure: Readonly<Structure>): FlatContentItem[] {
@@ -104,18 +106,17 @@ function toFlatContent(structure: Readonly<Structure>): FlatContentItem[] {
         case 1:
             return structure.children.flatMap(sectionPack => [
                 { key: sectionPack.key, estimatedHeight: 150 },
-                ...sectionPack.children.map(key => ({ key, estimatedHeight: 48 }))
+                ...sectionPack.children.map(key => ({ key, estimatedHeight: 48 })),
             ]);
         case 2:
             return structure.children.flatMap(supersectionPack => [
                 { key: supersectionPack.key, estimatedHeight: 150 },
                 ...supersectionPack.children.flatMap(sectionPack => [
                     { key: sectionPack.key, estimatedHeight: 16 },
-                    ...sectionPack.children.map(key => ({ key, estimatedHeight: 48 }))
-                ])
+                    ...sectionPack.children.map(key => ({ key, estimatedHeight: 48 })),
+                ]),
             ]);
     }
-
 }
 
 const VirtualizedContentList = memo(
@@ -124,8 +125,8 @@ const VirtualizedContentList = memo(
         content,
         scrollContainerRef,
     }: {
-        gap: number
-        content: FlatContentItem[],
+        gap: number;
+        content: FlatContentItem[];
         scrollContainerRef: RefObject<HTMLElement | null>;
     }) {
         const containerRef = useRef<HTMLDivElement | null>(null);
@@ -142,7 +143,7 @@ const VirtualizedContentList = memo(
             enabled,
             scrollMargin,
             directDomUpdates: true,
-            laneAssignmentMode: 'measured'
+            laneAssignmentMode: 'measured',
         });
 
         useEffect(() => {
@@ -179,9 +180,9 @@ const VirtualizedContentList = memo(
         );
     },
     (a, b) =>
-        a.gap == b.gap
-            && a.content === b.content 
-            && a.scrollContainerRef.current === b.scrollContainerRef.current
+        a.gap == b.gap &&
+        a.content === b.content &&
+        a.scrollContainerRef.current === b.scrollContainerRef.current,
 );
 
 function ScriptContentView({
@@ -199,7 +200,7 @@ function ScriptContentView({
     return (
         <div className={classnames('flex flex-col gap-y-2 sm:gap-y-4', className)}>
             <ScriptContentViewHeader />
-            <VirtualizedContentList 
+            <VirtualizedContentList
                 gap={breakpoints.sm ? 16 : 8}
                 content={content}
                 scrollContainerRef={scrollContainerRef}
@@ -249,45 +250,27 @@ function ScriptInfoView(props: ComponentProps<typeof ContentInfoView>): JSX.Elem
     );
 }
 
-type UpdateOutput = [ScriptViewState, Set<Key<any>>];
 export class Action<Input> {
     public constructor(
         public readonly name: string,
-        public readonly action: (state: ScriptViewState, input: Input) => UpdateOutput,
+        public readonly action: (state: TransientState, input: Input) => void,
     ) {}
 }
 
-function doEditItem(
-    state: ScriptViewState,
-    { itemKey }: { itemKey: Key<EditableSectionNode> },
-): UpdateOutput {
-    return [state, new Set()];
+function doEditItem(state: TransientState, { itemKey }: { itemKey: Key<EditableSectionNode> }) {}
+
+type ChangeActorColorParams = { actorKey: ActorKey; newColor: Color };
+type RenameActorParams = { actorKey: ActorKey; newName: string };
+
+function doChangeActorColor(state: TransientState, { actorKey, newColor }: ChangeActorColorParams) {
+    state.replaceNode(actorKey, { color: newColor });
 }
 
-type ChangeActorColorParams = { actorKey: ActorKey; newColor: Color; };
-type RenameActorParams = { actorKey: ActorKey; newName: string; };
-
-function doChangeActorColor(
-    state: ScriptViewState,
-    { actorKey, newColor }: ChangeActorColorParams
-): UpdateOutput {
-    return state.update({
-        key: actorKey,
-        data: { color: newColor }
-    });
+function doRenameActor(state: TransientState, { actorKey, newName }: RenameActorParams) {
+    state.replaceNode(actorKey, { name: newName });
 }
 
-function doRenameActor(
-    state: ScriptViewState,
-    { actorKey, newName }: RenameActorParams
-): UpdateOutput {
-    return state.update({
-        key: actorKey,
-        data: { name: newName }
-    });
-}
-
-function mapAdd(map: Map<string, Set<(() => void)>>, key: string, listener: () => void) {
+function mapAdd(map: Map<string, Set<() => void>>, key: string, listener: () => void) {
     let set = map.get(key);
     if (set === undefined) {
         set = new Set<() => void>();
@@ -296,12 +279,12 @@ function mapAdd(map: Map<string, Set<(() => void)>>, key: string, listener: () =
     set.add(listener);
 }
 
-function mapDelete(map: Map<string, Set<(() => void)>>, key: string, listener: () => void) {
+function mapDelete(map: Map<string, Set<() => void>>, key: string, listener: () => void) {
     const set = map.get(key);
     set?.delete(listener);
 }
 
-export class ScriptViewManager {
+export class ScriptEditorManager {
     static readonly EDIT_ITEM = new Action<{ itemKey: Key<EditableSectionNode> }>(
         'EDIT_ITEM',
         doEditItem,
@@ -309,106 +292,109 @@ export class ScriptViewManager {
 
     static readonly CHANGE_ACTOR_COLOR = new Action<ChangeActorColorParams>(
         'CHANGE_ACTOR_COLOR',
-        doChangeActorColor
+        doChangeActorColor,
     );
 
-    static readonly RENAME_ACTOR = new Action<RenameActorParams>(
-        'RENAME_ACTOR',
-        doRenameActor
-    );
+    static readonly RENAME_ACTOR = new Action<RenameActorParams>('RENAME_ACTOR', doRenameActor);
 
-    state: ScriptViewState;
-    private listeners = new Map<string, Set<(() => void)>>;
+    state: ScriptEditorState;
+    private listeners = new Map<string, Set<() => void>>();
 
     constructor(script: Script) {
-        this.state = ScriptViewState.build(script);
+        this.state = ScriptEditorState.build(script);
     }
 
     subscribe<T extends Keyed<T[number]>[]>(
         listener: () => void,
-        keys?: { readonly [K in keyof T]: Key<T[K]> }
+        keys?: { readonly [K in keyof T]: Key<T[K]> },
     ): () => void {
-        const keysArray = keys !== undefined
-            ? Array.from(keys)
-            : [''];
-        for (let key of keysArray)
-            mapAdd(this.listeners, key, listener);
+        const keysArray = keys !== undefined ? Array.from(keys) : [''];
+        for (let key of keysArray) mapAdd(this.listeners, key, listener);
         return () => {
-            for (let key of keysArray)
-                mapDelete(this.listeners, key, listener);
+            for (let key of keysArray) mapDelete(this.listeners, key, listener);
         };
     }
 
     dispatch<Input>(action: Action<Input>, input: Input) {
-        const [state, changes] = action.action(this.state, input);
+        const [state, changes] = runUpdate(this.state, trans => action.action(trans, input));
         this.state = state;
         this.runChangeListeners(changes);
     }
 
     private runChangeListeners(changes: Set<Key<any>>) {
-        for (let listener of this.listeners.get('') ?? [])
-            listener();
+        for (let listener of this.listeners.get('') ?? []) listener();
 
         for (let key of changes.values())
-            for (let listener of this.listeners.get(key) ?? [])
-                listener();
+            for (let listener of this.listeners.get(key) ?? []) listener();
     }
 }
 
-export function useScriptViewManager(): ScriptViewManager {
+export function useScriptViewManager(): ScriptEditorManager {
     return useContext(ScriptViewContextObject)!;
 }
 
-const ScriptViewContextObject = createContext<ScriptViewManager | null>(null);
+const ScriptViewContextObject = createContext<ScriptEditorManager | null>(null);
 
-export function useScriptViewState(): ScriptViewState {
+export function useScriptEditorState(): ScriptEditorState {
     const manager = useContext(ScriptViewContextObject)!;
     return useSyncExternalStore(
         listener => manager.subscribe(listener),
-        () => manager.state
+        () => manager.state,
     );
 }
 
-export function useScriptViewStateAccessor<T>(
-    accessor: (state: ScriptViewState) => T,
+export function useScriptEditorStateAccessor<T>(
+    accessor: (state: ScriptEditorState) => T,
     // valuesAreEqual?: (prev: T, next: T) => boolean
 ): T {
     const manager = useContext(ScriptViewContextObject)!;
     return useSyncExternalStore(
         listener => manager.subscribe(listener),
-        () => accessor(manager.state)
+        () => accessor(manager.state),
     );
 }
 
 export function useKeyedState<T extends Keyed<T>>(key: Key<T>): Readonly<T>;
 export function useKeyedState<T extends Keyed<T>>(key: readonly Key<T>[]): Readonly<T>[];
-export function useKeyedState<T extends Keyed<T>>(keyOrKeys: Key<T>|(readonly Key<T>[])): Readonly<T>[] | Readonly<T> {
+export function useKeyedState<T extends Keyed<T>>(
+    keyOrKeys: Key<T> | readonly Key<T>[],
+): Readonly<T>[] | Readonly<T> {
     const manager = useContext(ScriptViewContextObject)!;
-    const cache = useRef<{ state: ScriptViewState; keys: readonly Key<T>[]; result: Readonly<T>[]; }>(null);
+    const cache = useRef<{
+        state: ScriptEditorState;
+        keys: readonly Key<T>[];
+        result: Readonly<T>[];
+    }>(null);
     return useSyncExternalStore(
-        listener => manager.subscribe(listener, typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys),
+        listener =>
+            manager.subscribe(listener, typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys),
         () => {
-            if (typeof keyOrKeys === 'string')
-                return manager.state.lookup(keyOrKeys)
-            if (cache.current === null 
-                || cache.current.state !== manager.state
-                || cache.current.keys !== keyOrKeys) {
-                const result = keyOrKeys.map(key => manager.state.lookup(key))
+            if (typeof keyOrKeys === 'string') return manager.state.lookup(keyOrKeys);
+            if (
+                cache.current === null ||
+                cache.current.state !== manager.state ||
+                cache.current.keys !== keyOrKeys
+            ) {
+                const result = keyOrKeys.map(key => manager.state.lookup(key));
                 cache.current = {
                     state: manager.state,
                     keys: keyOrKeys,
-                    result
+                    result,
                 };
                 return result;
             }
             return cache.current.result;
-        }
+        },
     );
 }
 
-function ScriptViewLayout({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLElement | null>; }): JSX.Element {
+function ScriptViewLayout({
+    scrollContainerRef,
+}: {
+    scrollContainerRef: RefObject<HTMLElement | null>;
+}): JSX.Element {
     const breakpoints = useBreakpoints();
-    const state = useScriptViewState();
+    const state = useScriptEditorState();
 
     return (
         <div className="mx-auto flex w-full max-w-343 flex-col gap-y-2 sm:gap-y-4">
@@ -459,19 +445,19 @@ function ScriptViewLayout({ scrollContainerRef }: { scrollContainerRef: RefObjec
     );
 }
 
-export function ScriptView({
+export function ScriptEditorView({
     scrollContainerRef,
     script,
 }: {
     scrollContainerRef: RefObject<HTMLElement | null>;
     script: Script;
 }): JSX.Element {
-    const managerRef = useRef<ScriptViewManager>(null);
-    if (managerRef.current === null) managerRef.current = new ScriptViewManager(script);
+    const managerRef = useRef<ScriptEditorManager>(null);
+    if (managerRef.current === null) managerRef.current = new ScriptEditorManager(script);
 
     return (
         <ScriptViewContextObject.Provider value={managerRef.current}>
-            <ScriptViewLayout scrollContainerRef={scrollContainerRef}/>
+            <ScriptViewLayout scrollContainerRef={scrollContainerRef} />
         </ScriptViewContextObject.Provider>
     );
 }

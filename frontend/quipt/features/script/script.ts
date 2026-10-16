@@ -1,6 +1,12 @@
 import { queryOptions } from '@tanstack/react-query';
 
-import type { Ref, ScriptCommit, ScriptDocument, ScriptRepo, ScriptSettings } from 'quipt/schemas/script';
+import type {
+    Ref,
+    ScriptCommit,
+    ScriptDocument,
+    ScriptRepo,
+    ScriptSettings,
+} from 'quipt/schemas/script';
 import { getCommit, getScriptRepo } from './dev-scripts';
 
 export type Script = {
@@ -24,7 +30,6 @@ export function scriptQueryOptions(repoID: Ref<ScriptRepo>) {
                 commit,
                 repo,
             };
-        }
+        },
     });
 }
-

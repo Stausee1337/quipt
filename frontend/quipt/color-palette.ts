@@ -63,10 +63,8 @@ const colorPaletteMapping = [
 ];
 
 export function ensureColor(x: number, fallback: Color = 1): Color {
-    if (!Number.isInteger(x))
-        return fallback;
-    if (x >= 1 && x <= 24)
-        return x as Color;
+    if (!Number.isInteger(x)) return fallback;
+    if (x >= 1 && x <= 24) return x as Color;
     return fallback;
 }
 

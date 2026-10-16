@@ -1,11 +1,7 @@
 import { Map } from 'immutable';
 
 import { FormattedString, renderBBCode } from 'quipt/formatted-string';
-import type {
-    ItemsContent,
-    SectionContent,
-    SupersectionContent,
-} from 'quipt/schemas/script';
+import type { ItemsContent, SectionContent, SupersectionContent } from 'quipt/schemas/script';
 import { type Actor as BaseActor, randomID } from 'quipt/utils';
 import { type Color, ensureColor } from 'quipt/color-palette';
 import type { Script } from './script';
@@ -55,7 +51,7 @@ function buildSections(
     content: SectionContent,
     actorLookup: Record<string, Actor>,
     pool: PoolType,
-    depth: 0 | 1
+    depth: 0 | 1,
 ): [SectionPack[], SectionNode[]] {
     const packs: SectionPack[] = [];
     const nodes: SectionNode[] = [];
@@ -128,7 +124,7 @@ declare const brand: unique symbol;
 export type Keyed<T extends Keyed<T>> = { key: Key<T> };
 export type Key<T extends Keyed<T>> = string & { [brand]: T };
 
-type Prefix = string & { [brand]: Prefix; };
+type Prefix = string & { [brand]: Prefix };
 
 const reversePrefixLookup: Record<string, object> = {};
 
@@ -223,18 +219,22 @@ export class SectionNode extends ScriptNode {
         public depth: 0 | 1,
         public children: (ActionNode | DialogueNode | SectionNode)[],
     ) {
-        super() 
-        const [actors, dialogueCount] = computeMetaInformation(children);
+        super();
+        const { actors, dialogueCount } = computeMetaInformation(children);
         this.actors = actors;
         this.dialogueCount = dialogueCount;
-        for (let child of children)
-            child.parent = key;
+        for (let child of children) child.parent = key;
     }
 }
 
+type MetaInformation = {
+    actors: ActorKey[];
+    dialogueCount: number;
+};
+
 function computeMetaInformation(
     nodes: (ActionNode | DialogueNode | SectionNode)[],
-): [ActorKey[], number] {
+): MetaInformation {
     const actors = new Set<ActorKey>();
     const add = actors.add.bind(actors);
     let dialogueCount = 0;
@@ -247,7 +247,11 @@ function computeMetaInformation(
             node.actors.forEach(add);
         }
     }
-    return [Array.from(actors), dialogueCount];
+
+    return {
+        actors: Array.from(actors),
+        dialogueCount,
+    };
 }
 
 interface Constructor<T extends Keyed<T>, Args extends unknown[] = any[]> {
@@ -273,6 +277,16 @@ function withNewPool<T>(f: (pool: PoolType) => T): [PoolType, T] {
     return [map, result];
 }
 
+function poolWithMutations<T>(pool: PoolType, f: (pool: PoolType) => T): [PoolType, T] {
+    let result: T | undefined;
+    const map = pool.withMutations(map => {
+        result = f(map);
+    });
+    if (result === undefined) throw new Error("callback didn't produce result");
+
+    return [map, result];
+}
+
 function allocateIn<T extends Keyed<T>, Args extends unknown[]>(
     pool: PoolType,
     klass: Constructor<T, Args>,
@@ -290,32 +304,25 @@ function lookupIn<T extends Keyed<T>>(pool: PoolType, key: Key<T>): Readonly<T> 
     return object as T;
 }
 
-type UpdateDesc<T extends Keyed<T>> = {
-    key: Key<T>;
-    data: Partial<T>;
-};
-
-// Remember: no getters in here, everything is computed at creation
 // FIXME: Calling this ScriptViewState is misleading. It is no ViewState whatsoever
-export class ScriptViewState {
+export class ScriptEditorState {
     public name: string;
     public actors: readonly ActorKey[];
     public structure: Readonly<Structure>;
     public dialogueCount: number;
-    private pool: PoolType;
+    public pool: PoolType;
 
     constructor(
         name: string,
         actors: readonly ActorKey[],
         structure: Structure,
-        nodes: (ActionNode | DialogueNode | SectionNode)[],
+        dialogueCount: number,
         nodePool: PoolType,
     ) {
         this.name = name;
         this.actors = actors;
         this.structure = structure;
         this.pool = nodePool;
-        const [_, dialogueCount] = computeMetaInformation(nodes);
         this.dialogueCount = dialogueCount;
     }
 
@@ -323,57 +330,7 @@ export class ScriptViewState {
         return lookupIn(this.pool, key);
     }
 
-    update<T extends Keyed<T[number]>[]>(
-        ...updates: { [K in keyof T]: UpdateDesc<T[K]> }
-    ): [ScriptViewState, Set<Key<any>>] {
-        const changes = new Set<Key<any>>;
-        const pool = this.pool.withMutations(pool => {
-            for (let update of updates) {
-                const object = lookupIn(pool, update.key);
-                const newObject = cloneUpdate(object, update.data);
-                pool.set(update.key, newObject);
-                changes.add(object.key);
-                // TODO: listen for structural changes
-                if (object instanceof ScriptNode && object.parent !== null) {
-                    // FIXME: really this is incorrect, we'd need to ensure all updates are 
-                    // independent from another, and even fail on update conflict. This would 
-                    // involve the following steps:
-                    //  - build the update list (adding more updates if tree invariants are 
-                    //    violated)
-                    //  - adjust the update list, combine updates, make sure there are no conflics
-                    //    (this is the step that could potentially fail)
-                    //  - run the updates
-                    // FIXME: building this `UpdateDesc` before running the updates means 
-                    // `newObject` is a time traveller. There might be a better approach using a
-                    // pass based update system, where this would lead to a new updatePass instead
-
-                    const parent = lookupIn(pool, object.parent);
-                    const index = parent.children.indexOf(object as any);
-                    if (index === -1)
-                        throw Error('invariant violated: parent needs to contain its child');
-                    const children = [
-                        ...parent.children.slice(0, index),
-                        newObject as any,
-                        ...parent.children.slice(index + 1),
-                    ];
-                    const [actors, dialogueCount] = computeMetaInformation(children);
-                    const update: UpdateDesc<SectionNode> = {
-                        key: parent.key,
-                        data: {
-                            children,
-                            actors,
-                            dialogueCount
-                        }
-                    };
-                    updates.push(update);
-                }
-            }
-        });
-
-        return [cloneUpdate<any>(this, { pool }), changes];
-    }
-
-    static build(script: Script): ScriptViewState {
+    static build(script: Script): ScriptEditorState {
         const doc = script.document;
         const [pool, [actors, structure, nodes]] = withNewPool(pool => {
             const actorLookup: Record<string, Actor> = {};
@@ -382,7 +339,7 @@ export class ScriptViewState {
                     pool,
                     Actor,
                     name,
-                    ensureColor(script.settings.colors[name])
+                    ensureColor(script.settings.colors[name]),
                 );
                 actorLookup[name] = actor;
                 return actor.key;
@@ -391,7 +348,81 @@ export class ScriptViewState {
             const [structure, nodes] = buildStructure(doc.content, actorLookup, pool);
             return [actors, structure, nodes];
         });
-        return new ScriptViewState(script.name, actors, structure, nodes, pool);
+        const { dialogueCount } = computeMetaInformation(nodes);
+        return new ScriptEditorState(script.name, actors, structure, dialogueCount, pool);
     }
 }
 
+export class TransientState extends ScriptEditorState {
+    public changes = new Set<Key<any>>();
+
+    allocate<T extends Keyed<T>, Args extends unknown[]>(
+        pool: PoolType,
+        klass: Constructor<T, Args>,
+        ...args: Args
+    ): Readonly<T> {
+        return allocateIn(pool, klass, ...args);
+    }
+
+    private updateObject<T extends Keyed<T>>(object: T, data: Partial<T>): T {
+        const newObject = cloneUpdate(object, data);
+        this.pool.set(object.key, newObject);
+        this.changes.add(object.key);
+        return newObject;
+    }
+
+    /**
+     * Replaces a node in the with (partially) fresh data. Maintains the invariants of the tree as
+     * long as the mutation leaves relevant data (e.g. children and parent pointers)u untouched.
+     *
+     * NOTE: This function won't cause upates to `Structure`
+     */
+    replaceNode<T extends Keyed<T>>(key: Key<T>, data: Partial<T>): Readonly<T> {
+        const object = this.lookup(key);
+        const newObject = this.updateObject(object, data);
+
+        let node: Readonly<Keyed<any>> = object;
+        while (node instanceof ScriptNode && node.parent !== null) {
+            const parent = this.lookup(node.parent);
+            const index = parent.children.indexOf(node as any);
+            if (index === -1) throw Error('invariant violated: parent needs to contain its child');
+            const children = [
+                ...parent.children.slice(0, index),
+                newObject as any,
+                ...parent.children.slice(index + 1),
+            ];
+            const { actors, dialogueCount } = computeMetaInformation(children);
+            this.updateObject(parent, {
+                children,
+                actors,
+                dialogueCount,
+            });
+            node = parent;
+        }
+
+        return newObject;
+    }
+}
+
+export function runUpdate(
+    state: ScriptEditorState,
+    updater: (trans: TransientState) => unknown,
+): [ScriptEditorState, Set<Key<any>>] {
+    const [pool, trans] = poolWithMutations(state.pool, pool => {
+        const trans = new TransientState(
+            state.name,
+            state.actors,
+            state.structure,
+            state.dialogueCount,
+            pool,
+        );
+
+        updater(trans);
+        return trans;
+    });
+
+    return [
+        new ScriptEditorState(trans.name, trans.actors, trans.structure, trans.dialogueCount, pool),
+        trans.changes,
+    ];
+}

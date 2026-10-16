@@ -218,14 +218,14 @@ class ScriptBuilder {
         for (let page of document) this.visitPage(page);
     }
 
-    build(fileName: string): { name: string; script: ScriptDocument; } {
+    build(fileName: string): { name: string; script: ScriptDocument } {
         const doc: ScriptDocument = {
             content: layerToContent(this.layer),
             allActors: Array.from(this.collectedActors),
         };
         return {
             name: this.title ?? fileName,
-            script: doc
+            script: doc,
         };
     }
 }
@@ -273,6 +273,6 @@ export function processFile(file: types.File): types.Result {
     return {
         kind: 'success',
         document: annotatedIR,
-        ...mapResult
+        ...mapResult,
     };
 }

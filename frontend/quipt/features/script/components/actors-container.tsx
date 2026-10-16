@@ -6,7 +6,7 @@ import { Input } from 'quipt/components/input';
 import { ActorPill, type ActorPillProps } from 'quipt/components/actor-pill';
 import { type Color, colorToString, asLighterColor } from 'quipt/color-palette';
 import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
-import { ScriptViewManager, useKeyedState, useScriptViewManager } from './script';
+import { ScriptEditorManager, useKeyedState, useScriptViewManager } from './script';
 import { type ActorKey } from '../state';
 
 export interface ActorKeyPillProps extends Omit<ActorPillProps, 'actor'> {
@@ -15,7 +15,7 @@ export interface ActorKeyPillProps extends Omit<ActorPillProps, 'actor'> {
 
 export function ActorKeyPill({ actorKey, ...props }: ActorKeyPillProps) {
     const actor = useKeyedState(actorKey);
-    return <ActorPill actor={actor} {...props}/>
+    return <ActorPill actor={actor} {...props} />;
 }
 
 export interface ColorPickerProps {
@@ -61,17 +61,30 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
 
     return (
         <MenuBox>
-            <Input className="mx-2"
+            <Input
+                className="mx-2"
                 placeholder="Spieler benennen"
                 value={actor.name}
-                onValueChange={value => manager.dispatch(ScriptViewManager.RENAME_ACTOR, { actorKey: props.actor, newName: value})}
+                onValueChange={value =>
+                    manager.dispatch(ScriptEditorManager.RENAME_ACTOR, {
+                        actorKey: props.actor,
+                        newName: value,
+                    })
+                }
                 onKeyDown={e => e.stopPropagation()}
                 onKeyUp={e => e.stopPropagation()}
-                autoFocus/>
+                autoFocus
+            />
             <MenuSeparator />
             <ColorPicker
                 color={actor.color}
-                onColorPicked={color => manager.dispatch(ScriptViewManager.CHANGE_ACTOR_COLOR, { actorKey: props.actor, newColor: color })}/>
+                onColorPicked={color =>
+                    manager.dispatch(ScriptEditorManager.CHANGE_ACTOR_COLOR, {
+                        actorKey: props.actor,
+                        newColor: color,
+                    })
+                }
+            />
             <MenuSeparator />
             <MenuItem>Als "ich selbst" markieren</MenuItem>
             <MenuSeparator />
@@ -79,7 +92,6 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
         </MenuBox>
     );
 }
-
 
 export function ActorsContainer({ actors }: { actors: readonly ActorKey[] }): JSX.Element {
     const actorMenuHandleRef = useRef<Menu.Handle<{ actor: ActorKey }>>(undefined);
