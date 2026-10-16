@@ -2,13 +2,13 @@ import { Map } from 'immutable';
 
 import { FormattedString, renderBBCode } from 'quipt/formatted-string';
 import type {
-    Script,
     ItemsContent,
     SectionContent,
     SupersectionContent,
 } from 'quipt/schemas/script';
 import { type Actor as BaseActor, randomID } from 'quipt/utils';
-import type { Color } from 'quipt/color-palette';
+import { type Color, ensureColor } from 'quipt/color-palette';
+import type { Script } from './script';
 
 type SectionKeyPack<TChild> = { key: Key<SectionNode>; children: TChild[] };
 type RootPack<TDepth extends number, TChild> = { depth: TDepth; children: TChild[] };
@@ -374,21 +374,24 @@ export class ScriptViewState {
     }
 
     static build(script: Script): ScriptViewState {
+        const doc = script.document;
         const [pool, [actors, structure, nodes]] = withNewPool(pool => {
             const actorLookup: Record<string, Actor> = {};
-            const actors = script.allActors.map(name => {
-                const actor = allocateIn(pool, Actor, name, randomColor());
+            const actors = doc.allActors.map(name => {
+                const actor = allocateIn(
+                    pool,
+                    Actor,
+                    name,
+                    ensureColor(script.settings.colors[name])
+                );
                 actorLookup[name] = actor;
                 return actor.key;
             });
 
-            const [structure, nodes] = buildStructure(script.content, actorLookup, pool);
+            const [structure, nodes] = buildStructure(doc.content, actorLookup, pool);
             return [actors, structure, nodes];
         });
         return new ScriptViewState(script.name, actors, structure, nodes, pool);
     }
 }
 
-function randomColor(): Color {
-    return (Math.floor(24 * Math.random()) + 1) as Color;
-}

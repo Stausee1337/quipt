@@ -1,15 +1,24 @@
 import { type JSX, useRef } from 'react';
 
 import { useParams } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
 
-import { getScript } from './dev-scripts';
 import { ScriptView } from './components/script';
+import type { Ref, ScriptRepo } from 'quipt/schemas/script';
+import { scriptQueryOptions } from './script';
 
 export function ScriptRoute(): JSX.Element {
     const params = useParams();
-    const scriptID = params.scriptID;
+    const repoID = params.scriptID;
 
-    const script = scriptID !== undefined ? getScript(scriptID) : undefined;
+    const hasData = useRef(false);
+
+    const script = useQuery({
+        ...scriptQueryOptions(repoID as Ref<ScriptRepo>),
+        subscribed: !hasData.current,
+    });
+
+    hasData.current = script.isSuccess;
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     return (
@@ -17,15 +26,15 @@ export function ScriptRoute(): JSX.Element {
             ref={scrollContainerRef}
             className="flex w-full flex-col overflow-y-auto sm:ps-16"
             id="scroll-container">
-            {script && (
+            {script.isSuccess && (
                 <ScriptView
-                    key={scriptID}
+                    key={repoID}
                     scrollContainerRef={scrollContainerRef}
-                    script={script}
+                    script={script.data}
                 />
             )}
         </div>
     );
 }
 
-export { newScript } from './dev-scripts';
+export { createScript as newScript } from './dev-scripts';

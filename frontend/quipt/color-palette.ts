@@ -62,6 +62,14 @@ const colorPaletteMapping = [
     'amber-900',
 ];
 
+export function ensureColor(x: number, fallback: Color = 1): Color {
+    if (!Number.isInteger(x))
+        return fallback;
+    if (x >= 1 && x <= 24)
+        return x as Color;
+    return fallback;
+}
+
 export const allColors = Object.freeze(Array.from({ length: 24 }).map((_, i) => i + 1)) as Readonly<
     Color[]
 >;

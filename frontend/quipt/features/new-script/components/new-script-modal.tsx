@@ -92,7 +92,7 @@ export function NewScriptModal(): JSX.Element {
             return;
         }
 
-        const scriptID = newScript(processResult.script);
+        const scriptID = newScript(processResult.name, processResult.script);
         navigate(`/app/dev-script-route/${scriptID}`);
     }
 

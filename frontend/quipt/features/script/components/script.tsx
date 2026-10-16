@@ -25,7 +25,7 @@ import { IconButton } from 'quipt/components/icon-button';
 import { Tooltip } from 'quipt/components/tooltip';
 import { useBreakpoints } from 'quipt/responsive';
 import { type Color } from 'quipt/color-palette';
-import { type Script } from 'quipt/schemas/script';
+import { type Script } from '../script';
 import { renderContentNode } from './section';
 import { HLine, VLine, ContentInfoView } from './common';
 import {

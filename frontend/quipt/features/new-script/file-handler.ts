@@ -2,7 +2,7 @@ import { Document, type PDFDocument } from 'mupdf';
 
 import {
     type ItemsContent,
-    type Script,
+    type ScriptDocument,
     type ScriptItem,
     type Section,
     type SectionContent,
@@ -218,16 +218,19 @@ class ScriptBuilder {
         for (let page of document) this.visitPage(page);
     }
 
-    build(fileName: string): Script {
-        return {
-            name: this.title ?? fileName,
+    build(fileName: string): { name: string; script: ScriptDocument; } {
+        const doc: ScriptDocument = {
             content: layerToContent(this.layer),
             allActors: Array.from(this.collectedActors),
+        };
+        return {
+            name: this.title ?? fileName,
+            script: doc
         };
     }
 }
 
-function mapToScript(document: Page[], fileName: string): Script {
+function mapToScript(document: Page[], fileName: string) {
     const builder = new ScriptBuilder();
     builder.visitDocument(document);
     return builder.build(fileName);
@@ -259,9 +262,9 @@ export function processFile(file: types.File): types.Result {
 
     if (annotatedIR === undefined) return { kind: 'error', error: 'non-script-document' };
 
-    let script;
+    let mapResult;
     try {
-        script = mapToScript(annotatedIR, stripName(file.fileName));
+        mapResult = mapToScript(annotatedIR, stripName(file.fileName));
     } catch (e) {
         console.error(e);
         return { kind: 'error', error: 'internal-error' };
@@ -269,7 +272,7 @@ export function processFile(file: types.File): types.Result {
 
     return {
         kind: 'success',
-        script,
         document: annotatedIR,
+        ...mapResult
     };
 }

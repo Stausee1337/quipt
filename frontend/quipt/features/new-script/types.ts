@@ -1,4 +1,4 @@
-import { type Script } from 'quipt/schemas/script';
+import { type ScriptDocument } from 'quipt/schemas/script';
 import { type Page } from '../../../pdf-ir';
 
 export type Error = 'invalid-file-format' | 'internal-error' | 'non-script-document';
@@ -11,13 +11,15 @@ export type File = {
 export type BaseResult = {
     kind: 'error' | 'success';
     error?: Error | undefined;
-    script?: Script | undefined;
+    name?: string | undefined;
+    script?: ScriptDocument | undefined;
     document?: Page[] | undefined;
 };
 
 export type ErrorResult = BaseResult & {
     kind: 'error';
     error: Error;
+    name?: undefined;
     script?: undefined;
     document?: undefined;
 };
@@ -25,7 +27,8 @@ export type ErrorResult = BaseResult & {
 export type SuccessResult = BaseResult & {
     kind: 'success';
     error?: undefined;
-    script: Script;
+    name: string;
+    script: ScriptDocument;
     document: Page[];
 };
 

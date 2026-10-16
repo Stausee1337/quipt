@@ -1,14 +1,38 @@
-export type Script = {
+
+declare const brand: unique symbol;
+export type Ref<T> = string & { [brand]: T; };
+
+export type User = {};
+
+export type ScriptSettings = {
+    selfActor: string | null;
+    colors: Record<string, number>;
+};
+
+// Could potentially also be called Version
+export type ScriptCommit = {
+    parent: Ref<ScriptCommit> | null;
+    document: ScriptDocument;
+    commiter: Ref<User>;
+    commitedAt: number;
+};
+
+export type ScriptRepo = {
+    name: string;
+    commit: Ref<ScriptCommit>;
+    settings: ScriptSettings;
+};
+
+export type ScriptDocument = {
     allActors: string[];
     content: SupersectionContent | SectionContent | ItemsContent;
-    name: string;
 };
 
 export type SupersectionContent = {
     supersections: Supersection[];
 };
 
-// FIXME: maybe make name optional so sections and subsections can be decided during rendering
+// FIXME: maybe make name optional so sections and supersections can be decided during rendering
 export type Supersection = {
     name: string;
     content: SectionContent;
