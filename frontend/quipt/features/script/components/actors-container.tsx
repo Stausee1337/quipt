@@ -6,7 +6,7 @@ import { Input } from 'quipt/components/input';
 import { ActorPill, type ActorPillProps } from 'quipt/components/actor-pill';
 import { type Color, colorToString, asLighterColor } from 'quipt/color-palette';
 import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
-import { ScriptEditorManager, useKeyedState, useScriptViewManager } from './script';
+import { ScriptEditorManager, useKeyedState, useScriptEditorManager } from './script';
 import { type ActorKey } from '../state';
 
 export interface ActorKeyPillProps extends Omit<ActorPillProps, 'actor'> {
@@ -56,7 +56,7 @@ function ColorPicker({ color, onColorPicked }: ColorPickerProps): JSX.Element {
 }
 
 function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
-    const manager = useScriptViewManager();
+    const manager = useScriptEditorManager();
     const actor = useKeyedState(props.actor);
 
     return (

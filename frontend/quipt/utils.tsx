@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 
-import { FormattedString, type FormattedStringElement } from 'quipt/formatted-string';
-import { type Color, colorToString } from 'quipt/color-palette';
+import { FontStyles, FormattedString, type FormattedStringElement } from 'quipt/formatted-string';
+import { type Color } from 'quipt/color-palette';
 
 type Without<T, K extends keyof any> = Omit<T, K>;
 
@@ -30,11 +30,12 @@ export type Actor = {
 
 // TODO: move to formatted-string.ts as renderActorsArray
 export function formatActorsArray(actors: readonly Actor[]): FormattedString {
-    if (actors.length === 0) return new FormattedString();
+    if (actors.length === 0) return new FormattedString([]);
 
     const result: FormattedStringElement[] = actors.map(actor => ({
-        style: { color: `var(--color-${colorToString(actor.color)})` },
-        string: actor.name,
+        foreground: actor.color,
+        fontStyles: FontStyles.None,
+        content: actor.name,
     }));
 
     if (result.length === 1) {
@@ -44,8 +45,8 @@ export function formatActorsArray(actors: readonly Actor[]): FormattedString {
     for (let i = 0; i < Math.floor(result.length / 2); i++) {
         const index = i * 2 + 1;
         result.splice(index, 0, {
-            style: null,
-            string: index === result.length - 1 ? ' und ' : ', ',
+            fontStyles: FontStyles.None,
+            content: index === result.length - 1 ? ' und ' : ', ',
         });
     }
 

@@ -164,6 +164,7 @@ export abstract class ScriptNode {
 export abstract class EditableSectionNode extends ScriptNode {
     abstract key: Key<EditableSectionNode>;
     abstract content: FormattedString;
+    abstract editing: boolean;
 }
 
 export class ActionNode extends EditableSectionNode {
@@ -373,15 +374,16 @@ export class TransientState extends ScriptEditorState {
 
     /**
      * Replaces a node in the with (partially) fresh data. Maintains the invariants of the tree as
-     * long as the mutation leaves relevant data (e.g. children and parent pointers)u untouched.
+     * long as the mutation leaves relevant data (e.g. children and parent pointers) untouched.
      *
      * NOTE: This function won't cause upates to `Structure`
      */
     replaceNode<T extends Keyed<T>>(key: Key<T>, data: Partial<T>): Readonly<T> {
         const object = this.lookup(key);
-        const newObject = this.updateObject(object, data);
+        const result = this.updateObject(object, data);
 
         let node: Readonly<Keyed<any>> = object;
+        let newObject: Keyed<any> = result;
         while (node instanceof ScriptNode && node.parent !== null) {
             const parent = this.lookup(node.parent);
             const index = parent.children.indexOf(node as any);
@@ -392,7 +394,7 @@ export class TransientState extends ScriptEditorState {
                 ...parent.children.slice(index + 1),
             ];
             const { actors, dialogueCount } = computeMetaInformation(children);
-            this.updateObject(parent, {
+            newObject = this.updateObject(parent, {
                 children,
                 actors,
                 dialogueCount,
@@ -400,7 +402,7 @@ export class TransientState extends ScriptEditorState {
             node = parent;
         }
 
-        return newObject;
+        return result;
     }
 }
 

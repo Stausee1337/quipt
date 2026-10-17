@@ -15,9 +15,11 @@ import { ContentInfoView, HLine, PlayButton } from './common';
 import {
     ScriptEditorManager,
     useKeyedState,
-    useScriptViewManager,
+    useScriptEditorManager,
     useScriptEditorState,
 } from './script';
+import { Editor } from './editor';
+import { ActorKeyPill } from './actors-container';
 import {
     ActionNode,
     type ActorKey,
@@ -28,7 +30,6 @@ import {
     SectionNode,
     keyOfType,
 } from '../state';
-import { ActorKeyPill } from './actors-container';
 
 type VirtualizedElementProps = Omit<ComponentProps<'div'>, 'className'>;
 
@@ -89,7 +90,7 @@ export function SectionInfoHeader({
 }
 
 function ScriptItemMenu({ itemKey }: { itemKey: Key<EditableSectionNode> }) {
-    const manager = useScriptViewManager();
+    const manager = useScriptEditorManager();
 
     return (
         <MenuBox>
@@ -101,7 +102,7 @@ function ScriptItemMenu({ itemKey }: { itemKey: Key<EditableSectionNode> }) {
             </MenuItem>
             <MenuItem iconName="play-fill">Ab hier üben</MenuItem>
             <MenuSeparator />
-            <MenuItem>Als Antwort markieren</MenuItem>
+            <MenuItem>Als Einsatz markieren</MenuItem>
             <MenuSeparator />
             <MenuItem
                 iconName="trash"
@@ -112,16 +113,10 @@ function ScriptItemMenu({ itemKey }: { itemKey: Key<EditableSectionNode> }) {
     );
 }
 
-function HoverActionsContainer({
-    onMenuOpenChange,
-    itemKey,
-}: {
-    onMenuOpenChange?: (open: boolean) => void;
-    itemKey: Key<EditableSectionNode>;
-}): JSX.Element {
+function HoverActionsContainer({ itemKey }: { itemKey: Key<EditableSectionNode> }): JSX.Element {
     return (
-        <ActionsContainer className="invisible group-hover:not-group-data-editing:visible group-data-menu-open:visible">
-            <Menu.Root onOpenChange={onMenuOpenChange}>
+        <ActionsContainer className="invisible group-hover:not-group-data-editing:visible has-data-popup-open:visible">
+            <Menu.Root>
                 <IconButton
                     iconName="three-dots-vertical"
                     className="text-foreground"
@@ -139,11 +134,20 @@ function HoverActionsContainer({
     );
 }
 
-function EditActionsContainer(): JSX.Element {
+function EditActionsContainer({ itemKey }: { itemKey: Key<EditableSectionNode> }): JSX.Element {
+    const manager = useScriptEditorManager();
     return (
         <ActionsContainer>
-            <IconButton iconName="check2" className="text-foreground" />
-            <IconButton iconName="x" className="text-foreground" />
+            <IconButton
+                iconName="check2"
+                className="text-foreground"
+                onClick={() => manager.dispatch(ScriptEditorManager.EDIT_DONE, { itemKey })}
+            />
+            <IconButton
+                iconName="x"
+                className="text-foreground"
+                onClick={() => manager.dispatch(ScriptEditorManager.EDIT_DONE, { itemKey })}
+            />
         </ActionsContainer>
     );
 }
@@ -176,9 +180,13 @@ function ContentRenderer({
                 className,
             )}
             data-editing={editing ? '' : undefined}>
-            <p className="whitespace-pre-wrap">
-                <FormattedStringView string={content} />
-            </p>
+            {!editing ? (
+                <p className="whitespace-pre-wrap">
+                    <FormattedStringView string={content} />
+                </p>
+            ) : (
+                <Editor string={content} />
+            )}
         </div>
     );
 }
@@ -193,7 +201,13 @@ function makeRenderActor(): (actor: ActorKey) => JSX.Element {
         <Toggle
             value={`${actor}`}
             render={(props, { pressed }) => (
-                <ActorKeyPill actorKey={actor} selected={pressed} interactable {...props} />
+                <ActorKeyPill
+                    key={actor}
+                    actorKey={actor}
+                    selected={pressed}
+                    interactable
+                    {...props}
+                />
             )}
         />
     );
@@ -233,16 +247,14 @@ const DialogueView = memo(function DialogueView({
     dialogueKey,
     ...props
 }: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element {
-    const [menuOpen, setMenuOpen] = useState(false);
     const dialogue = useKeyedState(dialogueKey);
     return (
         <HoverableSectionItem
             className="data-editing:before:bg-accent-100/20 data-editing:gap-y-1 sm:data-editing:gap-y-2"
-            data-menu-open={menuOpen ? '' : undefined}
             data-editing={dialogue.editing ? '' : undefined}
             {...props}>
-            <HoverActionsContainer itemKey={dialogue.key} onMenuOpenChange={setMenuOpen} />
-            {dialogue.editing && <EditActionsContainer />}
+            <HoverActionsContainer itemKey={dialogue.key} />
+            {dialogue.editing && <EditActionsContainer itemKey={dialogue.key} />}
             <div className="flex items-center gap-x-2">
                 {!dialogue.editing ? (
                     <ActorsLineRenderer actorKeys={dialogue.actors} />
@@ -289,7 +301,7 @@ const ActionView = memo(function ActionView({
             data-editing={action.editing ? '' : undefined}
             {...props}>
             <HoverActionsContainer itemKey={action.key} />
-            {action.editing && <EditActionsContainer />}
+            {action.editing && <EditActionsContainer itemKey={action.key} />}
             <ContentRenderer
                 className="mx-auto w-31/40"
                 content={action.content}
@@ -303,7 +315,7 @@ function HoverableSectionItem({ className, ...props }: ComponentProps<'div'>): J
     return (
         <div
             className={classnames(
-                'data-menu-open:before:bg-accent-100/10 hover:before:bg-accent-100/10 group absolute top-0 right-0 left-0 flex w-auto flex-col px-3 before:absolute before:-top-1 before:right-0 before:-bottom-1 before:left-0 before:-z-1 before:rounded-xl sm:mx-3 sm:px-6 sm:before:-top-2 sm:before:-bottom-2',
+                'has-data-popup-open:before:bg-accent-100/10 hover:before:bg-accent-100/10 group absolute top-0 right-0 left-0 flex w-auto flex-col px-3 before:absolute before:-top-1 before:right-0 before:-bottom-1 before:left-0 before:-z-1 before:rounded-xl sm:mx-3 sm:px-6 sm:before:-top-2 sm:before:-bottom-2',
                 className,
             )}
             {...props}

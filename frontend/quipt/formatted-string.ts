@@ -1,11 +1,68 @@
-import type { Properties } from 'csstype';
+import type { Color } from './color-palette';
+
+var ArrayBackedObject: ArrayBackedObjectConstructor = makeConstructor();
+
+declare interface ArrayBackedObject<T> extends ArrayLike<T> {
+    readonly length: number;
+    readonly [n: number]: T;
+
+    [Symbol.iterator](): ArrayIterator<T>;
+
+    map<U>(callbackfn: (value: T, index: number) => U): IteratorObject<U, undefined, unknown>;
+
+    flatMap<U>(
+        callback: (
+            value: T,
+            index: number,
+        ) => Iterator<U, unknown, undefined> | Iterable<U, unknown, undefined>,
+    ): IteratorObject<U, undefined, unknown>;
+}
+
+declare interface ArrayBackedObjectConstructor {
+    new <T>(items: Iterable<T> | ArrayLike<T>): ArrayBackedObject<T>;
+    readonly prototype: ArrayBackedObject<any>;
+}
+
+export enum FontStyles {
+    None = 0,
+    Bold = 1,
+    Italic = 2,
+    Underline = 4,
+}
 
 export type FormattedStringElement = {
-    style: Properties | null;
-    string: string;
+    fontStyles: FontStyles;
+    foreground?: Color | undefined;
+    content: string;
 };
 
-export class FormattedString extends Array<FormattedStringElement> {
+function makeConstructor(): ArrayBackedObjectConstructor {
+    function ArrayBackedObject<T>(items: Iterable<T> | ArrayLike<T>): ArrayBackedObject<T> {
+        return Reflect.construct(
+            Array,
+            Symbol.iterator in items ? [...items] : items,
+            new.target || ArrayBackedObject,
+        );
+    }
+    const prototype: ArrayBackedObject<any> = Object.assign<
+        ArrayBackedObject<any>,
+        Partial<ArrayBackedObject<any>>
+    >(new (ArrayBackedObject as unknown as ArrayBackedObjectConstructor)([]), {
+        [Symbol.iterator]() {
+            return Array.prototype[Symbol.iterator].call(this);
+        },
+        map(callback) {
+            return Iterator.from(this as ArrayBackedObject<any>).map(callback);
+        },
+        flatMap(callback) {
+            return Iterator.from(this as ArrayBackedObject<any>).flatMap(callback);
+        },
+    });
+    ArrayBackedObject.prototype = prototype;
+    return ArrayBackedObject as unknown as ArrayBackedObjectConstructor;
+}
+
+export class FormattedString extends ArrayBackedObject<FormattedStringElement> {
     /**
      * The unformatted string this represents */
     raw: string = '';
@@ -15,26 +72,12 @@ export class FormattedString extends Array<FormattedStringElement> {
      */
     input?: string;
 
-    constructor(arrayLength: number);
-    constructor(elements?: Iterable<FormattedStringElement>, input?: string);
-    constructor(
-        lengthOrElements: Iterable<FormattedStringElement> | number | undefined,
-        input?: string,
-    ) {
-        if (typeof lengthOrElements === 'number') {
-            super(lengthOrElements);
-            return;
-        }
+    constructor(elements: Iterable<FormattedStringElement>, input?: string) {
+        super(elements);
 
-        super();
-        if (lengthOrElements === undefined) return;
-
-        this.push(...lengthOrElements);
-        // this.raw = this.map(x => x.string).join('');
+        this.raw = Array.from(this.map(x => x.content)).join('');
 
         if (input !== undefined) this.input = input;
-
-        Object.freeze(this);
     }
 }
 
@@ -180,35 +223,26 @@ export function parseBBCode(input: string): FormatNode[] {
 export function renderBBCode(bbcode: string): FormattedString {
     function* flattenNodes(
         nodes: FormatNode[],
-        style: Properties | null = null,
+        fontStyles: FontStyles,
     ): Generator<FormattedStringElement> {
         for (const node of nodes) {
             switch (node.type) {
                 case 'text':
-                    yield { style, string: node.text };
+                    if (node.text.length) yield { fontStyles, content: node.text };
                     break;
                 case 'italic':
-                    yield* flattenNodes(node.nodes, {
-                        ...style,
-                        fontStyle: 'italic',
-                    });
+                    yield* flattenNodes(node.nodes, fontStyles | FontStyles.Italic);
                     break;
                 case 'bold':
-                    yield* flattenNodes(node.nodes, {
-                        ...style,
-                        fontWeight: 'bold',
-                    });
+                    yield* flattenNodes(node.nodes, fontStyles | FontStyles.Bold);
                     break;
                 case 'underline':
-                    yield* flattenNodes(node.nodes, {
-                        ...style,
-                        textDecoration: 'underline',
-                    });
+                    yield* flattenNodes(node.nodes, fontStyles | FontStyles.Underline);
                     break;
             }
         }
     }
 
     const nodes = parseBBCode(bbcode);
-    return new FormattedString(flattenNodes(nodes));
+    return new FormattedString(flattenNodes(nodes, FontStyles.None));
 }
