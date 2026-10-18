@@ -6,7 +6,7 @@ import { Input } from 'quipt/components/input';
 import { ActorPill, type ActorPillProps } from 'quipt/components/actor-pill';
 import { type Color, colorToString, asLighterColor } from 'quipt/color-palette';
 import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
-import { ScriptEditorManager, useKeyedState, useScriptEditorManager } from './script';
+import { actions, useKeyedState, useScriptEditorManager } from './script';
 import { type ActorKey } from '../state';
 
 export interface ActorKeyPillProps extends Omit<ActorPillProps, 'actor'> {
@@ -65,12 +65,7 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
                 className="mx-2"
                 placeholder="Spieler benennen"
                 value={actor.name}
-                onValueChange={value =>
-                    manager.dispatch(ScriptEditorManager.RENAME_ACTOR, {
-                        actorKey: props.actor,
-                        newName: value,
-                    })
-                }
+                onValueChange={value => manager.dispatch(actions.renameActor(props.actor, value))}
                 onKeyDown={e => e.stopPropagation()}
                 onKeyUp={e => e.stopPropagation()}
                 autoFocus
@@ -79,10 +74,7 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
             <ColorPicker
                 color={actor.color}
                 onColorPicked={color =>
-                    manager.dispatch(ScriptEditorManager.CHANGE_ACTOR_COLOR, {
-                        actorKey: props.actor,
-                        newColor: color,
-                    })
+                    manager.dispatch(actions.changeActorColor(props.actor, color))
                 }
             />
             <MenuSeparator />

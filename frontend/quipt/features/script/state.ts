@@ -5,6 +5,7 @@ import type { ItemsContent, SectionContent, SupersectionContent } from 'quipt/sc
 import { type Actor as BaseActor, randomID } from 'quipt/utils';
 import { type Color, ensureColor } from 'quipt/color-palette';
 import type { Script } from './script';
+import { EditorState } from 'prosemirror-state';
 
 type SectionKeyPack<TChild> = { key: Key<SectionNode>; children: TChild[] };
 type RootPack<TDepth extends number, TChild> = { depth: TDepth; children: TChild[] };
@@ -26,7 +27,7 @@ function buildScriptItems(
     for (const item of content.items) {
         switch (item.kind) {
             case 'action': {
-                const node = allocateIn(pool, ActionNode, renderBBCode(item.content));
+                const node = allocateIn(pool, ActionNode, item.content);
                 nodes.push(node);
                 keys.push(node.key);
                 break;
@@ -36,7 +37,7 @@ function buildScriptItems(
                     pool,
                     DialogueNode,
                     item.actors.map(actor => actorLookup[actor].key),
-                    renderBBCode(item.content),
+                    item.content,
                 );
                 nodes.push(node);
                 keys.push(node.key);
@@ -160,37 +161,40 @@ export abstract class ScriptNode {
     public parent: Key<SectionNode> | null = null;
 }
 
-// FXIME: This is obviously a case of ViewState in the wrong place
-export abstract class EditableSectionNode extends ScriptNode {
-    abstract key: Key<EditableSectionNode>;
-    abstract content: FormattedString;
-    abstract editing: boolean;
-}
+export abstract class EditableScriptNode extends ScriptNode {
+    abstract key: Key<EditableScriptNode>;
+    public content: FormattedString | EditorState;
 
-export class ActionNode extends EditableSectionNode {
-    static readonly prefix = makePrefix();
-
-    public editing = false;
-
-    constructor(
-        public key: Key<ActionNode>,
-        public content: Readonly<FormattedString>,
-    ) {
+    constructor(public text: string) {
         super();
+        this.content = renderBBCode(this.text);
+    }
+
+    get editing(): boolean {
+        return this.content instanceof EditorState;
     }
 }
 
-export class DialogueNode extends EditableSectionNode {
+export class ActionNode extends EditableScriptNode {
     static readonly prefix = makePrefix();
 
-    public editing = false;
+    constructor(
+        public key: Key<ActionNode>,
+        text: string,
+    ) {
+        super(text);
+    }
+}
+
+export class DialogueNode extends EditableScriptNode {
+    static readonly prefix = makePrefix();
 
     constructor(
         public key: Key<DialogueNode>,
         public actors: readonly ActorKey[],
-        public content: Readonly<FormattedString>,
+        text: string,
     ) {
-        super();
+        super(text);
     }
 }
 

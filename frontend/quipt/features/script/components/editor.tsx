@@ -1,15 +1,26 @@
-import { type JSX, type RefObject, useEffect, useState, useRef, useCallback } from 'react';
+import {
+    type JSX,
+    type RefObject,
+    memo,
+    useCallback,
+    useEffect,
+    useId,
+    useState,
+    useRef,
+} from 'react';
 
 import { Popover, Toggle, ToggleGroup } from '@base-ui/react';
 import { EditorView } from 'prosemirror-view';
 import { EditorState, Plugin, Selection } from 'prosemirror-state';
-import { Mark, MarkType, Node, Schema } from 'prosemirror-model';
+import { Mark, Node, Schema } from 'prosemirror-model';
 import { keymap } from 'prosemirror-keymap';
 import { toggleMark } from 'prosemirror-commands';
+import { history, undo } from 'prosemirror-history';
 
 import { IconButton } from 'quipt/components/icon-button';
-import { FormattedString, FontStyles } from 'quipt/formatted-string';
-import { useScriptEditorManager } from './script';
+import { type FormatNode, parseBBCode } from 'quipt/formatted-string';
+import { ScriptEditorManager, useScriptEditorManager, type Action } from './script';
+import type { EditableScriptNode, Key, TransientState } from '../state';
 
 const formattedStringSchema = new Schema({
     nodes: {
@@ -47,55 +58,99 @@ const editorKeymap = keymap({
 
         return true;
     },
-    'Ctrl-b': (state, dispatch) => toggleMark(formattedStringSchema.marks.bold)(state, dispatch),
-    'Ctrl-i': (state, dispatch) => toggleMark(formattedStringSchema.marks.italic)(state, dispatch),
-    'Ctrl-u': (state, dispatch) =>
-        toggleMark(formattedStringSchema.marks.underline)(state, dispatch),
+    'Ctrl-b': toggleMark(formattedStringSchema.marks.bold),
+    'Ctrl-i': toggleMark(formattedStringSchema.marks.italic),
+    'Ctrl-u': toggleMark(formattedStringSchema.marks.underline),
+    'Ctrl-z': undo,
 });
 
-function styleToMarks(style: FontStyles): Mark[] {
-    const result: Mark[] = [];
-    if (style & FontStyles.Italic) result.push(formattedStringSchema.mark('italic'));
-    if (style & FontStyles.Bold) result.push(formattedStringSchema.mark('bold'));
-    if (style & FontStyles.Underline) result.push(formattedStringSchema.mark('underline'));
-    return result;
-}
-
-function formattedStringToDocument(string: FormattedString): Node {
-    return formattedStringSchema.node(
-        'string',
-        null,
-        Array.from(
-            string.flatMap(element =>
-                element.content
-                    .split('\n')
-                    .map(line =>
-                        line.length > 0
-                            ? formattedStringSchema.text(line, styleToMarks(element.fontStyles))
-                            : undefined,
-                    )
-                    .filter(element => element !== undefined),
-            ),
-        ),
-    );
-}
-
-function mapToStyles(selected: ('bold' | 'italic' | 'underline')[]): FontStyles {
-    let styles = FontStyles.None;
-    for (let option of selected)
-        switch (option) {
-            case 'bold':
-                styles |= FontStyles.Bold;
+function* formatToDocumentNodes(nodes: FormatNode[], marks: Mark[] = []): Generator<Node> {
+    for (const node of nodes) {
+        switch (node.type) {
+            case 'text': {
+                const lines = node.text.split('\n');
+                for (let idx = 0; idx < lines.length; idx++) {
+                    if (idx > 0) yield formattedStringSchema.node('hard_break', marks);
+                    const line = lines[idx];
+                    if (line.length > 0) yield formattedStringSchema.text(line, marks);
+                }
                 break;
+            }
             case 'italic':
-                styles |= FontStyles.Italic;
+                yield* formatToDocumentNodes(node.nodes, [
+                    ...marks,
+                    formattedStringSchema.mark('italic'),
+                ]);
+                break;
+            case 'bold':
+                yield* formatToDocumentNodes(node.nodes, [
+                    ...marks,
+                    formattedStringSchema.mark('bold'),
+                ]);
                 break;
             case 'underline':
-                styles |= FontStyles.Underline;
+                yield* formatToDocumentNodes(node.nodes, [
+                    ...marks,
+                    formattedStringSchema.mark('underline'),
+                ]);
                 break;
         }
-    return styles;
+    }
 }
+
+function bbCodeToDocument(bbCode: string): Node {
+    const nodes = parseBBCode(bbCode);
+    return formattedStringSchema.node('string', null, Array.from(formatToDocumentNodes(nodes)));
+}
+
+export function updateItemContent(
+    itemKey: Key<EditableScriptNode>,
+    editorState: EditorState,
+): Action {
+    return (state: TransientState) => {
+        state.replaceNode(itemKey, {
+            content: editorState,
+            text: convertDocToBBCode(editorState.doc),
+        });
+    };
+}
+
+function listenDocumentChange(
+    itemKey: Key<EditableScriptNode>,
+    manager: ScriptEditorManager,
+): Plugin {
+    return new Plugin({
+        view() {
+            return {
+                update(view, prevState) {
+                    if (
+                        prevState &&
+                        prevState.doc.eq(view.state.doc) &&
+                        prevState.selection.eq(view.state.selection)
+                    )
+                        return;
+                    manager.dispatch(updateItemContent(itemKey, view.state));
+                },
+            };
+        },
+    });
+}
+
+export function createEditorState(
+    itemKey: Key<EditableScriptNode>,
+    text: string,
+    manager: ScriptEditorManager,
+): EditorState {
+    const doc = bbCodeToDocument(text);
+    return EditorState.create({
+        doc,
+        plugins: [history(), listenDocumentChange(itemKey, manager)],
+        selection: Selection.atEnd(doc),
+    });
+}
+
+type FontStyle = 'italic' | 'bold' | 'underline';
+type FontStyles = Set<FontStyle>;
 
 export default function FontStyleToggleGroup({
     selection,
@@ -104,19 +159,15 @@ export default function FontStyleToggleGroup({
     selection: Selection2;
     onFontStylesChange: (changedStyles: FontStyles) => void;
 }) {
-    const activeOptions: ('bold' | 'italic' | 'underline')[] = [];
-    if (selection.fontStyles & FontStyles.Bold) activeOptions.push('bold');
-    if (selection.fontStyles & FontStyles.Italic) activeOptions.push('italic');
-    if (selection.fontStyles & FontStyles.Underline) activeOptions.push('underline');
     return (
         <ToggleGroup
             multiple
-            value={activeOptions}
+            value={Array.from(selection.fontStyles)}
             aria-label="Textstilisierungsoptionen"
             className="bg-background border-accent-30 flex gap-x-2 rounded-xl border p-1 shadow-lg/50"
             onMouseDown={event => event.preventDefault()}
             onValueChange={selected =>
-                onFontStylesChange(selection.fontStyles ^ mapToStyles(selected))
+                onFontStylesChange(selection.fontStyles.symmetricDifference(new Set(selected)))
             }>
             <IconButton
                 iconName="type-bold"
@@ -157,20 +208,20 @@ interface ProseMirrorEditorProps {
     setupEditor(element: HTMLDivElement): EditorView;
 }
 
-function ProseMirrorEditor({
+const ProseMirrorEditor = memo(function ProseMirrorEditor({
     viewRef: parentViewRef,
     setupEditor,
 }: ProseMirrorEditorProps): JSX.Element {
-    const editorContainer = useRef<HTMLDivElement>(null);
+    const [editorContainer, setEditorContainer] = useState<HTMLDivElement | null>(null);
+    const id = useId();
 
     const viewRef = useRef<EditorView>(null);
     useEffect(() => {
-        if (editorContainer.current === null) return;
+        if (editorContainer === null) return;
 
-        const view = (viewRef.current = setupEditor(editorContainer.current));
+        const view = (viewRef.current = setupEditor(editorContainer));
         if (parentViewRef !== undefined) parentViewRef.current = view;
 
-        view.dispatch(view.state.tr.setSelection(Selection.atEnd(view.state.doc)).scrollIntoView());
         view.focus();
 
         return () => {
@@ -180,10 +231,10 @@ function ProseMirrorEditor({
                 if (parentViewRef !== undefined) parentViewRef.current = null;
             }
         };
-    }, [editorContainer.current]);
+    }, [editorContainer, setupEditor]);
 
-    return <div ref={editorContainer} />;
-}
+    return <div id={id} ref={setEditorContainer} />;
+});
 
 class Selection2 {
     constructor(
@@ -196,7 +247,7 @@ class Selection2 {
     }
 }
 
-function observerPlugin(
+function selectionObserver(
     onSelectionChange: (selection: Selection2 | undefined) => void,
     scrollContainer?: HTMLElement,
 ): Plugin {
@@ -215,14 +266,9 @@ function observerPlugin(
             return;
         }
 
-        const marks = new Set<MarkType>();
-        const recordMark = (mark: Mark) => marks.add(mark.type);
+        const fontStyles: FontStyles = new Set();
+        const recordMark = (mark: Mark) => fontStyles.add(mark.type.name as FontStyle);
         doc.nodesBetween(selection.from, selection.to, node => node.marks.forEach(recordMark));
-
-        let fontStyles = FontStyles.None;
-        if (marks.has(formattedStringSchema.marks.bold)) fontStyles |= FontStyles.Bold;
-        if (marks.has(formattedStringSchema.marks.italic)) fontStyles |= FontStyles.Italic;
-        if (marks.has(formattedStringSchema.marks.underline)) fontStyles |= FontStyles.Underline;
 
         const range = domSelection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
@@ -256,34 +302,104 @@ function observerPlugin(
     });
 }
 
-export function Editor({ string }: { string: FormattedString }): JSX.Element {
+function emitOpeningTag(output: string[], style: FontStyle) {
+    switch (style) {
+        case 'bold':
+            output.push('[b]');
+            break;
+        case 'italic':
+            output.push('[i]');
+            break;
+        case 'underline':
+            output.push('[u]');
+            break;
+    }
+}
+
+function emitClosingTag(output: string[], style: FontStyle) {
+    switch (style) {
+        case 'bold':
+            output.push('[/b]');
+            break;
+        case 'italic':
+            output.push('[/i]');
+            break;
+        case 'underline':
+            output.push('[/u]');
+            break;
+    }
+}
+
+function escapeBBCode(code: string): string {
+    return code.split(/(?=\[)/).reduce((prev, next) => prev + '[' + next);
+}
+
+function computeLongestPrefix(openStyles: FontStyle[], marks: readonly Mark[]): FontStyle[] {
+    const longest: FontStyle[] = [];
+    for (let format of openStyles) {
+        if (!marks.some(m => m.type.name === format)) break;
+        longest.push(format);
+    }
+    return longest;
+}
+
+function convertDocToBBCode(doc: Node): string {
+    let openStyles: FontStyle[] = [];
+    const output: string[] = [];
+
+    doc.forEach(node => {
+        const target = node.marks;
+        const longest = computeLongestPrefix(openStyles, target);
+
+        for (let style of openStyles.slice(longest.length).reverse()) emitClosingTag(output, style);
+
+        openStyles.length = longest.length;
+        for (let mark of target)
+            if (!longest.includes(mark.type.name as FontStyle)) {
+                emitOpeningTag(output, mark.type.name as FontStyle);
+                openStyles.push(mark.type.name as FontStyle);
+            }
+
+        if (node.text !== undefined && node.text.length > 0) output.push(escapeBBCode(node.text));
+        else if (formattedStringSchema.nodes.hard_break === node.type) output.push('\n');
+    });
+
+    for (let style of openStyles.reverse()) {
+        emitClosingTag(output, style);
+    }
+    return output.join('');
+}
+
+export function Editor({ state }: { state: EditorState }): JSX.Element {
     const [currentSelection, setCurrentSelection] = useState<Selection2>();
+
     const viewRef = useRef<EditorView>(null);
     const manager = useScriptEditorManager();
 
     const setupEditor = useCallback((container: HTMLDivElement) => {
-        const state = EditorState.create({
-            doc: formattedStringToDocument(string),
-        });
         return new EditorView(container, {
             state,
             plugins: [
                 editorKeymap,
-                observerPlugin(setCurrentSelection, manager.scrollContainer ?? undefined),
+                selectionObserver(setCurrentSelection, manager.scrollContainer ?? undefined),
             ],
         });
     }, []);
+
+    useEffect(() => {
+        if (viewRef.current === null) return;
+        const view = viewRef.current;
+        // console.log('executed', view.state === state);
+
+        if (view.state !== state) view.updateState(state);
+    }, [state]);
 
     function handleFontStylesChange(changedFontStyles: FontStyles) {
         if (viewRef.current === null) return;
 
         const view = viewRef.current;
-        if (changedFontStyles & FontStyles.Bold)
-            toggleMark(formattedStringSchema.marks.bold)(view.state, view.dispatch);
-        if (changedFontStyles & FontStyles.Italic)
-            toggleMark(formattedStringSchema.marks.italic)(view.state, view.dispatch);
-        if (changedFontStyles & FontStyles.Underline)
-            toggleMark(formattedStringSchema.marks.underline)(view.state, view.dispatch);
+        for (let style of changedFontStyles.values())
+            toggleMark(formattedStringSchema.marks[style])(view.state, view.dispatch);
     }
 
     return (

@@ -28,9 +28,10 @@ import { type Color } from 'quipt/color-palette';
 import { type Script } from '../script';
 import { renderContentNode } from './section';
 import { HLine, VLine, ContentInfoView } from './common';
+import { createEditorState } from './editor';
 import {
     type ActorKey,
-    type EditableSectionNode,
+    type EditableScriptNode,
     type Key,
     type Keyed,
     type ScriptNode,
@@ -39,6 +40,7 @@ import {
     TransientState,
     runUpdate,
 } from '../state';
+import { renderBBCode } from 'quipt/formatted-string';
 
 function ScriptViewHeader({ name }: { name: string }): JSX.Element {
     return (
@@ -234,30 +236,36 @@ function ScriptInfoView(props: ComponentProps<typeof ContentInfoView>): JSX.Elem
     );
 }
 
-export class Action<Input> {
-    public constructor(
-        public readonly name: string,
-        public readonly action: (state: TransientState, input: Input) => void,
-    ) {}
-}
+export type Action = (state: TransientState, manager: ScriptEditorManager) => void;
 
-function doEditItem(state: TransientState, { itemKey }: { itemKey: Key<EditableSectionNode> }) {
-    state.replaceNode(itemKey, { editing: true });
-}
+export namespace actions {
+    export function editItem(itemKey: Key<EditableScriptNode>): Action {
+        return (state: TransientState, manager: ScriptEditorManager) => {
+            const item = state.lookup(itemKey);
+            state.replaceNode(itemKey, {
+                content: createEditorState(item.key, item.text, manager),
+            });
+        };
+    }
 
-function doEditDone(state: TransientState, { itemKey }: { itemKey: Key<EditableSectionNode> }) {
-    state.replaceNode(itemKey, { editing: false });
-}
+    export function editDone(itemKey: Key<EditableScriptNode>): Action {
+        return (state: TransientState) => {
+            const item = state.lookup(itemKey);
+            state.replaceNode(itemKey, { content: renderBBCode(item.text) });
+        };
+    }
 
-type ChangeActorColorParams = { actorKey: ActorKey; newColor: Color };
-type RenameActorParams = { actorKey: ActorKey; newName: string };
+    export function changeActorColor(actorKey: ActorKey, newColor: Color): Action {
+        return (state: TransientState) => {
+            state.replaceNode(actorKey, { color: newColor });
+        };
+    }
 
-function doChangeActorColor(state: TransientState, { actorKey, newColor }: ChangeActorColorParams) {
-    state.replaceNode(actorKey, { color: newColor });
-}
-
-function doRenameActor(state: TransientState, { actorKey, newName }: RenameActorParams) {
-    state.replaceNode(actorKey, { name: newName });
+    export function renameActor(actorKey: ActorKey, newName: string): Action {
+        return (state: TransientState) => {
+            state.replaceNode(actorKey, { name: newName });
+        };
+    }
 }
 
 function mapAdd(map: Map<string, Set<() => void>>, key: string, listener: () => void) {
@@ -275,22 +283,6 @@ function mapDelete(map: Map<string, Set<() => void>>, key: string, listener: () 
 }
 
 export class ScriptEditorManager {
-    static readonly EDIT_ITEM = new Action<{ itemKey: Key<EditableSectionNode> }>(
-        'EDIT_ITEM',
-        doEditItem,
-    );
-
-    static readonly CHANGE_ACTOR_COLOR = new Action<ChangeActorColorParams>(
-        'CHANGE_ACTOR_COLOR',
-        doChangeActorColor,
-    );
-
-    static readonly RENAME_ACTOR = new Action<RenameActorParams>('RENAME_ACTOR', doRenameActor);
-    static readonly EDIT_DONE = new Action<{ itemKey: Key<EditableSectionNode> }>(
-        'EDIT_DONE',
-        doEditDone,
-    );
-
     state: ScriptEditorState;
     scrollContainer: HTMLElement | null = null;
 
@@ -311,8 +303,8 @@ export class ScriptEditorManager {
         };
     }
 
-    dispatch<Input>(action: Action<Input>, input: Input) {
-        const [state, changes] = runUpdate(this.state, trans => action.action(trans, input));
+    dispatch(action: Action) {
+        const [state, changes] = runUpdate(this.state, trans => action(trans, this));
         this.state = state;
         this.runChangeListeners(changes);
     }

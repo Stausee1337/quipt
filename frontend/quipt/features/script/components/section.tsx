@@ -12,19 +12,14 @@ import { useBreakpoints } from 'quipt/responsive';
 import { formatActorsArray } from 'quipt/utils';
 import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
 import { ContentInfoView, HLine, PlayButton } from './common';
-import {
-    ScriptEditorManager,
-    useKeyedState,
-    useScriptEditorManager,
-    useScriptEditorState,
-} from './script';
+import { actions, useKeyedState, useScriptEditorManager, useScriptEditorState } from './script';
 import { Editor } from './editor';
 import { ActorKeyPill } from './actors-container';
 import {
     ActionNode,
     type ActorKey,
     DialogueNode,
-    type EditableSectionNode,
+    type EditableScriptNode,
     type Key,
     type ScriptNode,
     SectionNode,
@@ -89,15 +84,13 @@ export function SectionInfoHeader({
     );
 }
 
-function ScriptItemMenu({ itemKey }: { itemKey: Key<EditableSectionNode> }) {
+function ScriptItemMenu({ itemKey }: { itemKey: Key<EditableScriptNode> }) {
     const manager = useScriptEditorManager();
 
     return (
         <MenuBox>
             <MenuItem iconName="check2-circle">Auswählen</MenuItem>
-            <MenuItem
-                iconName="pencil"
-                onClick={() => manager.dispatch(ScriptEditorManager.EDIT_ITEM, { itemKey })}>
+            <MenuItem iconName="pencil" onClick={() => manager.dispatch(actions.editItem(itemKey))}>
                 Bearbeiten
             </MenuItem>
             <MenuItem iconName="play-fill">Ab hier üben</MenuItem>
@@ -113,7 +106,7 @@ function ScriptItemMenu({ itemKey }: { itemKey: Key<EditableSectionNode> }) {
     );
 }
 
-function HoverActionsContainer({ itemKey }: { itemKey: Key<EditableSectionNode> }): JSX.Element {
+function HoverActionsContainer({ itemKey }: { itemKey: Key<EditableScriptNode> }): JSX.Element {
     return (
         <ActionsContainer className="invisible group-hover:not-group-data-editing:visible has-data-popup-open:visible">
             <Menu.Root>
@@ -134,19 +127,19 @@ function HoverActionsContainer({ itemKey }: { itemKey: Key<EditableSectionNode> 
     );
 }
 
-function EditActionsContainer({ itemKey }: { itemKey: Key<EditableSectionNode> }): JSX.Element {
+function EditActionsContainer({ itemKey }: { itemKey: Key<EditableScriptNode> }): JSX.Element {
     const manager = useScriptEditorManager();
     return (
         <ActionsContainer>
             <IconButton
                 iconName="check2"
                 className="text-foreground"
-                onClick={() => manager.dispatch(ScriptEditorManager.EDIT_DONE, { itemKey })}
+                onClick={() => manager.dispatch(actions.editDone(itemKey))}
             />
             <IconButton
                 iconName="x"
                 className="text-foreground"
-                onClick={() => manager.dispatch(ScriptEditorManager.EDIT_DONE, { itemKey })}
+                onClick={() => manager.dispatch(actions.editDone(itemKey))}
             />
         </ActionsContainer>
     );
@@ -164,14 +157,12 @@ function ActionsContainer({ className, ...props }: ComponentProps<'div'>): JSX.E
     );
 }
 
-function ContentRenderer({
-    content,
-    editing,
+function NodeContentRenderer({
     className,
+    node,
 }: {
-    content: FormattedString;
-    editing: boolean;
     className?: string;
+    node: EditableScriptNode;
 }): JSX.Element {
     return (
         <div
@@ -179,13 +170,13 @@ function ContentRenderer({
                 'before:border-accent-30 data-editing:before:bg-accent-10 relative before:absolute before:top-0 before:-right-2 before:bottom-0 before:-left-2 before:-z-1 before:rounded-lg data-editing:py-1 data-editing:before:border sm:before:-top-1 sm:before:-bottom-1',
                 className,
             )}
-            data-editing={editing ? '' : undefined}>
-            {!editing ? (
+            data-editing={node.editing ? '' : undefined}>
+            {node.content instanceof FormattedString ? (
                 <p className="whitespace-pre-wrap">
-                    <FormattedStringView string={content} />
+                    <FormattedStringView string={node.content} />
                 </p>
             ) : (
-                <Editor string={content} />
+                <Editor state={node.content} />
             )}
         </div>
     );
@@ -284,7 +275,7 @@ const DialogueView = memo(function DialogueView({
                     </div>
                 )}
             </div>
-            <ContentRenderer content={dialogue.content} editing={dialogue.editing} />
+            <NodeContentRenderer node={dialogue} />
         </HoverableSectionItem>
     );
 });
@@ -302,11 +293,7 @@ const ActionView = memo(function ActionView({
             {...props}>
             <HoverActionsContainer itemKey={action.key} />
             {action.editing && <EditActionsContainer itemKey={action.key} />}
-            <ContentRenderer
-                className="mx-auto w-31/40"
-                content={action.content}
-                editing={action.editing}
-            />
+            <NodeContentRenderer className="mx-auto w-31/40" node={action} />
         </HoverableSectionItem>
     );
 });

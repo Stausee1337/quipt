@@ -65,7 +65,7 @@ function makeConstructor(): ArrayBackedObjectConstructor {
 export class FormattedString extends ArrayBackedObject<FormattedStringElement> {
     /**
      * The unformatted string this represents */
-    raw: string = '';
+    raw: string;
 
     /**
      * A reference to the input string
@@ -244,5 +244,5 @@ export function renderBBCode(bbcode: string): FormattedString {
     }
 
     const nodes = parseBBCode(bbcode);
-    return new FormattedString(flattenNodes(nodes, FontStyles.None));
+    return new FormattedString(flattenNodes(nodes, FontStyles.None), bbcode);
 }
