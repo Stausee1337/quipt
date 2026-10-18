@@ -12,9 +12,9 @@ import { useBreakpoints } from 'quipt/responsive';
 import { formatActorsArray } from 'quipt/utils';
 import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
 import { ContentInfoView, HLine, PlayButton } from './common';
-import { actions, useKeyedState, useScriptEditorManager, useScriptEditorState } from './script';
 import { Editor } from './editor';
 import { ActorKeyPill } from './actors-container';
+import { useKeyedState, useScriptEditorManager, useScriptEditorState } from '../model/hooks';
 import {
     ActionNode,
     type ActorKey,
@@ -24,7 +24,8 @@ import {
     type ScriptNode,
     SectionNode,
     keyOfType,
-} from '../state';
+} from '../model/state';
+import * as actions from '../model/actions';
 
 type VirtualizedElementProps = Omit<ComponentProps<'div'>, 'className'>;
 

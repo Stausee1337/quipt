@@ -6,8 +6,9 @@ import { Input } from 'quipt/components/input';
 import { ActorPill, type ActorPillProps } from 'quipt/components/actor-pill';
 import { type Color, colorToString, asLighterColor } from 'quipt/color-palette';
 import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
-import { actions, useKeyedState, useScriptEditorManager } from './script';
-import { type ActorKey } from '../state';
+import { useKeyedState, useScriptEditorManager } from '../model/hooks';
+import { type ActorKey } from '../model/state';
+import * as actions from '../model/actions';
 
 export interface ActorKeyPillProps extends Omit<ActorPillProps, 'actor'> {
     actorKey: ActorKey;

@@ -1,11 +1,12 @@
 import { Map } from 'immutable';
 
+import { EditorState } from 'prosemirror-state';
+
 import { FormattedString, renderBBCode } from 'quipt/formatted-string';
 import type { ItemsContent, SectionContent, SupersectionContent } from 'quipt/schemas/script';
 import { type Actor as BaseActor, randomID } from 'quipt/utils';
 import { type Color, ensureColor } from 'quipt/color-palette';
-import type { Script } from './script';
-import { EditorState } from 'prosemirror-state';
+import type { Script } from '../script';
 
 type SectionKeyPack<TChild> = { key: Key<SectionNode>; children: TChild[] };
 type RootPack<TDepth extends number, TChild> = { depth: TDepth; children: TChild[] };

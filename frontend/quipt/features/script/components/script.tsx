@@ -4,14 +4,11 @@ import {
     type ReactNode,
     type RefObject,
     cloneElement,
-    createContext,
     memo,
-    useContext,
     useEffect,
     useMemo,
     useRef,
     useState,
-    useSyncExternalStore,
 } from 'react';
 
 import { Button as BaseButton } from '@base-ui/react';
@@ -24,23 +21,16 @@ import { SearchInput } from 'quipt/components/input';
 import { IconButton } from 'quipt/components/icon-button';
 import { Tooltip } from 'quipt/components/tooltip';
 import { useBreakpoints } from 'quipt/responsive';
-import { type Color } from 'quipt/color-palette';
 import { type Script } from '../script';
 import { renderContentNode } from './section';
 import { HLine, VLine, ContentInfoView } from './common';
-import { createEditorState } from './editor';
+import { type Key, type ScriptNode, type Structure } from '../model/state';
 import {
-    type ActorKey,
-    type EditableScriptNode,
-    type Key,
-    type Keyed,
-    type ScriptNode,
-    ScriptEditorState,
-    type Structure,
-    TransientState,
-    runUpdate,
-} from '../state';
-import { renderBBCode } from 'quipt/formatted-string';
+    ScriptEditorManagerProivder,
+    useScriptEditorManager,
+    useScriptEditorState,
+} from '../model/hooks';
+import { ScriptEditorManager } from '../model/manager';
 
 function ScriptViewHeader({ name }: { name: string }): JSX.Element {
     return (
@@ -236,146 +226,6 @@ function ScriptInfoView(props: ComponentProps<typeof ContentInfoView>): JSX.Elem
     );
 }
 
-export type Action = (state: TransientState, manager: ScriptEditorManager) => void;
-
-export namespace actions {
-    export function editItem(itemKey: Key<EditableScriptNode>): Action {
-        return (state: TransientState, manager: ScriptEditorManager) => {
-            const item = state.lookup(itemKey);
-            state.replaceNode(itemKey, {
-                content: createEditorState(item.key, item.text, manager),
-            });
-        };
-    }
-
-    export function editDone(itemKey: Key<EditableScriptNode>): Action {
-        return (state: TransientState) => {
-            const item = state.lookup(itemKey);
-            state.replaceNode(itemKey, { content: renderBBCode(item.text) });
-        };
-    }
-
-    export function changeActorColor(actorKey: ActorKey, newColor: Color): Action {
-        return (state: TransientState) => {
-            state.replaceNode(actorKey, { color: newColor });
-        };
-    }
-
-    export function renameActor(actorKey: ActorKey, newName: string): Action {
-        return (state: TransientState) => {
-            state.replaceNode(actorKey, { name: newName });
-        };
-    }
-}
-
-function mapAdd(map: Map<string, Set<() => void>>, key: string, listener: () => void) {
-    let set = map.get(key);
-    if (set === undefined) {
-        set = new Set<() => void>();
-        map.set(key, set);
-    }
-    set.add(listener);
-}
-
-function mapDelete(map: Map<string, Set<() => void>>, key: string, listener: () => void) {
-    const set = map.get(key);
-    set?.delete(listener);
-}
-
-export class ScriptEditorManager {
-    state: ScriptEditorState;
-    scrollContainer: HTMLElement | null = null;
-
-    private listeners = new Map<string, Set<() => void>>();
-
-    constructor(script: Script) {
-        this.state = ScriptEditorState.build(script);
-    }
-
-    subscribe<T extends Keyed<T[number]>[]>(
-        listener: () => void,
-        keys?: { readonly [K in keyof T]: Key<T[K]> },
-    ): () => void {
-        const keysArray = keys !== undefined ? Array.from(keys) : [''];
-        for (let key of keysArray) mapAdd(this.listeners, key, listener);
-        return () => {
-            for (let key of keysArray) mapDelete(this.listeners, key, listener);
-        };
-    }
-
-    dispatch(action: Action) {
-        const [state, changes] = runUpdate(this.state, trans => action(trans, this));
-        this.state = state;
-        this.runChangeListeners(changes);
-    }
-
-    private runChangeListeners(changes: Set<Key<any>>) {
-        for (let listener of this.listeners.get('') ?? []) listener();
-
-        for (let key of changes.values())
-            for (let listener of this.listeners.get(key) ?? []) listener();
-    }
-}
-
-export function useScriptEditorManager(): ScriptEditorManager {
-    return useContext(ScriptViewContextObject)!;
-}
-
-const ScriptViewContextObject = createContext<ScriptEditorManager | null>(null);
-
-export function useScriptEditorState(): ScriptEditorState {
-    const manager = useContext(ScriptViewContextObject)!;
-    return useSyncExternalStore(
-        listener => manager.subscribe(listener),
-        () => manager.state,
-    );
-}
-
-export function useScriptEditorStateAccessor<T>(
-    accessor: (state: ScriptEditorState) => T,
-    // valuesAreEqual?: (prev: T, next: T) => boolean
-): T {
-    const manager = useContext(ScriptViewContextObject)!;
-    return useSyncExternalStore(
-        listener => manager.subscribe(listener),
-        () => accessor(manager.state),
-    );
-}
-
-export function useKeyedState<T extends Keyed<T>>(key: Key<T>): Readonly<T>;
-export function useKeyedState<T extends Keyed<T>>(key: readonly Key<T>[]): Readonly<T>[];
-export function useKeyedState<T extends Keyed<T>>(
-    keyOrKeys: Key<T> | readonly Key<T>[],
-): Readonly<T>[] | Readonly<T> {
-    const manager = useContext(ScriptViewContextObject)!;
-    const cache = useRef<{
-        state: ScriptEditorState;
-        keys: readonly Key<T>[];
-        result: Readonly<T>[];
-    }>(null);
-    return useSyncExternalStore(
-        listener =>
-            manager.subscribe(listener, typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys),
-        () => {
-            if (typeof keyOrKeys === 'string') return manager.state.lookup(keyOrKeys);
-            if (
-                cache.current === null ||
-                cache.current.state !== manager.state ||
-                cache.current.keys !== keyOrKeys
-            ) {
-                const result = keyOrKeys.map(key => manager.state.lookup(key));
-                cache.current = {
-                    state: manager.state,
-                    keys: keyOrKeys,
-                    result,
-                };
-                return result;
-            }
-            return cache.current.result;
-        },
-    );
-}
-
 function ScriptViewLayout(): JSX.Element {
     const breakpoints = useBreakpoints();
     const state = useScriptEditorState();
@@ -434,8 +284,8 @@ export function ScriptEditorView({
     managerRef.current.scrollContainer = scrollContainerRef.current;
 
     return (
-        <ScriptViewContextObject.Provider value={managerRef.current}>
+        <ScriptEditorManagerProivder value={managerRef.current}>
             <ScriptViewLayout />
-        </ScriptViewContextObject.Provider>
+        </ScriptEditorManagerProivder>
     );
 }
