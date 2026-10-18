@@ -66,8 +66,10 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
                 className="mx-2"
                 placeholder="Spieler benennen"
                 value={actor.name}
-                onValueChange={value => manager.dispatch(actions.renameActor(props.actor, value))}
-                onKeyDown={e => e.stopPropagation()}
+                onValueChange={value =>
+                    manager.dispatch(actions.renameActor, { actorKey: props.actor, newName: value })
+                }
+                onKeyDown={e => !(e.ctrlKey && e.key === 'z') && e.stopPropagation()}
                 onKeyUp={e => e.stopPropagation()}
                 autoFocus
             />
@@ -75,7 +77,10 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
             <ColorPicker
                 color={actor.color}
                 onColorPicked={color =>
-                    manager.dispatch(actions.changeActorColor(props.actor, color))
+                    manager.dispatch(actions.changeActorColor, {
+                        actorKey: props.actor,
+                        newColor: color,
+                    })
                 }
             />
             <MenuSeparator />

@@ -1,10 +1,9 @@
 import { EditorState, Plugin, Selection } from 'prosemirror-state';
 import { Mark, Node, Schema } from 'prosemirror-model';
-import { history } from 'prosemirror-history';
 
 import { type FormatNode, parseBBCode } from 'quipt/formatted-string';
 import { TransientState, type EditableScriptNode, type Key } from './state';
-import type { Action, ScriptEditorManager } from './manager';
+import type { ScriptEditorManager } from './manager';
 
 export type FontStyle = 'italic' | 'bold' | 'underline';
 export type FontStyles = Set<FontStyle>;
@@ -104,15 +103,22 @@ function convertDocToBBCode(doc: Node): string {
 }
 
 export function updateItemContent(
-    itemKey: Key<EditableScriptNode>,
-    editorState: EditorState,
-): Action {
-    return (state: TransientState) => {
-        state.replaceNode(itemKey, {
-            content: editorState,
-            text: convertDocToBBCode(editorState.doc),
-        });
-    };
+    {
+        itemKey,
+        editorState,
+    }: {
+        itemKey: Key<EditableScriptNode>;
+        editorState: EditorState;
+    },
+    state: TransientState,
+    manager: ScriptEditorManager,
+) {
+    const item = manager.state.lookup(itemKey);
+    if (item.content === editorState) return;
+    state.replaceNode(itemKey, {
+        content: editorState,
+        text: convertDocToBBCode(editorState.doc),
+    });
 }
 
 function* formatToDocumentNodes(nodes: FormatNode[], marks: Mark[] = []): Generator<Node> {
@@ -168,7 +174,7 @@ function listenDocumentChange(
                         prevState.selection.eq(view.state.selection)
                     )
                         return;
-                    manager.dispatch(updateItemContent(itemKey, view.state));
+                    manager.dispatch(updateItemContent, { itemKey, editorState: view.state });
                 },
             };
         },
@@ -182,7 +188,7 @@ export function createEditorState(
     const doc = bbCodeToDocument(text);
     return EditorState.create({
         doc,
-        plugins: [history(), listenDocumentChange(itemKey, manager)],
+        plugins: [listenDocumentChange(itemKey, manager)],
         selection: Selection.atEnd(doc),
     });
 }

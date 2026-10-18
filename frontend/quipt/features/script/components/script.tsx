@@ -283,6 +283,21 @@ export function ScriptEditorView({
     if (managerRef.current === null) managerRef.current = new ScriptEditorManager(script);
     managerRef.current.scrollContainer = scrollContainerRef.current;
 
+    useEffect(() => {
+        const keydownListener = (event: KeyboardEvent) => {
+            if (event.ctrlKey && event.key === 'z') {
+                event.preventDefault();
+                console.log('undo');
+                managerRef.current?.undo();
+            }
+        };
+
+        window.addEventListener('keydown', keydownListener);
+        return () => {
+            window.removeEventListener('keydown', keydownListener);
+        };
+    }, []);
+
     return (
         <ScriptEditorManagerProivder value={managerRef.current}>
             <ScriptViewLayout />

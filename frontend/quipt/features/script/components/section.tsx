@@ -91,7 +91,7 @@ function ScriptItemMenu({ itemKey }: { itemKey: Key<EditableScriptNode> }) {
     return (
         <MenuBox>
             <MenuItem iconName="check2-circle">Auswählen</MenuItem>
-            <MenuItem iconName="pencil" onClick={() => manager.dispatch(actions.editItem(itemKey))}>
+            <MenuItem iconName="pencil" onClick={() => manager.dispatch(actions.editItem, itemKey)}>
                 Bearbeiten
             </MenuItem>
             <MenuItem iconName="play-fill">Ab hier üben</MenuItem>
@@ -135,12 +135,12 @@ function EditActionsContainer({ itemKey }: { itemKey: Key<EditableScriptNode> })
             <IconButton
                 iconName="check2"
                 className="text-foreground"
-                onClick={() => manager.dispatch(actions.editDone(itemKey))}
+                onClick={() => manager.dispatch(actions.editDone, itemKey)}
             />
             <IconButton
                 iconName="x"
                 className="text-foreground"
-                onClick={() => manager.dispatch(actions.editDone(itemKey))}
+                onClick={() => manager.dispatch(actions.editDone, itemKey)}
             />
         </ActionsContainer>
     );

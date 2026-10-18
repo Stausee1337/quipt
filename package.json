@@ -33,7 +33,6 @@
     "marked": "^16.3.0",
     "mupdf": "^1.28.1",
     "prosemirror-commands": "^1.7.2",
-    "prosemirror-history": "^1.5.1",
     "prosemirror-keymap": "^1.2.3",
     "prosemirror-model": "^1.25.12",
     "prosemirror-state": "^1.4.4",

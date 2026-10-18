@@ -15,7 +15,6 @@ import { EditorState, Plugin } from 'prosemirror-state';
 import { Mark } from 'prosemirror-model';
 import { keymap } from 'prosemirror-keymap';
 import { toggleMark } from 'prosemirror-commands';
-import { undo } from 'prosemirror-history';
 
 import { IconButton } from 'quipt/components/icon-button';
 import { useScriptEditorManager } from '../model/hooks';
@@ -34,7 +33,6 @@ const editorKeymap = keymap({
     'Ctrl-b': toggleMark(formattedStringSchema.marks.bold),
     'Ctrl-i': toggleMark(formattedStringSchema.marks.italic),
     'Ctrl-u': toggleMark(formattedStringSchema.marks.underline),
-    'Ctrl-z': undo,
 });
 
 export default function FontStyleToggleGroup({

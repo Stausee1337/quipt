@@ -1,9 +1,23 @@
 import { type Keyed, ScriptEditorState, TransientState, type Key, runUpdate } from './state';
 import type { Script } from '../script';
 
-export type Action = (state: TransientState, manager: ScriptEditorManager) => void;
+export type Action<Input> = {
+    (input: Input, state: TransientState, manager: ScriptEditorManager): void;
+    merge?(
+        prevState: ScriptEditorState,
+        currentState: ScriptEditorState,
+        manager: ScriptEditorManager,
+    ): boolean;
+};
+
+export type HistoryEntry = {
+    action: Action<any>;
+    state: ScriptEditorState;
+    changes: Set<Key<any>>;
+};
 
 export class ScriptEditorManager {
+    history: HistoryEntry[] = [];
     state: ScriptEditorState;
     scrollContainer: HTMLElement | null = null;
 
@@ -24,8 +38,37 @@ export class ScriptEditorManager {
         };
     }
 
-    dispatch(action: Action) {
-        const [state, changes] = runUpdate(this.state, trans => action(trans, this));
+    undo() {
+        if (!this.history.length) return;
+        const { state, changes } = this.history.pop()!;
+        this.state = state;
+        this.runChangeListeners(changes);
+    }
+
+    dispatch<Input>(action: Action<Input>, input: Input) {
+        const [state, changes] = runUpdate(this.state, trans => action(input, trans, this));
+        if (!changes.size) return;
+        const tos = this.history.at(-1);
+        if (
+            tos?.action === action &&
+            action.merge !== undefined &&
+            action.merge(tos.state, this.state, this)
+        ) {
+            const mergedChanges = tos.changes.union(changes);
+            // replace
+            this.history[this.history.length - 1] = {
+                action,
+                state: tos.state,
+                changes: mergedChanges,
+            };
+        } else {
+            // push
+            this.history.push({
+                action,
+                state: this.state,
+                changes,
+            });
+        }
         this.state = state;
         this.runChangeListeners(changes);
     }
