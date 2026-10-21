@@ -1,4 +1,4 @@
-import { useRef, type JSX } from 'react';
+import { useId, useRef, type JSX } from 'react';
 
 import { Menu, Toggle, ToggleGroup } from '@base-ui/react';
 
@@ -57,6 +57,7 @@ function ColorPicker({ color, onColorPicked }: ColorPickerProps): JSX.Element {
 }
 
 function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
+    const inputId = useId();
     const manager = useScriptEditorManager();
     const actor = useKeyedState(props.actor);
 
@@ -65,9 +66,15 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
             <Input
                 className="mx-2"
                 placeholder="Spieler benennen"
+                id={inputId}
                 value={actor.name}
-                onValueChange={value =>
-                    manager.dispatch(actions.renameActor, { actorKey: props.actor, newName: value })
+                onValueChange={(value, event) =>
+                    manager.dispatch(actions.renameActor, {
+                        actorKey: props.actor,
+                        name: value,
+                        inputId,
+                        event: event.event,
+                    })
                 }
                 onKeyDown={e => !(e.ctrlKey && e.key === 'z') && e.stopPropagation()}
                 onKeyUp={e => e.stopPropagation()}

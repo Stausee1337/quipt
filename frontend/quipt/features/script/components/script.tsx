@@ -28,7 +28,7 @@ import { type Key, type ScriptNode, type Structure } from '../model/state';
 import {
     ScriptEditorManagerProivder,
     useScriptEditorManager,
-    useScriptEditorState,
+    useScriptEditorStateAccessor,
 } from '../model/hooks';
 import { ScriptEditorManager } from '../model/manager';
 
@@ -228,25 +228,25 @@ function ScriptInfoView(props: ComponentProps<typeof ContentInfoView>): JSX.Elem
 
 function ScriptViewLayout(): JSX.Element {
     const breakpoints = useBreakpoints();
-    const state = useScriptEditorState();
+    const name = useScriptEditorStateAccessor(state => state.name);
+    const structure = useScriptEditorStateAccessor(state => state.structure);
+    const actors = useScriptEditorStateAccessor(state => state.actors);
+    const dialogueCount = useScriptEditorStateAccessor(state => state.dialogueCount);
 
     return (
         <div className="mx-auto flex w-full max-w-343 flex-col gap-y-2 sm:gap-y-4">
             {breakpoints.lg ? (
                 <>
-                    <ScriptViewHeader name={state.name} />
+                    <ScriptViewHeader name={name} />
                     <div className="flex max-w-full flex-1">
-                        <ScriptContentView className="flex-1" structure={state.structure} />
+                        <ScriptContentView className="flex-1" structure={structure} />
                         {breakpoints.lg && (
                             <>
                                 <div className="pointer-events-none">
                                     <VLine className="absolute top-4 bottom-4 -z-2" />
                                     <VLine className="border-background relative -z-1 h-200 -translate-y-196" />
                                 </div>
-                                <ScriptInfoView
-                                    actors={state.actors}
-                                    dialogueCount={state.dialogueCount}
-                                />
+                                <ScriptInfoView actors={actors} dialogueCount={dialogueCount} />
                             </>
                         )}
                     </div>
@@ -254,18 +254,15 @@ function ScriptViewLayout(): JSX.Element {
             ) : (
                 <>
                     {breakpoints.sm ? (
-                        <ScriptViewHeader name={state.name} />
+                        <ScriptViewHeader name={name} />
                     ) : (
-                        <MobileScriptViewHeader name={state.name} />
+                        <MobileScriptViewHeader name={name} />
                     )}
                     <div className="flex flex-col gap-y-3 px-3 sm:px-9">
-                        <ContentInfoView
-                            actors={state.actors}
-                            dialogueCount={state.dialogueCount}
-                        />
+                        <ContentInfoView actors={actors} dialogueCount={dialogueCount} />
                     </div>
                     <HLine className="mx-3 sm:mx-9" />
-                    <ScriptContentView structure={state.structure} />
+                    <ScriptContentView structure={structure} />
                 </>
             )}
         </div>
@@ -287,7 +284,6 @@ export function ScriptEditorView({
         const keydownListener = (event: KeyboardEvent) => {
             if (event.ctrlKey && event.key === 'z') {
                 event.preventDefault();
-                console.log('undo');
                 managerRef.current?.undo();
             }
         };

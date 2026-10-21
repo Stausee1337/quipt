@@ -1,4 +1,4 @@
-import { type Keyed, ScriptEditorState, TransientState, type Key, runUpdate } from './state';
+import { type Keyed, ScriptEditorState, TransientState, type Key } from './state';
 import type { Script } from '../script';
 
 export type Action<Input> = {
@@ -22,6 +22,7 @@ export class ScriptEditorManager {
     scrollContainer: HTMLElement | null = null;
 
     private listeners = new Map<string, Set<() => void>>();
+    private originAction: Action<any> | undefined;
 
     constructor(script: Script) {
         this.state = ScriptEditorState.build(script);
@@ -46,21 +47,18 @@ export class ScriptEditorManager {
     }
 
     dispatch<Input>(action: Action<Input>, input: Input) {
-        const [state, changes] = runUpdate(this.state, trans => action(input, trans, this));
+        const [state, changes] = this.state.update(trans => action(input, trans, this));
         if (!changes.size) return;
         const tos = this.history.at(-1);
         if (
-            tos?.action === action &&
+            this.originAction === action &&
             action.merge !== undefined &&
-            action.merge(tos.state, this.state, this)
+            action.merge(this.state, state, this) &&
+            tos
         ) {
             const mergedChanges = tos.changes.union(changes);
             // replace
-            this.history[this.history.length - 1] = {
-                action,
-                state: tos.state,
-                changes: mergedChanges,
-            };
+            this.history[this.history.length - 1].changes = mergedChanges;
         } else {
             // push
             this.history.push({
@@ -70,6 +68,7 @@ export class ScriptEditorManager {
             });
         }
         this.state = state;
+        this.originAction = action;
         this.runChangeListeners(changes);
     }
 

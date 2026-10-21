@@ -15,13 +15,13 @@ export function useScriptEditorManager(): ScriptEditorManager {
     return useContext(ScriptEditorManagerContextObject)!;
 }
 
-export function useScriptEditorState(): ScriptEditorState {
-    const manager = useContext(ScriptEditorManagerContextObject)!;
-    return useSyncExternalStore(
-        listener => manager.subscribe(listener),
-        () => manager.state,
-    );
-}
+// export function useScriptEditorState(): ScriptEditorState {
+//     const manager = useContext(ScriptEditorManagerContextObject)!;
+//     return useSyncExternalStore(
+//         listener => manager.subscribe(listener),
+//         () => manager.state,
+//     );
+// }
 
 export function useScriptEditorStateAccessor<T>(
     accessor: (state: ScriptEditorState) => T,

@@ -1,4 +1,4 @@
-import { Map } from 'immutable';
+import { Map as ImmutableMap } from 'immutable';
 
 import { EditorState } from 'prosemirror-state';
 
@@ -270,10 +270,10 @@ function cloneUpdate<T>(obj: T, update: Partial<T>): T {
     return Object.assign(Object.create(Object.getPrototypeOf(obj)), obj, update);
 }
 
-type PoolType = Map<Key<any>, Keyed<any>>;
+type PoolType = ImmutableMap<Key<any>, Keyed<any>>;
 
 function withNewPool<T>(f: (pool: PoolType) => T): [PoolType, T] {
-    const tempMap = Map<Key<any>, Keyed<any>>();
+    const tempMap = ImmutableMap<Key<any>, Keyed<any>>();
     let result: T | undefined;
     const map = tempMap.withMutations(map => {
         result = f(map);
@@ -316,20 +316,23 @@ export class ScriptEditorState {
     public actors: readonly ActorKey[];
     public structure: Readonly<Structure>;
     public dialogueCount: number;
-    public pool: PoolType;
+    protected metadata: Map<Symbol, any>;
+    protected pool: PoolType;
 
     constructor(
         name: string,
         actors: readonly ActorKey[],
         structure: Structure,
         dialogueCount: number,
+        metadata: Map<Symbol, any>,
         nodePool: PoolType,
     ) {
         this.name = name;
         this.actors = actors;
         this.structure = structure;
-        this.pool = nodePool;
         this.dialogueCount = dialogueCount;
+        this.metadata = metadata;
+        this.pool = nodePool;
     }
 
     lookup<T extends Keyed<T>>(key: Key<T>): Readonly<T> {
@@ -355,12 +358,55 @@ export class ScriptEditorState {
             return [actors, structure, nodes];
         });
         const { dialogueCount } = computeMetaInformation(nodes);
-        return new ScriptEditorState(script.name, actors, structure, dialogueCount, pool);
+        return new ScriptEditorState(
+            script.name,
+            actors,
+            structure,
+            dialogueCount,
+            new Map(),
+            pool,
+        );
+    }
+
+    getMeta(key: Symbol): any {
+        return this.metadata.get(key);
+    }
+
+    update(updater: (trans: TransientState) => unknown): [ScriptEditorState, Set<Key<any>>] {
+        const [pool, trans] = poolWithMutations(this.pool, pool => {
+            const trans = new TransientState(
+                this.name,
+                this.actors,
+                this.structure,
+                this.dialogueCount,
+                new Map(),
+                pool,
+            );
+
+            updater(trans);
+            return trans;
+        });
+
+        return [
+            new ScriptEditorState(
+                trans.name,
+                trans.actors,
+                trans.structure,
+                trans.dialogueCount,
+                trans.metadata,
+                pool,
+            ),
+            trans.changes,
+        ];
     }
 }
 
 export class TransientState extends ScriptEditorState {
     public changes = new Set<Key<any>>();
+
+    setMeta(key: Symbol, metadata: any) {
+        this.metadata.set(key, metadata);
+    }
 
     allocate<T extends Keyed<T>, Args extends unknown[]>(
         pool: PoolType,
@@ -409,27 +455,4 @@ export class TransientState extends ScriptEditorState {
 
         return result;
     }
-}
-
-export function runUpdate(
-    state: ScriptEditorState,
-    updater: (trans: TransientState) => unknown,
-): [ScriptEditorState, Set<Key<any>>] {
-    const [pool, trans] = poolWithMutations(state.pool, pool => {
-        const trans = new TransientState(
-            state.name,
-            state.actors,
-            state.structure,
-            state.dialogueCount,
-            pool,
-        );
-
-        updater(trans);
-        return trans;
-    });
-
-    return [
-        new ScriptEditorState(trans.name, trans.actors, trans.structure, trans.dialogueCount, pool),
-        trans.changes,
-    ];
 }

@@ -1,8 +1,9 @@
-import { EditorState, Plugin, Selection } from 'prosemirror-state';
+import { EditorState, Plugin, Selection, Transaction } from 'prosemirror-state';
 import { Mark, Node, Schema } from 'prosemirror-model';
+import { StepMap, Transform } from 'prosemirror-transform';
 
 import { type FormatNode, parseBBCode } from 'quipt/formatted-string';
-import { TransientState, type EditableScriptNode, type Key } from './state';
+import { ScriptEditorState, TransientState, type EditableScriptNode, type Key } from './state';
 import type { ScriptEditorManager } from './manager';
 
 export type FontStyle = 'italic' | 'bold' | 'underline';
@@ -102,17 +103,42 @@ function convertDocToBBCode(doc: Node): string {
     return output.join('');
 }
 
-export function updateItemContent(
+const updateItemContentKey: unique symbol = Symbol('updateItemContent');
+
+// Code from `prosemirror-history`; detecting if to merge two history items
+function isAdjacentTo(transform: Transform, prevRanges: readonly number[]) {
+    if (!prevRanges) return false;
+    if (!transform.docChanged) return true;
+    let adjacent = false;
+    transform.mapping.maps[0].forEach((start, end) => {
+        for (let i = 0; i < prevRanges.length; i += 2)
+            if (start <= prevRanges[i + 1] && end >= prevRanges[i]) adjacent = true;
+    });
+    return adjacent;
+}
+
+function rangesFor(maps: readonly StepMap[]) {
+    let result: number[] = [];
+    for (let i = maps.length - 1; i >= 0 && result.length == 0; i--)
+        maps[i].forEach((_from, _to, from, to) => result.push(from, to));
+    return result;
+}
+
+function updateItemContent(
     {
         itemKey,
+        tr: transaction,
         editorState,
     }: {
         itemKey: Key<EditableScriptNode>;
+        tr: Transaction;
         editorState: EditorState;
     },
     state: TransientState,
     manager: ScriptEditorManager,
 ) {
+    state.setMeta(updateItemContentKey, transaction);
+
     const item = manager.state.lookup(itemKey);
     if (item.content === editorState) return;
     state.replaceNode(itemKey, {
@@ -120,6 +146,17 @@ export function updateItemContent(
         text: convertDocToBBCode(editorState.doc),
     });
 }
+
+updateItemContent.merge = (prevState: ScriptEditorState, currentState: ScriptEditorState) => {
+    const prev = prevState.getMeta(updateItemContentKey);
+    const current = currentState.getMeta(updateItemContentKey);
+    if (!(prev instanceof Transaction) || !(current instanceof Transaction)) return false;
+
+    if (current.time - prev.time > 750) return false;
+    const prevRanges = rangesFor(prev.mapping.maps);
+
+    return isAdjacentTo(current, prevRanges);
+};
 
 function* formatToDocumentNodes(nodes: FormatNode[], marks: Mark[] = []): Generator<Node> {
     for (const node of nodes) {
@@ -165,18 +202,18 @@ function listenDocumentChange(
     manager: ScriptEditorManager,
 ): Plugin {
     return new Plugin({
-        view() {
-            return {
-                update(view, prevState) {
-                    if (
-                        prevState &&
-                        prevState.doc.eq(view.state.doc) &&
-                        prevState.selection.eq(view.state.selection)
-                    )
-                        return;
-                    manager.dispatch(updateItemContent, { itemKey, editorState: view.state });
-                },
-            };
+        state: {
+            init() {},
+
+            apply(tr, _, prevState, newState) {
+                if (
+                    prevState &&
+                    prevState.doc.eq(newState.doc) &&
+                    prevState.selection.eq(newState.selection)
+                )
+                    return;
+                manager.dispatch(updateItemContent, { itemKey, tr, editorState: newState });
+            },
         },
     });
 }

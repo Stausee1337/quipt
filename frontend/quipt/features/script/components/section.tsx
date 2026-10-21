@@ -14,7 +14,11 @@ import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
 import { ContentInfoView, HLine, PlayButton } from './common';
 import { Editor } from './editor';
 import { ActorKeyPill } from './actors-container';
-import { useKeyedState, useScriptEditorManager, useScriptEditorState } from '../model/hooks';
+import {
+    useKeyedState,
+    useScriptEditorManager,
+    useScriptEditorStateAccessor,
+} from '../model/hooks';
 import {
     ActionNode,
     type ActorKey,
@@ -206,11 +210,11 @@ function makeRenderActor(): (actor: ActorKey) => JSX.Element {
 }
 
 function ActorsSelector({ actors, onActorsChange }: ActorsSelectorProps): JSX.Element {
-    const state = useScriptEditorState();
+    const allActors = useScriptEditorStateAccessor(state => state.actors);
     return (
         <ToggleGroup className="flex flex-wrap gap-2 p-2" onValueChange={onActorsChange} multiple>
             {actors.map(makeRenderActor())}
-            {state.actors.filter(actor => !actors.includes(actor)).map(makeRenderActor())}
+            {allActors.filter(actor => !actors.includes(actor)).map(makeRenderActor())}
         </ToggleGroup>
     );
 }
