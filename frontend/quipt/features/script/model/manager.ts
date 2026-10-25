@@ -19,7 +19,6 @@ export type HistoryEntry = {
 export class ScriptEditorManager {
     history: HistoryEntry[] = [];
     state: ScriptEditorState;
-    scrollContainer: HTMLElement | null = null;
 
     private listeners = new Map<string, Set<() => void>>();
     private originAction: Action<any> | undefined;

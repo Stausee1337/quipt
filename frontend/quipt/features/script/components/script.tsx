@@ -2,7 +2,6 @@ import {
     type ComponentProps,
     type JSX,
     type ReactNode,
-    type RefObject,
     cloneElement,
     memo,
     useEffect,
@@ -26,9 +25,9 @@ import { renderContentNode } from './section';
 import { HLine, VLine, ContentInfoView } from './common';
 import { type Key, type ScriptNode, type Structure } from '../model/state';
 import {
-    ScriptEditorManagerProivder,
-    useScriptEditorManager,
+    ScriptEditorContextProivder,
     useScriptEditorStateAccessor,
+    useScrollContainer,
 } from '../model/hooks';
 import { ScriptEditorManager } from '../model/manager';
 
@@ -114,14 +113,15 @@ function toFlatContent(structure: Readonly<Structure>): FlatContentItem[] {
 const VirtualizedContentList = memo(
     function VirtualizedContentList({ gap, content }: { gap: number; content: FlatContentItem[] }) {
         const containerRef = useRef<HTMLDivElement | null>(null);
-        const manager = useScriptEditorManager();
+        const breakpoints = useBreakpoints();
 
         const [enabled, setEnabled] = useState(false);
         const [scrollMargin, setScrollMargin] = useState(0);
+        const scrollContainer = useScrollContainer();
 
         const virtual = useVirtualizer({
             count: content.length,
-            getScrollElement: () => manager.scrollContainer,
+            getScrollElement: () => scrollContainer,
             estimateSize: idx => content[idx].estimatedHeight,
             getItemKey: idx => content[idx].key,
             gap,
@@ -132,17 +132,17 @@ const VirtualizedContentList = memo(
         });
 
         useEffect(() => {
-            setEnabled(manager.scrollContainer !== null);
-        }, [manager.scrollContainer]);
+            setEnabled(scrollContainer !== null);
+        }, [scrollContainer]);
 
         useEffect(() => {
             if (containerRef.current !== null) {
-                const rect = containerRef.current.getBoundingClientRect();
-                setScrollMargin(rect.top);
+                setScrollMargin(containerRef.current.offsetTop);
+                console.log(containerRef.current.offsetTop);
             } else {
                 setScrollMargin(0);
             }
-        }, [containerRef.current]);
+        }, [breakpoints]);
 
         function onContainerRefUpdate(element: HTMLDivElement | null) {
             virtual.containerRef(element);
@@ -235,50 +235,44 @@ function ScriptViewLayout(): JSX.Element {
 
     return (
         <div className="mx-auto flex w-full max-w-343 flex-col gap-y-2 sm:gap-y-4">
-            {breakpoints.lg ? (
-                <>
-                    <ScriptViewHeader name={name} />
-                    <div className="flex max-w-full flex-1">
-                        <ScriptContentView className="flex-1" structure={structure} />
-                        {breakpoints.lg && (
-                            <>
-                                <div className="pointer-events-none">
-                                    <VLine className="absolute top-4 bottom-4 -z-2" />
-                                    <VLine className="border-background relative -z-1 h-200 -translate-y-196" />
-                                </div>
-                                <ScriptInfoView actors={actors} dialogueCount={dialogueCount} />
-                            </>
-                        )}
-                    </div>
-                </>
+            {breakpoints.sm ? (
+                <ScriptViewHeader name={name} />
             ) : (
+                <MobileScriptViewHeader name={name} />
+            )}
+            {!breakpoints.lg && (
                 <>
-                    {breakpoints.sm ? (
-                        <ScriptViewHeader name={name} />
-                    ) : (
-                        <MobileScriptViewHeader name={name} />
-                    )}
                     <div className="flex flex-col gap-y-3 px-3 sm:px-9">
                         <ContentInfoView actors={actors} dialogueCount={dialogueCount} />
                     </div>
                     <HLine className="mx-3 sm:mx-9" />
-                    <ScriptContentView structure={structure} />
                 </>
             )}
+            <div className={breakpoints.lg ? 'flex max-w-full flex-1' : 'contents'}>
+                <ScriptContentView className="flex-1" structure={structure} />
+                {breakpoints.lg && (
+                    <>
+                        <div className="pointer-events-none">
+                            <VLine className="absolute top-4 bottom-4 -z-2" />
+                            <VLine className="border-background relative -z-1 h-200 -translate-y-196" />
+                        </div>
+                        <ScriptInfoView actors={actors} dialogueCount={dialogueCount} />
+                    </>
+                )}
+            </div>
         </div>
     );
 }
 
 export function ScriptEditorView({
-    scrollContainerRef,
+    scrollContainer,
     script,
 }: {
-    scrollContainerRef: RefObject<HTMLElement | null>;
+    scrollContainer: HTMLElement | null;
     script: Script;
-}): JSX.Element {
+}): JSX.Element | null {
     const managerRef = useRef<ScriptEditorManager>(null);
     if (managerRef.current === null) managerRef.current = new ScriptEditorManager(script);
-    managerRef.current.scrollContainer = scrollContainerRef.current;
 
     useEffect(() => {
         const keydownListener = (event: KeyboardEvent) => {
@@ -294,9 +288,9 @@ export function ScriptEditorView({
         };
     }, []);
 
-    return (
-        <ScriptEditorManagerProivder value={managerRef.current}>
-            <ScriptViewLayout />
-        </ScriptEditorManagerProivder>
-    );
+    return managerRef.current !== null ? (
+        <ScriptEditorContextProivder manager={managerRef.current} scrollContainer={scrollContainer}>
+            <ScriptViewLayout/>
+        </ScriptEditorContextProivder>
+    ) : null;
 }

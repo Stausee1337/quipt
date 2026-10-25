@@ -9,25 +9,19 @@ import {
 import type { ScriptEditorManager } from './manager';
 import type { Key, Keyed, ScriptEditorState } from './state';
 
-const ScriptEditorManagerContextObject = createContext<ScriptEditorManager | null>(null);
-
 export function useScriptEditorManager(): ScriptEditorManager {
-    return useContext(ScriptEditorManagerContextObject)!;
+    return useContext(ScriptEditorContextObject).manager!;
 }
 
-// export function useScriptEditorState(): ScriptEditorState {
-//     const manager = useContext(ScriptEditorManagerContextObject)!;
-//     return useSyncExternalStore(
-//         listener => manager.subscribe(listener),
-//         () => manager.state,
-//     );
-// }
+export function useScrollContainer(): HTMLElement | null {
+    return useContext(ScriptEditorContextObject).scrollContainer;
+}
 
 export function useScriptEditorStateAccessor<T>(
     accessor: (state: ScriptEditorState) => T,
     // valuesAreEqual?: (prev: T, next: T) => boolean
 ): T {
-    const manager = useContext(ScriptEditorManagerContextObject)!;
+    const manager = useScriptEditorManager();
     return useSyncExternalStore(
         listener => manager.subscribe(listener),
         () => accessor(manager.state),
@@ -39,7 +33,7 @@ export function useKeyedState<T extends Keyed<T>>(key: readonly Key<T>[]): Reado
 export function useKeyedState<T extends Keyed<T>>(
     keyOrKeys: Key<T> | readonly Key<T>[],
 ): Readonly<T>[] | Readonly<T> {
-    const manager = useContext(ScriptEditorManagerContextObject)!;
+    const manager = useScriptEditorManager();
     const cache = useRef<{
         state: ScriptEditorState;
         keys: readonly Key<T>[];
@@ -68,12 +62,21 @@ export function useKeyedState<T extends Keyed<T>>(
     );
 }
 
-export function ScriptEditorManagerProivder({
+type ScriptEditorContext = {
+    manager: ScriptEditorManager | null;
+    scrollContainer: HTMLElement | null;
+}
+
+const ScriptEditorContextObject = createContext<ScriptEditorContext>({ manager: null, scrollContainer: null });
+
+export function ScriptEditorContextProivder({
     children,
-    value,
+    manager,
+    scrollContainer
 }: {
     children: ReactNode;
-    value: ScriptEditorManager;
+    manager: ScriptEditorManager;
+    scrollContainer: HTMLElement | null;
 }): JSX.Element {
-    return <ScriptEditorManagerContextObject.Provider value={value} children={children} />;
+    return <ScriptEditorContextObject.Provider value={{ manager, scrollContainer }} children={children} />;
 }

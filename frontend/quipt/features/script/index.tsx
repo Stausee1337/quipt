@@ -1,4 +1,4 @@
-import { type JSX, useRef } from 'react';
+import { type JSX, useRef, useState } from 'react';
 
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -9,6 +9,7 @@ import { scriptQueryOptions } from './script';
 
 export function ScriptRoute(): JSX.Element {
     const params = useParams();
+    const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
     const repoID = params.scriptID;
 
     const hasData = useRef(false);
@@ -19,17 +20,16 @@ export function ScriptRoute(): JSX.Element {
     });
 
     hasData.current = script.isSuccess;
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     return (
         <div
-            ref={scrollContainerRef}
+            ref={setScrollContainer}
             className="flex w-full flex-col overflow-y-auto sm:ps-16"
             id="scroll-container">
             {script.isSuccess && (
                 <ScriptEditorView
                     key={repoID}
-                    scrollContainerRef={scrollContainerRef}
+                    scrollContainer={scrollContainer}
                     script={script.data}
                 />
             )}
