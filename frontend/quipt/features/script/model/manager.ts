@@ -1,14 +1,24 @@
 import { type Keyed, ScriptEditorState, TransientState, type Key } from './state';
 import type { Script } from '../script';
 
+export type RemoteContext = {};
+
 export type Action<Input> = {
-    (input: Input, state: TransientState, manager: ScriptEditorManager): void;
+    apply(input: Input, state: TransientState, manager: ScriptEditorManager): void;
+    remote?: {
+        forward: (context: RemoteContext, input: Input) => Promise<void>;
+        backward: (context: RemoteContext, input: Input) => Promise<void>;
+    };
     merge?(
         prevState: ScriptEditorState,
         currentState: ScriptEditorState,
         manager: ScriptEditorManager,
     ): boolean;
 };
+
+export function makeAction<Input>(action: Action<Input>): Action<Input> {
+    return action;
+}
 
 export type HistoryEntry = {
     action: Action<any>;
@@ -46,7 +56,7 @@ export class ScriptEditorManager {
     }
 
     dispatch<Input>(action: Action<Input>, input: Input) {
-        const [state, changes] = this.state.update(trans => action(input, trans, this));
+        const [state, changes] = this.state.update(trans => action.apply(input, trans, this));
         if (!changes.size) return;
         const tos = this.history.at(-1);
         if (

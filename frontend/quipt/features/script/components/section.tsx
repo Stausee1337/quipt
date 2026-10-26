@@ -1,6 +1,6 @@
-import { type ComponentProps, type JSX, type ReactElement, memo, useState } from 'react';
+import { type ComponentProps, type JSX, type ReactElement, memo, useState, useId, useMemo } from 'react';
 
-import { Button as BaseButton, Menu, Toggle, ToggleGroup } from '@base-ui/react';
+import { Button as BaseButton, Input, Menu, Toggle, ToggleGroup } from '@base-ui/react';
 import classnames from 'classnames';
 
 import { Icon } from 'quipt/components/icon';
@@ -8,12 +8,12 @@ import { IconButton } from 'quipt/components/icon-button';
 import { Tooltip } from 'quipt/components/tooltip';
 import { FormattedStringView } from 'quipt/components/formatted-string-view';
 import { FormattedString } from 'quipt/formatted-string';
-import { useBreakpoints } from 'quipt/responsive';
+import { useBreakpointsOnce } from 'quipt/responsive';
 import { formatActorsArray } from 'quipt/utils';
-import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
+import { MenuItem, MenuBox, MenuSeparator, popupClass, MenuCheckboxItem } from './menu';
 import { ContentInfoView, HLine, PlayButton } from './common';
 import { Editor } from './editor';
-import { ActorKeyPill } from './actors-container';
+import { ActorPill, ActorsContainer } from './actors-container';
 import {
     useKeyedState,
     useScriptEditorManager,
@@ -23,7 +23,7 @@ import {
     ActionNode,
     type ActorKey,
     DialogueNode,
-    type EditableScriptNode,
+    type ContentfulScriptNode,
     type Key,
     type ScriptNode,
     SectionNode,
@@ -33,19 +33,25 @@ import * as actions from '../model/actions';
 
 type VirtualizedElementProps = Omit<ComponentProps<'div'>, 'className'>;
 
-export function SectionInfoHeader({
-    name,
-    actors,
-    dialogueCount,
-    ...props
-}: {
-    name: string;
-    actors: readonly ActorKey[];
-    dialogueCount: number;
-} & VirtualizedElementProps): JSX.Element {
-    type SectionInfoState = 'expanded' | 'collapsed';
+// FXIME: incorrect terminology (both in english and german). This really isn't a cue, but a
+// response to one
+export function CueMarker(): JSX.Element {
+    return (
+        <span className="text-info text-accent-100 border-accent-100 rounded-full border px-2 py-0.5">
+            Einsatz
+        </span>
+    );
+}
 
-    const breakpoints = useBreakpoints();
+export function SectionInfoHeader({
+    section,
+    ...props
+}: { section: SectionNode } & VirtualizedElementProps): JSX.Element {
+    type SectionInfoState = 'expanded' | 'collapsed';
+    const inputId = useId();
+
+    const breakpoints = useBreakpointsOnce();
+    const manager = useScriptEditorManager();
     const [sectionState, setSectionState] = useState<SectionInfoState>(() =>
         breakpoints.sm ? 'expanded' : 'collapsed',
     );
@@ -59,48 +65,94 @@ export function SectionInfoHeader({
             className="absolute top-0 right-0 left-0 flex w-auto flex-col gap-y-3 px-3 sm:mx-3 sm:px-6"
             {...props}>
             <HLine className="mb-2 sm:mb-4" />
-            <div className="relative flex items-center gap-x-5">
-                <h2 className="text-heading-2">{name}</h2>
-                <div className="flex gap-x-2">
-                    <Tooltip label={sectionState === 'expanded' ? 'Einklappen' : 'Aufklappen'}>
-                        <IconButton
-                            iconName={
-                                sectionState === 'expanded' ? 'chevron-contract' : 'chevron-expand'
-                            }
-                            render={<Tooltip.Trigger />}
-                            onClick={handleStateToggle}
-                        />
-                    </Tooltip>
-                    <Tooltip label="Umbenennen">
-                        <IconButton iconName="input-cursor-text" render={<Tooltip.Trigger />} />
-                    </Tooltip>
-                    <Tooltip label="Löschen">
-                        <IconButton iconName="trash" render={<Tooltip.Trigger />} />
-                    </Tooltip>
+            {!section.editing ? (
+                <div className="relative flex items-center gap-x-5">
+                    <h2 className="text-heading-2 whitespace-pre">{section.name}</h2>
+                    <div className="flex gap-x-2">
+                        <Tooltip label={sectionState === 'expanded' ? 'Einklappen' : 'Aufklappen'}>
+                            <IconButton
+                                iconName={
+                                    sectionState === 'expanded'
+                                        ? 'chevron-contract'
+                                        : 'chevron-expand'
+                                }
+                                render={<Tooltip.Trigger />}
+                                onClick={handleStateToggle}
+                            />
+                        </Tooltip>
+                        <Tooltip label="Umbenennen">
+                            <IconButton
+                                iconName="input-cursor-text"
+                                onClick={() =>
+                                    manager.dispatch(actions.editSectionBegin, section.key)
+                                }
+                                render={<Tooltip.Trigger />}
+                            />
+                        </Tooltip>
+                        <Tooltip label="Löschen">
+                            <IconButton iconName="trash" render={<Tooltip.Trigger />} />
+                        </Tooltip>
+                    </div>
+                    <PlayButton className="absolute top-1/2 right-0 -translate-y-1/2" />
                 </div>
-                <PlayButton className="absolute top-1/2 right-0 -translate-y-1/2" />
-            </div>
+            ) : (
+                <div className="relative before:absolute before:top-0 before:-right-2 before:bottom-0 before:-left-2 before:-z-1 before:rounded-lg before:bg-black">
+                    <Input
+                        className="text-heading-2 w-full outline-none"
+                        value={section.name}
+                        id={inputId}
+                        autoFocus
+                        onBlur={() => manager.dispatch(actions.editSectionEnd, section.key)}
+                        onValueChange={(value, event) =>
+                            manager.dispatch(actions.renameSection, {
+                                sectionKey: section.key,
+                                name: value,
+                                inputId,
+                                event: event.event,
+                            })
+                        }
+                    />
+                </div>
+            )}
             {sectionState === 'expanded' && (
                 <div className="flex flex-col gap-y-3 sm:max-w-3/4">
-                    <ContentInfoView actors={actors} dialogueCount={dialogueCount} />
+                    <ContentInfoView
+                        actors={section.actors}
+                        dialogueCount={section.dialogueCount}
+                    />
                 </div>
             )}
         </div>
     );
 }
 
-function ScriptItemMenu({ itemKey }: { itemKey: Key<EditableScriptNode> }) {
+function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNode> }) {
     const manager = useScriptEditorManager();
+
+    const node = useKeyedState(nodeKey);
+
+    let actorMarksAsCue = false;
+    if (node instanceof DialogueNode && manager.state.selfActor)
+        actorMarksAsCue = node.actors.includes(manager.state.selfActor);
+
+    const markedAsCue = actorMarksAsCue || node.markedAsCue;
 
     return (
         <MenuBox>
             <MenuItem iconName="check2-circle">Auswählen</MenuItem>
-            <MenuItem iconName="pencil" onClick={() => manager.dispatch(actions.editItem, itemKey)}>
+            <MenuItem
+                iconName="pencil"
+                onClick={() => manager.dispatch(actions.editContentfulNodeBegin, nodeKey)}>
                 Bearbeiten
             </MenuItem>
             <MenuItem iconName="play-fill">Ab hier üben</MenuItem>
             <MenuSeparator />
-            <MenuItem>Als Einsatz markieren</MenuItem>
+            <MenuCheckboxItem
+                checked={markedAsCue}
+                onCheckedChange={() => manager.dispatch(actions.toggleNodeMarkedAsQue, nodeKey)}
+                disabled={actorMarksAsCue}>
+                Als Einsatz markieren
+            </MenuCheckboxItem>
             <MenuSeparator />
             <MenuItem
                 iconName="trash"
@@ -111,7 +163,7 @@ function ScriptItemMenu({ itemKey }: { itemKey: Key<EditableScriptNode> }) {
     );
 }
 
-function HoverActionsContainer({ itemKey }: { itemKey: Key<EditableScriptNode> }): JSX.Element {
+function HoverActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
     return (
         <ActionsContainer className="invisible group-hover:not-group-data-editing:visible has-data-popup-open:visible">
             <Menu.Root>
@@ -123,7 +175,7 @@ function HoverActionsContainer({ itemKey }: { itemKey: Key<EditableScriptNode> }
                 <Menu.Portal>
                     <Menu.Positioner sideOffset={8} align="start" className="outline-hidden">
                         <Menu.Popup className={popupClass}>
-                            <ScriptItemMenu itemKey={itemKey} />
+                            <ContentfulScriptNodeMenu nodeKey={itemKey} />
                         </Menu.Popup>
                     </Menu.Positioner>
                 </Menu.Portal>
@@ -132,19 +184,19 @@ function HoverActionsContainer({ itemKey }: { itemKey: Key<EditableScriptNode> }
     );
 }
 
-function EditActionsContainer({ itemKey }: { itemKey: Key<EditableScriptNode> }): JSX.Element {
+function EditActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
     const manager = useScriptEditorManager();
     return (
         <ActionsContainer>
             <IconButton
                 iconName="check2"
                 className="text-foreground"
-                onClick={() => manager.dispatch(actions.editDone, itemKey)}
+                onClick={() => manager.dispatch(actions.editContentfulNodeDone, itemKey)}
             />
             <IconButton
                 iconName="x"
                 className="text-foreground"
-                onClick={() => manager.dispatch(actions.editDone, itemKey)}
+                onClick={() => manager.dispatch(actions.editContentfulNodeDone, itemKey)}
             />
         </ActionsContainer>
     );
@@ -167,7 +219,7 @@ function NodeContentRenderer({
     node,
 }: {
     className?: string;
-    node: EditableScriptNode;
+    node: ContentfulScriptNode;
 }): JSX.Element {
     return (
         <div
@@ -187,51 +239,74 @@ function NodeContentRenderer({
     );
 }
 
-interface ActorsSelectorProps {
-    actors: readonly ActorKey[];
-    onActorsChange?: (x: ActorKey[]) => void;
-}
-
-function makeRenderActor(): (actor: ActorKey) => JSX.Element {
-    return (actor: ActorKey) => (
+function ActorsSelectorPill({ actor }: { actor: ActorKey }): JSX.Element {
+    return (
         <Toggle
             value={`${actor}`}
             render={(props, { pressed }) => (
-                <ActorKeyPill
-                    key={actor}
-                    actorKey={actor}
-                    selected={pressed}
-                    interactable
-                    {...props}
-                />
+                <ActorPill actorKey={actor} selected={pressed} interactable {...props} />
             )}
         />
     );
 }
 
+interface ActorsSelectorProps {
+    actors: readonly ActorKey[];
+    onActorsChange?: (selected: ActorKey[]) => void;
+}
+
 function ActorsSelector({ actors, onActorsChange }: ActorsSelectorProps): JSX.Element {
     const allActors = useScriptEditorStateAccessor(state => state.actors);
     return (
-        <ToggleGroup className="flex flex-wrap gap-2 p-2" onValueChange={onActorsChange} multiple>
-            {actors.map(makeRenderActor())}
-            {allActors.filter(actor => !actors.includes(actor)).map(makeRenderActor())}
+        <ToggleGroup
+            value={actors}
+            className="flex flex-wrap gap-2 p-2"
+            onValueChange={onActorsChange}
+            multiple>
+            {actors.map(actor => (
+                <ActorsSelectorPill key={actor} actor={actor} />
+            ))}
+            {allActors
+                .filter(actor => !actors.includes(actor))
+                .map(actor => (
+                    <ActorsSelectorPill key={actor} actor={actor} />
+                ))}
         </ToggleGroup>
     );
 }
 
-function DialogueActorsEditMenu({ actors }: { actors: readonly ActorKey[] }): JSX.Element {
+function DialogueActorsEditMenu({
+    actors,
+    onActorAdd,
+    onActorsChange,
+}: {
+    actors: readonly ActorKey[];
+    onActorAdd?: () => void;
+    onActorsChange?: (selected: ActorKey[]) => void;
+}): JSX.Element {
     return (
         <MenuBox>
-            <ActorsSelector actors={actors} />
+            <ActorsSelector actors={actors} onActorsChange={onActorsChange} />
             <MenuSeparator />
-            <MenuItem iconName="plus-lg">Spieler hinzufügen</MenuItem>
+            <MenuItem iconName="plus-lg" onClick={onActorAdd}>
+                Spieler hinzufügen
+            </MenuItem>
         </MenuBox>
     );
 }
 
 function ActorsLineRenderer({ actorKeys }: { actorKeys: readonly ActorKey[] }): JSX.Element {
-    const actors = useKeyedState(actorKeys);
+    const selfActor = useScriptEditorStateAccessor(state => state.selfActor);
+
+    const memoizedModifiedActorsKeys = useMemo(() => {
+        if (selfActor && actorKeys.includes(selfActor))
+            return [selfActor, ...actorKeys.filter(actor => actor != selfActor)];
+        return actorKeys;
+    }, [actorKeys, selfActor]);
+
+    const actors = useKeyedState(memoizedModifiedActorsKeys);
     const string = formatActorsArray(actors);
+
     return (
         <p className="font-semibold">
             <FormattedStringView string={string} />
@@ -244,6 +319,18 @@ const DialogueView = memo(function DialogueView({
     ...props
 }: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element {
     const dialogue = useKeyedState(dialogueKey);
+    const manager = useScriptEditorManager();
+    // FIXME/TODO: on actor creation we have to spawn the appropriate popover of the new actor (we
+    // will probably need a new component for that listens to the dispatched action, reacts on the
+    // appropriate `dialogueKey` pops open the popover using an imperative ref on the
+    // ActorsContainer)
+
+    const actorMarksAsCue = useScriptEditorStateAccessor(state => 
+        state.selfActor ? dialogue.actors.includes(state.selfActor) : false
+    );
+
+    const markedAsCue = actorMarksAsCue || dialogue.markedAsCue;
+
     return (
         <HoverableSectionItem
             className="data-editing:before:bg-accent-100/20 data-editing:gap-y-1 sm:data-editing:gap-y-2"
@@ -253,12 +340,12 @@ const DialogueView = memo(function DialogueView({
             {dialogue.editing && <EditActionsContainer itemKey={dialogue.key} />}
             <div className="flex items-center gap-x-2">
                 {!dialogue.editing ? (
-                    <ActorsLineRenderer actorKeys={dialogue.actors} />
+                    <>
+                        <ActorsLineRenderer actorKeys={dialogue.actors} />
+                        { markedAsCue && <CueMarker/> }
+                    </>
                 ) : (
-                    <div className="flex gap-x-1">
-                        {dialogue.actors.map(actor => (
-                            <ActorKeyPill key={actor} actorKey={actor} />
-                        ))}
+                    <ActorsContainer className="flex gap-x-1" actors={dialogue.actors}>
                         <Menu.Root>
                             <BaseButton
                                 className="bg-primary hover:bg-light-primary cursor-pointer rounded-full p-1.5"
@@ -272,12 +359,26 @@ const DialogueView = memo(function DialogueView({
                                     align="start"
                                     className="outline-hidden">
                                     <Menu.Popup className={popupClass}>
-                                        <DialogueActorsEditMenu actors={dialogue.actors} />
+                                        <DialogueActorsEditMenu
+                                            actors={dialogue.actors}
+                                            onActorsChange={actors =>
+                                                manager.dispatch(actions.changeDialogueActors, {
+                                                    dialogue: dialogueKey,
+                                                    actors,
+                                                })
+                                            }
+                                            onActorAdd={() =>
+                                                manager.dispatch(
+                                                    actions.createActorOnDialogue,
+                                                    dialogueKey,
+                                                )
+                                            }
+                                        />
                                     </Menu.Popup>
                                 </Menu.Positioner>
                             </Menu.Portal>
                         </Menu.Root>
-                    </div>
+                    </ActorsContainer>
                 )}
             </div>
             <NodeContentRenderer node={dialogue} />
@@ -335,15 +436,7 @@ const SectionRenderer = memo(function SectionRenderer({
     ...props
 }: { sectionKey: Key<SectionNode> } & VirtualizedElementProps): JSX.Element {
     const section = useKeyedState(sectionKey);
-    if (section.depth === 0)
-        return (
-            <SectionInfoHeader
-                name={section.name}
-                actors={section.actors}
-                dialogueCount={section.dialogueCount}
-                {...props}
-            />
-        );
+    if (section.depth === 0) return <SectionInfoHeader section={section} {...props} />;
     return <SubsectionDivider name={section.name} {...props} />;
 });
 

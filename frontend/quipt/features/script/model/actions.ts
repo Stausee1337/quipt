@@ -1,35 +1,78 @@
 import { renderBBCode } from 'quipt/formatted-string';
 import type { Color } from 'quipt/color-palette';
-import type { ScriptEditorManager } from './manager';
-import type { ActorKey, EditableScriptNode, Key, ScriptEditorState, TransientState } from './state';
+import { makeAction } from './manager';
+import {
+    type ActorKey,
+    type ContentfulScriptNode,
+    type Key,
+    keyOfType,
+    DialogueNode,
+    SectionNode,
+    TransientState,
+    ScriptEditorState,
+    Actor,
+} from './state';
 import { createEditorState } from './editor';
 
 // TODO: make actions able to opt out of "making history"
 
-export function editItem(
-    itemKey: Key<EditableScriptNode>,
-    state: TransientState,
-    manager: ScriptEditorManager,
-) {
-    const item = state.lookup(itemKey);
-    state.replaceNode(itemKey, {
-        content: createEditorState(item.key, item.text, manager),
-    });
+export const editContentfulNodeBegin = makeAction({
+    apply(itemKey: Key<ContentfulScriptNode>, state, manager) {
+        if (state.currentEditedItem !== null) {
+            const prevItem = state.lookup(state.currentEditedItem);
+            state.replaceNode(state.currentEditedItem, { content: renderBBCode(prevItem.text) });
+        }
+        const item = state.lookup(itemKey);
+        state.replaceNode(itemKey, {
+            content: createEditorState(item.key, item.text, manager),
+        });
+        state.currentEditedItem = itemKey;
+    },
+});
+
+// NOTE: this is one "lever" to start building transactions, because really this thing in the wild
+// doesn't make a lot of sense
+export const editContentfulNodeDone = makeAction({
+    apply(itemKey: Key<ContentfulScriptNode>, state) {
+        const item = state.lookup(itemKey);
+        state.replaceNode(itemKey, { content: renderBBCode(item.text) });
+        state.currentEditedItem = null;
+    },
+});
+
+export const changeDialogueActors = makeAction<{ dialogue: Key<DialogueNode>; actors: ActorKey[] }>(
+    {
+        apply({ dialogue, actors }, state) {
+            if (actors.length < 1) return;
+            state.replaceNode(dialogue, { actors });
+            state.recomputeSectionMetaInfo();
+        },
+    },
+);
+
+function randomColor(): Color {
+    return (1 + Math.floor(Math.random() * 24)) as Color;
 }
 
-export function editDone(itemKey: Key<EditableScriptNode>, state: TransientState) {
-    const item = state.lookup(itemKey);
-    state.replaceNode(itemKey, { content: renderBBCode(item.text) });
-}
+export const createActorOnDialogue = makeAction<Key<DialogueNode>>({
+    apply(dialogueKey, state) {
+        const newActor = state.allocate(Actor, '', randomColor());
+        const dialogue = state.lookup(dialogueKey);
+        state.replaceNode(dialogueKey, {
+            actors: [...dialogue.actors, newActor.key],
+        });
+        state.actors = [...state.actors, newActor.key];
+        state.recomputeSectionMetaInfo();
+    },
+});
 
-export function changeActorColor(
-    { actorKey, newColor }: { actorKey: ActorKey; newColor: Color },
-    state: TransientState,
-) {
-    state.replaceNode(actorKey, { color: newColor });
-}
+export const changeActorColor = makeAction<{ actorKey: ActorKey; newColor: Color }>({
+    apply({ actorKey, newColor }, state) {
+        state.replaceNode(actorKey, { color: newColor });
+    },
+});
 
-const renameActorKey: unique symbol = Symbol('renameActor');
+const bundleInputEventKey: unique symbol = Symbol('bundleInputEvent');
 
 export type RenameActorProps = {
     actorKey: ActorKey;
@@ -53,27 +96,28 @@ type InputEventMeta = {
     content: string;
 };
 
-export function renameActor(
-    { actorKey, name, inputId, event }: RenameActorProps,
+function addBundleInputEventMeta(
     state: TransientState,
+    content: string,
+    event: Event,
+    inputId: string,
 ) {
     if (event instanceof InputEvent && isRelevantInputType(event.inputType)) {
         const meta: InputEventMeta = {
             inputType: event.inputType,
             inputId,
             timestamp: Date.now(),
-            content: name,
+            content,
         };
-        state.setMeta(renameActorKey, meta);
+        state.setMeta(bundleInputEventKey, meta);
     }
-    state.replaceNode(actorKey, { name });
 }
 
 const timestampMergeThreshold = 750;
 
-renameActor.merge = (prevState: ScriptEditorState, currentState: ScriptEditorState) => {
-    const prevMeta: InputEventMeta | undefined = prevState.getMeta(renameActorKey);
-    const currentMeta: InputEventMeta | undefined = currentState.getMeta(renameActorKey);
+function shouldBundleInputStates(prevState: ScriptEditorState, currentState: ScriptEditorState) {
+    const prevMeta: InputEventMeta | undefined = prevState.getMeta(bundleInputEventKey);
+    const currentMeta: InputEventMeta | undefined = currentState.getMeta(bundleInputEventKey);
     const merge =
         prevMeta !== undefined &&
         currentMeta !== undefined &&
@@ -81,4 +125,82 @@ renameActor.merge = (prevState: ScriptEditorState, currentState: ScriptEditorSta
         prevMeta.inputType === currentMeta.inputType &&
         currentMeta.timestamp - prevMeta.timestamp <= timestampMergeThreshold;
     return merge;
+}
+
+export const renameActor = makeAction<RenameActorProps>({
+    apply({ actorKey, name, inputId, event }, state) {
+        const actorAlreadyExistsIndex = state.actors.findIndex(
+            key => state.lookup(key).name === name,
+        );
+        if (actorAlreadyExistsIndex !== -1) {
+            const prevActor = state.actors[actorAlreadyExistsIndex];
+            state.visitNodes(node => {
+                if (keyOfType(node, DialogueNode)) {
+                    const dialogue = state.lookup(node);
+                    if (dialogue.actors.includes(prevActor)) {
+                        state.replaceNode(node, {
+                            actors: dialogue.actors.map(a => (a !== prevActor ? a : actorKey)),
+                        });
+                    }
+                }
+                if (keyOfType(node, SectionNode)) {
+                    const section = state.lookup(node);
+                    if (section.actors.includes(prevActor)) {
+                        state.replaceNode(node, {
+                            actors: section.actors.map(a => (a !== prevActor ? a : actorKey)),
+                        });
+                    }
+                }
+            });
+            state.actors = state.actors.toSpliced(actorAlreadyExistsIndex, 1);
+            state.unlinkNode(prevActor);
+        }
+        addBundleInputEventMeta(state, name, event, inputId);
+        state.replaceNode(actorKey, { name });
+    },
+    merge(prevState, currentState) {
+        return shouldBundleInputStates(prevState, currentState);
+    },
+});
+
+export const editSectionBegin = makeAction<Key<SectionNode>>({
+    apply(sectionKey, state) {
+        state.replaceNode(sectionKey, { editing: true });
+    },
+});
+
+export const editSectionEnd = makeAction<Key<SectionNode>>({
+    apply(sectionKey, state) {
+        state.replaceNode(sectionKey, { editing: false });
+    },
+});
+
+type RenameSectionProps = {
+    sectionKey: Key<SectionNode>;
+    name: string;
+    inputId: string;
+    event: Event;
 };
+
+export const renameSection = makeAction<RenameSectionProps>({
+    apply({ sectionKey, name, event, inputId }, state) {
+        addBundleInputEventMeta(state, name, event, inputId);
+        state.replaceNode(sectionKey, { name });
+    },
+    merge(prevState, currentState) {
+        return shouldBundleInputStates(prevState, currentState);
+    },
+});
+
+export const toggleActorMarkedAsSelf = makeAction<ActorKey>({
+    apply(actorKey, state) {
+        state.selfActor = state.selfActor === actorKey ? null : actorKey;
+    },
+});
+
+export const toggleNodeMarkedAsQue = makeAction<Key<ContentfulScriptNode>>({
+    apply(nodeKey, state) {
+        const node = state.lookup(nodeKey);
+        state.replaceNode(nodeKey, { markedAsCue: !node.markedAsCue });
+    },
+})

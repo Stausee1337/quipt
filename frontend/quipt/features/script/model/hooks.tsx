@@ -65,18 +65,26 @@ export function useKeyedState<T extends Keyed<T>>(
 type ScriptEditorContext = {
     manager: ScriptEditorManager | null;
     scrollContainer: HTMLElement | null;
-}
+};
 
-const ScriptEditorContextObject = createContext<ScriptEditorContext>({ manager: null, scrollContainer: null });
+const ScriptEditorContextObject = createContext<ScriptEditorContext>({
+    manager: null,
+    scrollContainer: null,
+});
 
 export function ScriptEditorContextProivder({
     children,
     manager,
-    scrollContainer
+    scrollContainer,
 }: {
     children: ReactNode;
     manager: ScriptEditorManager;
     scrollContainer: HTMLElement | null;
 }): JSX.Element {
-    return <ScriptEditorContextObject.Provider value={{ manager, scrollContainer }} children={children} />;
+    return (
+        <ScriptEditorContextObject.Provider
+            value={{ manager, scrollContainer }}
+            children={children}
+        />
+    );
 }

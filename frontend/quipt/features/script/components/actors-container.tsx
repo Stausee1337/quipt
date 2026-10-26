@@ -1,25 +1,32 @@
-import { useId, useRef, type JSX } from 'react';
+import { useId, useRef, type ComponentProps, type JSX } from 'react';
 
 import { Menu, Toggle, ToggleGroup } from '@base-ui/react';
 
 import { Input } from 'quipt/components/input';
-import { ActorPill, type ActorPillProps } from 'quipt/components/actor-pill';
+import {
+    ActorPill as BaseActorPill,
+    type ActorPillProps as BaseActorPillProps,
+} from 'quipt/components/actor-pill';
 import { type Color, colorToString, asLighterColor } from 'quipt/color-palette';
-import { MenuItem, MenuBox, MenuSeparator, popupClass } from './menu';
-import { useKeyedState, useScriptEditorManager } from '../model/hooks';
+import { MenuBox, MenuSeparator, popupClass, MenuCheckboxItem } from './menu';
+import {
+    useKeyedState,
+    useScriptEditorManager,
+    useScriptEditorStateAccessor,
+} from '../model/hooks';
 import { type ActorKey } from '../model/state';
 import * as actions from '../model/actions';
 
-export interface ActorKeyPillProps extends Omit<ActorPillProps, 'actor'> {
+export interface ActorPillProps extends Omit<BaseActorPillProps, 'actor'> {
     actorKey: ActorKey;
 }
 
-export function ActorKeyPill({ actorKey, ...props }: ActorKeyPillProps) {
+export function ActorPill({ actorKey, ...props }: ActorPillProps) {
     const actor = useKeyedState(actorKey);
-    return <ActorPill actor={actor} {...props} />;
+    return <BaseActorPill actor={actor} {...props} />;
 }
 
-export interface ColorPickerProps {
+interface ColorPickerProps {
     color: Color;
     onColorPicked?: (color: Color) => void;
 }
@@ -60,6 +67,7 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
     const inputId = useId();
     const manager = useScriptEditorManager();
     const actor = useKeyedState(props.actor);
+    const isSelfActor = useScriptEditorStateAccessor(state => state.selfActor === props.actor);
 
     return (
         <MenuBox>
@@ -91,28 +99,59 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
                 }
             />
             <MenuSeparator />
-            <MenuItem>Als "ich selbst" markieren</MenuItem>
-            <MenuSeparator />
-            <MenuItem iconName="vr">Aufspalten</MenuItem>
+            <MenuCheckboxItem
+                checked={isSelfActor}
+                onCheckedChange={() =>
+                    manager.dispatch(actions.toggleActorMarkedAsSelf, props.actor)
+                }>
+                Als "ich selbst" markieren
+            </MenuCheckboxItem>
+            {/*
+                <MenuSeparator />
+                <MenuItem iconName="vr">Aufspalten</MenuItem>
+            */}
         </MenuBox>
     );
 }
 
-export function ActorsContainer({ actors }: { actors: readonly ActorKey[] }): JSX.Element {
+export function ActorsContainer({
+    actors,
+    className,
+    children,
+    ...props
+}: { actors: readonly ActorKey[] } & ComponentProps<'div'>): JSX.Element {
     const actorMenuHandleRef = useRef<Menu.Handle<{ actor: ActorKey }>>(undefined);
     if (actorMenuHandleRef.current === undefined)
         actorMenuHandleRef.current = Menu.createHandle<{ actor: ActorKey }>();
 
+    const selfActor = useScriptEditorStateAccessor(state => state.selfActor);
+
     return (
-        <div className="flex flex-wrap gap-2">
-            {actors.map((actor, idx) => (
-                <Menu.Trigger
-                    key={actor}
-                    handle={actorMenuHandleRef.current}
-                    payload={{ actor }}
-                    render={<ActorKeyPill actorKey={actor} selected={!idx} interactable />}
-                />
-            ))}
+        <div className={className} {...props}>
+            {
+                selfActor && actors.includes(selfActor) && (
+                    <Menu.Trigger
+                        key={selfActor}
+                        id={selfActor}
+                        handle={actorMenuHandleRef.current}
+                        payload={{ actor: selfActor }}
+                        render={<ActorPill actorKey={selfActor} selected interactable />}
+                    />
+                )
+            }
+            {
+                actors
+                    .filter(actor => actor !== selfActor)
+                    .map(actor => 
+                        <Menu.Trigger
+                            key={actor}
+                            id={actor}
+                            handle={actorMenuHandleRef.current}
+                            payload={{ actor }}
+                            render={<ActorPill actorKey={actor} interactable />}
+                        />
+                    )
+            }
             <Menu.Root handle={actorMenuHandleRef.current}>
                 {({ payload }) => (
                     <Menu.Portal>
@@ -124,6 +163,7 @@ export function ActorsContainer({ actors }: { actors: readonly ActorKey[] }): JS
                     </Menu.Portal>
                 )}
             </Menu.Root>
+            {children}
         </div>
     );
 }

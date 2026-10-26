@@ -138,7 +138,6 @@ const VirtualizedContentList = memo(
         useEffect(() => {
             if (containerRef.current !== null) {
                 setScrollMargin(containerRef.current.offsetTop);
-                console.log(containerRef.current.offsetTop);
             } else {
                 setScrollMargin(0);
             }
@@ -290,7 +289,7 @@ export function ScriptEditorView({
 
     return managerRef.current !== null ? (
         <ScriptEditorContextProivder manager={managerRef.current} scrollContainer={scrollContainer}>
-            <ScriptViewLayout/>
+            <ScriptViewLayout />
         </ScriptEditorContextProivder>
     ) : null;
 }

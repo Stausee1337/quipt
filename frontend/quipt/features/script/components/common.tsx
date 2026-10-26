@@ -44,14 +44,6 @@ export function PlayButton({
     );
 }
 
-export function MyselfMarker(): JSX.Element {
-    return (
-        <span className="text-info text-accent-100 border-accent-100 rounded-full border px-2 py-0.5">
-            ich selbst
-        </span>
-    );
-}
-
 export const ContentInfoView = memo(function ContentInfoView({
     actors,
     dialogueCount,
@@ -61,7 +53,7 @@ export const ContentInfoView = memo(function ContentInfoView({
 }): JSX.Element {
     return (
         <>
-            <ActorsContainer actors={actors} />
+            <ActorsContainer className="flex flex-wrap gap-2" actors={actors} />
             <p className="text-info text-accent-100 flex items-center">
                 <Icon iconName="person-standing" className="me-2" />
                 {`${actors.length} Spieler`}

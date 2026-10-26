@@ -3,8 +3,8 @@ import { Mark, Node, Schema } from 'prosemirror-model';
 import { StepMap, Transform } from 'prosemirror-transform';
 
 import { type FormatNode, parseBBCode } from 'quipt/formatted-string';
-import { ScriptEditorState, TransientState, type EditableScriptNode, type Key } from './state';
-import type { ScriptEditorManager } from './manager';
+import { type ContentfulScriptNode, type Key } from './state';
+import { type ScriptEditorManager, makeAction } from './manager';
 
 export type FontStyle = 'italic' | 'bold' | 'underline';
 export type FontStyles = Set<FontStyle>;
@@ -124,39 +124,34 @@ function rangesFor(maps: readonly StepMap[]) {
     return result;
 }
 
-function updateItemContent(
-    {
-        itemKey,
-        tr: transaction,
-        editorState,
-    }: {
-        itemKey: Key<EditableScriptNode>;
-        tr: Transaction;
-        editorState: EditorState;
-    },
-    state: TransientState,
-    manager: ScriptEditorManager,
-) {
-    state.setMeta(updateItemContentKey, transaction);
-
-    const item = manager.state.lookup(itemKey);
-    if (item.content === editorState) return;
-    state.replaceNode(itemKey, {
-        content: editorState,
-        text: convertDocToBBCode(editorState.doc),
-    });
-}
-
-updateItemContent.merge = (prevState: ScriptEditorState, currentState: ScriptEditorState) => {
-    const prev = prevState.getMeta(updateItemContentKey);
-    const current = currentState.getMeta(updateItemContentKey);
-    if (!(prev instanceof Transaction) || !(current instanceof Transaction)) return false;
-
-    if (current.time - prev.time > 750) return false;
-    const prevRanges = rangesFor(prev.mapping.maps);
-
-    return isAdjacentTo(current, prevRanges);
+export type UpdateItemContentProps = {
+    itemKey: Key<ContentfulScriptNode>;
+    tr: Transaction;
+    editorState: EditorState;
 };
+
+const updateItemContent = makeAction<UpdateItemContentProps>({
+    apply({ itemKey, tr: transaction, editorState }, state, manager) {
+        state.setMeta(updateItemContentKey, transaction);
+
+        const item = manager.state.lookup(itemKey);
+        if (item.content === editorState) return;
+        state.replaceNode(itemKey, {
+            content: editorState,
+            text: convertDocToBBCode(editorState.doc),
+        });
+    },
+    merge(prevState, currentState) {
+        const prev = prevState.getMeta(updateItemContentKey);
+        const current = currentState.getMeta(updateItemContentKey);
+        if (!(prev instanceof Transaction) || !(current instanceof Transaction)) return false;
+
+        if (current.time - prev.time > 750) return false;
+        const prevRanges = rangesFor(prev.mapping.maps);
+
+        return isAdjacentTo(current, prevRanges);
+    },
+});
 
 function* formatToDocumentNodes(nodes: FormatNode[], marks: Mark[] = []): Generator<Node> {
     for (const node of nodes) {
@@ -198,7 +193,7 @@ function bbCodeToDocument(bbCode: string): Node {
 }
 
 function listenDocumentChange(
-    itemKey: Key<EditableScriptNode>,
+    itemKey: Key<ContentfulScriptNode>,
     manager: ScriptEditorManager,
 ): Plugin {
     return new Plugin({
@@ -218,7 +213,7 @@ function listenDocumentChange(
     });
 }
 export function createEditorState(
-    itemKey: Key<EditableScriptNode>,
+    itemKey: Key<ContentfulScriptNode>,
     text: string,
     manager: ScriptEditorManager,
 ): EditorState {

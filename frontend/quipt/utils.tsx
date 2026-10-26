@@ -28,7 +28,6 @@ export type Actor = {
     color: Color;
 };
 
-// TODO: move to formatted-string.ts as renderActorsArray
 export function formatActorsArray(actors: readonly Actor[]): FormattedString {
     if (actors.length === 0) return new FormattedString([]);
 

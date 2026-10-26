@@ -128,6 +128,7 @@ export type Key<T extends Keyed<T>> = string & { [brand]: T };
 
 type Prefix = string & { [brand]: Prefix };
 
+// FIXME: this breaks on reload, use better system.
 const reversePrefixLookup: Record<string, object> = {};
 
 function makePrefix(): Prefix {
@@ -162,9 +163,12 @@ export abstract class ScriptNode {
     public parent: Key<SectionNode> | null = null;
 }
 
-export abstract class EditableScriptNode extends ScriptNode {
-    abstract key: Key<EditableScriptNode>;
+export abstract class ContentfulScriptNode extends ScriptNode {
+    abstract key: Key<ContentfulScriptNode>;
     public content: FormattedString | EditorState;
+
+    // TODO: this state should be interdependent on who is selected as selfActor
+    public markedAsCue: boolean = false;
 
     constructor(public text: string) {
         super();
@@ -176,7 +180,7 @@ export abstract class EditableScriptNode extends ScriptNode {
     }
 }
 
-export class ActionNode extends EditableScriptNode {
+export class ActionNode extends ContentfulScriptNode {
     static readonly prefix = makePrefix();
 
     constructor(
@@ -187,7 +191,7 @@ export class ActionNode extends EditableScriptNode {
     }
 }
 
-export class DialogueNode extends EditableScriptNode {
+export class DialogueNode extends ContentfulScriptNode {
     static readonly prefix = makePrefix();
 
     constructor(
@@ -218,6 +222,7 @@ export class SectionNode extends ScriptNode {
 
     public actors: readonly ActorKey[];
     public dialogueCount: number;
+    public editing: boolean = false;
 
     constructor(
         public key: Key<SectionNode>,
@@ -310,27 +315,32 @@ function lookupIn<T extends Keyed<T>>(pool: PoolType, key: Key<T>): Readonly<T> 
     return object as T;
 }
 
-// FIXME: Calling this ScriptViewState is misleading. It is no ViewState whatsoever
 export class ScriptEditorState {
     public name: string;
     public actors: readonly ActorKey[];
+    public selfActor: ActorKey | null;
     public structure: Readonly<Structure>;
     public dialogueCount: number;
+    public currentEditedItem: Key<ContentfulScriptNode> | null;
     protected metadata: Map<Symbol, any>;
     protected pool: PoolType;
 
     constructor(
         name: string,
         actors: readonly ActorKey[],
+        selfActor: ActorKey | null,
         structure: Structure,
         dialogueCount: number,
+        currentEditedItem: Key<ContentfulScriptNode> | null,
         metadata: Map<Symbol, any>,
         nodePool: PoolType,
     ) {
         this.name = name;
         this.actors = actors;
+        this.selfActor = selfActor;
         this.structure = structure;
         this.dialogueCount = dialogueCount;
+        this.currentEditedItem = currentEditedItem;
         this.metadata = metadata;
         this.pool = nodePool;
     }
@@ -341,7 +351,7 @@ export class ScriptEditorState {
 
     static build(script: Script): ScriptEditorState {
         const doc = script.document;
-        const [pool, [actors, structure, nodes]] = withNewPool(pool => {
+        const [pool, [actors, selfActor, structure, nodes]] = withNewPool(pool => {
             const actorLookup: Record<string, Actor> = {};
             const actors = doc.allActors.map(name => {
                 const actor = allocateIn(
@@ -353,19 +363,29 @@ export class ScriptEditorState {
                 actorLookup[name] = actor;
                 return actor.key;
             });
+            const selfActor =
+                script.settings.selfActor !== null
+                    ? actorLookup[script.settings.selfActor].key
+                    : null;
 
             const [structure, nodes] = buildStructure(doc.content, actorLookup, pool);
-            return [actors, structure, nodes];
+            return [actors, selfActor, structure, nodes];
         });
         const { dialogueCount } = computeMetaInformation(nodes);
         return new ScriptEditorState(
             script.name,
             actors,
+            selfActor,
             structure,
             dialogueCount,
+            null,
             new Map(),
             pool,
         );
+    }
+
+    visitNodes(visitor: (node: Key<any>) => void) {
+        for (let key of this.pool.keys()) visitor(key);
     }
 
     getMeta(key: Symbol): any {
@@ -377,13 +397,22 @@ export class ScriptEditorState {
             const trans = new TransientState(
                 this.name,
                 this.actors,
+                this.selfActor,
                 this.structure,
                 this.dialogueCount,
+                this.currentEditedItem,
                 new Map(),
                 pool,
             );
 
-            updater(trans);
+            const transProxy = new Proxy<TransientState>(trans, {
+                set(target, p, newValue, receiver) {
+                    target.changes.add('' as Key<any>);
+                    return Reflect.set(target, p, newValue, receiver);
+                },
+            });
+
+            updater(transProxy);
             return trans;
         });
 
@@ -391,8 +420,10 @@ export class ScriptEditorState {
             new ScriptEditorState(
                 trans.name,
                 trans.actors,
+                trans.selfActor,
                 trans.structure,
                 trans.dialogueCount,
+                trans.currentEditedItem,
                 trans.metadata,
                 pool,
             ),
@@ -409,11 +440,10 @@ export class TransientState extends ScriptEditorState {
     }
 
     allocate<T extends Keyed<T>, Args extends unknown[]>(
-        pool: PoolType,
         klass: Constructor<T, Args>,
         ...args: Args
     ): Readonly<T> {
-        return allocateIn(pool, klass, ...args);
+        return allocateIn(this.pool, klass, ...args);
     }
 
     private updateObject<T extends Keyed<T>>(object: T, data: Partial<T>): T {
@@ -454,5 +484,20 @@ export class TransientState extends ScriptEditorState {
         }
 
         return result;
+    }
+
+    unlinkNode<T extends Keyed<T>>(key: Key<T>) {
+        this.pool.delete(key);
+    }
+
+    recomputeSectionMetaInfo() {
+        for (let change of this.changes.values()) {
+            if (!keyOfType(change, SectionNode)) continue;
+            const section = this.lookup(change);
+
+            const meta = computeMetaInformation(section.children);
+            this.replaceNode(section.key, meta);
+        }
+        // TODO: also loop over the structure to figure out if this deletes an actor
     }
 }

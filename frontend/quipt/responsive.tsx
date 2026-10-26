@@ -1,4 +1,4 @@
-import { type JSX, createContext, useState, useContext, useMemo, useEffect } from 'react';
+import { type JSX, createContext, useState, useContext, useMemo, useEffect, useRef } from 'react';
 
 // FIXME: maybe provide in rem
 const MINIMUM_WIDTHS = {
@@ -24,6 +24,10 @@ function computeBreakpoints(): Breakpoints {
 }
 
 const BreakpointContextObj = createContext<Breakpoints | undefined>(undefined);
+
+export function useBreakpointsOnce(): Breakpoints {
+    return useRef<Breakpoints>(computeBreakpoints()).current;
+}
 
 export function useBreakpoints(): Breakpoints {
     return useContext(BreakpointContextObj) ?? computeBreakpoints();
