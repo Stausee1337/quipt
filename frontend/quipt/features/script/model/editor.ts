@@ -4,7 +4,7 @@ import { StepMap, Transform } from 'prosemirror-transform';
 
 import { type FormatNode, parseBBCode } from 'quipt/formatted-string';
 import { type ContentfulScriptNode, type Key } from './state';
-import { type ScriptEditorManager, makeAction } from './manager';
+import { type ScriptEditorManager, stateAction } from './manager';
 
 export type FontStyle = 'italic' | 'bold' | 'underline';
 export type FontStyles = Set<FontStyle>;
@@ -130,7 +130,7 @@ export type UpdateItemContentProps = {
     editorState: EditorState;
 };
 
-const updateItemContent = makeAction<UpdateItemContentProps>({
+const updateItemContent = stateAction<UpdateItemContentProps>({
     apply({ itemKey, tr: transaction, editorState }, state, manager) {
         state.setMeta(updateItemContentKey, transaction);
 
@@ -207,7 +207,11 @@ function listenDocumentChange(
                     prevState.selection.eq(newState.selection)
                 )
                     return;
-                manager.dispatch(updateItemContent, { itemKey, tr, editorState: newState });
+                manager.dispatchStateAction(updateItemContent, {
+                    itemKey,
+                    tr,
+                    editorState: newState,
+                });
             },
         },
     });

@@ -13,7 +13,7 @@ export function IconButton({ iconName, className, ...props }: IconButtonProps): 
     return (
         <Button
             className={classnames(
-                'text-accent-100 hover:bg-accent-100/20 active:bg-accent-100/10 cursor-pointer rounded-lg p-1.5',
+                'text-accent-100 not-data-disabled:hover:bg-accent-100/20 active:not-data-disabled:bg-accent-100/10 rounded-lg p-1.5 not-data-disabled:cursor-pointer data-disabled:cursor-not-allowed data-disabled:opacity-50',
                 className,
             )}
             {...props}>

@@ -168,7 +168,7 @@ export abstract class ContentfulScriptNode extends ScriptNode {
     public content: FormattedString | EditorState;
 
     // TODO: this state should be interdependent on who is selected as selfActor
-    public markedAsCue: boolean = false;
+    public markedAsCueResponse: boolean = false;
 
     constructor(public text: string) {
         super();

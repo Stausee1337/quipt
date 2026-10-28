@@ -1,6 +1,6 @@
 import { renderBBCode } from 'quipt/formatted-string';
 import type { Color } from 'quipt/color-palette';
-import { makeAction } from './manager';
+import { stateAction } from './manager';
 import {
     type ActorKey,
     type ContentfulScriptNode,
@@ -16,7 +16,7 @@ import { createEditorState } from './editor';
 
 // TODO: make actions able to opt out of "making history"
 
-export const editContentfulNodeBegin = makeAction({
+export const editContentfulNodeBegin = stateAction({
     apply(itemKey: Key<ContentfulScriptNode>, state, manager) {
         if (state.currentEditedItem !== null) {
             const prevItem = state.lookup(state.currentEditedItem);
@@ -32,7 +32,7 @@ export const editContentfulNodeBegin = makeAction({
 
 // NOTE: this is one "lever" to start building transactions, because really this thing in the wild
 // doesn't make a lot of sense
-export const editContentfulNodeDone = makeAction({
+export const editContentfulNodeDone = stateAction({
     apply(itemKey: Key<ContentfulScriptNode>, state) {
         const item = state.lookup(itemKey);
         state.replaceNode(itemKey, { content: renderBBCode(item.text) });
@@ -40,21 +40,28 @@ export const editContentfulNodeDone = makeAction({
     },
 });
 
-export const changeDialogueActors = makeAction<{ dialogue: Key<DialogueNode>; actors: ActorKey[] }>(
-    {
-        apply({ dialogue, actors }, state) {
-            if (actors.length < 1) return;
-            state.replaceNode(dialogue, { actors });
-            state.recomputeSectionMetaInfo();
-        },
+export const changeDialogueActors = stateAction<{
+    dialogue: Key<DialogueNode>;
+    actors: ActorKey[];
+}>({
+    apply({ dialogue, actors }, state) {
+        if (actors.length < 1) return;
+        state.replaceNode(dialogue, { actors });
+        state.recomputeSectionMetaInfo();
     },
-);
+});
 
 function randomColor(): Color {
     return (1 + Math.floor(Math.random() * 24)) as Color;
 }
 
-export const createActorOnDialogue = makeAction<Key<DialogueNode>>({
+const createActorKey: unique symbol = Symbol('createActor');
+
+export function getCreatedActor(state: ScriptEditorState): ActorKey {
+    return state.getMeta(createActorKey);
+}
+
+export const createActorOnDialogue = stateAction<Key<DialogueNode>>({
     apply(dialogueKey, state) {
         const newActor = state.allocate(Actor, '', randomColor());
         const dialogue = state.lookup(dialogueKey);
@@ -62,11 +69,12 @@ export const createActorOnDialogue = makeAction<Key<DialogueNode>>({
             actors: [...dialogue.actors, newActor.key],
         });
         state.actors = [...state.actors, newActor.key];
+        state.setMeta(createActorKey, newActor.key);
         state.recomputeSectionMetaInfo();
     },
 });
 
-export const changeActorColor = makeAction<{ actorKey: ActorKey; newColor: Color }>({
+export const changeActorColor = stateAction<{ actorKey: ActorKey; newColor: Color }>({
     apply({ actorKey, newColor }, state) {
         state.replaceNode(actorKey, { color: newColor });
     },
@@ -127,7 +135,7 @@ function shouldBundleInputStates(prevState: ScriptEditorState, currentState: Scr
     return merge;
 }
 
-export const renameActor = makeAction<RenameActorProps>({
+export const renameActor = stateAction<RenameActorProps>({
     apply({ actorKey, name, inputId, event }, state) {
         const actorAlreadyExistsIndex = state.actors.findIndex(
             key => state.lookup(key).name === name,
@@ -163,13 +171,13 @@ export const renameActor = makeAction<RenameActorProps>({
     },
 });
 
-export const editSectionBegin = makeAction<Key<SectionNode>>({
+export const editSectionBegin = stateAction<Key<SectionNode>>({
     apply(sectionKey, state) {
         state.replaceNode(sectionKey, { editing: true });
     },
 });
 
-export const editSectionEnd = makeAction<Key<SectionNode>>({
+export const editSectionEnd = stateAction<Key<SectionNode>>({
     apply(sectionKey, state) {
         state.replaceNode(sectionKey, { editing: false });
     },
@@ -182,7 +190,7 @@ type RenameSectionProps = {
     event: Event;
 };
 
-export const renameSection = makeAction<RenameSectionProps>({
+export const renameSection = stateAction<RenameSectionProps>({
     apply({ sectionKey, name, event, inputId }, state) {
         addBundleInputEventMeta(state, name, event, inputId);
         state.replaceNode(sectionKey, { name });
@@ -192,15 +200,15 @@ export const renameSection = makeAction<RenameSectionProps>({
     },
 });
 
-export const toggleActorMarkedAsSelf = makeAction<ActorKey>({
+export const toggleActorMarkedAsSelf = stateAction<ActorKey>({
     apply(actorKey, state) {
         state.selfActor = state.selfActor === actorKey ? null : actorKey;
     },
 });
 
-export const toggleNodeMarkedAsQue = makeAction<Key<ContentfulScriptNode>>({
+export const toggleNodeMarkedAsContext = stateAction<Key<ContentfulScriptNode>>({
     apply(nodeKey, state) {
         const node = state.lookup(nodeKey);
-        state.replaceNode(nodeKey, { markedAsCue: !node.markedAsCue });
+        state.replaceNode(nodeKey, { markedAsContext: !node.markedAsContext });
     },
-})
+});

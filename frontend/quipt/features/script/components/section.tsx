@@ -1,4 +1,13 @@
-import { type ComponentProps, type JSX, type ReactElement, memo, useState, useId, useMemo } from 'react';
+import {
+    type ComponentProps,
+    type JSX,
+    type ReactElement,
+    memo,
+    useState,
+    useId,
+    useMemo,
+    useRef,
+} from 'react';
 
 import { Button as BaseButton, Input, Menu, Toggle, ToggleGroup } from '@base-ui/react';
 import classnames from 'classnames';
@@ -17,6 +26,7 @@ import { ActorPill, ActorsContainer } from './actors-container';
 import {
     useKeyedState,
     useScriptEditorManager,
+    useScriptEditorManagerListener,
     useScriptEditorStateAccessor,
 } from '../model/hooks';
 import {
@@ -28,14 +38,14 @@ import {
     type ScriptNode,
     SectionNode,
     keyOfType,
+    ScriptEditorState,
 } from '../model/state';
 import * as actions from '../model/actions';
+import { dispatchStateActionEvent } from '../model/manager';
 
 type VirtualizedElementProps = Omit<ComponentProps<'div'>, 'className'>;
 
-// FXIME: incorrect terminology (both in english and german). This really isn't a cue, but a
-// response to one
-export function CueMarker(): JSX.Element {
+export function ResponseMarker(): JSX.Element {
     return (
         <span className="text-info text-accent-100 border-accent-100 rounded-full border px-2 py-0.5">
             Einsatz
@@ -84,7 +94,10 @@ export function SectionInfoHeader({
                             <IconButton
                                 iconName="input-cursor-text"
                                 onClick={() =>
-                                    manager.dispatch(actions.editSectionBegin, section.key)
+                                    manager.dispatchStateAction(
+                                        actions.editSectionBegin,
+                                        section.key,
+                                    )
                                 }
                                 render={<Tooltip.Trigger />}
                             />
@@ -102,9 +115,11 @@ export function SectionInfoHeader({
                         value={section.name}
                         id={inputId}
                         autoFocus
-                        onBlur={() => manager.dispatch(actions.editSectionEnd, section.key)}
+                        onBlur={() =>
+                            manager.dispatchStateAction(actions.editSectionEnd, section.key)
+                        }
                         onValueChange={(value, event) =>
-                            manager.dispatch(actions.renameSection, {
+                            manager.dispatchStateAction(actions.renameSection, {
                                 sectionKey: section.key,
                                 name: value,
                                 inputId,
@@ -131,27 +146,33 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
 
     const node = useKeyedState(nodeKey);
 
-    let actorMarksAsCue = false;
+    let actorMarksAsResponse = false;
     if (node instanceof DialogueNode && manager.state.selfActor)
-        actorMarksAsCue = node.actors.includes(manager.state.selfActor);
+        actorMarksAsResponse = node.actors.includes(manager.state.selfActor);
 
-    const markedAsCue = actorMarksAsCue || node.markedAsCue;
+    const markedAsContext = actorMarksAsResponse || node.markedAsContext;
 
     return (
         <MenuBox>
             <MenuItem iconName="check2-circle">Auswählen</MenuItem>
             <MenuItem
                 iconName="pencil"
-                onClick={() => manager.dispatch(actions.editContentfulNodeBegin, nodeKey)}>
+                onClick={() =>
+                    manager.dispatchStateAction(actions.editContentfulNodeBegin, nodeKey)
+                }>
                 Bearbeiten
             </MenuItem>
             <MenuItem iconName="play-fill">Ab hier üben</MenuItem>
             <MenuSeparator />
             <MenuCheckboxItem
-                checked={markedAsCue}
-                onCheckedChange={() => manager.dispatch(actions.toggleNodeMarkedAsQue, nodeKey)}
-                disabled={actorMarksAsCue}>
-                Als Einsatz markieren
+                checked={markedAsContext}
+                onClick={() =>
+                    manager.dispatchStateAction(actions.toggleNodeMarkedAsContext, nodeKey)
+                }
+                disabled={actorMarksAsResponse || manager.state.selfActor === null}>
+                {keyOfType(nodeKey, DialogueNode)
+                    ? 'Als Antwort markieren'
+                    : 'Als Kontext markieren'}
             </MenuCheckboxItem>
             <MenuSeparator />
             <MenuItem
@@ -191,12 +212,12 @@ function EditActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> 
             <IconButton
                 iconName="check2"
                 className="text-foreground"
-                onClick={() => manager.dispatch(actions.editContentfulNodeDone, itemKey)}
+                onClick={() => manager.dispatchStateAction(actions.editContentfulNodeDone, itemKey)}
             />
             <IconButton
                 iconName="x"
                 className="text-foreground"
-                onClick={() => manager.dispatch(actions.editContentfulNodeDone, itemKey)}
+                onClick={() => manager.dispatchStateAction(actions.editContentfulNodeDone, itemKey)}
             />
         </ActionsContainer>
     );
@@ -317,19 +338,27 @@ function ActorsLineRenderer({ actorKeys }: { actorKeys: readonly ActorKey[] }): 
 const DialogueView = memo(function DialogueView({
     dialogueKey,
     ...props
-}: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element {
+}: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element | null {
     const dialogue = useKeyedState(dialogueKey);
     const manager = useScriptEditorManager();
-    // FIXME/TODO: on actor creation we have to spawn the appropriate popover of the new actor (we
-    // will probably need a new component for that listens to the dispatched action, reacts on the
-    // appropriate `dialogueKey` pops open the popover using an imperative ref on the
-    // ActorsContainer)
+    const actorsContainerActionsRef = useRef<ActorsContainer.Actions>(null);
 
-    const actorMarksAsCue = useScriptEditorStateAccessor(state => 
-        state.selfActor ? dialogue.actors.includes(state.selfActor) : false
+    const actorMarksAsCue = useScriptEditorStateAccessor(state =>
+        state.selfActor ? dialogue.actors.includes(state.selfActor) : false,
     );
 
-    const markedAsCue = actorMarksAsCue || dialogue.markedAsCue;
+    const markedAsContext = actorMarksAsCue || dialogue.markedAsContext;
+
+    useScriptEditorManagerListener(info => {
+        if (info.action !== actions.createActorOnDialogue) return;
+        let actionInfo = info as { input: Key<DialogueNode>; state: ScriptEditorState };
+        if (actionInfo.input === dialogueKey) {
+            const createdActor = actions.getCreatedActor(actionInfo.state);
+            setTimeout(() => {
+                actorsContainerActionsRef.current?.editActor(createdActor);
+            });
+        }
+    }, dispatchStateActionEvent);
 
     return (
         <HoverableSectionItem
@@ -342,10 +371,13 @@ const DialogueView = memo(function DialogueView({
                 {!dialogue.editing ? (
                     <>
                         <ActorsLineRenderer actorKeys={dialogue.actors} />
-                        { markedAsCue && <CueMarker/> }
+                        {markedAsContext && <ResponseMarker />}
                     </>
                 ) : (
-                    <ActorsContainer className="flex gap-x-1" actors={dialogue.actors}>
+                    <ActorsContainer
+                        className="flex gap-x-1"
+                        actors={dialogue.actors}
+                        actionsRef={actorsContainerActionsRef}>
                         <Menu.Root>
                             <BaseButton
                                 className="bg-primary hover:bg-light-primary cursor-pointer rounded-full p-1.5"
@@ -362,13 +394,16 @@ const DialogueView = memo(function DialogueView({
                                         <DialogueActorsEditMenu
                                             actors={dialogue.actors}
                                             onActorsChange={actors =>
-                                                manager.dispatch(actions.changeDialogueActors, {
-                                                    dialogue: dialogueKey,
-                                                    actors,
-                                                })
+                                                manager.dispatchStateAction(
+                                                    actions.changeDialogueActors,
+                                                    {
+                                                        dialogue: dialogueKey,
+                                                        actors,
+                                                    },
+                                                )
                                             }
                                             onActorAdd={() =>
-                                                manager.dispatch(
+                                                manager.dispatchStateAction(
                                                     actions.createActorOnDialogue,
                                                     dialogueKey,
                                                 )
@@ -389,7 +424,7 @@ const DialogueView = memo(function DialogueView({
 const ActionView = memo(function ActionView({
     actionKey,
     ...props
-}: { actionKey: Key<ActionNode> } & VirtualizedElementProps): JSX.Element {
+}: { actionKey: Key<ActionNode> } & VirtualizedElementProps): JSX.Element | null {
     const action = useKeyedState(actionKey);
 
     return (

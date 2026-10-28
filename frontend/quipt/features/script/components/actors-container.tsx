@@ -1,4 +1,11 @@
-import { useId, useRef, type ComponentProps, type JSX } from 'react';
+import {
+    useId,
+    useImperativeHandle,
+    useRef,
+    type ComponentProps,
+    type JSX,
+    type RefObject,
+} from 'react';
 
 import { Menu, Toggle, ToggleGroup } from '@base-ui/react';
 
@@ -63,11 +70,19 @@ function ColorPicker({ color, onColorPicked }: ColorPickerProps): JSX.Element {
     );
 }
 
-function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
+function ActorEditMenu(props: {
+    menuHandle: Menu.Handle<any>;
+    actor: ActorKey;
+}): JSX.Element | null {
     const inputId = useId();
     const manager = useScriptEditorManager();
-    const actor = useKeyedState(props.actor);
     const isSelfActor = useScriptEditorStateAccessor(state => state.selfActor === props.actor);
+
+    const actor = useKeyedState(props.actor, () => {
+        props.menuHandle.close();
+    });
+
+    if (actor === null) return null;
 
     return (
         <MenuBox>
@@ -77,7 +92,7 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
                 id={inputId}
                 value={actor.name}
                 onValueChange={(value, event) =>
-                    manager.dispatch(actions.renameActor, {
+                    manager.dispatchStateAction(actions.renameActor, {
                         actorKey: props.actor,
                         name: value,
                         inputId,
@@ -92,7 +107,7 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
             <ColorPicker
                 color={actor.color}
                 onColorPicked={color =>
-                    manager.dispatch(actions.changeActorColor, {
+                    manager.dispatchStateAction(actions.changeActorColor, {
                         actorKey: props.actor,
                         newColor: color,
                     })
@@ -102,7 +117,7 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
             <MenuCheckboxItem
                 checked={isSelfActor}
                 onCheckedChange={() =>
-                    manager.dispatch(actions.toggleActorMarkedAsSelf, props.actor)
+                    manager.dispatchStateAction(actions.toggleActorMarkedAsSelf, props.actor)
                 }>
                 Als "ich selbst" markieren
             </MenuCheckboxItem>
@@ -114,50 +129,67 @@ function ActorEditMenu(props: { actor: ActorKey }): JSX.Element {
     );
 }
 
+export interface ActorsContainerActions {
+    editActor(actor: ActorKey): void;
+}
+
+export interface ActorsContainerProps extends ComponentProps<'div'> {
+    actors: readonly ActorKey[];
+    actionsRef?: RefObject<ActorsContainerActions | null> | undefined;
+}
+
 export function ActorsContainer({
     actors,
+    actionsRef,
     className,
     children,
     ...props
-}: { actors: readonly ActorKey[] } & ComponentProps<'div'>): JSX.Element {
+}: ActorsContainerProps): JSX.Element {
     const actorMenuHandleRef = useRef<Menu.Handle<{ actor: ActorKey }>>(undefined);
     if (actorMenuHandleRef.current === undefined)
         actorMenuHandleRef.current = Menu.createHandle<{ actor: ActorKey }>();
 
     const selfActor = useScriptEditorStateAccessor(state => state.selfActor);
 
+    useImperativeHandle(actionsRef, () => ({
+        editActor(actor) {
+            actorMenuHandleRef.current?.open(actor);
+        },
+    }));
+
     return (
         <div className={className} {...props}>
-            {
-                selfActor && actors.includes(selfActor) && (
+            {selfActor && actors.includes(selfActor) && (
+                <Menu.Trigger
+                    key={selfActor}
+                    id={selfActor}
+                    handle={actorMenuHandleRef.current}
+                    payload={{ actor: selfActor }}
+                    render={<ActorPill actorKey={selfActor} selected interactable />}
+                />
+            )}
+            {actors
+                .filter(actor => actor !== selfActor)
+                .map(actor => (
                     <Menu.Trigger
-                        key={selfActor}
-                        id={selfActor}
+                        key={actor}
+                        id={actor}
                         handle={actorMenuHandleRef.current}
-                        payload={{ actor: selfActor }}
-                        render={<ActorPill actorKey={selfActor} selected interactable />}
+                        payload={{ actor }}
+                        render={<ActorPill actorKey={actor} interactable />}
                     />
-                )
-            }
-            {
-                actors
-                    .filter(actor => actor !== selfActor)
-                    .map(actor => 
-                        <Menu.Trigger
-                            key={actor}
-                            id={actor}
-                            handle={actorMenuHandleRef.current}
-                            payload={{ actor }}
-                            render={<ActorPill actorKey={actor} interactable />}
-                        />
-                    )
-            }
+                ))}
             <Menu.Root handle={actorMenuHandleRef.current}>
                 {({ payload }) => (
                     <Menu.Portal>
                         <Menu.Positioner sideOffset={8} align="start" className="outline-hidden">
                             <Menu.Popup className={popupClass}>
-                                {payload?.actor && <ActorEditMenu actor={payload.actor} />}
+                                {payload?.actor && (
+                                    <ActorEditMenu
+                                        menuHandle={actorMenuHandleRef.current!}
+                                        actor={payload.actor}
+                                    />
+                                )}
                             </Menu.Popup>
                         </Menu.Positioner>
                     </Menu.Portal>
@@ -166,4 +198,8 @@ export function ActorsContainer({
             {children}
         </div>
     );
+}
+
+export declare namespace ActorsContainer {
+    export type Actions = ActorsContainerActions;
 }

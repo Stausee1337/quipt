@@ -8,9 +8,11 @@ import {
     useMemo,
     useRef,
     useState,
+    type Ref,
+    type Dispatch,
 } from 'react';
 
-import { Button as BaseButton } from '@base-ui/react';
+import { Button as BaseButton, Popover, Toggle } from '@base-ui/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import classnames from 'classnames';
 
@@ -23,13 +25,33 @@ import { useBreakpoints } from 'quipt/responsive';
 import { type Script } from '../script';
 import { renderContentNode } from './section';
 import { HLine, VLine, ContentInfoView } from './common';
-import { type Key, type ScriptNode, type Structure } from '../model/state';
+import {
+    SectionNode,
+    type Key,
+    ScriptNode,
+    type Structure,
+    keyOfType,
+    DialogueNode,
+    ScriptEditorState,
+    ActionNode,
+    ContentfulScriptNode,
+} from '../model/state';
 import {
     ScriptEditorContextProivder,
+    useKeyedState,
+    useScriptEditorManager,
+    useScriptEditorManagerListener,
     useScriptEditorStateAccessor,
     useScrollContainer,
 } from '../model/hooks';
-import { ScriptEditorManager } from '../model/manager';
+import * as actions from '../model/actions';
+import {
+    dispatchStateActionEvent,
+    ScriptEditorManager,
+    scrollToNodeEvent,
+    toggleContextHiddenEvent,
+    undoEvent,
+} from '../model/manager';
 
 function ScriptViewHeader({ name }: { name: string }): JSX.Element {
     return (
@@ -56,8 +78,168 @@ function MobileScriptViewHeader({ name }: { name: string }): JSX.Element {
     );
 }
 
+interface SectionNavigatorItemProps extends Omit<ComponentProps<'div'>, 'children'> {
+    sectionKey: Key<SectionNode>;
+    selectedItemRef?: Ref<HTMLDivElement | null> | undefined;
+}
+
+function SectionNavigatorItem({
+    sectionKey,
+    selectedItemRef,
+    onClick,
+    ...props
+}: SectionNavigatorItemProps): JSX.Element {
+    const section = useKeyedState(sectionKey);
+    const manager = useScriptEditorManager();
+    const selected = sectionKey === manager.activeSection;
+
+    const clickHandler: SectionNavigatorItemProps['onClick'] = event => {
+        manager.scrollToNode(section.key);
+        onClick?.(event);
+    };
+
+    return (
+        <div
+            ref={selected ? selectedItemRef : undefined}
+            className="data-selected:bg-accent-100/20 hover:not-data-selected:bg-accent-100/10 cursor-pointer rounded-lg px-3 py-1 text-sm data-[level=1]:ps-4"
+            data-selected={selected ? '' : undefined}
+            data-level={section.depth}
+            onClick={clickHandler}
+            {...props}>
+            {section.name}
+        </div>
+    );
+}
+
+function ScriptSectionNavigatorContent({
+    popoverHandle,
+    setSelectedItem,
+}: {
+    popoverHandle: Popover.Handle<void>;
+    setSelectedItem: Dispatch<HTMLDivElement | null>;
+}): JSX.Element {
+    const manager = useScriptEditorManager();
+    const structure = useScriptEditorStateAccessor(state => state.structure);
+    const content = useMemo(() => {
+        switch (structure.depth) {
+            case 0:
+                return [];
+            case 1:
+                return structure.children
+                    .filter(
+                        section =>
+                            processMapScriptItems(
+                                section.children,
+                                manager.state,
+                                manager.contextHidden,
+                            ).length > 0,
+                    )
+                    .map(section => (
+                        <SectionNavigatorItem
+                            key={section.key}
+                            selectedItemRef={setSelectedItem}
+                            sectionKey={section.key}
+                            onClick={closeOnClick}
+                        />
+                    ));
+            case 2:
+                return structure.children.flatMap(section => {
+                    const items = section.children
+                        .filter(
+                            section =>
+                                processMapScriptItems(
+                                    section.children,
+                                    manager.state,
+                                    manager.contextHidden,
+                                ).length > 0,
+                        )
+                        .map(section => (
+                            <SectionNavigatorItem
+                                key={section.key}
+                                selectedItemRef={setSelectedItem}
+                                sectionKey={section.key}
+                                onClick={closeOnClick}
+                            />
+                        ));
+                    return items.length > 0
+                        ? [
+                              <SectionNavigatorItem
+                                  key={section.key}
+                                  selectedItemRef={setSelectedItem}
+                                  sectionKey={section.key}
+                                  onClick={closeOnClick}
+                              />,
+                              ...items,
+                          ]
+                        : [];
+                });
+        }
+    }, []);
+
+    function closeOnClick() {
+        popoverHandle.close();
+    }
+
+    return <>{content}</>;
+}
+
+function ScriptSectionNavigator(): JSX.Element {
+    const popoverHandleRef = useRef<Popover.Handle<void>>(null!);
+    if (popoverHandleRef.current === null) popoverHandleRef.current = Popover.createHandle();
+
+    const popupContainerRef = useRef<HTMLDivElement>(null);
+    const [selectedItem, setSelectedItem] = useState<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        selectedItem && selectedItem.scrollIntoView({ block: 'center' });
+    }, [selectedItem]);
+
+    return (
+        <Popover.Root modal handle={popoverHandleRef.current}>
+            <Tooltip label="Übersicht">
+                <IconButton
+                    className="data-popup-open:bg-accent-100/20"
+                    iconName="list-nested"
+                    render={<Tooltip.Trigger render={<Popover.Trigger />} />}
+                />
+            </Tooltip>
+            <Popover.Portal>
+                <Popover.Positioner side="bottom" align="center" sideOffset={4}>
+                    <Popover.Popup
+                        ref={popupContainerRef}
+                        className="bg-accent-20 flex max-h-125 w-80 scrollbar-none flex-col gap-1 overflow-y-auto rounded-3xl p-4 shadow-xl/50 outline-hidden">
+                        <ScriptSectionNavigatorContent
+                            popoverHandle={popoverHandleRef.current}
+                            setSelectedItem={setSelectedItem}
+                        />
+                    </Popover.Popup>
+                </Popover.Positioner>
+            </Popover.Portal>
+        </Popover.Root>
+    );
+}
+
 function ScriptContentViewHeader(): JSX.Element {
     const breakpoints = useBreakpoints();
+    const manager = useScriptEditorManager();
+    const hasSelfActor = useScriptEditorStateAccessor(state => state.selfActor !== null);
+    const hasStructure = useScriptEditorStateAccessor(state => state.structure.depth > 0);
+
+    const [contextHidden, setContentHidden] = useState(manager.contextHidden);
+    const [hasHistory, setHasHistory] = useState(manager.history.length > 0);
+
+    function undoHandler() {
+        manager.undo();
+    }
+
+    useScriptEditorManagerListener(() => {
+        setContentHidden(manager.contextHidden);
+    }, toggleContextHiddenEvent);
+
+    useScriptEditorManagerListener(() => {
+        setHasHistory(manager.history.length > 0);
+    }, [undoEvent, dispatchStateActionEvent]);
+
     return (
         <header className="mx-3 flex sm:mx-9 sm:my-1">
             {breakpoints.sm ? (
@@ -72,14 +254,30 @@ function ScriptContentViewHeader(): JSX.Element {
             )}
             <div className="ms-auto flex gap-x-2">
                 <Tooltip label="Rückgängig">
-                    <IconButton iconName="arrow-counterclockwise" render={<Tooltip.Trigger />} />
+                    <IconButton
+                        disabled={!hasHistory}
+                        iconName="arrow-counterclockwise"
+                        onClick={undoHandler}
+                        render={<Tooltip.Trigger />}
+                    />
                 </Tooltip>
-                <Tooltip label="Kontext ausblenden">
-                    <IconButton iconName="eye-slash" render={<Tooltip.Trigger />} />
+                <Tooltip label={contextHidden ? 'Kontext einblenden' : 'Kontext ausblenden'}>
+                    {
+                        <Toggle
+                            onClick={() => manager.toggleContextHidden()}
+                            pressed={contextHidden && hasSelfActor}
+                            disabled={!hasSelfActor}
+                            render={(props, state) => (
+                                <IconButton
+                                    iconName={state.pressed ? 'eye' : 'eye-slash'}
+                                    render={<Tooltip.Trigger />}
+                                    {...props}
+                                />
+                            )}
+                        />
+                    }
                 </Tooltip>
-                <Tooltip label="Übersicht">
-                    <IconButton iconName="list-nested" render={<Tooltip.Trigger />} />
-                </Tooltip>
+                {hasStructure && <ScriptSectionNavigator />}
             </div>
         </header>
     );
@@ -90,23 +288,81 @@ type FlatContentItem = {
     estimatedHeight: number;
 };
 
-function toFlatContent(structure: Readonly<Structure>): FlatContentItem[] {
+function nodeIsContextual(node: ScriptNode, state: ScriptEditorState): boolean {
+    if (
+        node instanceof DialogueNode &&
+        (node.markedAsContext || node.actors.includes(state.selfActor!))
+    ) {
+        return true;
+    } else if (node instanceof ActionNode && node.markedAsContext) {
+        return true;
+    }
+    return false;
+}
+
+function processMapScriptItems(
+    scriptItems: (Key<ActionNode> | Key<DialogueNode>)[],
+    state: ScriptEditorState,
+    hideContext: boolean,
+): FlatContentItem[] {
+    const result: FlatContentItem[] = [];
+
+    for (let idx = 0; idx < scriptItems.length; idx++) {
+        const key = scriptItems[idx];
+        if (!hideContext || state.selfActor === null) {
+            result.push({ key, estimatedHeight: 48 });
+        } else {
+            const node = state.lookup(key);
+            if (nodeIsContextual(node, state)) {
+                result.push({ key, estimatedHeight: 48 });
+            } else {
+                let isFollowingNodeContextual = false;
+                for (let idx2 = idx + 1; idx2 < scriptItems.length; idx2++) {
+                    const key = scriptItems[idx2];
+                    const node = state.lookup(key);
+
+                    if (nodeIsContextual(node, state)) {
+                        isFollowingNodeContextual = true;
+                        break;
+                    }
+                    if (!(node instanceof ActionNode)) break;
+                }
+
+                if (isFollowingNodeContextual) result.push({ key, estimatedHeight: 48 });
+            }
+        }
+    }
+
+    return result;
+}
+
+function toFlatContent(
+    structure: Readonly<Structure>,
+    state: ScriptEditorState,
+    hideContext: boolean,
+): FlatContentItem[] {
     switch (structure.depth) {
         case 0:
-            return structure.children.map(key => ({ key, estimatedHeight: 48 }));
+            return processMapScriptItems(structure.children, state, hideContext);
         case 1:
-            return structure.children.flatMap(sectionPack => [
-                { key: sectionPack.key, estimatedHeight: 150 },
-                ...sectionPack.children.map(key => ({ key, estimatedHeight: 48 })),
-            ]);
+            return structure.children.flatMap(sectionPack => {
+                const items = processMapScriptItems(sectionPack.children, state, hideContext);
+                return items.length > 0
+                    ? [{ key: sectionPack.key, estimatedHeight: 150 }, ...items]
+                    : [];
+            });
         case 2:
-            return structure.children.flatMap(supersectionPack => [
-                { key: supersectionPack.key, estimatedHeight: 150 },
-                ...supersectionPack.children.flatMap(sectionPack => [
-                    { key: sectionPack.key, estimatedHeight: 16 },
-                    ...sectionPack.children.map(key => ({ key, estimatedHeight: 48 })),
-                ]),
-            ]);
+            return structure.children.flatMap(supersectionPack => {
+                const items = supersectionPack.children.flatMap(sectionPack => {
+                    const items = processMapScriptItems(sectionPack.children, state, hideContext);
+                    return items.length > 0
+                        ? [{ key: sectionPack.key, estimatedHeight: 16 }, ...items]
+                        : [];
+                });
+                return items.length > 0
+                    ? [{ key: supersectionPack.key, estimatedHeight: 150 }, ...items]
+                    : [];
+            });
     }
 }
 
@@ -114,12 +370,13 @@ const VirtualizedContentList = memo(
     function VirtualizedContentList({ gap, content }: { gap: number; content: FlatContentItem[] }) {
         const containerRef = useRef<HTMLDivElement | null>(null);
         const breakpoints = useBreakpoints();
+        const manager = useScriptEditorManager();
 
         const [enabled, setEnabled] = useState(false);
         const [scrollMargin, setScrollMargin] = useState(0);
         const scrollContainer = useScrollContainer();
 
-        const virtual = useVirtualizer({
+        const virtualizer = useVirtualizer({
             count: content.length,
             getScrollElement: () => scrollContainer,
             estimateSize: idx => content[idx].estimatedHeight,
@@ -129,7 +386,36 @@ const VirtualizedContentList = memo(
             scrollMargin,
             directDomUpdates: true,
             laneAssignmentMode: 'measured',
+            onChange() {
+                const virtualItems = virtualizer.getVirtualItems();
+                const scrollOffset = virtualizer.scrollOffset ?? 0;
+                const scrollMargin = virtualizer.options.scrollMargin ?? 0;
+
+                const currentItem = virtualItems.find(
+                    item =>
+                        item.start - scrollMargin <= scrollOffset &&
+                        item.end - scrollMargin > scrollOffset,
+                );
+
+                if (currentItem === undefined) {
+                    manager.activeSection = null;
+                    return;
+                }
+
+                const fci = content[currentItem.index];
+                if (keyOfType(fci.key, SectionNode)) {
+                    manager.activeSection = fci.key;
+                    return;
+                }
+                const scriptNode = manager.state.lookup(fci.key);
+                manager.activeSection = scriptNode.parent;
+            },
         });
+
+        useScriptEditorManagerListener(key => {
+            const nodeIndex = content.findIndex(item => item.key === key);
+            if (nodeIndex !== -1) virtualizer.scrollToIndex(nodeIndex, { align: 'start' });
+        }, scrollToNodeEvent);
 
         useEffect(() => {
             setEnabled(scrollContainer !== null);
@@ -144,18 +430,18 @@ const VirtualizedContentList = memo(
         }, [breakpoints]);
 
         function onContainerRefUpdate(element: HTMLDivElement | null) {
-            virtual.containerRef(element);
+            virtualizer.containerRef(element);
             containerRef.current = element;
         }
 
         return (
             <div className="relative" ref={onContainerRefUpdate}>
-                {virtual.getVirtualItems().map(item => {
+                {virtualizer.getVirtualItems().map(item => {
                     const node = renderContentNode(content[item.index].key);
                     if (node === null) return null;
                     return cloneElement(node, {
                         key: item.key,
-                        ref: virtual.measureElement,
+                        ref: virtualizer.measureElement,
                         'data-index': item.index,
                         'data-size': item.size,
                     });
@@ -174,7 +460,27 @@ function ScriptContentView({
     structure: Readonly<Structure>;
 }): JSX.Element {
     const breakpoints = useBreakpoints();
-    const content = useMemo(() => toFlatContent(structure), [structure]);
+    const manager = useScriptEditorManager();
+    const selfActor = useScriptEditorStateAccessor(state => state.selfActor);
+
+    // FXIME: this is definitely an antipattern
+    const [externalContentEvents, setExternalContentEvents] = useState(0);
+
+    const [contextHidden, setContextHidden] = useState(manager.contextHidden);
+    const content = useMemo(
+        () => toFlatContent(structure, manager.state, contextHidden),
+        [structure, contextHidden, selfActor, externalContentEvents],
+    );
+
+    useScriptEditorManagerListener(() => {
+        setContextHidden(manager.contextHidden);
+    }, toggleContextHiddenEvent);
+
+    useScriptEditorManagerListener(info => {
+        if (!manager.contextHidden || manager.state.selfActor === null) return;
+        if (info.action !== actions.toggleNodeMarkedAsContext) return;
+        setExternalContentEvents(c => c + 1);
+    }, dispatchStateActionEvent);
 
     return (
         <div className={classnames('flex flex-col gap-y-2 sm:gap-y-4', className)}>
