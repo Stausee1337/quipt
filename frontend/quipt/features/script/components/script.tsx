@@ -119,7 +119,8 @@ function ScriptSectionNavigatorContent({
     setSelectedItem: Dispatch<HTMLDivElement | null>;
 }): JSX.Element {
     const manager = useScriptEditorManager();
-    const structure = useScriptEditorStateAccessor(state => state.structure);
+    const structure = manager.state.structure;
+    console.log(manager.state.structure);
     const content = useMemo(() => {
         switch (structure.depth) {
             case 0:

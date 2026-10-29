@@ -51,6 +51,18 @@ export const changeDialogueActors = stateAction<{
     },
 });
 
+export const removeContentfulNode = stateAction({
+    apply(itemKey: Key<ContentfulScriptNode>, state) {
+        state.removeNode(itemKey);
+    },
+});
+
+export const removeSection = stateAction({
+    apply(itemKey: Key<SectionNode>, state) {
+        state.removeNode(itemKey);
+    },
+});
+
 function randomColor(): Color {
     return (1 + Math.floor(Math.random() * 24)) as Color;
 }

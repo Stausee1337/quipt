@@ -168,7 +168,7 @@ export abstract class ContentfulScriptNode extends ScriptNode {
     public content: FormattedString | EditorState;
 
     // TODO: this state should be interdependent on who is selected as selfActor
-    public markedAsCueResponse: boolean = false;
+    public markedAsContext: boolean = false;
 
     constructor(public text: string) {
         super();
@@ -432,6 +432,44 @@ export class ScriptEditorState {
     }
 }
 
+function deepcopyStructure(structure: Structure): Structure {
+    switch (structure.depth) {
+        case 0:
+            return {
+                depth: 0,
+                children: [...structure.children]
+            };
+        case 1:
+            return {
+                depth: 1,
+                children: structure.children.map(sectionPack => ({
+                    key: sectionPack.key,
+                    children: [...sectionPack.children]
+                }))
+            };
+        case 2:
+            return {
+                depth: 2,
+                children: structure.children.map(supersectionPack => ({
+                    key: supersectionPack.key,
+                    children: supersectionPack.children.map(sectionPack => ({
+                        key: sectionPack.key,
+                        children: [...sectionPack.children]
+                    }))
+                }))
+            };
+    }
+}
+
+function structureGetChildIndex(
+    structure: { children: SectionKeyPack<any>[] | ScriptItemKey[] },
+    nodeKey: Key<ScriptNode>,
+): number {
+    return structure.children.findIndex(
+        child => typeof child === 'string' ? child === nodeKey : child.key === nodeKey
+    );
+}
+
 export class TransientState extends ScriptEditorState {
     public changes = new Set<Key<any>>();
 
@@ -484,6 +522,59 @@ export class TransientState extends ScriptEditorState {
         }
 
         return result;
+    }
+
+    /**
+     * Removes a node (ScriptNode) from the tree, while maintaining the invariants of the tree.
+     *
+     * NOTE: This function causes upates to `Structure`
+     */
+    removeNode(key: Key<ScriptNode>) {
+        let node = this.lookup(key);
+        this.unlinkNode(key);
+
+        // FIXME: maybe we can make it work without deepcopying the entire structure (eventually)
+        const structure = deepcopyStructure(this.structure);
+
+        const [pack, idx] = this.propagateRemove(node, structure);
+        pack.children.splice(idx, 1);
+
+        this.structure = structure;
+        // TODO: also loop over the structure to figure out if this deletes an actor
+    }
+
+    private propagateRemove(
+        node: ScriptNode,
+        structure: Structure,
+        newNode?: ScriptNode | undefined
+    ): [Structure | SupersectionPack | SectionPack, number] {
+        if (node.parent === null) // We've found a root-level node.
+            return [structure, structureGetChildIndex(structure, node.key)];
+
+        const parent = this.lookup(node.parent);
+        const index = parent.children.indexOf(node as any);
+        if (index === -1) throw Error('invariant violated: parent needs to contain its child');
+        const nodeChildren: (ActionNode | DialogueNode | SectionNode)[] = newNode === undefined ? [
+            ...parent.children.slice(0, index),
+            ...parent.children.slice(index + 1),
+        ] : [
+            ...parent.children.slice(0, index),
+            newNode as any,
+            ...parent.children.slice(index + 1),
+        ];
+        const { actors, dialogueCount } = computeMetaInformation(nodeChildren);
+        const nextNewNode = this.updateObject(parent, {
+            children: nodeChildren,
+            actors,
+            dialogueCount,
+        });
+
+        const [pack, idx] = this.propagateRemove(parent, structure, nextNewNode);
+
+        const nextPack = pack.children[idx];
+        if (typeof nextPack === 'string') throw 'invalid invariant';
+
+        return [nextPack, structureGetChildIndex(nextPack, node.key)];
     }
 
     unlinkNode<T extends Keyed<T>>(key: Key<T>) {

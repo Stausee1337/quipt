@@ -103,7 +103,16 @@ export function SectionInfoHeader({
                             />
                         </Tooltip>
                         <Tooltip label="Löschen">
-                            <IconButton iconName="trash" render={<Tooltip.Trigger />} />
+                            <IconButton
+                                iconName="trash"
+                                onClick={() =>
+                                    manager.dispatchStateAction(
+                                        actions.removeSection,
+                                        section.key,
+                                    )
+                                }
+                                render={<Tooltip.Trigger />}
+                            />
                         </Tooltip>
                     </div>
                     <PlayButton className="absolute top-1/2 right-0 -translate-y-1/2" />
@@ -177,6 +186,10 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
             <MenuSeparator />
             <MenuItem
                 iconName="trash"
+                onClick={() =>
+                    manager.dispatchStateAction(actions.removeContentfulNode, nodeKey)
+                }
+
                 className="text-red-500 data-highlighted:before:bg-red-500/20!">
                 Löschen
             </MenuItem>
