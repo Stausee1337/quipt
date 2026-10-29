@@ -8,7 +8,7 @@ import { Icon } from 'quipt/components/icon';
 export const popupClass =
     'relative origin-[var(--transform-origin)] transition-[scale,opacity] duration-100 ease-out data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0 text-foreground';
 export const menuItemClass =
-    'flex cursor-pointer p-2 outline-hidden select-none z-0 relative before:absolute before:-z-1 before:rounded-2xl before:top-0 before:left-0 before:right-0 before:bottom-0 data-highlighted:before:bg-accent-100/20 gap-x-2 items-center data-disabled:opacity-50 data-disabled:cursor-not-allowed';
+    'flex cursor-pointer p-2 outline-hidden select-none z-0 relative before:absolute before:-z-1 before:rounded-2xl before:top-0 before:left-0 before:right-0 before:bottom-0 data-highlighted:before:bg-accent-100/20 data-popup-open:before:bg-accent-100/20 gap-x-2 items-center data-disabled:opacity-50 data-disabled:cursor-not-allowed';
 
 export interface MenuItemProps extends Menu.Item.Props {
     iconName?: string;

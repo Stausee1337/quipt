@@ -19,7 +19,7 @@ import { FormattedStringView } from 'quipt/components/formatted-string-view';
 import { FormattedString } from 'quipt/formatted-string';
 import { useBreakpointsOnce } from 'quipt/responsive';
 import { formatActorsArray } from 'quipt/utils';
-import { MenuItem, MenuBox, MenuSeparator, popupClass, MenuCheckboxItem } from './menu';
+import { MenuItem, MenuBox, MenuSeparator, popupClass, MenuCheckboxItem, menuItemClass } from './menu';
 import { ContentInfoView, HLine, PlayButton } from './common';
 import { Editor } from './editor';
 import { ActorPill, ActorsContainer } from './actors-container';
@@ -184,6 +184,45 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
                     : 'Als Kontext markieren'}
             </MenuCheckboxItem>
             <MenuSeparator />
+            <Menu.SubmenuRoot>
+                <Menu.SubmenuTrigger className={menuItemClass}>
+                    <span className="size-5">
+                        <Icon iconName="plus" className="size-5" />
+                    </span>
+                    Neu davor einfügen
+                    <Icon
+                        iconName="caret-right-fill"
+                        className="size-4 text-accent-100 ms-auto me-1"
+                    />
+                </Menu.SubmenuTrigger>
+                <Menu.Portal>
+                    <Menu.Positioner
+                        className="outline-hidden"
+                        sideOffset={getOffset}
+                        alignOffset={getOffset}
+                    >
+                        <Menu.Popup className={popupClass}>
+                            <MenuBox>
+                                <MenuItem
+                                    iconName="chat-text"
+                                    onClick={() =>
+                                        manager.dispatchStateAction(actions.insertNewDialogueBefore, nodeKey)
+                                    }
+                                    >Dialog erstellen
+                                </MenuItem>
+                                <MenuItem
+                                    iconName="card-text"
+                                    onClick={() =>
+                                        manager.dispatchStateAction(actions.insertNewActionBefore, nodeKey)
+                                    }
+                                    >
+                                    Handlung erstellen
+                                </MenuItem>
+                            </MenuBox>
+                        </Menu.Popup>
+                    </Menu.Positioner>
+                </Menu.Portal>
+            </Menu.SubmenuRoot>
             <MenuItem
                 iconName="trash"
                 onClick={() =>
@@ -195,6 +234,10 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
             </MenuItem>
         </MenuBox>
     );
+}
+
+function getOffset({ side }: { side: Menu.Positioner.Props['side'] }) {
+  return side === 'top' || side === 'bottom' ? 4 : -4;
 }
 
 function HoverActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {

@@ -11,6 +11,8 @@ import {
     TransientState,
     ScriptEditorState,
     Actor,
+    ActionNode,
+    structureGetChildIndex,
 } from './state';
 import { createEditorState } from './editor';
 
@@ -54,6 +56,34 @@ export const changeDialogueActors = stateAction<{
 export const removeContentfulNode = stateAction({
     apply(itemKey: Key<ContentfulScriptNode>, state) {
         state.removeNode(itemKey);
+    },
+});
+
+export const insertNewDialogueBefore = stateAction({
+    apply(referenceNodeKey: Key<ContentfulScriptNode>, state, manager) {
+        const referenceNode = state.lookup(referenceNodeKey);
+        const newDialogue = state.allocate(DialogueNode, [], ''); 
+
+        const parent = referenceNode.parent !== null ? state.lookup(referenceNode.parent) : undefined;
+        const index = parent !== undefined
+            ? parent.children.findIndex(child => child.key === referenceNodeKey)
+            : structureGetChildIndex(state.structure, referenceNodeKey);
+        state.insertNode(newDialogue, index, parent);
+        editContentfulNodeBegin.apply(newDialogue.key, state, manager);
+    },
+});
+
+export const insertNewActionBefore = stateAction({
+    apply(referenceNodeKey: Key<ContentfulScriptNode>, state, manager) {
+        const referenceNode = state.lookup(referenceNodeKey);
+        const newAction = state.allocate(ActionNode, ''); 
+
+        const parent = referenceNode.parent !== null ? state.lookup(referenceNode.parent) : undefined;
+        const index = parent !== undefined
+            ? parent.children.findIndex(child => child.key === referenceNodeKey)
+            : structureGetChildIndex(state.structure, referenceNodeKey);
+        state.insertNode(newAction, index, parent);
+        editContentfulNodeBegin.apply(newAction.key, state, manager);
     },
 });
 

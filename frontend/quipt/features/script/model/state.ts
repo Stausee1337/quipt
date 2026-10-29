@@ -302,7 +302,7 @@ function allocateIn<T extends Keyed<T>, Args extends unknown[]>(
     pool: PoolType,
     klass: Constructor<T, Args>,
     ...args: Args
-): Readonly<T> {
+): T {
     const key: Key<T> = makeKey(klass);
     const object = new klass(key, ...args);
     pool.set(key, object);
@@ -461,13 +461,23 @@ function deepcopyStructure(structure: Structure): Structure {
     }
 }
 
-function structureGetChildIndex(
+export function structureGetChildIndex(
     structure: { children: SectionKeyPack<any>[] | ScriptItemKey[] },
     nodeKey: Key<ScriptNode>,
 ): number {
     return structure.children.findIndex(
         child => typeof child === 'string' ? child === nodeKey : child.key === nodeKey
     );
+}
+
+function getNodeReprsentationForStructure(node: ActionNode | DialogueNode | SectionNode): ScriptItemKey | SectionPack {
+    if (node instanceof SectionNode) {
+        return {
+            key: node.key,
+            children: node.children.map(child => child.key as ScriptItemKey)
+        };
+    }
+    return node.key;
 }
 
 export class TransientState extends ScriptEditorState {
@@ -480,7 +490,7 @@ export class TransientState extends ScriptEditorState {
     allocate<T extends Keyed<T>, Args extends unknown[]>(
         klass: Constructor<T, Args>,
         ...args: Args
-    ): Readonly<T> {
+    ): T {
         return allocateIn(this.pool, klass, ...args);
     }
 
@@ -536,14 +546,36 @@ export class TransientState extends ScriptEditorState {
         // FIXME: maybe we can make it work without deepcopying the entire structure (eventually)
         const structure = deepcopyStructure(this.structure);
 
-        const [pack, idx] = this.propagateRemove(node, structure);
+        const [pack, idx] = this.rebuildStructure(node, structure);
         pack.children.splice(idx, 1);
 
         this.structure = structure;
         // TODO: also loop over the structure to figure out if this deletes an actor
     }
 
-    private propagateRemove(
+    insertNode(node: ActionNode | DialogueNode | SectionNode, index: number, sectionNode: Readonly<SectionNode> | undefined) {
+        const structure = deepcopyStructure(this.structure);
+
+        let pack: Structure | SectionPack | SupersectionPack;
+        if (sectionNode !== undefined) {
+            const newNode = this.updateObject(sectionNode, {
+                children: sectionNode.children.toSpliced(index, 0, node)
+            });
+            node.parent = sectionNode.key;
+
+            const [sectionPack, idx] = this.rebuildStructure(sectionNode, structure, newNode);
+            const innerPack = sectionPack.children[idx];
+            if (typeof innerPack === 'string') throw 'invalid invariant';
+            pack = innerPack;
+        } else {
+            pack = structure;
+        }
+
+        pack.children.splice(index, 0, getNodeReprsentationForStructure(node) as any);
+        this.structure = structure;
+    }
+
+    private rebuildStructure(
         node: ScriptNode,
         structure: Structure,
         newNode?: ScriptNode | undefined
@@ -569,7 +601,7 @@ export class TransientState extends ScriptEditorState {
             dialogueCount,
         });
 
-        const [pack, idx] = this.propagateRemove(parent, structure, nextNewNode);
+        const [pack, idx] = this.rebuildStructure(parent, structure, nextNewNode);
 
         const nextPack = pack.children[idx];
         if (typeof nextPack === 'string') throw 'invalid invariant';

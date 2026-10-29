@@ -120,7 +120,6 @@ function ScriptSectionNavigatorContent({
 }): JSX.Element {
     const manager = useScriptEditorManager();
     const structure = manager.state.structure;
-    console.log(manager.state.structure);
     const content = useMemo(() => {
         switch (structure.depth) {
             case 0:
