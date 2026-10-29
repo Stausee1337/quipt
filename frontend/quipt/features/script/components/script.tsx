@@ -24,7 +24,7 @@ import { Tooltip } from 'quipt/components/tooltip';
 import { useBreakpoints } from 'quipt/responsive';
 import { type Script } from '../script';
 import { renderContentNode } from './section';
-import { HLine, VLine, ContentInfoView } from './common';
+import { HLine, VLine, ContentInfoView, PlayButton } from './common';
 import {
     SectionNode,
     type Key,
@@ -49,6 +49,7 @@ import {
     dispatchStateActionEvent,
     ScriptEditorManager,
     scrollToNodeEvent,
+    setActiveSectionEvent,
     toggleContextHiddenEvent,
     undoEvent,
 } from '../model/manager';
@@ -366,6 +367,109 @@ function toFlatContent(
     }
 }
 
+function useNativeElementListener<K extends keyof HTMLElementEventMap>(
+    element: HTMLElement | null,
+    type: K,
+    listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any,
+) {
+    const listenerRef = useRef<(this: HTMLElement, ev: HTMLElementEventMap[K]) => any>(null);
+    listenerRef.current = listener;
+
+    useEffect(() => {
+        if (element === null) return;
+        const currentElement = element;
+        function handleEvent(this: HTMLElement, ev: HTMLElementEventMap[K]) {
+            listenerRef.current?.call(this, ev);
+        }
+        currentElement.addEventListener(type, handleEvent);
+        return () => {
+            currentElement.removeEventListener(type, handleEvent);
+        };
+    }, [element, type]);
+}
+
+function getActiveSection(manager: ScriptEditorManager): SectionNode | null {
+    if (manager.activeSection === null)
+        return null;
+    const activeSection = manager.state.lookup(manager.activeSection);
+    if (activeSection.parent === null)
+        return activeSection;
+    const activeSupersection = manager.state.lookup(activeSection.parent);
+    return activeSupersection;
+}
+
+function ScriptStickyHeader(): JSX.Element {
+    const manager = useScriptEditorManager();
+    const scriptName = useScriptEditorStateAccessor(state => state.name);
+    const hasSelfActor = useScriptEditorStateAccessor(state => state.selfActor !== null);
+    const hasStructure = useScriptEditorStateAccessor(state => state.structure.depth > 0);
+
+    const [contextHidden, setContentHidden] = useState(manager.contextHidden);
+    const [hasHistory, setHasHistory] = useState(manager.history.length > 0);
+
+    const [activeSection, setActiveSection] = useState(getActiveSection(manager));
+
+    useScriptEditorManagerListener(() => {
+        setContentHidden(manager.contextHidden);
+    }, toggleContextHiddenEvent);
+
+    useScriptEditorManagerListener(() => {
+        setActiveSection(getActiveSection(manager));
+    }, setActiveSectionEvent);
+
+    useScriptEditorManagerListener(() => {
+        setHasHistory(manager.history.length > 0);
+    }, [undoEvent, dispatchStateActionEvent]);
+
+    function undoHandler() {
+        manager.undo();
+    }
+
+    // FIXME: when toggling context hidden while scrolled, react virtualizer tries to maintain
+    // scroll position, not element, which means after a context hidden change we come out all over
+    // the place. We likely have to track some sort of anchor item (the item in the middle of the
+    // screen) in order to mitigate that (though that anchor item would also need to be part of the
+    // current context, obviously)
+
+    return (
+        <div className="sticky top-0 w-auto z-100 bg-background">
+            <div className="flex mx-9 py-2 items-center border-b border-accent-30">
+            <div className="flex gap-x-5 items-center">
+                <h2 className="text-heading-2">{ activeSection?.name ?? scriptName }</h2>
+                <div className="flex gap-x-2 items-center">
+                    <Tooltip label="Rückgängig">
+                        <IconButton
+                            disabled={!hasHistory}
+                            iconName="arrow-counterclockwise"
+                            onClick={undoHandler}
+                            render={<Tooltip.Trigger />}
+                        />
+                    </Tooltip>
+                    <Tooltip label={contextHidden ? 'Kontext einblenden' : 'Kontext ausblenden'}>
+                        {
+                            <Toggle
+                                onClick={() => manager.toggleContextHidden()}
+                                pressed={contextHidden && hasSelfActor}
+                                disabled={!hasSelfActor}
+                                render={(props, state) => (
+                                    <IconButton
+                                        iconName={state.pressed ? 'eye' : 'eye-slash'}
+                                        render={<Tooltip.Trigger />}
+                                        {...props}
+                                    />
+                                )}
+                            />
+                        }
+                    </Tooltip>
+                    {hasStructure && <ScriptSectionNavigator />}
+                </div>
+            </div>
+            <PlayButton className="ms-auto"/>
+            </div>
+        </div>
+    )
+}
+
 const VirtualizedContentList = memo(
     function VirtualizedContentList({ gap, content }: { gap: number; content: FlatContentItem[] }) {
         const containerRef = useRef<HTMLDivElement | null>(null);
@@ -374,6 +478,7 @@ const VirtualizedContentList = memo(
 
         const [enabled, setEnabled] = useState(false);
         const [scrollMargin, setScrollMargin] = useState(0);
+        const [stickyHeaderActive, setHeaderActive] = useState(false);
         const scrollContainer = useScrollContainer();
 
         const virtualizer = useVirtualizer({
@@ -397,29 +502,43 @@ const VirtualizedContentList = memo(
                         item.end - scrollMargin > scrollOffset,
                 );
 
-                if (currentItem === undefined) {
-                    manager.activeSection = null;
+                if (currentItem === undefined)
                     return;
-                }
 
                 const fci = content[currentItem.index];
                 if (keyOfType(fci.key, SectionNode)) {
-                    manager.activeSection = fci.key;
+                    manager.setActiveSection(fci.key);
                     return;
                 }
                 const scriptNode = manager.state.lookup(fci.key);
-                manager.activeSection = scriptNode.parent;
+                manager.setActiveSection(scriptNode.parent);
             },
+        });
+
+        // FIXME: recompute current section not just after scoll, but also on bigger view updates
+        //  - contextHiddenToggle
+        //  - dispatchStateAction (selected actions like delete section)
+
+        useNativeElementListener(scrollContainer, 'scroll', () => {
+            if (containerRef.current === null)
+                return;
+            const rect = containerRef.current.getBoundingClientRect();
+            setHeaderActive(rect.top <= 0);
         });
 
         useScriptEditorManagerListener(key => {
             const nodeIndex = content.findIndex(item => item.key === key);
-            if (nodeIndex !== -1) virtualizer.scrollToIndex(nodeIndex, { align: 'start' });
+            if (nodeIndex === -1)
+                return;
+            const result = virtualizer.getOffsetForIndex(nodeIndex, 'start');
+            if (result === undefined)
+                return;
+            virtualizer.scrollToOffset(result[0] - 65, { align: 'start' });
         }, scrollToNodeEvent);
 
         useEffect(() => {
             setEnabled(scrollContainer !== null);
-        }, [scrollContainer]);
+        }, [scrollContainer]);        
 
         useEffect(() => {
             if (containerRef.current !== null) {
@@ -436,6 +555,8 @@ const VirtualizedContentList = memo(
 
         return (
             <div className="relative" ref={onContainerRefUpdate}>
+                { stickyHeaderActive && <ScriptStickyHeader/> }
+                
                 {virtualizer.getVirtualItems().map(item => {
                     const node = renderContentNode(content[item.index].key);
                     if (node === null) return null;

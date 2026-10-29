@@ -49,6 +49,7 @@ type DispatchStateActionEventParams<T> = {
 export const undoEvent = describeManagerEvent<Set<Key<any>>>('undo');
 export const toggleContextHiddenEvent = describeManagerEvent<void>('toggleContextHidden');
 export const scrollToNodeEvent = describeManagerEvent<Key<ScriptNode>>('scrollToNode');
+export const setActiveSectionEvent = describeManagerEvent<Key<SectionNode>|undefined>('setActiveSection');
 export const dispatchStateActionEvent =
     describeManagerEvent<DispatchStateActionEventParams<any>>('dispatchStateAction');
 
@@ -57,8 +58,8 @@ export type TeardownCallback = () => void;
 export class ScriptEditorManager {
     history: HistoryEntry[] = [];
     state: ScriptEditorState;
-    activeSection: Key<SectionNode> | null = null;
 
+    private _activeSection: Key<SectionNode> | null = null;
     private _contextHidden: boolean = false;
 
     private listeners = new Map<EditorEvent<any>, Set<(arg: any) => void>>();
@@ -67,6 +68,10 @@ export class ScriptEditorManager {
 
     constructor(script: Script) {
         this.state = ScriptEditorState.build(script);
+    }
+
+    get activeSection(): Key<SectionNode> | null {
+        return this._activeSection;
     }
 
     get contextHidden(): boolean {
@@ -156,6 +161,11 @@ export class ScriptEditorManager {
     toggleContextHidden() {
         this._contextHidden = !this._contextHidden;
         this.broadcast(toggleContextHiddenEvent);
+    }
+
+    setActiveSection(activeSection: Key<SectionNode> | null) {
+        this._activeSection = activeSection;
+        this.broadcast(setActiveSectionEvent, activeSection);
     }
 }
 
