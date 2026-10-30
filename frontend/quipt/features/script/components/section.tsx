@@ -19,7 +19,14 @@ import { FormattedStringView } from 'quipt/components/formatted-string-view';
 import { FormattedString } from 'quipt/formatted-string';
 import { useBreakpointsOnce } from 'quipt/responsive';
 import { formatActorsArray } from 'quipt/utils';
-import { MenuItem, MenuBox, MenuSeparator, popupClass, MenuCheckboxItem, menuItemClass } from './menu';
+import {
+    MenuItem,
+    MenuBox,
+    MenuSeparator,
+    popupClass,
+    MenuCheckboxItem,
+    menuItemClass,
+} from './menu';
 import { ContentInfoView, HLine, PlayButton } from './common';
 import { Editor } from './editor';
 import { ActorPill, ActorsContainer } from './actors-container';
@@ -106,10 +113,7 @@ export function SectionInfoHeader({
                             <IconButton
                                 iconName="trash"
                                 onClick={() =>
-                                    manager.dispatchStateAction(
-                                        actions.removeSection,
-                                        section.key,
-                                    )
+                                    manager.dispatchStateAction(actions.removeSection, section.key)
                                 }
                                 render={<Tooltip.Trigger />}
                             />
@@ -192,30 +196,34 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
                     Neu davor einfügen
                     <Icon
                         iconName="caret-right-fill"
-                        className="size-4 text-accent-100 ms-auto me-1"
+                        className="text-accent-100 ms-auto me-1 size-4"
                     />
                 </Menu.SubmenuTrigger>
                 <Menu.Portal>
                     <Menu.Positioner
                         className="outline-hidden"
                         sideOffset={getOffset}
-                        alignOffset={getOffset}
-                    >
+                        alignOffset={getOffset}>
                         <Menu.Popup className={popupClass}>
                             <MenuBox>
                                 <MenuItem
                                     iconName="chat-text"
                                     onClick={() =>
-                                        manager.dispatchStateAction(actions.insertNewDialogueBefore, nodeKey)
-                                    }
-                                    >Dialog erstellen
+                                        manager.dispatchStateAction(
+                                            actions.insertNewDialogueBefore,
+                                            nodeKey,
+                                        )
+                                    }>
+                                    Dialog erstellen
                                 </MenuItem>
                                 <MenuItem
                                     iconName="card-text"
                                     onClick={() =>
-                                        manager.dispatchStateAction(actions.insertNewActionBefore, nodeKey)
-                                    }
-                                    >
+                                        manager.dispatchStateAction(
+                                            actions.insertNewActionBefore,
+                                            nodeKey,
+                                        )
+                                    }>
                                     Handlung erstellen
                                 </MenuItem>
                             </MenuBox>
@@ -225,9 +233,7 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
             </Menu.SubmenuRoot>
             <MenuItem
                 iconName="trash"
-                onClick={() =>
-                    manager.dispatchStateAction(actions.removeContentfulNode, nodeKey)
-                }
+                onClick={() => manager.dispatchStateAction(actions.removeContentfulNode, nodeKey)}
 
                 className="text-red-500 data-highlighted:before:bg-red-500/20!">
                 Löschen
@@ -237,7 +243,7 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
 }
 
 function getOffset({ side }: { side: Menu.Positioner.Props['side'] }) {
-  return side === 'top' || side === 'bottom' ? 4 : -4;
+    return side === 'top' || side === 'bottom' ? 4 : -4;
 }
 
 function HoverActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {

@@ -1,6 +1,6 @@
 import { renderBBCode } from 'quipt/formatted-string';
 import type { Color } from 'quipt/color-palette';
-import { stateAction } from './manager';
+import { stateAction, stateTransaction } from './manager';
 import {
     type ActorKey,
     type ContentfulScriptNode,
@@ -16,14 +16,19 @@ import {
 } from './state';
 import { createEditorState } from './editor';
 
+export const editContentfulNodeTransaction = stateTransaction<Key<ContentfulScriptNode>>({
+    end: (input, state, manager) => editContentfulNodeDone.apply(input, state, manager),
+});
+
 // TODO: make actions able to opt out of "making history"
 
 export const editContentfulNodeBegin = stateAction({
+    transaction: { start: editContentfulNodeTransaction },
     apply(itemKey: Key<ContentfulScriptNode>, state, manager) {
-        if (state.currentEditedItem !== null) {
-            const prevItem = state.lookup(state.currentEditedItem);
-            state.replaceNode(state.currentEditedItem, { content: renderBBCode(prevItem.text) });
-        }
+        // if (state.currentEditedItem !== null) {
+        //     const prevItem = state.lookup(state.currentEditedItem);
+        //     state.replaceNode(state.currentEditedItem, { content: renderBBCode(prevItem.text) });
+        // }
         const item = state.lookup(itemKey);
         state.replaceNode(itemKey, {
             content: createEditorState(item.key, item.text, manager),
@@ -35,6 +40,7 @@ export const editContentfulNodeBegin = stateAction({
 // NOTE: this is one "lever" to start building transactions, because really this thing in the wild
 // doesn't make a lot of sense
 export const editContentfulNodeDone = stateAction({
+    transaction: { end: editContentfulNodeTransaction },
     apply(itemKey: Key<ContentfulScriptNode>, state) {
         const item = state.lookup(itemKey);
         state.replaceNode(itemKey, { content: renderBBCode(item.text) });
@@ -63,12 +69,14 @@ export const removeContentfulNode = stateAction({
 export const insertNewDialogueBefore = stateAction({
     apply(referenceNodeKey: Key<ContentfulScriptNode>, state, manager) {
         const referenceNode = state.lookup(referenceNodeKey);
-        const newDialogue = state.allocate(DialogueNode, [], ''); 
+        const newDialogue = state.allocate(DialogueNode, [], '');
 
-        const parent = referenceNode.parent !== null ? state.lookup(referenceNode.parent) : undefined;
-        const index = parent !== undefined
-            ? parent.children.findIndex(child => child.key === referenceNodeKey)
-            : structureGetChildIndex(state.structure, referenceNodeKey);
+        const parent =
+            referenceNode.parent !== null ? state.lookup(referenceNode.parent) : undefined;
+        const index =
+            parent !== undefined
+                ? parent.children.findIndex(child => child.key === referenceNodeKey)
+                : structureGetChildIndex(state.structure, referenceNodeKey);
         state.insertNode(newDialogue, index, parent);
         state.recomputeSectionMetaInfo();
         editContentfulNodeBegin.apply(newDialogue.key, state, manager);
@@ -78,12 +86,14 @@ export const insertNewDialogueBefore = stateAction({
 export const insertNewActionBefore = stateAction({
     apply(referenceNodeKey: Key<ContentfulScriptNode>, state, manager) {
         const referenceNode = state.lookup(referenceNodeKey);
-        const newAction = state.allocate(ActionNode, ''); 
+        const newAction = state.allocate(ActionNode, '');
 
-        const parent = referenceNode.parent !== null ? state.lookup(referenceNode.parent) : undefined;
-        const index = parent !== undefined
-            ? parent.children.findIndex(child => child.key === referenceNodeKey)
-            : structureGetChildIndex(state.structure, referenceNodeKey);
+        const parent =
+            referenceNode.parent !== null ? state.lookup(referenceNode.parent) : undefined;
+        const index =
+            parent !== undefined
+                ? parent.children.findIndex(child => child.key === referenceNodeKey)
+                : structureGetChildIndex(state.structure, referenceNodeKey);
         state.insertNode(newAction, index, parent);
         editContentfulNodeBegin.apply(newAction.key, state, manager);
     },
@@ -182,9 +192,7 @@ function shouldBundleInputStates(prevState: ScriptEditorState, currentState: Scr
 
 export const renameActor = stateAction<RenameActorProps>({
     apply({ actorKey, name, inputId, event }, state) {
-        const prevActor = state.actors.keys().find(
-            key => state.lookup(key).name === name,
-        );
+        const prevActor = state.actors.keys().find(key => state.lookup(key).name === name);
         if (prevActor !== undefined) {
             state.visitNodes(node => {
                 if (keyOfType(node, DialogueNode)) {
@@ -192,7 +200,7 @@ export const renameActor = stateAction<RenameActorProps>({
                     const prevActorIdx = dialogue.actors.indexOf(prevActor);
                     if (prevActorIdx !== -1) {
                         state.replaceNode(node, {
-                            actors: dialogue.actors.toSpliced(prevActorIdx, 1, actorKey)
+                            actors: dialogue.actors.toSpliced(prevActorIdx, 1, actorKey),
                         });
                     }
                 }

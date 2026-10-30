@@ -244,11 +244,15 @@ type MetaInformation = {
 };
 
 function computeMetaInformation(
-    nodes: Iterable<(ActionNode | DialogueNode | SectionNode)>,
+    nodes: Iterable<ActionNode | DialogueNode | SectionNode>,
 ): MetaInformation {
     const actors = new Map<ActorKey, number>();
-    const addOne = (key: ActorKey) => { actors.set(key, (actors.get(key) ?? 0) + 1); };
-    const addMultiple = (value: number, key: ActorKey) => { actors.set(key, (actors.get(key) ?? 0) + value); };
+    const addOne = (key: ActorKey) => {
+        actors.set(key, (actors.get(key) ?? 0) + 1);
+    };
+    const addMultiple = (value: number, key: ActorKey) => {
+        actors.set(key, (actors.get(key) ?? 0) + value);
+    };
     let dialogueCount = 0;
     for (let node of nodes) {
         if (node instanceof DialogueNode) {
@@ -437,15 +441,15 @@ function deepcopyStructure(structure: Structure): Structure {
         case 0:
             return {
                 depth: 0,
-                children: [...structure.children]
+                children: [...structure.children],
             };
         case 1:
             return {
                 depth: 1,
                 children: structure.children.map(sectionPack => ({
                     key: sectionPack.key,
-                    children: [...sectionPack.children]
-                }))
+                    children: [...sectionPack.children],
+                })),
             };
         case 2:
             return {
@@ -454,9 +458,9 @@ function deepcopyStructure(structure: Structure): Structure {
                     key: supersectionPack.key,
                     children: supersectionPack.children.map(sectionPack => ({
                         key: sectionPack.key,
-                        children: [...sectionPack.children]
-                    }))
-                }))
+                        children: [...sectionPack.children],
+                    })),
+                })),
             };
     }
 }
@@ -465,16 +469,18 @@ export function structureGetChildIndex(
     structure: { children: SectionKeyPack<any>[] | ScriptItemKey[] },
     nodeKey: Key<ScriptNode>,
 ): number {
-    return structure.children.findIndex(
-        child => typeof child === 'string' ? child === nodeKey : child.key === nodeKey
+    return structure.children.findIndex(child =>
+        typeof child === 'string' ? child === nodeKey : child.key === nodeKey,
     );
 }
 
-function getNodeReprsentationForStructure(node: ActionNode | DialogueNode | SectionNode): ScriptItemKey | SectionPack {
+function getNodeReprsentationForStructure(
+    node: ActionNode | DialogueNode | SectionNode,
+): ScriptItemKey | SectionPack {
     if (node instanceof SectionNode) {
         return {
             key: node.key,
-            children: node.children.map(child => child.key as ScriptItemKey)
+            children: node.children.map(child => child.key as ScriptItemKey),
         };
     }
     return node.key;
@@ -484,14 +490,14 @@ function getNodeReprsentationForStructure(node: ActionNode | DialogueNode | Sect
 //     for (let node of nodes)
 //         yield state.lookup(node);
 // }
-// 
+//
 // function* iterSectionNodes(nodes: SectionPack[], state: ScriptEditorState): Generator<ActionNode | DialogueNode | SectionNode> {
 //     for (let node of nodes) {
 //         yield state.lookup(node.key);
 //         yield* iterItemNodes(node.children, state);
 //     }
 // }
-// 
+//
 // function* iterSupersectionNodes(nodes: SupersectionPack[], state: ScriptEditorState): Generator<ActionNode | DialogueNode | SectionNode> {
 //     for (let node of nodes) {
 //         yield state.lookup(node.key);
@@ -499,20 +505,16 @@ function getNodeReprsentationForStructure(node: ActionNode | DialogueNode | Sect
 //     }
 // }
 
-function getNodesIterator(state: ScriptEditorState): IteratorObject<ActionNode | DialogueNode | SectionNode> {
+function getNodesIterator(
+    state: ScriptEditorState,
+): IteratorObject<ActionNode | DialogueNode | SectionNode> {
     switch (state.structure.depth) {
         case 0:
-            return Iterator
-                .from(state.structure.children)
-                .map(key => state.lookup(key));
+            return Iterator.from(state.structure.children).map(key => state.lookup(key));
         case 1:
-            return Iterator
-                .from(state.structure.children)
-                .map(node => state.lookup(node.key));
+            return Iterator.from(state.structure.children).map(node => state.lookup(node.key));
         case 2:
-            return Iterator
-                .from(state.structure.children)
-                .map(node => state.lookup(node.key));
+            return Iterator.from(state.structure.children).map(node => state.lookup(node.key));
     }
 }
 
@@ -588,13 +590,17 @@ export class TransientState extends ScriptEditorState {
         this.structure = structure;
     }
 
-    insertNode(node: ActionNode | DialogueNode | SectionNode, index: number, sectionNode: Readonly<SectionNode> | undefined) {
+    insertNode(
+        node: ActionNode | DialogueNode | SectionNode,
+        index: number,
+        sectionNode: Readonly<SectionNode> | undefined,
+    ) {
         const structure = deepcopyStructure(this.structure);
 
         let pack: Structure | SectionPack | SupersectionPack;
         if (sectionNode !== undefined) {
             const newNode = this.updateObject(sectionNode, {
-                children: sectionNode.children.toSpliced(index, 0, node)
+                children: sectionNode.children.toSpliced(index, 0, node),
             });
             node.parent = sectionNode.key;
 
@@ -613,22 +619,23 @@ export class TransientState extends ScriptEditorState {
     private rebuildStructure(
         node: ScriptNode,
         structure: Structure,
-        newNode?: ScriptNode | undefined
+        newNode?: ScriptNode | undefined,
     ): [Structure | SupersectionPack | SectionPack, number] {
-        if (node.parent === null) // We've found a root-level node.
+        if (node.parent === null)
+            // We've found a root-level node.
             return [structure, structureGetChildIndex(structure, node.key)];
 
         const parent = this.lookup(node.parent);
         const index = parent.children.indexOf(node as any);
         if (index === -1) throw Error('invariant violated: parent needs to contain its child');
-        const nodeChildren: (ActionNode | DialogueNode | SectionNode)[] = newNode === undefined ? [
-            ...parent.children.slice(0, index),
-            ...parent.children.slice(index + 1),
-        ] : [
-            ...parent.children.slice(0, index),
-            newNode as any,
-            ...parent.children.slice(index + 1),
-        ];
+        const nodeChildren: (ActionNode | DialogueNode | SectionNode)[] =
+            newNode === undefined
+                ? [...parent.children.slice(0, index), ...parent.children.slice(index + 1)]
+                : [
+                      ...parent.children.slice(0, index),
+                      newNode as any,
+                      ...parent.children.slice(index + 1),
+                  ];
         const { actors, dialogueCount } = computeMetaInformation(nodeChildren);
         const nextNewNode = this.updateObject(parent, {
             children: nodeChildren,

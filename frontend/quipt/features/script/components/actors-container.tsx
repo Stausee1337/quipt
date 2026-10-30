@@ -138,21 +138,21 @@ export interface ActorsContainerProps extends ComponentProps<'div'> {
     actionsRef?: RefObject<ActorsContainerActions | null> | undefined;
 }
 
-function* actorsIterator(actors: readonly ActorKey[] | Map<ActorKey, number>): Generator<[ActorKey, number|undefined]> {
-    if (actors instanceof Map)
-        for (let entry of actors.entries())
-            yield entry;
-    else
-        for (let key of actors)
-            yield [key, undefined];
+function* actorsIterator(
+    actors: readonly ActorKey[] | Map<ActorKey, number>,
+): Generator<[ActorKey, number | undefined]> {
+    if (actors instanceof Map) for (let entry of actors.entries()) yield entry;
+    else for (let key of actors) yield [key, undefined];
 }
 
 function displayForCount(count: number | undefined) {
-    return count !== undefined ? {
-        display(name: string) {
-            return `${name} (${count})`;
-        }
-    } : {};
+    return count !== undefined
+        ? {
+              display(name: string) {
+                  return `${name} (${count})`;
+              },
+          }
+        : {};
 }
 
 export function ActorsContainer({
@@ -167,9 +167,12 @@ export function ActorsContainer({
         actorMenuHandleRef.current = Menu.createHandle<{ actor: ActorKey }>();
 
     const selfActor = useScriptEditorStateAccessor(state => state.selfActor);
-    const hasSelfActor = selfActor === null
-        ? null
-        : actors instanceof Map ? actors.has(selfActor) : actors.includes(selfActor);
+    const hasSelfActor =
+        selfActor === null
+            ? null
+            : actors instanceof Map
+              ? actors.has(selfActor)
+              : actors.includes(selfActor);
 
     useImperativeHandle(actionsRef, () => ({
         editActor(actor) {
@@ -189,8 +192,10 @@ export function ActorsContainer({
                         <ActorPill
                             actorKey={selfActor}
                             selected
-                            interactable 
-                            {...displayForCount(actors instanceof Map ? actors.get(selfActor) : undefined)}
+                            interactable
+                            {...displayForCount(
+                                actors instanceof Map ? actors.get(selfActor) : undefined,
+                            )}
                         />
                     }
                 />
@@ -204,11 +209,7 @@ export function ActorsContainer({
                         handle={actorMenuHandleRef.current}
                         payload={{ actor }}
                         render={
-                            <ActorPill
-                                actorKey={actor}
-                                interactable
-                                {...displayForCount(count)}
-                            />
+                            <ActorPill actorKey={actor} interactable {...displayForCount(count)} />
                         }
                     />
                 ))}

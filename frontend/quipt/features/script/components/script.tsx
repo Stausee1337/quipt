@@ -389,16 +389,14 @@ function useNativeElementListener<K extends keyof HTMLElementEventMap>(
 }
 
 function getActiveSection(manager: ScriptEditorManager): SectionNode | null {
-    if (manager.activeSection === null)
-        return null;
+    if (manager.activeSection === null) return null;
     let activeSection: SectionNode;
     try {
         activeSection = manager.state.lookup(manager.activeSection);
     } catch {
         return null;
     }
-    if (activeSection.parent === null)
-        return activeSection;
+    if (activeSection.parent === null) return activeSection;
     let activeSupersection: SectionNode;
     try {
         activeSupersection = manager.state.lookup(activeSection.parent);
@@ -442,42 +440,43 @@ function ScriptStickyHeader(): JSX.Element {
     // current context, obviously)
 
     return (
-        <div className="sticky top-0 w-auto z-100 bg-background">
-            <div className="flex mx-9 py-2 items-center border-b border-accent-30">
-            <div className="flex gap-x-5 items-center">
-                <h2 className="text-heading-2">{ activeSection?.name ?? scriptName }</h2>
-                <div className="flex gap-x-2 items-center">
-                    <Tooltip label="Rückgängig">
-                        <IconButton
-                            disabled={!hasHistory}
-                            iconName="arrow-counterclockwise"
-                            onClick={undoHandler}
-                            render={<Tooltip.Trigger />}
-                        />
-                    </Tooltip>
-                    <Tooltip label={contextHidden ? 'Kontext einblenden' : 'Kontext ausblenden'}>
-                        {
-                            <Toggle
-                                onClick={() => manager.toggleContextHidden()}
-                                pressed={contextHidden && hasSelfActor}
-                                disabled={!hasSelfActor}
-                                render={(props, state) => (
-                                    <IconButton
-                                        iconName={state.pressed ? 'eye' : 'eye-slash'}
-                                        render={<Tooltip.Trigger />}
-                                        {...props}
-                                    />
-                                )}
+        <div className="bg-background sticky top-0 z-100 w-auto">
+            <div className="border-accent-30 mx-9 flex items-center border-b py-2">
+                <div className="flex items-center gap-x-5">
+                    <h2 className="text-heading-2">{activeSection?.name ?? scriptName}</h2>
+                    <div className="flex items-center gap-x-2">
+                        <Tooltip label="Rückgängig">
+                            <IconButton
+                                disabled={!hasHistory}
+                                iconName="arrow-counterclockwise"
+                                onClick={undoHandler}
+                                render={<Tooltip.Trigger />}
                             />
-                        }
-                    </Tooltip>
-                    {hasStructure && <ScriptSectionNavigator />}
+                        </Tooltip>
+                        <Tooltip
+                            label={contextHidden ? 'Kontext einblenden' : 'Kontext ausblenden'}>
+                            {
+                                <Toggle
+                                    onClick={() => manager.toggleContextHidden()}
+                                    pressed={contextHidden && hasSelfActor}
+                                    disabled={!hasSelfActor}
+                                    render={(props, state) => (
+                                        <IconButton
+                                            iconName={state.pressed ? 'eye' : 'eye-slash'}
+                                            render={<Tooltip.Trigger />}
+                                            {...props}
+                                        />
+                                    )}
+                                />
+                            }
+                        </Tooltip>
+                        {hasStructure && <ScriptSectionNavigator />}
+                    </div>
                 </div>
-            </div>
-            <PlayButton className="ms-auto"/>
+                <PlayButton className="ms-auto" />
             </div>
         </div>
-    )
+    );
 }
 
 const VirtualizedContentList = memo(
@@ -517,8 +516,7 @@ const VirtualizedContentList = memo(
                     item.end - scrollMargin > scrollOffset,
             );
 
-            if (currentItem === undefined)
-                return;
+            if (currentItem === undefined) return;
 
             const fci = content[currentItem.index];
             if (keyOfType(fci.key, SectionNode)) {
@@ -530,19 +528,16 @@ const VirtualizedContentList = memo(
         }
 
         useNativeElementListener(scrollContainer, 'scroll', () => {
-            if (containerRef.current === null)
-                return;
+            if (containerRef.current === null) return;
             const rect = containerRef.current.getBoundingClientRect();
             setHeaderActive(rect.top <= 0);
         });
 
         useScriptEditorManagerListener(key => {
             const nodeIndex = content.findIndex(item => item.key === key);
-            if (nodeIndex === -1)
-                return;
+            if (nodeIndex === -1) return;
             const result = virtualizer.getOffsetForIndex(nodeIndex, 'start');
-            if (result === undefined)
-                return;
+            if (result === undefined) return;
             virtualizer.scrollToOffset(result[0] - 65, { align: 'start' });
         }, scrollToNodeEvent);
 
@@ -552,7 +547,7 @@ const VirtualizedContentList = memo(
 
         useEffect(() => {
             setEnabled(scrollContainer !== null);
-        }, [scrollContainer]);        
+        }, [scrollContainer]);
 
         useEffect(() => {
             if (containerRef.current !== null) {
@@ -569,8 +564,8 @@ const VirtualizedContentList = memo(
 
         return (
             <div className="relative" ref={onContainerRefUpdate}>
-                { stickyHeaderActive && <ScriptStickyHeader/> }
-                
+                {stickyHeaderActive && <ScriptStickyHeader />}
+
                 {virtualizer.getVirtualItems().map(item => {
                     const node = renderContentNode(content[item.index].key);
                     if (node === null) return null;

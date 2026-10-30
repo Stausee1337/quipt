@@ -10,8 +10,17 @@ import type { Script } from '../script';
 
 export type RemoteContext = {};
 
+export type StateTransaction<Input> = {
+    end(input: Input, state: TransientState, manager: ScriptEditorManager): void;
+};
+
+export function stateTransaction<Input>(transaction: StateTransaction<Input>): StateTransaction<Input> {
+    return transaction;
+}
+
 export type StateAction<Input> = {
     apply(input: Input, state: TransientState, manager: ScriptEditorManager): void;
+    transaction?: { start: StateTransaction<Input> } | { end: StateTransaction<Input> };
     remote?: {
         forward: (context: RemoteContext, input: Input) => Promise<void>;
         backward: (context: RemoteContext, input: Input) => Promise<void>;
@@ -23,6 +32,11 @@ export type StateAction<Input> = {
     ): boolean;
 };
 
+// At best: `Action`s track wether they begin/end a *trans*action as well
+//  - `Action`s that end a transaction, are only valid if that transaction is active
+//  - `Action`s that start a transaction, will first end current transaction of that kind
+//  - different kinds of transactions can nest
+
 export function stateAction<Input>(action: StateAction<Input>): StateAction<Input> {
     return action;
 }
@@ -31,6 +45,7 @@ export type HistoryEntry = {
     action: StateAction<any>;
     state: ScriptEditorState;
     changes: Set<Key<any>>;
+    startTransactionIndex?: number | undefined
 };
 
 declare const brand: unique symbol;
@@ -49,15 +64,25 @@ type DispatchStateActionEventParams<T> = {
 export const undoEvent = describeManagerEvent<Set<Key<any>>>('undo');
 export const toggleContextHiddenEvent = describeManagerEvent<void>('toggleContextHidden');
 export const scrollToNodeEvent = describeManagerEvent<Key<ScriptNode>>('scrollToNode');
-export const setActiveSectionEvent = describeManagerEvent<Key<SectionNode>|undefined>('setActiveSection');
+export const setActiveSectionEvent = describeManagerEvent<Key<SectionNode> | undefined>(
+    'setActiveSection',
+);
 export const dispatchStateActionEvent =
     describeManagerEvent<DispatchStateActionEventParams<any>>('dispatchStateAction');
 
 export type TeardownCallback = () => void;
 
+export type TransactionItem<T> = {
+    input: any;
+    transaction: StateTransaction<T>;
+    historyIndex: number;
+};
+
 export class ScriptEditorManager {
     history: HistoryEntry[] = [];
     state: ScriptEditorState;
+
+    transactionStack: TransactionItem<any>[] = []
 
     private _activeSection: Key<SectionNode> | null = null;
     private _contextHidden: boolean = false;
@@ -121,10 +146,15 @@ export class ScriptEditorManager {
 
     undo() {
         if (!this.history.length) return;
-        const { state, changes } = this.history.pop()!;
+        const { state, changes, startTransactionIndex } = this.history.pop()!;
+
+        if (startTransactionIndex !== undefined)
+            this.transactionStack.length = startTransactionIndex;
+
         this.state = state;
         this.runChangeListeners(changes);
         this.broadcast(undoEvent, changes);
+
     }
 
     dispatchStateAction<Input>(action: StateAction<Input>, input: Input) {
@@ -142,11 +172,29 @@ export class ScriptEditorManager {
             this.history[this.history.length - 1].changes = mergedChanges;
         } else {
             // push
-            this.history.push({
+            const entry: HistoryEntry = {
                 action,
                 state: this.state,
                 changes,
-            });
+            };
+            if (action.transaction && 'start' in action.transaction) {
+                entry.startTransactionIndex = this.transactionStack.length;
+                this.transactionStack.push({
+                    input,
+                    transaction: action.transaction.start,
+                    historyIndex: this.history.length
+                });
+            }
+            this.history.push(entry);
+        }
+        if (action.transaction && 'end' in action.transaction) {
+            const transactionToEnd = action.transaction.end;
+            const index = this.transactionStack.findIndex(item => item.transaction === transactionToEnd);
+            if (index === -1)
+                throw `invalid: ending transaction that hasn't been entered`;
+            const item = this.transactionStack[index];
+            this.transactionStack.length = index;
+            this.history.length = item.historyIndex + 1;
         }
         this.state = state;
         this.originAction = action;
