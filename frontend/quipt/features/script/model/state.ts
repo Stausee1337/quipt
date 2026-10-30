@@ -220,7 +220,7 @@ function isSectionContent(content: object | SectionContent): content is SectionC
 export class SectionNode extends ScriptNode {
     static readonly prefix = makePrefix();
 
-    public actors: readonly ActorKey[];
+    public actors: Map<ActorKey, number>;
     public dialogueCount: number;
     public editing: boolean = false;
 
@@ -239,28 +239,29 @@ export class SectionNode extends ScriptNode {
 }
 
 type MetaInformation = {
-    actors: ActorKey[];
+    actors: Map<ActorKey, number>;
     dialogueCount: number;
 };
 
 function computeMetaInformation(
-    nodes: (ActionNode | DialogueNode | SectionNode)[],
+    nodes: Iterable<(ActionNode | DialogueNode | SectionNode)>,
 ): MetaInformation {
-    const actors = new Set<ActorKey>();
-    const add = actors.add.bind(actors);
+    const actors = new Map<ActorKey, number>();
+    const addOne = (key: ActorKey) => { actors.set(key, (actors.get(key) ?? 0) + 1); };
+    const addMultiple = (value: number, key: ActorKey) => { actors.set(key, (actors.get(key) ?? 0) + value); };
     let dialogueCount = 0;
     for (let node of nodes) {
         if (node instanceof DialogueNode) {
             dialogueCount++;
-            node.actors.forEach(add);
+            node.actors.forEach(addOne);
         } else if (node instanceof SectionNode) {
             dialogueCount += node.dialogueCount;
-            node.actors.forEach(add);
+            node.actors.forEach(addMultiple);
         }
     }
 
     return {
-        actors: Array.from(actors),
+        actors,
         dialogueCount,
     };
 }
@@ -317,7 +318,7 @@ function lookupIn<T extends Keyed<T>>(pool: PoolType, key: Key<T>): Readonly<T> 
 
 export class ScriptEditorState {
     public name: string;
-    public actors: readonly ActorKey[];
+    public actors: Map<ActorKey, number>;
     public selfActor: ActorKey | null;
     public structure: Readonly<Structure>;
     public dialogueCount: number;
@@ -327,7 +328,7 @@ export class ScriptEditorState {
 
     constructor(
         name: string,
-        actors: readonly ActorKey[],
+        actors: Map<ActorKey, number>,
         selfActor: ActorKey | null,
         structure: Structure,
         dialogueCount: number,
@@ -351,9 +352,9 @@ export class ScriptEditorState {
 
     static build(script: Script): ScriptEditorState {
         const doc = script.document;
-        const [pool, [actors, selfActor, structure, nodes]] = withNewPool(pool => {
+        const [pool, { selfActor, structure, nodes }] = withNewPool(pool => {
             const actorLookup: Record<string, Actor> = {};
-            const actors = doc.allActors.map(name => {
+            for (let name of doc.allActors) {
                 const actor = allocateIn(
                     pool,
                     Actor,
@@ -361,17 +362,16 @@ export class ScriptEditorState {
                     ensureColor(script.settings.colors[name]),
                 );
                 actorLookup[name] = actor;
-                return actor.key;
-            });
+            }
             const selfActor =
                 script.settings.selfActor !== null
                     ? actorLookup[script.settings.selfActor].key
                     : null;
 
             const [structure, nodes] = buildStructure(doc.content, actorLookup, pool);
-            return [actors, selfActor, structure, nodes];
+            return { selfActor, structure, nodes };
         });
-        const { dialogueCount } = computeMetaInformation(nodes);
+        const { actors, dialogueCount } = computeMetaInformation(nodes);
         return new ScriptEditorState(
             script.name,
             actors,
@@ -480,6 +480,42 @@ function getNodeReprsentationForStructure(node: ActionNode | DialogueNode | Sect
     return node.key;
 }
 
+// function* iterItemNodes(nodes: ScriptItemKey[], state: ScriptEditorState): Generator<ActionNode | DialogueNode> {
+//     for (let node of nodes)
+//         yield state.lookup(node);
+// }
+// 
+// function* iterSectionNodes(nodes: SectionPack[], state: ScriptEditorState): Generator<ActionNode | DialogueNode | SectionNode> {
+//     for (let node of nodes) {
+//         yield state.lookup(node.key);
+//         yield* iterItemNodes(node.children, state);
+//     }
+// }
+// 
+// function* iterSupersectionNodes(nodes: SupersectionPack[], state: ScriptEditorState): Generator<ActionNode | DialogueNode | SectionNode> {
+//     for (let node of nodes) {
+//         yield state.lookup(node.key);
+//         yield* iterSectionNodes(node.children, state);
+//     }
+// }
+
+function getNodesIterator(state: ScriptEditorState): IteratorObject<ActionNode | DialogueNode | SectionNode> {
+    switch (state.structure.depth) {
+        case 0:
+            return Iterator
+                .from(state.structure.children)
+                .map(key => state.lookup(key));
+        case 1:
+            return Iterator
+                .from(state.structure.children)
+                .map(node => state.lookup(node.key));
+        case 2:
+            return Iterator
+                .from(state.structure.children)
+                .map(node => state.lookup(node.key));
+    }
+}
+
 export class TransientState extends ScriptEditorState {
     public changes = new Set<Key<any>>();
 
@@ -550,7 +586,6 @@ export class TransientState extends ScriptEditorState {
         pack.children.splice(idx, 1);
 
         this.structure = structure;
-        // TODO: also loop over the structure to figure out if this deletes an actor
     }
 
     insertNode(node: ActionNode | DialogueNode | SectionNode, index: number, sectionNode: Readonly<SectionNode> | undefined) {
@@ -621,6 +656,8 @@ export class TransientState extends ScriptEditorState {
             const meta = computeMetaInformation(section.children);
             this.replaceNode(section.key, meta);
         }
-        // TODO: also loop over the structure to figure out if this deletes an actor
+        const { actors, dialogueCount } = computeMetaInformation(getNodesIterator(this));
+        this.actors = actors;
+        this.dialogueCount = dialogueCount;
     }
 }

@@ -344,6 +344,7 @@ function ActorsSelector({ actors, onActorsChange }: ActorsSelectorProps): JSX.El
                 <ActorsSelectorPill key={actor} actor={actor} />
             ))}
             {allActors
+                .keys()
                 .filter(actor => !actors.includes(actor))
                 .map(actor => (
                     <ActorsSelectorPill key={actor} actor={actor} />

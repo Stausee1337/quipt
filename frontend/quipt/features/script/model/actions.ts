@@ -56,6 +56,7 @@ export const changeDialogueActors = stateAction<{
 export const removeContentfulNode = stateAction({
     apply(itemKey: Key<ContentfulScriptNode>, state) {
         state.removeNode(itemKey);
+        state.recomputeSectionMetaInfo();
     },
 });
 
@@ -69,6 +70,7 @@ export const insertNewDialogueBefore = stateAction({
             ? parent.children.findIndex(child => child.key === referenceNodeKey)
             : structureGetChildIndex(state.structure, referenceNodeKey);
         state.insertNode(newDialogue, index, parent);
+        state.recomputeSectionMetaInfo();
         editContentfulNodeBegin.apply(newDialogue.key, state, manager);
     },
 });
@@ -110,7 +112,8 @@ export const createActorOnDialogue = stateAction<Key<DialogueNode>>({
         state.replaceNode(dialogueKey, {
             actors: [...dialogue.actors, newActor.key],
         });
-        state.actors = [...state.actors, newActor.key];
+        state.actors = new Map(state.actors);
+        state.actors.set(newActor.key, 1);
         state.setMeta(createActorKey, newActor.key);
         state.recomputeSectionMetaInfo();
     },
@@ -179,31 +182,25 @@ function shouldBundleInputStates(prevState: ScriptEditorState, currentState: Scr
 
 export const renameActor = stateAction<RenameActorProps>({
     apply({ actorKey, name, inputId, event }, state) {
-        const actorAlreadyExistsIndex = state.actors.findIndex(
+        const prevActor = state.actors.keys().find(
             key => state.lookup(key).name === name,
         );
-        if (actorAlreadyExistsIndex !== -1) {
-            const prevActor = state.actors[actorAlreadyExistsIndex];
+        if (prevActor !== undefined) {
             state.visitNodes(node => {
                 if (keyOfType(node, DialogueNode)) {
                     const dialogue = state.lookup(node);
-                    if (dialogue.actors.includes(prevActor)) {
+                    const prevActorIdx = dialogue.actors.indexOf(prevActor);
+                    if (prevActorIdx !== -1) {
                         state.replaceNode(node, {
-                            actors: dialogue.actors.map(a => (a !== prevActor ? a : actorKey)),
-                        });
-                    }
-                }
-                if (keyOfType(node, SectionNode)) {
-                    const section = state.lookup(node);
-                    if (section.actors.includes(prevActor)) {
-                        state.replaceNode(node, {
-                            actors: section.actors.map(a => (a !== prevActor ? a : actorKey)),
+                            actors: dialogue.actors.toSpliced(prevActorIdx, 1, actorKey)
                         });
                     }
                 }
             });
-            state.actors = state.actors.toSpliced(actorAlreadyExistsIndex, 1);
+            state.actors = new Map(state.actors);
+            state.actors.delete(prevActor);
             state.unlinkNode(prevActor);
+            state.recomputeSectionMetaInfo();
         }
         addBundleInputEventMeta(state, name, event, inputId);
         state.replaceNode(actorKey, { name });

@@ -48,7 +48,7 @@ export const ContentInfoView = memo(function ContentInfoView({
     actors,
     dialogueCount,
 }: {
-    actors: readonly ActorKey[];
+    actors: readonly ActorKey[] | Map<ActorKey, number>;
     dialogueCount: number;
 }): JSX.Element {
     return (
@@ -56,7 +56,7 @@ export const ContentInfoView = memo(function ContentInfoView({
             <ActorsContainer className="flex flex-wrap gap-2" actors={actors} />
             <p className="text-info text-accent-100 flex items-center">
                 <Icon iconName="person-standing" className="me-2" />
-                {`${actors.length} Spieler`}
+                {`${actors instanceof Map ? actors.size : actors.length} Spieler`}
             </p>
             <p className="text-info text-accent-100 flex items-center">
                 <Icon iconName="chat-text" className="me-2" />

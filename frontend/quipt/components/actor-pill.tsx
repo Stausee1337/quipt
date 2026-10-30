@@ -15,12 +15,22 @@ import { type Actor } from 'quipt/utils';
 type ElementProps = React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
 export interface ActorPillProps extends Omit<ElementProps, 'children'> {
     actor: Actor;
+    display?: (name: string) => string
     interactable?: boolean;
     selected?: boolean;
 }
 
 export const ActorPill = memo(
-    ({ actor, className, interactable, selected, style, ...rest }: ActorPillProps): JSX.Element => {
+    (props: ActorPillProps): JSX.Element => {
+        const {
+            actor,
+            display = (name) => name,
+            className,
+            interactable,
+            selected,
+            style,
+            ...rest
+        } = props;
         const textColor =
             getColorLightness(actor.color) === 'light' ? 'text-background' : 'text-foreground';
 
@@ -45,10 +55,11 @@ export const ActorPill = memo(
                     '--active-color': `var(--color-${activeColor})`,
                     ...style,
                 }}
-                children={actor.name}
                 aria-label={actor.name}
                 {...rest}
-            />
+            >
+                { display(actor.name) }
+            </Component>
         );
     },
 );

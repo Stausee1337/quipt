@@ -391,10 +391,20 @@ function useNativeElementListener<K extends keyof HTMLElementEventMap>(
 function getActiveSection(manager: ScriptEditorManager): SectionNode | null {
     if (manager.activeSection === null)
         return null;
-    const activeSection = manager.state.lookup(manager.activeSection);
+    let activeSection: SectionNode;
+    try {
+        activeSection = manager.state.lookup(manager.activeSection);
+    } catch {
+        return null;
+    }
     if (activeSection.parent === null)
         return activeSection;
-    const activeSupersection = manager.state.lookup(activeSection.parent);
+    let activeSupersection: SectionNode;
+    try {
+        activeSupersection = manager.state.lookup(activeSection.parent);
+    } catch {
+        return null;
+    }
     return activeSupersection;
 }
 
@@ -492,32 +502,32 @@ const VirtualizedContentList = memo(
             directDomUpdates: true,
             laneAssignmentMode: 'measured',
             onChange() {
-                const virtualItems = virtualizer.getVirtualItems();
-                const scrollOffset = virtualizer.scrollOffset ?? 0;
-                const scrollMargin = virtualizer.options.scrollMargin ?? 0;
-
-                const currentItem = virtualItems.find(
-                    item =>
-                        item.start - scrollMargin <= scrollOffset &&
-                        item.end - scrollMargin > scrollOffset,
-                );
-
-                if (currentItem === undefined)
-                    return;
-
-                const fci = content[currentItem.index];
-                if (keyOfType(fci.key, SectionNode)) {
-                    manager.setActiveSection(fci.key);
-                    return;
-                }
-                const scriptNode = manager.state.lookup(fci.key);
-                manager.setActiveSection(scriptNode.parent);
+                recomputeActiveSection();
             },
         });
 
-        // FIXME: recompute current section not just after scoll, but also on bigger view updates
-        //  - contextHiddenToggle
-        //  - dispatchStateAction (selected actions like delete section)
+        function recomputeActiveSection() {
+            const virtualItems = virtualizer.getVirtualItems();
+            const scrollOffset = virtualizer.scrollOffset ?? 0;
+            const scrollMargin = virtualizer.options.scrollMargin ?? 0;
+
+            const currentItem = virtualItems.find(
+                item =>
+                    item.start - scrollMargin <= scrollOffset &&
+                    item.end - scrollMargin > scrollOffset,
+            );
+
+            if (currentItem === undefined)
+                return;
+
+            const fci = content[currentItem.index];
+            if (keyOfType(fci.key, SectionNode)) {
+                manager.setActiveSection(fci.key);
+                return;
+            }
+            const scriptNode = manager.state.lookup(fci.key);
+            manager.setActiveSection(scriptNode.parent);
+        }
 
         useNativeElementListener(scrollContainer, 'scroll', () => {
             if (containerRef.current === null)
@@ -535,6 +545,10 @@ const VirtualizedContentList = memo(
                 return;
             virtualizer.scrollToOffset(result[0] - 65, { align: 'start' });
         }, scrollToNodeEvent);
+
+        useEffect(() => {
+            recomputeActiveSection();
+        }, [content]);
 
         useEffect(() => {
             setEnabled(scrollContainer !== null);
