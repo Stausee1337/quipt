@@ -22,6 +22,7 @@ import { SearchInput } from 'quipt/components/input';
 import { IconButton } from 'quipt/components/icon-button';
 import { Tooltip } from 'quipt/components/tooltip';
 import { useBreakpoints } from 'quipt/responsive';
+import { useNativeElementListener } from 'quipt/utils';
 import { type Script } from '../script';
 import { renderContentNode } from './section';
 import { HLine, VLine, ContentInfoView, PlayButton } from './common';
@@ -34,7 +35,6 @@ import {
     DialogueNode,
     ScriptEditorState,
     ActionNode,
-    ContentfulScriptNode,
 } from '../model/state';
 import {
     ScriptEditorContextProivder,
@@ -367,27 +367,6 @@ function toFlatContent(
     }
 }
 
-function useNativeElementListener<K extends keyof HTMLElementEventMap>(
-    element: HTMLElement | null,
-    type: K,
-    listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any,
-) {
-    const listenerRef = useRef<(this: HTMLElement, ev: HTMLElementEventMap[K]) => any>(null);
-    listenerRef.current = listener;
-
-    useEffect(() => {
-        if (element === null) return;
-        const currentElement = element;
-        function handleEvent(this: HTMLElement, ev: HTMLElementEventMap[K]) {
-            listenerRef.current?.call(this, ev);
-        }
-        currentElement.addEventListener(type, handleEvent);
-        return () => {
-            currentElement.removeEventListener(type, handleEvent);
-        };
-    }, [element, type]);
-}
-
 function getActiveSection(manager: ScriptEditorManager): SectionNode | null {
     if (manager.activeSection === null) return null;
     let activeSection: SectionNode;
@@ -441,7 +420,7 @@ function ScriptStickyHeader(): JSX.Element {
 
     return (
         <div className="bg-background sticky top-0 z-100 w-auto">
-            <div className="border-accent-30 mx-9 flex items-center border-b py-2">
+            <div className="border-accent-30 mx-3 sm:mx-9 flex items-center border-b py-2">
                 <div className="flex items-center gap-x-5">
                     <h2 className="text-heading-2">{activeSection?.name ?? scriptName}</h2>
                     <div className="flex items-center gap-x-2">
@@ -709,19 +688,13 @@ export function ScriptEditorView({
     const managerRef = useRef<ScriptEditorManager>(null);
     if (managerRef.current === null) managerRef.current = new ScriptEditorManager(script);
 
-    useEffect(() => {
-        const keydownListener = (event: KeyboardEvent) => {
-            if (event.ctrlKey && event.key === 'z') {
-                event.preventDefault();
-                managerRef.current?.undo();
-            }
-        };
+    useNativeElementListener(window.document.documentElement, 'keydown', event => {
+        if (event.ctrlKey && event.key === 'z') {
+            event.preventDefault();
+            managerRef.current?.undo();
+        }
 
-        window.addEventListener('keydown', keydownListener);
-        return () => {
-            window.removeEventListener('keydown', keydownListener);
-        };
-    }, []);
+    });
 
     return managerRef.current !== null ? (
         <ScriptEditorContextProivder manager={managerRef.current} scrollContainer={scrollContainer}>

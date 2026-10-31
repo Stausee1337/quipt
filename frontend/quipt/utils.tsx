@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import { type ComponentType, useEffect, useRef } from 'react';
 
 import { FontStyles, FormattedString, type FormattedStringElement } from 'quipt/formatted-string';
 import { type Color } from 'quipt/color-palette';
@@ -55,4 +55,25 @@ export function formatActorsArray(actors: readonly Actor[]): FormattedString {
 export function pluralize(count: number, singular: string, plural: string): string {
     if (count === 1) return `1 ${singular}`;
     return `${count} ${plural}`;
+}
+
+export function useNativeElementListener<K extends keyof HTMLElementEventMap>(
+    element: HTMLElement | null,
+    type: K,
+    listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any,
+) {
+    const listenerRef = useRef<(this: HTMLElement, ev: HTMLElementEventMap[K]) => any>(null);
+    listenerRef.current = listener;
+
+    useEffect(() => {
+        if (element === null) return;
+        const currentElement = element;
+        function handleEvent(this: HTMLElement, ev: HTMLElementEventMap[K]) {
+            listenerRef.current?.call(this, ev);
+        }
+        currentElement.addEventListener(type, handleEvent);
+        return () => {
+            currentElement.removeEventListener(type, handleEvent);
+        };
+    }, [element, type]);
 }

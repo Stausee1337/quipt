@@ -209,20 +209,20 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
                                 <MenuItem
                                     iconName="chat-text"
                                     onClick={() =>
-                                        manager.dispatchStateAction(
-                                            actions.insertNewDialogueBefore,
-                                            nodeKey,
-                                        )
+                                        manager.dispatchStateAction(actions.insertNewItemBefore, {
+                                            refNodeKey: nodeKey,
+                                            kind: 'dialogue',
+                                        })
                                     }>
                                     Dialog erstellen
                                 </MenuItem>
                                 <MenuItem
                                     iconName="card-text"
                                     onClick={() =>
-                                        manager.dispatchStateAction(
-                                            actions.insertNewActionBefore,
-                                            nodeKey,
-                                        )
+                                        manager.dispatchStateAction(actions.insertNewItemBefore, {
+                                            refNodeKey: nodeKey,
+                                            kind: 'action',
+                                        })
                                     }>
                                     Handlung erstellen
                                 </MenuItem>
@@ -267,19 +267,19 @@ function HoverActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode>
     );
 }
 
-function EditActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
+function EditActionsContainer(): JSX.Element {
     const manager = useScriptEditorManager();
     return (
         <ActionsContainer>
             <IconButton
                 iconName="check2"
                 className="text-foreground"
-                onClick={() => manager.dispatchStateAction(actions.editContentfulNodeDone, itemKey)}
+                onClick={() => manager.commitTransaction(actions.editContentfulNodeTransaction)}
             />
             <IconButton
                 iconName="x"
                 className="text-foreground"
-                onClick={() => manager.dispatchStateAction(actions.editContentfulNodeDone, itemKey)}
+                onClick={() => manager.dismissTransaction(actions.editContentfulNodeTransaction)}
             />
         </ActionsContainer>
     );
@@ -429,7 +429,7 @@ const DialogueView = memo(function DialogueView({
             data-editing={dialogue.editing ? '' : undefined}
             {...props}>
             <HoverActionsContainer itemKey={dialogue.key} />
-            {dialogue.editing && <EditActionsContainer itemKey={dialogue.key} />}
+            {dialogue.editing && <EditActionsContainer/>}
             <div className="flex items-center gap-x-2">
                 {!dialogue.editing ? (
                     <>

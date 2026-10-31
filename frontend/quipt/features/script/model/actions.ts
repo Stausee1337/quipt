@@ -17,21 +17,30 @@ import {
 import { createEditorState } from './editor';
 
 export const editContentfulNodeTransaction = stateTransaction<Key<ContentfulScriptNode>>({
-    end: (input, state, manager) => editContentfulNodeDone.apply(input, state, manager),
+    commit(itemKey, state) {
+        const item = state.lookup(itemKey);
+        state.replaceNode(itemKey, { content: renderBBCode(item.text) });
+        state.currentEditedItem = null;
+        if (item.text.trim().length === 0)
+            return false;
+        if (item instanceof DialogueNode && item.actors.length === 0)
+            return false;
+        return true;
+    },
 });
 
 // TODO: make actions able to opt out of "making history"
 
 export const editContentfulNodeBegin = stateAction({
-    transaction: { start: editContentfulNodeTransaction },
-    apply(itemKey: Key<ContentfulScriptNode>, state, manager) {
+    transactionStart: editContentfulNodeTransaction,
+    apply(itemKey: Key<ContentfulScriptNode>, state) {
         // if (state.currentEditedItem !== null) {
         //     const prevItem = state.lookup(state.currentEditedItem);
         //     state.replaceNode(state.currentEditedItem, { content: renderBBCode(prevItem.text) });
         // }
         const item = state.lookup(itemKey);
         state.replaceNode(itemKey, {
-            content: createEditorState(item.key, item.text, manager),
+            content: createEditorState(item.key, item.text, this),
         });
         state.currentEditedItem = itemKey;
     },
@@ -39,14 +48,14 @@ export const editContentfulNodeBegin = stateAction({
 
 // NOTE: this is one "lever" to start building transactions, because really this thing in the wild
 // doesn't make a lot of sense
-export const editContentfulNodeDone = stateAction({
-    transaction: { end: editContentfulNodeTransaction },
-    apply(itemKey: Key<ContentfulScriptNode>, state) {
-        const item = state.lookup(itemKey);
-        state.replaceNode(itemKey, { content: renderBBCode(item.text) });
-        state.currentEditedItem = null;
-    },
-});
+
+// export const editContentfulNodeDone = stateAction({
+//     apply(itemKey: Key<ContentfulScriptNode>, state) {
+//         const item = state.lookup(itemKey);
+//         state.replaceNode(itemKey, { content: renderBBCode(item.text) });
+//         state.currentEditedItem = null;
+//     },
+// });
 
 export const changeDialogueActors = stateAction<{
     dialogue: Key<DialogueNode>;
@@ -66,36 +75,26 @@ export const removeContentfulNode = stateAction({
     },
 });
 
-export const insertNewDialogueBefore = stateAction({
-    apply(referenceNodeKey: Key<ContentfulScriptNode>, state, manager) {
-        const referenceNode = state.lookup(referenceNodeKey);
-        const newDialogue = state.allocate(DialogueNode, [], '');
+export const insertNewItemBefore = stateAction<{
+    refNodeKey: Key<ContentfulScriptNode>;
+    kind: 'action' | 'dialogue';
+}>({
+    apply({ kind, refNodeKey }, state, schedule) {
+        const referenceNode = state.lookup(refNodeKey);
+        const newlyCreatedNode =
+            kind === 'action'
+                ? state.allocate(ActionNode, '')
+                : state.allocate(DialogueNode, [], '');
 
         const parent =
             referenceNode.parent !== null ? state.lookup(referenceNode.parent) : undefined;
         const index =
             parent !== undefined
-                ? parent.children.findIndex(child => child.key === referenceNodeKey)
-                : structureGetChildIndex(state.structure, referenceNodeKey);
-        state.insertNode(newDialogue, index, parent);
+                ? parent.children.findIndex(child => child.key === refNodeKey)
+                : structureGetChildIndex(state.structure, refNodeKey);
+        state.insertNode(newlyCreatedNode, index, parent);
         state.recomputeSectionMetaInfo();
-        editContentfulNodeBegin.apply(newDialogue.key, state, manager);
-    },
-});
-
-export const insertNewActionBefore = stateAction({
-    apply(referenceNodeKey: Key<ContentfulScriptNode>, state, manager) {
-        const referenceNode = state.lookup(referenceNodeKey);
-        const newAction = state.allocate(ActionNode, '');
-
-        const parent =
-            referenceNode.parent !== null ? state.lookup(referenceNode.parent) : undefined;
-        const index =
-            parent !== undefined
-                ? parent.children.findIndex(child => child.key === referenceNodeKey)
-                : structureGetChildIndex(state.structure, referenceNodeKey);
-        state.insertNode(newAction, index, parent);
-        editContentfulNodeBegin.apply(newAction.key, state, manager);
+        schedule(editContentfulNodeBegin, newlyCreatedNode.key);
     },
 });
 

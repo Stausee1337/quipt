@@ -131,10 +131,10 @@ export type UpdateItemContentProps = {
 };
 
 const updateItemContent = stateAction<UpdateItemContentProps>({
-    apply({ itemKey, tr: transaction, editorState }, state, manager) {
+    apply({ itemKey, tr: transaction, editorState }, state) {
         state.setMeta(updateItemContentKey, transaction);
 
-        const item = manager.state.lookup(itemKey);
+        const item = state.lookup(itemKey);
         if (item.content === editorState) return;
         state.replaceNode(itemKey, {
             content: editorState,

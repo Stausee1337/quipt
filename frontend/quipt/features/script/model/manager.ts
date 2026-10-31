@@ -10,17 +10,33 @@ import type { Script } from '../script';
 
 export type RemoteContext = {};
 
-export type StateTransaction<Input> = {
-    end(input: Input, state: TransientState, manager: ScriptEditorManager): void;
+export type ScheduleActionCallback = {
+    <T>(action: StateAction<T>, input: T): void;
 };
 
-export function stateTransaction<Input>(transaction: StateTransaction<Input>): StateTransaction<Input> {
+export type StateTransaction<Input> = {
+    commit(
+        this: ScriptEditorManager,
+        input: Input,
+        state: TransientState,
+        schedule: ScheduleActionCallback,
+    ): boolean;
+};
+
+export function stateTransaction<Input>(
+    transaction: StateTransaction<Input>,
+): StateTransaction<Input> {
     return transaction;
 }
 
 export type StateAction<Input> = {
-    apply(input: Input, state: TransientState, manager: ScriptEditorManager): void;
-    transaction?: { start: StateTransaction<Input> } | { end: StateTransaction<Input> };
+    apply(
+        this: ScriptEditorManager,
+        input: Input,
+        state: TransientState,
+        schedule: ScheduleActionCallback,
+    ): void;
+    transactionStart?: StateTransaction<Input>;
     remote?: {
         forward: (context: RemoteContext, input: Input) => Promise<void>;
         backward: (context: RemoteContext, input: Input) => Promise<void>;
@@ -42,10 +58,9 @@ export function stateAction<Input>(action: StateAction<Input>): StateAction<Inpu
 }
 
 export type HistoryEntry = {
-    action: StateAction<any>;
     state: ScriptEditorState;
     changes: Set<Key<any>>;
-    startTransactionIndex?: number | undefined
+    transactionsStartIndex?: number | undefined;
 };
 
 declare const brand: unique symbol;
@@ -78,18 +93,73 @@ export type TransactionItem<T> = {
     historyIndex: number;
 };
 
+type ScheduledAction = {
+    run(
+        manager: ScriptEditorManager,
+        state: TransientState,
+        schedule: ScheduleActionCallback,
+    ): boolean;
+    input: any;
+    transactionStart?: StateTransaction<any> | undefined
+};
+
+function scheduleStateAction<T>(action: StateAction<T>, input: T): ScheduledAction {
+    return {
+        run(manager, state, schedule) {
+            action.apply.call(manager, this.input, state, schedule);
+            return true;
+        },
+        input,
+        transactionStart: action.transactionStart
+    };
+}
+
+function scheduleTransaction<T>(item: TransactionItem<T>): ScheduledAction {
+    return {
+        run(manager, state, schedule) {
+            return item.transaction.commit.call(manager, item.input, state, schedule);
+        },
+        input: item.input,
+    };
+}
+
+type BoxedAction = {
+    action: StateAction<any> | StateTransaction<any>,
+    merge?(
+        prevState: ScriptEditorState,
+        currentState: ScriptEditorState,
+        manager: ScriptEditorManager,
+    ): boolean; 
+    input: any;
+};
+
+function boxStateAction<T>(action: StateAction<T>, input: T): BoxedAction {
+    return {
+        action,
+        merge: action.merge,
+        input,
+    };
+}
+
+function boxTransaction<T>(transaction: StateTransaction<T>, input: T): BoxedAction {
+    return {
+        action: transaction,
+        input
+    };
+}
+
 export class ScriptEditorManager {
     history: HistoryEntry[] = [];
     state: ScriptEditorState;
 
-    transactionStack: TransactionItem<any>[] = []
+    transactionStack: TransactionItem<any>[] = [];
 
     private _activeSection: Key<SectionNode> | null = null;
     private _contextHidden: boolean = false;
 
     private listeners = new Map<EditorEvent<any>, Set<(arg: any) => void>>();
     private subscribers = new Map<string, Set<() => void>>();
-    private originAction: StateAction<any> | undefined;
+    private originAction: BoxedAction | undefined;
 
     constructor(script: Script) {
         this.state = ScriptEditorState.build(script);
@@ -146,7 +216,7 @@ export class ScriptEditorManager {
 
     undo() {
         if (!this.history.length) return;
-        const { state, changes, startTransactionIndex } = this.history.pop()!;
+        const { state, changes, transactionsStartIndex: startTransactionIndex } = this.history.pop()!;
 
         if (startTransactionIndex !== undefined)
             this.transactionStack.length = startTransactionIndex;
@@ -154,15 +224,39 @@ export class ScriptEditorManager {
         this.state = state;
         this.runChangeListeners(changes);
         this.broadcast(undoEvent, changes);
-
     }
 
     dispatchStateAction<Input>(action: StateAction<Input>, input: Input) {
-        const [state, changes] = this.state.update(trans => action.apply(input, trans, this));
+        if (action.transactionStart) {
+            const index = this.transactionStack.findIndex(
+                item => item.transaction === action.transactionStart,
+            );
+            if (index !== -1)
+                // TODO: can do this with only one state.update()?
+                this.endTransaction(index, /* commit= */ true);
+        }
+
+        const prevTransactionStackSize = this.transactionStack.length;
+        const updateInfo = this.state.update(trans =>
+            this.runScheduledActions(trans, [scheduleStateAction(action, input)]),
+        );
+
+        this.handleStateUpdate(
+            updateInfo,
+            boxStateAction(action, input),
+            prevTransactionStackSize < this.transactionStack.length ? prevTransactionStackSize : undefined
+        );
+    }
+
+    private handleStateUpdate(
+        { state, changes }: { state: ScriptEditorState, changes: Set<Key<any>> },
+        action: BoxedAction,
+        prevTransactionStackSize?: number | undefined
+    ) {
         if (!changes.size) return;
         const tos = this.history.at(-1);
         if (
-            this.originAction === action &&
+            this.originAction?.action === action.action &&
             action.merge !== undefined &&
             action.merge(this.state, state, this) &&
             tos
@@ -173,33 +267,74 @@ export class ScriptEditorManager {
         } else {
             // push
             const entry: HistoryEntry = {
-                action,
                 state: this.state,
                 changes,
+                transactionsStartIndex: prevTransactionStackSize
             };
-            if (action.transaction && 'start' in action.transaction) {
-                entry.startTransactionIndex = this.transactionStack.length;
-                this.transactionStack.push({
-                    input,
-                    transaction: action.transaction.start,
-                    historyIndex: this.history.length
-                });
-            }
             this.history.push(entry);
-        }
-        if (action.transaction && 'end' in action.transaction) {
-            const transactionToEnd = action.transaction.end;
-            const index = this.transactionStack.findIndex(item => item.transaction === transactionToEnd);
-            if (index === -1)
-                throw `invalid: ending transaction that hasn't been entered`;
-            const item = this.transactionStack[index];
-            this.transactionStack.length = index;
-            this.history.length = item.historyIndex + 1;
         }
         this.state = state;
         this.originAction = action;
         this.runChangeListeners(changes);
-        this.broadcast(dispatchStateActionEvent, { state, action, input });
+        this.broadcast(dispatchStateActionEvent, { state, action: action.action, input: action.input });
+
+    }
+
+    private runScheduledActions(
+        state: TransientState,
+        actionsThisCycle: ScheduledAction[],
+    ): boolean {
+        const actionsNextCycle: ScheduledAction[] = [];
+        const schedule: ScheduleActionCallback = (action, input) => actionsNextCycle.push(scheduleStateAction(action, input));
+
+        let proceed = true;
+        for (let scheduledAction of actionsThisCycle) {
+            proceed &&= scheduledAction.run(this, state, schedule);
+            if (!proceed)
+                break;
+            if (scheduledAction.transactionStart)
+                this.transactionStack.push({
+                    input: scheduledAction.input,
+                    transaction: scheduledAction.transactionStart,
+                    historyIndex: this.history.length,
+                });
+        }
+
+        if (actionsNextCycle.length > 0)
+            return this.runScheduledActions(state, actionsNextCycle);
+        return proceed;
+    }
+
+    commitTransaction(transaction: StateTransaction<any>) {
+        const index = this.transactionStack.findIndex(
+            item => item.transaction === transaction,
+        );
+        if (index === -1) throw `invalid: ending transaction that hasn't been entered`;
+        this.endTransaction(index, /* commit= */ true);
+    }
+
+    dismissTransaction(transaction: StateTransaction<any>) {
+        const index = this.transactionStack.findIndex(
+            item => item.transaction === transaction,
+        );
+        if (index === -1) throw `invalid: ending transaction that hasn't been entered`;
+        this.endTransaction(index, /* commit= */ false);
+    }
+    
+    private endTransaction(index: number, commit: boolean) { 
+        const item = this.transactionStack[index];
+        const scheduledActions = this.transactionStack
+            .slice(index)
+            .toReversed()
+            .map(scheduleTransaction);
+        const { result: didCommit, ...updateInfo } = this.state.update(trans => commit && this.runScheduledActions(trans, scheduledActions));
+        this.handleStateUpdate(updateInfo, boxTransaction(item.transaction, item.input));
+        this.history.length = item.historyIndex + 1;
+        this.transactionStack.length = index;
+        
+        console.log('didCommit', didCommit);
+        if (!didCommit)
+            this.undo();
     }
 
     scrollToNode(key: Key<ScriptNode>) {

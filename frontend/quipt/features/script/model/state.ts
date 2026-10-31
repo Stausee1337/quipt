@@ -396,8 +396,8 @@ export class ScriptEditorState {
         return this.metadata.get(key);
     }
 
-    update(updater: (trans: TransientState) => unknown): [ScriptEditorState, Set<Key<any>>] {
-        const [pool, trans] = poolWithMutations(this.pool, pool => {
+    update<T>(updater: (trans: TransientState) => T): { state: ScriptEditorState; changes: Set<Key<any>>; result: T } {
+        const [pool, [trans, result]] = poolWithMutations(this.pool, pool => {
             const trans = new TransientState(
                 this.name,
                 this.actors,
@@ -416,12 +416,12 @@ export class ScriptEditorState {
                 },
             });
 
-            updater(transProxy);
-            return trans;
+            const result = updater(transProxy);
+            return [trans, result];
         });
 
-        return [
-            new ScriptEditorState(
+        return {
+            state: new ScriptEditorState(
                 trans.name,
                 trans.actors,
                 trans.selfActor,
@@ -431,8 +431,9 @@ export class ScriptEditorState {
                 trans.metadata,
                 pool,
             ),
-            trans.changes,
-        ];
+            changes: trans.changes,
+            result,
+        };
     }
 }
 
