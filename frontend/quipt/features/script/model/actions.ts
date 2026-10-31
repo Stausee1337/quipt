@@ -90,14 +90,8 @@ function randomColor(): Color {
     return (1 + Math.floor(Math.random() * 24)) as Color;
 }
 
-const createActorKey: unique symbol = Symbol('createActor');
-
-export function getCreatedActor(state: ScriptEditorState): ActorKey {
-    return state.getMeta(createActorKey);
-}
-
 export const createActorOnDialogue = stateAction<Key<DialogueNode>>({
-    apply(dialogueKey, state, schedule) {
+    apply(dialogueKey, state) {
         const newActor = state.allocate(Actor, '', randomColor());
         const dialogue = state.lookup(dialogueKey);
         state.replaceNode(dialogueKey, {
@@ -105,9 +99,7 @@ export const createActorOnDialogue = stateAction<Key<DialogueNode>>({
         });
         state.actors = new Map(state.actors);
         state.actors.set(newActor.key, 1);
-        state.setMeta(createActorKey, newActor.key);
         state.recomputeSectionMetaInfo();
-        schedule(editActorBegin, newActor.key);
     },
 });
 

@@ -234,7 +234,7 @@ export function ActorsContainer({
                     {...detectActorEdit(() => handleEditActor(selfActor))}
                 />
             )}
-            {actorsIterator(actors)
+            {Array.from(actorsIterator(actors)
                 .filter(([actor]) => actor !== selfActor)
                 .map(([actor, count]) => (
                     <Menu.Trigger
@@ -247,7 +247,7 @@ export function ActorsContainer({
                         }
                         {...detectActorEdit(() => handleEditActor(actor))}
                     />
-                ))}
+                )))}
             <Menu.Root handle={actorMenuHandleRef.current}
                 onOpenChangeComplete={open => !open && manager.commitTransaction(actions.editActorTransaction)}>
                 {({ payload }) => (

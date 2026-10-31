@@ -33,7 +33,6 @@ import { ActorPill, ActorsContainer } from './actors-container';
 import {
     useKeyedState,
     useScriptEditorManager,
-    useScriptEditorManagerListener,
     useScriptEditorStateAccessor,
 } from '../model/hooks';
 import {
@@ -45,10 +44,8 @@ import {
     type ScriptNode,
     SectionNode,
     keyOfType,
-    ScriptEditorState,
 } from '../model/state';
 import * as actions from '../model/actions';
-import { dispatchStateActionEvent } from '../model/manager';
 
 type VirtualizedElementProps = Omit<ComponentProps<'div'>, 'className'>;
 
@@ -398,10 +395,12 @@ function ActorsLineRenderer({ actorKeys }: { actorKeys: readonly ActorKey[] }): 
     );
 }
 
+
+
 const DialogueView = memo(function DialogueView({
     dialogueKey,
     ...props
-}: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element | null {
+}: { dialogueKey: Key<DialogueNode>;  } & VirtualizedElementProps): JSX.Element | null {
     const dialogue = useKeyedState(dialogueKey);
     const manager = useScriptEditorManager();
     const actorsContainerActionsRef = useRef<ActorsContainer.Actions>(null);
@@ -412,16 +411,24 @@ const DialogueView = memo(function DialogueView({
 
     const markedAsContext = actorMarksAsCue || dialogue.markedAsContext;
 
-    useScriptEditorManagerListener(info => {
-        if (info.action !== actions.createActorOnDialogue) return;
-        let actionInfo = info as { input: Key<DialogueNode>; state: ScriptEditorState };
-        if (actionInfo.input === dialogueKey) {
-            const createdActor = actions.getCreatedActor(actionInfo.state);
-            setTimeout(() => {
-                actorsContainerActionsRef.current?.editActor(createdActor);
-            });
-        }
-    }, dispatchStateActionEvent);
+    // NOTE: Not replaceable by a store
+    // Solution: just like in the `scrollToNode` case, actually process stuff
+    // in here instead of relying on manager to do it.
+
+    // useScriptEditorManagerListener(info => {
+    //     if (info.action !== actions.createActorOnDialogue) return;
+    //     let actionInfo = info as { input: Key<DialogueNode>; state: ScriptEditorState };
+    //     if (actionInfo.input === dialogueKey) {
+    //         const createdActor = actions.getCreatedActor(actionInfo.state);
+    //         setTimeout(() => {
+    //             actorsContainerActionsRef.current?.editActor(createdActor);
+    //         });
+    //     }
+    // }, dispatchStateActionEvent);
+
+    function handleActorAdd() {
+        manager.dispatchStateAction(actions.createActorOnDialogue, dialogueKey);
+    }
 
     return (
         <HoverableSectionItem
@@ -465,12 +472,7 @@ const DialogueView = memo(function DialogueView({
                                                     },
                                                 )
                                             }
-                                            onActorAdd={() =>
-                                                manager.dispatchStateAction(
-                                                    actions.createActorOnDialogue,
-                                                    dialogueKey,
-                                                )
-                                            }
+                                            onActorAdd={handleActorAdd}
                                         />
                                     </Menu.Popup>
                                 </Menu.Positioner>
@@ -496,7 +498,7 @@ const ActionView = memo(function ActionView({
             data-editing={action.editing ? '' : undefined}
             {...props}>
             <HoverActionsContainer itemKey={action.key} />
-            {action.editing && <EditActionsContainer itemKey={action.key} />}
+            {action.editing && <EditActionsContainer/>}
             <NodeContentRenderer className="mx-auto w-31/40" node={action} />
         </HoverableSectionItem>
     );

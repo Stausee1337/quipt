@@ -5,30 +5,12 @@ import {
     useContext,
     useRef,
     useSyncExternalStore,
-    useEffect,
 } from 'react';
-import type { EditorEvent, ScriptEditorManager } from './manager';
+import type { ScriptEditorManager } from './manager';
 import type { Key, Keyed, ScriptEditorState } from './state';
 
 export function useScriptEditorManager(): ScriptEditorManager {
     return useContext(ScriptEditorContextObject).manager!;
-}
-
-export function useScriptEditorManagerListener<T>(
-    listener: (arg: T) => void,
-    event: EditorEvent<T>,
-): void;
-export function useScriptEditorManagerListener<T extends any[]>(
-    listener: (arg: T[number]) => void,
-    events: { [U in keyof T]: EditorEvent<T[U]> },
-): void;
-export function useScriptEditorManagerListener(
-    listener: (arg: any) => void,
-    eventOrEvents: EditorEvent<any> | EditorEvent<any>[],
-): void {
-    const manager = useScriptEditorManager();
-    // FIXME: listener is actually changing every time in here. Maybe fix
-    useEffect(() => manager.listen(listener, eventOrEvents as any), [listener, eventOrEvents]);
 }
 
 export function useScrollContainer(): HTMLElement | null {
@@ -41,7 +23,7 @@ export function useScriptEditorStateAccessor<T>(
 ): T {
     const manager = useScriptEditorManager();
     return useSyncExternalStore(
-        listener => manager.subscribe(listener),
+        listener => manager.onStateChange(listener),
         () => accessor(manager.state),
     );
 }
@@ -61,14 +43,17 @@ export function useKeyedState<T extends Keyed<T>>(
     onLookupError?: (error: unknown) => void,
 ): Readonly<T>[] | Readonly<T> | null {
     const manager = useScriptEditorManager();
-    const cache = useRef<{
+    const cacheRef = useRef<{
         state: ScriptEditorState;
         keys: readonly Key<T>[];
         result: Readonly<T>[];
     }>(null);
+
     return useSyncExternalStore(
-        listener =>
-            manager.subscribe(listener, typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys),
+        listener => manager.onStateChange(
+            typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys,
+            listener
+        ),
         () => {
             if (typeof keyOrKeys === 'string')
                 try {
@@ -82,9 +67,9 @@ export function useKeyedState<T extends Keyed<T>>(
                 }
 
             if (
-                cache.current === null ||
-                cache.current.state !== manager.state ||
-                cache.current.keys !== keyOrKeys
+                cacheRef.current === null ||
+                cacheRef.current.state !== manager.state ||
+                cacheRef.current.keys !== keyOrKeys
             ) {
                 let result;
                 try {
@@ -96,14 +81,14 @@ export function useKeyedState<T extends Keyed<T>>(
                     }
                     throw e;
                 }
-                cache.current = {
+                cacheRef.current = {
                     state: manager.state,
                     keys: keyOrKeys,
                     result,
                 };
                 return result;
             }
-            return cache.current.result;
+            return cacheRef.current.result;
         },
     );
 }

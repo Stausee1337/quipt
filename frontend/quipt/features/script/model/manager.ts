@@ -4,9 +4,9 @@ import {
     TransientState,
     type Key,
     SectionNode,
-    ScriptNode,
 } from './state';
 import type { Script } from '../script';
+import { useCallback, useSyncExternalStore } from 'react';
 
 export type RemoteContext = {};
 
@@ -62,28 +62,6 @@ export type HistoryEntry = {
     changes: Set<Key<any>>;
     transactionsStartIndex?: number | undefined;
 };
-
-declare const brand: unique symbol;
-export type EditorEvent<T> = symbol & { [brand]: T };
-
-function describeManagerEvent<T>(name: string): EditorEvent<T> {
-    return Symbol(name) as EditorEvent<T>;
-}
-
-type DispatchStateActionEventParams<T> = {
-    action: StateAction<T>;
-    input: T;
-    state: ScriptEditorState;
-};
-
-export const undoEvent = describeManagerEvent<Set<Key<any>>>('undo');
-export const toggleContextHiddenEvent = describeManagerEvent<void>('toggleContextHidden');
-export const scrollToNodeEvent = describeManagerEvent<Key<ScriptNode>>('scrollToNode');
-export const setActiveSectionEvent = describeManagerEvent<Key<SectionNode> | undefined>(
-    'setActiveSection',
-);
-export const dispatchStateActionEvent =
-    describeManagerEvent<DispatchStateActionEventParams<any>>('dispatchStateAction');
 
 export type TeardownCallback = () => void;
 
@@ -148,82 +126,133 @@ function boxTransaction<T>(transaction: StateTransaction<T>, input: T): BoxedAct
     };
 }
 
-export class ScriptEditorManager {
-    history: HistoryEntry[] = [];
-    state: ScriptEditorState;
+type Selector<State> = (state: State) => any;
+
+abstract class BaseStore<State extends Record<string, any>, Selectors extends Record<string, Selector<State>>> {
+    private listeners: Set<() => void> = new Set();
+
+    constructor(protected _state: State, private selectors: Selectors) { }
+
+    useState<K extends keyof State>(key: K): State[K];
+    useState<K extends keyof Selectors>(key: K): ReturnType<Selectors[K]>;
+    useState(key: string): any {
+        const getSnapshot = useCallback(() => this.readState(key), [key]);
+        return useSyncExternalStore(this.subscribe.bind(this), getSnapshot);
+    }
+
+    readState<K extends keyof State>(key: K): State[K];
+    readState<K extends keyof Selectors>(key: K): ReturnType<Selectors[K]>;
+    readState(key: string): any {
+        if (key in this._state)
+            return this._state[key];
+        if (key in this.selectors)
+            return this.selectors[key](this._state);
+        throw `use invalid key '${key} on store'`;
+    }
+
+    subscribe(listener: () => void): TeardownCallback {
+        this.listeners.add(listener);
+        return () => {
+            this.listeners.delete(listener);
+        }
+    }
+
+    update(newState: Partial<State>) {
+        this._state = { ...this._state, ...newState };
+        for (let listener of this.listeners)
+            listener();
+    }
+}
+
+export interface EditorViewState {
+    history: HistoryEntry[];
+    contextHidden: boolean;
+    activeSection: Key<SectionNode> | null;
+    viewState: ScriptEditorState;
+}
+
+function getActiveSection(state: EditorViewState): SectionNode | null {
+    if (state.activeSection === null) return null;
+    let activeSection: SectionNode;
+    try {
+        activeSection = state.viewState.lookup(state.activeSection);
+    } catch {
+        return null;
+    }
+    if (activeSection.parent === null) return activeSection;
+    let activeSupersection: SectionNode;
+    try {
+        activeSupersection = state.viewState.lookup(activeSection.parent);
+    } catch {
+        return null;
+    }
+    return activeSupersection;
+}
+
+const scriptEditorSelectors = {
+    hasHistory: (state) => state.history.length > 0,
+    activeSectionNode: getActiveSection,
+} satisfies Record<string, Selector<EditorViewState>>;
+
+type ScriptEditorSelectors = typeof scriptEditorSelectors;
+
+export class ScriptEditorManager extends BaseStore<EditorViewState, ScriptEditorSelectors> {
 
     transactionStack: TransactionItem<any>[] = [];
 
-    private _activeSection: Key<SectionNode> | null = null;
-    private _contextHidden: boolean = false;
-
-    private listeners = new Map<EditorEvent<any>, Set<(arg: any) => void>>();
-    private subscribers = new Map<string, Set<() => void>>();
+    private viewStateListeners = new Map<string, Set<() => void>>();
     private originAction: BoxedAction | undefined;
 
     constructor(script: Script) {
-        this.state = ScriptEditorState.build(script);
+        super(
+            {
+                history: [],
+                contextHidden: false,
+                activeSection: null,
+                viewState: ScriptEditorState.build(script),
+            },
+            scriptEditorSelectors
+        );
     }
 
-    get activeSection(): Key<SectionNode> | null {
-        return this._activeSection;
+    get state(): ScriptEditorState {
+        return this._state.viewState;
     }
 
-    get contextHidden(): boolean {
-        return this._contextHidden;
-    }
-
-    listen<T>(listener: (arg: T) => void, event: EditorEvent<T>): TeardownCallback;
-    listen<T extends any[]>(
-        listener: (arg: T[number]) => void,
-        events: { [U in keyof T]: EditorEvent<T[U]> },
-    ): TeardownCallback;
-    listen(
-        listener: (arg: any) => void,
-        eventOrEvents: EditorEvent<any> | EditorEvent<any>[],
-    ): TeardownCallback {
-        const events: EditorEvent<any>[] =
-            typeof eventOrEvents === 'symbol' ? [eventOrEvents] : eventOrEvents;
-        for (let event of events) mapAdd(this.listeners, event, listener);
-        return () => {
-            for (let event of events) mapDelete(this.listeners, event, listener);
-        };
-    }
-
-    subscribe<T extends Keyed<T[number]>[]>(
+    onStateChange(listener: () => void): TeardownCallback;
+    onStateChange<T extends Keyed<T[number]>[]>(
+        keys: { readonly [K in keyof T]: Key<T[K]> },
         listener: () => void,
-        keys?: { readonly [K in keyof T]: Key<T[K]> },
+    ): TeardownCallback
+    onStateChange(
+        keysOrListener: ArrayLike<Key<any>> | (() => void),
+        listener?: () => void
     ): TeardownCallback {
-        const keysArray = keys !== undefined ? Array.from(keys) : [''];
-        for (let key of keysArray) mapAdd(this.subscribers, key, listener);
+        const keysArray = typeof keysOrListener === 'function' ? [''] : Array.from(keysOrListener);
+        if (typeof keysOrListener === 'function')
+            listener = keysOrListener;
+        for (let key of keysArray) mapAdd(this.viewStateListeners, key, listener);
         return () => {
-            for (let key of keysArray) mapDelete(this.subscribers, key, listener);
+            for (let key of keysArray) mapDelete(this.viewStateListeners, key, listener);
         };
-    }
-
-    private broadcast(event: EditorEvent<void>): void;
-    private broadcast<T>(event: EditorEvent<T>, params: T): void;
-    private broadcast(event: EditorEvent<any>, params?: any | undefined) {
-        for (let listener of this.listeners.get(event) ?? []) listener(params);
     }
 
     private runChangeListeners(changes: Set<Key<any>>) {
-        for (let listener of this.subscribers.get('') ?? []) listener();
+        for (let listener of this.viewStateListeners.get('') ?? []) listener();
 
         for (let key of changes.values())
-            for (let listener of this.subscribers.get(key) ?? []) listener();
+            for (let listener of this.viewStateListeners.get(key) ?? []) listener();
     }
 
     undo() {
-        if (this.history.length === 0) return;
-        const { state, changes, transactionsStartIndex } = this.history.pop()!;
+        if (this._state.history.length === 0) return;
+        const { state, changes, transactionsStartIndex } = this._state.history.pop()!;
 
         if (transactionsStartIndex !== undefined)
             this.transactionStack.length = transactionsStartIndex;
 
-        this.state = state;
+        this.update({ viewState: state });
         this.runChangeListeners(changes);
-        this.broadcast(undoEvent, changes);
     }
 
     dispatchStateAction<Input>(action: StateAction<Input>, input: Input) {
@@ -254,7 +283,8 @@ export class ScriptEditorManager {
         prevTransactionStackSize?: number | undefined
     ) {
         if (!changes.size && !prevTransactionStackSize) return;
-        const tos = this.history.at(-1);
+        const tos = this._state.history.at(-1);
+        let history: HistoryEntry[];
         if (
             this.originAction?.action === action.action &&
             action.merge !== undefined &&
@@ -263,7 +293,16 @@ export class ScriptEditorManager {
         ) {
             const mergedChanges = tos.changes.union(changes);
             // replace
-            this.history[this.history.length - 1].changes = mergedChanges;
+            
+            // this._state.history[this._state.history.length - 1].changes = mergedChanges;
+            history = this._state.history.toSpliced(
+                this._state.history.length - 1,
+                1,
+                {
+                    ...this._state.history.at(-1)!,
+                    changes: mergedChanges
+                }
+            );
         } else {
             // push
             const entry: HistoryEntry = {
@@ -271,12 +310,12 @@ export class ScriptEditorManager {
                 changes,
                 transactionsStartIndex: prevTransactionStackSize
             };
-            this.history.push(entry);
+            history = [...this._state.history, entry];
         }
-        this.state = state;
+        this.update({ viewState: state, history });
+        console.log(this._state.history);
         this.originAction = action;
         this.runChangeListeners(changes);
-        this.broadcast(dispatchStateActionEvent, { state, action: action.action, input: action.input });
 
     }
 
@@ -296,7 +335,7 @@ export class ScriptEditorManager {
                 this.transactionStack.push({
                     input: scheduledAction.input,
                     transaction: scheduledAction.transactionStart,
-                    historyIndex: this.history.length,
+                    historyIndex: this._state.history.length,
                 });
         }
 
@@ -330,27 +369,13 @@ export class ScriptEditorManager {
         const { result: didCommit, ...updateInfo } = this.state.update(trans => commit && this.runScheduledActions(trans, scheduledActions));
         this.handleStateUpdate(updateInfo, boxTransaction(item.transaction, item.input));
 
-        if (this.history.length > item.historyIndex + 1)
-            this.history.length = item.historyIndex + 1;
+        if (this._state.history.length > item.historyIndex + 1)
+            this._state.history.length = item.historyIndex + 1;
         this.transactionStack.length = index;
         
         console.log('didCommit', didCommit);
         if (!didCommit)
             this.undo();
-    }
-
-    scrollToNode(key: Key<ScriptNode>) {
-        this.broadcast(scrollToNodeEvent, key);
-    }
-
-    toggleContextHidden() {
-        this._contextHidden = !this._contextHidden;
-        this.broadcast(toggleContextHiddenEvent);
-    }
-
-    setActiveSection(activeSection: Key<SectionNode> | null) {
-        this._activeSection = activeSection;
-        this.broadcast(setActiveSectionEvent, activeSection);
     }
 }
 

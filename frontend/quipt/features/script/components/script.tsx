@@ -10,6 +10,9 @@ import {
     useState,
     type Ref,
     type Dispatch,
+    type RefObject,
+    useImperativeHandle,
+    useCallback,
 } from 'react';
 
 import { Button as BaseButton, Popover, Toggle } from '@base-ui/react';
@@ -40,19 +43,10 @@ import {
     ScriptEditorContextProivder,
     useKeyedState,
     useScriptEditorManager,
-    useScriptEditorManagerListener,
     useScriptEditorStateAccessor,
     useScrollContainer,
 } from '../model/hooks';
-import * as actions from '../model/actions';
-import {
-    dispatchStateActionEvent,
-    ScriptEditorManager,
-    scrollToNodeEvent,
-    setActiveSectionEvent,
-    toggleContextHiddenEvent,
-    undoEvent,
-} from '../model/manager';
+import { ScriptEditorManager } from '../model/manager';
 
 function ScriptViewHeader({ name }: { name: string }): JSX.Element {
     return (
@@ -82,28 +76,30 @@ function MobileScriptViewHeader({ name }: { name: string }): JSX.Element {
 interface SectionNavigatorItemProps extends Omit<ComponentProps<'div'>, 'children'> {
     sectionKey: Key<SectionNode>;
     selectedItemRef?: Ref<HTMLDivElement | null> | undefined;
+    onScrollToNode: (key: Key<ScriptNode>) => void;
 }
 
 function SectionNavigatorItem({
     sectionKey,
     selectedItemRef,
     onClick,
+    onScrollToNode,
     ...props
 }: SectionNavigatorItemProps): JSX.Element {
     const section = useKeyedState(sectionKey);
     const manager = useScriptEditorManager();
-    const selected = sectionKey === manager.activeSection;
+    const activeSection = manager.useState('activeSection');
 
     const clickHandler: SectionNavigatorItemProps['onClick'] = event => {
-        manager.scrollToNode(section.key);
+        onScrollToNode(section.key);
         onClick?.(event);
     };
 
     return (
         <div
-            ref={selected ? selectedItemRef : undefined}
+            ref={activeSection === sectionKey ? selectedItemRef : undefined}
             className="data-selected:bg-accent-100/20 hover:not-data-selected:bg-accent-100/10 cursor-pointer rounded-lg px-3 py-1 text-sm data-[level=1]:ps-4"
-            data-selected={selected ? '' : undefined}
+            data-selected={activeSection === sectionKey ? '' : undefined}
             data-level={section.depth}
             onClick={clickHandler}
             {...props}>
@@ -115,12 +111,16 @@ function SectionNavigatorItem({
 function ScriptSectionNavigatorContent({
     popoverHandle,
     setSelectedItem,
+    onScrollToNode,
 }: {
     popoverHandle: Popover.Handle<void>;
     setSelectedItem: Dispatch<HTMLDivElement | null>;
+    onScrollToNode: (key: Key<ScriptNode>) => void;
 }): JSX.Element {
     const manager = useScriptEditorManager();
+    const contextHidden = manager.useState('contextHidden');
     const structure = manager.state.structure;
+    
     const content = useMemo(() => {
         switch (structure.depth) {
             case 0:
@@ -132,13 +132,14 @@ function ScriptSectionNavigatorContent({
                             processMapScriptItems(
                                 section.children,
                                 manager.state,
-                                manager.contextHidden,
+                                contextHidden,
                             ).length > 0,
                     )
                     .map(section => (
                         <SectionNavigatorItem
                             key={section.key}
                             selectedItemRef={setSelectedItem}
+                            onScrollToNode={onScrollToNode}
                             sectionKey={section.key}
                             onClick={closeOnClick}
                         />
@@ -151,13 +152,14 @@ function ScriptSectionNavigatorContent({
                                 processMapScriptItems(
                                     section.children,
                                     manager.state,
-                                    manager.contextHidden,
+                                    contextHidden,
                                 ).length > 0,
                         )
                         .map(section => (
                             <SectionNavigatorItem
                                 key={section.key}
                                 selectedItemRef={setSelectedItem}
+                                onScrollToNode={onScrollToNode}
                                 sectionKey={section.key}
                                 onClick={closeOnClick}
                             />
@@ -167,6 +169,7 @@ function ScriptSectionNavigatorContent({
                               <SectionNavigatorItem
                                   key={section.key}
                                   selectedItemRef={setSelectedItem}
+                                  onScrollToNode={onScrollToNode}
                                   sectionKey={section.key}
                                   onClick={closeOnClick}
                               />,
@@ -184,7 +187,7 @@ function ScriptSectionNavigatorContent({
     return <>{content}</>;
 }
 
-function ScriptSectionNavigator(): JSX.Element {
+function ScriptSectionNavigator(props: { onScrollToNode: (key: Key<ScriptNode>) => void; }): JSX.Element {
     const popoverHandleRef = useRef<Popover.Handle<void>>(null!);
     if (popoverHandleRef.current === null) popoverHandleRef.current = Popover.createHandle();
 
@@ -212,6 +215,7 @@ function ScriptSectionNavigator(): JSX.Element {
                         <ScriptSectionNavigatorContent
                             popoverHandle={popoverHandleRef.current}
                             setSelectedItem={setSelectedItem}
+                            {...props}
                         />
                     </Popover.Popup>
                 </Popover.Positioner>
@@ -220,26 +224,22 @@ function ScriptSectionNavigator(): JSX.Element {
     );
 }
 
-function ScriptContentViewHeader(): JSX.Element {
+function ScriptContentViewHeader({ contentListActionsRef }: { contentListActionsRef: RefObject<ContentListActions | null>; }): JSX.Element {
     const breakpoints = useBreakpoints();
     const manager = useScriptEditorManager();
     const hasSelfActor = useScriptEditorStateAccessor(state => state.selfActor !== null);
     const hasStructure = useScriptEditorStateAccessor(state => state.structure.depth > 0);
 
-    const [contextHidden, setContentHidden] = useState(manager.contextHidden);
-    const [hasHistory, setHasHistory] = useState(manager.history.length > 0);
+    const contextHidden = manager.useState('contextHidden');
+    const hasHistory = manager.useState('hasHistory');
 
     function undoHandler() {
         manager.undo();
     }
 
-    useScriptEditorManagerListener(() => {
-        setContentHidden(manager.contextHidden);
-    }, toggleContextHiddenEvent);
-
-    useScriptEditorManagerListener(() => {
-        setHasHistory(manager.history.length > 0);
-    }, [undoEvent, dispatchStateActionEvent]);
+    const scrollToNodeHandler = useCallback((key: Key<ScriptNode>) => {
+        contentListActionsRef.current?.scrollToNode(key);
+    }, []);
 
     return (
         <header className="mx-3 flex sm:mx-9 sm:my-1">
@@ -265,7 +265,7 @@ function ScriptContentViewHeader(): JSX.Element {
                 <Tooltip label={contextHidden ? 'Kontext einblenden' : 'Kontext ausblenden'}>
                     {
                         <Toggle
-                            onClick={() => manager.toggleContextHidden()}
+                            onClick={() => manager.update({ contextHidden: !contextHidden })}
                             pressed={contextHidden && hasSelfActor}
                             disabled={!hasSelfActor}
                             render={(props, state) => (
@@ -278,7 +278,7 @@ function ScriptContentViewHeader(): JSX.Element {
                         />
                     }
                 </Tooltip>
-                {hasStructure && <ScriptSectionNavigator />}
+                {hasStructure && <ScriptSectionNavigator onScrollToNode={scrollToNodeHandler}/>}
             </div>
         </header>
     );
@@ -367,46 +367,15 @@ function toFlatContent(
     }
 }
 
-function getActiveSection(manager: ScriptEditorManager): SectionNode | null {
-    if (manager.activeSection === null) return null;
-    let activeSection: SectionNode;
-    try {
-        activeSection = manager.state.lookup(manager.activeSection);
-    } catch {
-        return null;
-    }
-    if (activeSection.parent === null) return activeSection;
-    let activeSupersection: SectionNode;
-    try {
-        activeSupersection = manager.state.lookup(activeSection.parent);
-    } catch {
-        return null;
-    }
-    return activeSupersection;
-}
-
-function ScriptStickyHeader(): JSX.Element {
+function ScriptStickyHeader({ onScrollToNode }: { onScrollToNode: (key: Key<ScriptNode>) => void; }): JSX.Element {
     const manager = useScriptEditorManager();
     const scriptName = useScriptEditorStateAccessor(state => state.name);
     const hasSelfActor = useScriptEditorStateAccessor(state => state.selfActor !== null);
     const hasStructure = useScriptEditorStateAccessor(state => state.structure.depth > 0);
 
-    const [contextHidden, setContentHidden] = useState(manager.contextHidden);
-    const [hasHistory, setHasHistory] = useState(manager.history.length > 0);
-
-    const [activeSection, setActiveSection] = useState(getActiveSection(manager));
-
-    useScriptEditorManagerListener(() => {
-        setContentHidden(manager.contextHidden);
-    }, toggleContextHiddenEvent);
-
-    useScriptEditorManagerListener(() => {
-        setActiveSection(getActiveSection(manager));
-    }, setActiveSectionEvent);
-
-    useScriptEditorManagerListener(() => {
-        setHasHistory(manager.history.length > 0);
-    }, [undoEvent, dispatchStateActionEvent]);
+    const contextHidden = manager.useState('contextHidden');
+    const activeSection = manager.useState('activeSectionNode');
+    const hasHistory = manager.useState('hasHistory');
 
     function undoHandler() {
         manager.undo();
@@ -436,7 +405,7 @@ function ScriptStickyHeader(): JSX.Element {
                             label={contextHidden ? 'Kontext einblenden' : 'Kontext ausblenden'}>
                             {
                                 <Toggle
-                                    onClick={() => manager.toggleContextHidden()}
+                                    onClick={() => manager.update({ contextHidden: !contextHidden })}
                                     pressed={contextHidden && hasSelfActor}
                                     disabled={!hasSelfActor}
                                     render={(props, state) => (
@@ -449,7 +418,7 @@ function ScriptStickyHeader(): JSX.Element {
                                 />
                             }
                         </Tooltip>
-                        {hasStructure && <ScriptSectionNavigator />}
+                        {hasStructure && <ScriptSectionNavigator onScrollToNode={onScrollToNode}/>}
                     </div>
                 </div>
                 <PlayButton className="ms-auto" />
@@ -458,8 +427,18 @@ function ScriptStickyHeader(): JSX.Element {
     );
 }
 
+interface ContentListActions {
+    scrollToNode(key: Key<ScriptNode>): void;
+}
+
+interface ContentListProps {
+    gap: number;
+    content: FlatContentItem[];
+    actionsRef: RefObject<ContentListActions | null>
+}
+
 const VirtualizedContentList = memo(
-    function VirtualizedContentList({ gap, content }: { gap: number; content: FlatContentItem[] }) {
+    function VirtualizedContentList({ gap, content, actionsRef }: ContentListProps) {
         const containerRef = useRef<HTMLDivElement | null>(null);
         const breakpoints = useBreakpoints();
         const manager = useScriptEditorManager();
@@ -484,6 +463,16 @@ const VirtualizedContentList = memo(
             },
         });
 
+        function scrollToNode(key: Key<ScriptNode>) {
+            const nodeIndex = content.findIndex(item => item.key === key);
+            if (nodeIndex === -1) return;
+            const result = virtualizer.getOffsetForIndex(nodeIndex, 'start');
+            if (result === undefined) return;
+            virtualizer.scrollToOffset(result[0] - 65, { align: 'start' });
+        }
+
+        useImperativeHandle(actionsRef, () => ({ scrollToNode }));
+
         function recomputeActiveSection() {
             const virtualItems = virtualizer.getVirtualItems();
             const scrollOffset = virtualizer.scrollOffset ?? 0;
@@ -499,11 +488,11 @@ const VirtualizedContentList = memo(
 
             const fci = content[currentItem.index];
             if (keyOfType(fci.key, SectionNode)) {
-                manager.setActiveSection(fci.key);
+                manager.update({ activeSection: fci.key });
                 return;
             }
             const scriptNode = manager.state.lookup(fci.key);
-            manager.setActiveSection(scriptNode.parent);
+            manager.update({ activeSection: scriptNode.parent });
         }
 
         useNativeElementListener(scrollContainer, 'scroll', () => {
@@ -511,14 +500,6 @@ const VirtualizedContentList = memo(
             const rect = containerRef.current.getBoundingClientRect();
             setHeaderActive(rect.top <= 0);
         });
-
-        useScriptEditorManagerListener(key => {
-            const nodeIndex = content.findIndex(item => item.key === key);
-            if (nodeIndex === -1) return;
-            const result = virtualizer.getOffsetForIndex(nodeIndex, 'start');
-            if (result === undefined) return;
-            virtualizer.scrollToOffset(result[0] - 65, { align: 'start' });
-        }, scrollToNodeEvent);
 
         useEffect(() => {
             recomputeActiveSection();
@@ -543,7 +524,7 @@ const VirtualizedContentList = memo(
 
         return (
             <div className="relative" ref={onContainerRefUpdate}>
-                {stickyHeaderActive && <ScriptStickyHeader />}
+                {stickyHeaderActive && <ScriptStickyHeader onScrollToNode={scrollToNode}/>}
 
                 {virtualizer.getVirtualItems().map(item => {
                     const node = renderContentNode(content[item.index].key);
@@ -572,29 +553,30 @@ function ScriptContentView({
     const manager = useScriptEditorManager();
     const selfActor = useScriptEditorStateAccessor(state => state.selfActor);
 
-    // FXIME: this is definitely an antipattern
-    const [externalContentEvents, setExternalContentEvents] = useState(0);
+    const contentListActionsRef = useRef<ContentListActions>(null);
 
-    const [contextHidden, setContextHidden] = useState(manager.contextHidden);
+    const contextHidden = manager.useState('contextHidden');
+
+    // const [contextHidden, setContextHidden] = useState(manager.contextHidden);
     const content = useMemo(
         () => toFlatContent(structure, manager.state, contextHidden),
-        [structure, contextHidden, selfActor, externalContentEvents],
+        [structure, contextHidden, selfActor],
     );
 
-    useScriptEditorManagerListener(() => {
-        setContextHidden(manager.contextHidden);
-    }, toggleContextHiddenEvent);
-
-    useScriptEditorManagerListener(info => {
-        if (!manager.contextHidden || manager.state.selfActor === null) return;
-        if (info.action !== actions.toggleNodeMarkedAsContext) return;
-        setExternalContentEvents(c => c + 1);
-    }, dispatchStateActionEvent);
+    // NOTE: Not replaceable by a store
+    // useScriptEditorManagerListener(info => {
+    //     // Listener to recompute content on toggleNodeMarkedAsContent, while content is hidden
+    //     // FIXME: this approach is incorrect. We need a tighter coupling between 
+    //     //        contextNodes <-> structure
+    //     if (!manager.contextHidden || manager.state.selfActor === null) return;
+    //     if (info.action !== actions.toggleNodeMarkedAsContext) return;
+    //     setExternalContentEvents(c => c + 1);
+    // }, dispatchStateActionEvent);
 
     return (
         <div className={classnames('flex flex-col gap-y-2 sm:gap-y-4', className)}>
-            <ScriptContentViewHeader />
-            <VirtualizedContentList gap={breakpoints.sm ? 16 : 8} content={content} />
+            <ScriptContentViewHeader contentListActionsRef={contentListActionsRef}/>
+            <VirtualizedContentList gap={breakpoints.sm ? 16 : 8} content={content} actionsRef={contentListActionsRef}/>
         </div>
     );
 }
