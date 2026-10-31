@@ -33,11 +33,7 @@ import {
     SectionNode,
     type Key,
     ScriptNode,
-    type Structure,
     keyOfType,
-    DialogueNode,
-    ScriptEditorState,
-    ActionNode,
 } from '../model/state';
 import {
     ScriptEditorContextProivder,
@@ -46,7 +42,7 @@ import {
     useScriptEditorStateAccessor,
     useScrollContainer,
 } from '../model/hooks';
-import { ScriptEditorManager } from '../model/manager';
+import { processMapScriptItems, ScriptEditorManager, type FlatContentItem } from '../model/manager';
 
 function ScriptViewHeader({ name }: { name: string }): JSX.Element {
     return (
@@ -284,88 +280,6 @@ function ScriptContentViewHeader({ contentListActionsRef }: { contentListActions
     );
 }
 
-type FlatContentItem = {
-    key: Key<ScriptNode>;
-    estimatedHeight: number;
-};
-
-function nodeIsContextual(node: ScriptNode, state: ScriptEditorState): boolean {
-    if (
-        node instanceof DialogueNode &&
-        (node.markedAsContext || node.actors.includes(state.selfActor!))
-    ) {
-        return true;
-    } else if (node instanceof ActionNode && node.markedAsContext) {
-        return true;
-    }
-    return false;
-}
-
-function processMapScriptItems(
-    scriptItems: (Key<ActionNode> | Key<DialogueNode>)[],
-    state: ScriptEditorState,
-    hideContext: boolean,
-): FlatContentItem[] {
-    const result: FlatContentItem[] = [];
-
-    for (let idx = 0; idx < scriptItems.length; idx++) {
-        const key = scriptItems[idx];
-        if (!hideContext || state.selfActor === null) {
-            result.push({ key, estimatedHeight: 48 });
-        } else {
-            const node = state.lookup(key);
-            if (nodeIsContextual(node, state)) {
-                result.push({ key, estimatedHeight: 48 });
-            } else {
-                let isFollowingNodeContextual = false;
-                for (let idx2 = idx + 1; idx2 < scriptItems.length; idx2++) {
-                    const key = scriptItems[idx2];
-                    const node = state.lookup(key);
-
-                    if (nodeIsContextual(node, state)) {
-                        isFollowingNodeContextual = true;
-                        break;
-                    }
-                    if (!(node instanceof ActionNode)) break;
-                }
-
-                if (isFollowingNodeContextual) result.push({ key, estimatedHeight: 48 });
-            }
-        }
-    }
-
-    return result;
-}
-
-function toFlatContent(
-    structure: Readonly<Structure>,
-    state: ScriptEditorState,
-    hideContext: boolean,
-): FlatContentItem[] {
-    switch (structure.depth) {
-        case 0:
-            return processMapScriptItems(structure.children, state, hideContext);
-        case 1:
-            return structure.children.flatMap(sectionPack => {
-                const items = processMapScriptItems(sectionPack.children, state, hideContext);
-                return items.length > 0
-                    ? [{ key: sectionPack.key, estimatedHeight: 150 }, ...items]
-                    : [];
-            });
-        case 2:
-            return structure.children.flatMap(supersectionPack => {
-                const items = supersectionPack.children.flatMap(sectionPack => {
-                    const items = processMapScriptItems(sectionPack.children, state, hideContext);
-                    return items.length > 0
-                        ? [{ key: sectionPack.key, estimatedHeight: 16 }, ...items]
-                        : [];
-                });
-                return items.length > 0
-                    ? [{ key: supersectionPack.key, estimatedHeight: 150 }, ...items]
-                    : [];
-            });
-    }
-}
 
 function ScriptStickyHeader({ onScrollToNode }: { onScrollToNode: (key: Key<ScriptNode>) => void; }): JSX.Element {
     const manager = useScriptEditorManager();
@@ -542,36 +456,12 @@ const VirtualizedContentList = memo(
     (a, b) => a.gap == b.gap && a.content === b.content,
 );
 
-function ScriptContentView({
-    className,
-    structure,
-}: {
-    className?: string;
-    structure: Readonly<Structure>;
-}): JSX.Element {
+function ScriptContentView({ className }: { className?: string; }): JSX.Element {
     const breakpoints = useBreakpoints();
     const manager = useScriptEditorManager();
-    const selfActor = useScriptEditorStateAccessor(state => state.selfActor);
-
     const contentListActionsRef = useRef<ContentListActions>(null);
 
-    const contextHidden = manager.useState('contextHidden');
-
-    // const [contextHidden, setContextHidden] = useState(manager.contextHidden);
-    const content = useMemo(
-        () => toFlatContent(structure, manager.state, contextHidden),
-        [structure, contextHidden, selfActor],
-    );
-
-    // NOTE: Not replaceable by a store
-    // useScriptEditorManagerListener(info => {
-    //     // Listener to recompute content on toggleNodeMarkedAsContent, while content is hidden
-    //     // FIXME: this approach is incorrect. We need a tighter coupling between 
-    //     //        contextNodes <-> structure
-    //     if (!manager.contextHidden || manager.state.selfActor === null) return;
-    //     if (info.action !== actions.toggleNodeMarkedAsContext) return;
-    //     setExternalContentEvents(c => c + 1);
-    // }, dispatchStateActionEvent);
+    const content = manager.useState('flatContent');
 
     return (
         <div className={classnames('flex flex-col gap-y-2 sm:gap-y-4', className)}>
@@ -625,7 +515,6 @@ function ScriptInfoView(props: ComponentProps<typeof ContentInfoView>): JSX.Elem
 function ScriptViewLayout(): JSX.Element {
     const breakpoints = useBreakpoints();
     const name = useScriptEditorStateAccessor(state => state.name);
-    const structure = useScriptEditorStateAccessor(state => state.structure);
     const actors = useScriptEditorStateAccessor(state => state.actors);
     const dialogueCount = useScriptEditorStateAccessor(state => state.dialogueCount);
 
@@ -645,7 +534,7 @@ function ScriptViewLayout(): JSX.Element {
                 </>
             )}
             <div className={breakpoints.lg ? 'flex max-w-full flex-1' : 'contents'}>
-                <ScriptContentView className="flex-1" structure={structure} />
+                <ScriptContentView className="flex-1"/>
                 {breakpoints.lg && (
                     <>
                         <div className="pointer-events-none">

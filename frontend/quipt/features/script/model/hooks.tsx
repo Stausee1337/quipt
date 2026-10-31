@@ -17,10 +17,7 @@ export function useScrollContainer(): HTMLElement | null {
     return useContext(ScriptEditorContextObject).scrollContainer;
 }
 
-export function useScriptEditorStateAccessor<T>(
-    accessor: (state: ScriptEditorState) => T,
-    // valuesAreEqual?: (prev: T, next: T) => boolean
-): T {
+export function useScriptEditorStateAccessor<T>(accessor: (state: ScriptEditorState) => T): T {
     const manager = useScriptEditorManager();
     return useSyncExternalStore(
         listener => manager.onStateChange(listener),

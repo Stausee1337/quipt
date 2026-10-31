@@ -4,9 +4,13 @@ import {
     TransientState,
     type Key,
     SectionNode,
+    ScriptNode,
+    ActionNode,
+    DialogueNode,
+    type Structure,
 } from './state';
 import type { Script } from '../script';
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useRef, useSyncExternalStore } from 'react';
 
 export type RemoteContext = {};
 
@@ -136,7 +140,27 @@ abstract class BaseStore<State extends Record<string, any>, Selectors extends Re
     useState<K extends keyof State>(key: K): State[K];
     useState<K extends keyof Selectors>(key: K): ReturnType<Selectors[K]>;
     useState(key: string): any {
-        const getSnapshot = useCallback(() => this.readState(key), [key]);
+        const cacheRef = useRef<{
+            state: State;
+            key: string;
+            result: any;
+        }>(null);
+        const getSnapshot = useCallback(() => {
+            if (
+                cacheRef.current === null ||
+                cacheRef.current.state !== this._state ||
+                cacheRef.current.key !== key
+            ) {
+                let result = this.readState(key);
+                cacheRef.current = {
+                    state: this._state,
+                    key,
+                    result
+                };
+                return result;
+            }
+            return cacheRef.current.result;
+        }, [key]);
         return useSyncExternalStore(this.subscribe.bind(this), getSnapshot);
     }
 
@@ -158,6 +182,9 @@ abstract class BaseStore<State extends Record<string, any>, Selectors extends Re
     }
 
     update(newState: Partial<State>) {
+        const hasChanged = Object.entries(newState)
+            .some(([key, value]) => this._state[key] !== value)
+        if (!hasChanged) return;
         this._state = { ...this._state, ...newState };
         for (let listener of this.listeners)
             listener();
@@ -168,7 +195,7 @@ export interface EditorViewState {
     history: HistoryEntry[];
     contextHidden: boolean;
     activeSection: Key<SectionNode> | null;
-    viewState: ScriptEditorState;
+    viewState: ScriptEditorState; // FIXME: This is NOT the view state!
 }
 
 function getActiveSection(state: EditorViewState): SectionNode | null {
@@ -189,9 +216,91 @@ function getActiveSection(state: EditorViewState): SectionNode | null {
     return activeSupersection;
 }
 
+export type FlatContentItem = {
+    key: Key<ScriptNode>;
+    estimatedHeight: number;
+};
+
+function nodeIsContextual(node: ScriptNode, state: ScriptEditorState): boolean {
+    if (
+        node instanceof DialogueNode &&
+        (node.markedAsContext || node.actors.includes(state.selfActor!))
+    ) {
+        return true;
+    } else if (node instanceof ActionNode && node.markedAsContext) {
+        return true;
+    }
+    return false;
+}
+
+export function processMapScriptItems(
+    scriptItems: (Key<ActionNode> | Key<DialogueNode>)[],
+    state: ScriptEditorState,
+    hideContext: boolean,
+): FlatContentItem[] {
+    const result: FlatContentItem[] = [];
+
+    for (let idx = 0; idx < scriptItems.length; idx++) {
+        const key = scriptItems[idx];
+        if (!hideContext || state.selfActor === null) {
+            result.push({ key, estimatedHeight: 48 });
+        } else {
+            const node = state.lookup(key);
+            if (nodeIsContextual(node, state)) {
+                result.push({ key, estimatedHeight: 48 });
+            } else {
+                let isFollowingNodeContextual = false;
+                for (let idx2 = idx + 1; idx2 < scriptItems.length; idx2++) {
+                    const key = scriptItems[idx2];
+                    const node = state.lookup(key);
+
+                    if (nodeIsContextual(node, state)) {
+                        isFollowingNodeContextual = true;
+                        break;
+                    }
+                    if (!(node instanceof ActionNode)) break;
+                }
+
+                if (isFollowingNodeContextual) result.push({ key, estimatedHeight: 48 });
+            }
+        }
+    }
+
+    return result;
+}
+
+function toFlatContent(state: EditorViewState): FlatContentItem[] {
+    const { viewState, contextHidden } = state;
+    const structure = viewState.structure;
+    switch (structure.depth) {
+        case 0:
+            return processMapScriptItems(structure.children, viewState, contextHidden);
+        case 1:
+            return structure.children.flatMap(sectionPack => {
+                const items = processMapScriptItems(sectionPack.children, viewState, contextHidden);
+                return items.length > 0
+                    ? [{ key: sectionPack.key, estimatedHeight: 150 }, ...items]
+                    : [];
+            });
+        case 2:
+            return structure.children.flatMap(supersectionPack => {
+                const items = supersectionPack.children.flatMap(sectionPack => {
+                    const items = processMapScriptItems(sectionPack.children, viewState, contextHidden);
+                    return items.length > 0
+                        ? [{ key: sectionPack.key, estimatedHeight: 16 }, ...items]
+                        : [];
+                });
+                return items.length > 0
+                    ? [{ key: supersectionPack.key, estimatedHeight: 150 }, ...items]
+                    : [];
+            });
+    }
+}
+
 const scriptEditorSelectors = {
     hasHistory: (state) => state.history.length > 0,
     activeSectionNode: getActiveSection,
+    flatContent: toFlatContent
 } satisfies Record<string, Selector<EditorViewState>>;
 
 type ScriptEditorSelectors = typeof scriptEditorSelectors;
@@ -313,10 +422,8 @@ export class ScriptEditorManager extends BaseStore<EditorViewState, ScriptEditor
             history = [...this._state.history, entry];
         }
         this.update({ viewState: state, history });
-        console.log(this._state.history);
         this.originAction = action;
         this.runChangeListeners(changes);
-
     }
 
     private runScheduledActions(

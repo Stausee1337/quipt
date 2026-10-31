@@ -395,8 +395,6 @@ function ActorsLineRenderer({ actorKeys }: { actorKeys: readonly ActorKey[] }): 
     );
 }
 
-
-
 const DialogueView = memo(function DialogueView({
     dialogueKey,
     ...props
