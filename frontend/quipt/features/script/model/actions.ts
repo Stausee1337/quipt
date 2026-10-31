@@ -1,4 +1,3 @@
-import { renderBBCode } from 'quipt/formatted-string';
 import type { Color } from 'quipt/color-palette';
 import { stateAction } from './store';
 import {
@@ -13,27 +12,32 @@ import {
     Actor,
     ActionNode,
     structureGetChildIndex,
+    type EditingNodeState,
 } from './state';
-import { createEditorState } from './editor';
 
-export const editContentfulNodeBegin = stateAction({
-    apply(itemKey: Key<ContentfulScriptNode>, state) {
-        const item = state.lookup(itemKey);
-        state.replaceNode(itemKey, {
-            content: createEditorState(item.key, item.text, this),
-        });
+// This should not be "making history"
+export const setEditingNodeState = stateAction<EditingNodeState | null>({
+    apply(editingNodeState, state) {
+        state.editingNodeState = editingNodeState;
     },
+    makeHistory: false
 });
 
-export const editContentfulNodeEnd = stateAction<Key<ContentfulScriptNode>>({
-    apply(itemKey, state) {
-        const item = state.lookup(itemKey);
-        state.replaceNode(itemKey, { content: renderBBCode(item.text) });
-        if (item.text.trim().length === 0) return false;
-        if (item instanceof DialogueNode && item.actors.length === 0) return false;
-        return true;
-    },
-});
+// export const editContentfulNodeBegin = stateAction({
+//     apply(itemKey: Key<ContentfulScriptNode>, state) {
+//         const item = state.lookup(itemKey);
+//         state.replaceNode(itemKey, {
+//             content: createEditorState(item.key, item.text, this),
+//         });
+//     },
+// });
+// 
+// export const editContentfulNodeEnd = stateAction<Key<ContentfulScriptNode>>({
+//     apply(itemKey, state) {
+//         const item = state.lookup(itemKey);
+//         state.replaceNode(itemKey, { content: renderBBCode(item.text) });
+//     },
+// });
 
 export const changeDialogueActors = stateAction<{
     dialogue: Key<DialogueNode>;
@@ -57,7 +61,7 @@ export const insertNewItemBefore = stateAction<{
     refNodeKey: Key<ContentfulScriptNode>;
     kind: 'action' | 'dialogue';
 }>({
-    apply({ kind, refNodeKey }, state, schedule) {
+    apply({ kind, refNodeKey }, state) {
         const referenceNode = state.lookup(refNodeKey);
         const newlyCreatedNode =
             kind === 'action'
@@ -72,7 +76,7 @@ export const insertNewItemBefore = stateAction<{
                 : structureGetChildIndex(state.structure, refNodeKey);
         state.insertNode(newlyCreatedNode, index, parent);
         state.recomputeSectionMetaInfo();
-        schedule(editContentfulNodeBegin, newlyCreatedNode.key);
+        // schedule(editContentfulNodeBegin, newlyCreatedNode.key);
     },
 });
 

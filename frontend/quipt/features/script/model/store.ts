@@ -7,6 +7,7 @@ import {
     ScriptNode,
     ActionNode,
     DialogueNode,
+    ContentfulScriptNode,
 } from './state';
 import type { Script } from '../script';
 import { useCallback, useRef, useSyncExternalStore } from 'react';
@@ -18,6 +19,7 @@ export type ScheduleActionCallback = {
 };
 
 export type StateAction<Input> = {
+    makeHistory?: boolean | ((this: ScriptEditorStore, currentState: ScriptEditorState) => boolean);
     apply(
         this: ScriptEditorStore,
         input: Input,
@@ -29,9 +31,9 @@ export type StateAction<Input> = {
         backward: (context: RemoteContext, input: Input) => Promise<void>;
     };
     merge?(
+        this: ScriptEditorStore,
         prevState: ScriptEditorState,
         currentState: ScriptEditorState,
-        store: ScriptEditorStore,
     ): boolean;
 };
 
@@ -113,7 +115,7 @@ abstract class BaseStore<
     ): ReturnType<Selectors[K]>;
     readState(key: string, ...args: any[]): any {
         if (key in this.state) return this.state[key];
-        if (key in this.selectors) return this.selectors[key](this.state);
+        if (key in this.selectors) return this.selectors[key](this.state, ...args);
         throw `use invalid key '${key} on store'`;
     }
 
@@ -138,7 +140,8 @@ export interface EditorViewState {
     history: HistoryEntry[];
     contextHidden: boolean;
     activeSection: Key<SectionNode> | null;
-    editorState: ScriptEditorState; // FIXME: This is NOT the view state!
+    editorState: ScriptEditorState;
+    editingNode: Key<ContentfulScriptNode> | null;
 }
 
 function getActiveSection(state: EditorViewState): SectionNode | null {
@@ -213,14 +216,14 @@ export function processMapScriptItems(
 }
 
 function toFlatContent(state: EditorViewState): FlatContentItem[] {
-    const { editorState: viewState, contextHidden } = state;
-    const structure = viewState.structure;
+    const { editorState, contextHidden } = state;
+    const structure = editorState.structure;
     switch (structure.depth) {
         case 0:
-            return processMapScriptItems(structure.children, viewState, contextHidden);
+            return processMapScriptItems(structure.children, editorState, contextHidden);
         case 1:
             return structure.children.flatMap(sectionPack => {
-                const items = processMapScriptItems(sectionPack.children, viewState, contextHidden);
+                const items = processMapScriptItems(sectionPack.children, editorState, contextHidden);
                 return items.length > 0
                     ? [{ key: sectionPack.key, estimatedHeight: 150 }, ...items]
                     : [];
@@ -230,7 +233,7 @@ function toFlatContent(state: EditorViewState): FlatContentItem[] {
                 const items = supersectionPack.children.flatMap(sectionPack => {
                     const items = processMapScriptItems(
                         sectionPack.children,
-                        viewState,
+                        editorState,
                         contextHidden,
                     );
                     return items.length > 0
@@ -248,12 +251,15 @@ const scriptEditorSelectors = {
     hasHistory: state => state.history.length > 0,
     activeSectionNode: getActiveSection,
     flatContent: toFlatContent,
+    isEditing: (state, nodeKey: Key<ContentfulScriptNode>) => 
+        state.editingNode === nodeKey &&
+        state.editorState.editingNodeState?.nodeKey === nodeKey
 } satisfies Record<string, Selector<EditorViewState>>;
 
 type ScriptEditorSelectors = typeof scriptEditorSelectors;
 
 export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSelectors> {
-    private viewStateListeners = new Map<string, Set<() => void>>();
+    private editorStateListeners = new Map<string, Set<() => void>>();
     private originAction: StateAction<any> | undefined;
 
     constructor(script: Script) {
@@ -263,6 +269,7 @@ export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSe
                 contextHidden: false,
                 activeSection: null,
                 editorState: ScriptEditorState.build(script),
+                editingNode: null,
             },
             scriptEditorSelectors,
         );
@@ -283,17 +290,17 @@ export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSe
     ): TeardownCallback {
         const keysArray = typeof keysOrListener === 'function' ? [''] : Array.from(keysOrListener);
         if (typeof keysOrListener === 'function') listener = keysOrListener;
-        for (let key of keysArray) mapAdd(this.viewStateListeners, key, listener);
+        for (let key of keysArray) mapAdd(this.editorStateListeners, key, listener);
         return () => {
-            for (let key of keysArray) mapDelete(this.viewStateListeners, key, listener);
+            for (let key of keysArray) mapDelete(this.editorStateListeners, key, listener);
         };
     }
 
     private runChangeListeners(changes: Set<Key<any>>) {
-        for (let listener of this.viewStateListeners.get('') ?? []) listener();
+        for (let listener of this.editorStateListeners.get('') ?? []) listener();
 
         for (let key of changes.values())
-            for (let listener of this.viewStateListeners.get(key) ?? []) listener();
+            for (let listener of this.editorStateListeners.get(key) ?? []) listener();
     }
 
     undo() {
@@ -310,11 +317,11 @@ export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSe
 
         if (!changes.size) return;
         const tos = this.state.history.at(-1);
-        let history: HistoryEntry[];
+        let history: HistoryEntry[] = this.state.history;
         if (
             this.originAction === action &&
             action.merge !== undefined &&
-            action.merge(this.editorState, state, this) &&
+            action.merge.call(this, this.editorState, state) &&
             tos
         ) {
             const mergedChanges = tos.changes.union(changes);
@@ -323,7 +330,7 @@ export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSe
                 ...this.state.history.at(-1)!,
                 changes: mergedChanges,
             });
-        } else {
+        } else if (this.actionMakesHistory(action, state)) {
             // push
             const entry: HistoryEntry = {
                 state: this.editorState,
@@ -334,6 +341,12 @@ export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSe
         this.update({ editorState: state, history });
         this.originAction = action;
         this.runChangeListeners(changes);
+    }
+
+    private actionMakesHistory(action: StateAction<any>, currentState: ScriptEditorState): boolean {
+        if (typeof action.makeHistory === 'function')
+            return action.makeHistory.call(this, currentState);
+        return action.makeHistory ?? true;
     }
 
     private runScheduledActions(state: TransientState, actionsThisCycle: ScheduledAction[]) {

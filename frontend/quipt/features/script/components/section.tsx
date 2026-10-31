@@ -16,7 +16,7 @@ import { Icon } from 'quipt/components/icon';
 import { IconButton } from 'quipt/components/icon-button';
 import { Tooltip } from 'quipt/components/tooltip';
 import { FormattedStringView } from 'quipt/components/formatted-string-view';
-import { FormattedString } from 'quipt/formatted-string';
+import { FormattedString, renderBBCode } from 'quipt/formatted-string';
 import { useBreakpointsOnce } from 'quipt/responsive';
 import { formatActorsArray } from 'quipt/utils';
 import {
@@ -46,6 +46,8 @@ import {
     keyOfType,
 } from '../model/state';
 import * as actions from '../model/actions';
+import type { ScriptEditorStore } from '../model/store';
+import { createEditorState } from '../model/editor';
 
 type VirtualizedElementProps = Omit<ComponentProps<'div'>, 'className'>;
 
@@ -151,6 +153,20 @@ export function SectionInfoHeader({
     );
 }
 
+function editContentfulNodeBegin(store: ScriptEditorStore, nodeKey: Key<ContentfulScriptNode>) {
+    const editorState = createEditorState(store, nodeKey);
+    store.dispatchStateAction(actions.setEditingNodeState, { 
+        editorState,
+        nodeKey
+    });
+    store.update({ editingNode: nodeKey });
+}
+
+function editContentfulNodeEnd(store: ScriptEditorStore) {
+    store.dispatchStateAction(actions.setEditingNodeState, null);
+    store.update({ editingNode: null });
+}
+
 function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNode> }) {
     const store = useScriptEditorStore();
 
@@ -167,9 +183,7 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
             <MenuItem iconName="check2-circle">Auswählen</MenuItem>
             <MenuItem
                 iconName="pencil"
-                onClick={() =>
-                    store.dispatchStateAction(actions.editContentfulNodeBegin, nodeKey)
-                }>
+                onClick={() => editContentfulNodeBegin(store, nodeKey)}>
                 Bearbeiten
             </MenuItem>
             <MenuItem iconName="play-fill">Ab hier üben</MenuItem>
@@ -264,14 +278,14 @@ function HoverActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode>
     );
 }
 
-function EditActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
+function EditActionsContainer({ }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
     const store = useScriptEditorStore();
     return (
         <ActionsContainer>
             <IconButton
                 iconName="check2"
                 className="text-foreground"
-                onClick={() => store.dispatchStateAction(actions.editContentfulNodeEnd, itemKey)}
+                onClick={() => editContentfulNodeEnd(store)}
             />
         </ActionsContainer>
     );
@@ -296,19 +310,27 @@ function NodeContentRenderer({
     className?: string;
     node: ContentfulScriptNode;
 }): JSX.Element {
+    const store = useScriptEditorStore();
+    const isEditing = store.useState('isEditing', node.key);
+    const editingNodeState = useScriptEditorStateAccessor(state => state.editingNodeState);
+
+    const content = useMemo(
+        () => isEditing ? null : renderBBCode(node.text),
+        [node.text, isEditing]
+    );
     return (
         <div
             className={classnames(
                 'before:border-accent-30 data-editing:before:bg-accent-10 relative before:absolute before:top-0 before:-right-2 before:bottom-0 before:-left-2 before:-z-1 before:rounded-lg data-editing:py-1 data-editing:before:border sm:before:-top-1 sm:before:-bottom-1',
                 className,
             )}
-            data-editing={node.editing ? '' : undefined}>
-            {node.content instanceof FormattedString ? (
+            data-editing={isEditing ? '' : undefined}>
+            {content instanceof FormattedString ? (
                 <p className="whitespace-pre-wrap">
-                    <FormattedStringView string={node.content} />
+                    <FormattedStringView string={content} />
                 </p>
             ) : (
-                <Editor state={node.content} />
+                editingNodeState && <Editor state={editingNodeState.editorState} />
             )}
         </div>
     );
@@ -394,9 +416,11 @@ const DialogueView = memo(function DialogueView({
     dialogueKey,
     ...props
 }: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element | null {
-    const dialogue = useKeyedState(dialogueKey);
     const store = useScriptEditorStore();
+
+    const dialogue = useKeyedState(dialogueKey);
     const actorsContainerActionsRef = useRef<ActorsContainer.Actions>(null);
+    const isEditing = store.useState('isEditing', dialogue.key);
 
     const actorMarksAsCue = useScriptEditorStateAccessor(state =>
         state.selfActor ? dialogue.actors.includes(state.selfActor) : false,
@@ -426,12 +450,12 @@ const DialogueView = memo(function DialogueView({
     return (
         <HoverableSectionItem
             className="data-editing:before:bg-accent-100/20 data-editing:gap-y-1 sm:data-editing:gap-y-2"
-            data-editing={dialogue.editing ? '' : undefined}
+            data-editing={isEditing ? '' : undefined}
             {...props}>
             <HoverActionsContainer itemKey={dialogue.key} />
-            {dialogue.editing && <EditActionsContainer itemKey={dialogue.key} />}
+            {isEditing && <EditActionsContainer itemKey={dialogue.key} />}
             <div className="flex items-center gap-x-2">
-                {!dialogue.editing ? (
+                {!isEditing ? (
                     <>
                         <ActorsLineRenderer actorKeys={dialogue.actors} />
                         {markedAsContext && <ResponseMarker />}
@@ -483,15 +507,17 @@ const ActionView = memo(function ActionView({
     actionKey,
     ...props
 }: { actionKey: Key<ActionNode> } & VirtualizedElementProps): JSX.Element | null {
+    const store = useScriptEditorStore();
     const action = useKeyedState(actionKey);
+    const isEditing = store.useState('isEditing', action.key);
 
     return (
         <HoverableSectionItem
             className="data-editing:before:bg-accent-100/20"
-            data-editing={action.editing ? '' : undefined}
+            data-editing={isEditing ? '' : undefined}
             {...props}>
             <HoverActionsContainer itemKey={action.key} />
-            {action.editing && <EditActionsContainer itemKey={action.key} />}
+            {isEditing && <EditActionsContainer itemKey={action.key} />}
             <NodeContentRenderer className="mx-auto w-31/40" node={action} />
         </HoverableSectionItem>
     );

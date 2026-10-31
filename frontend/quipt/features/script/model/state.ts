@@ -2,7 +2,6 @@ import { Map as ImmutableMap } from 'immutable';
 
 import { EditorState } from 'prosemirror-state';
 
-import { FormattedString, renderBBCode } from 'quipt/formatted-string';
 import type { ItemsContent, SectionContent, SupersectionContent } from 'quipt/schemas/script';
 import { type Actor as BaseActor, randomID } from 'quipt/utils';
 import { type Color, ensureColor } from 'quipt/color-palette';
@@ -168,18 +167,14 @@ export abstract class ContentfulScriptNode extends ScriptNode {
     // TODO: if we can figure out a way to have the new store system host (most of) the state of
     // the view (even those of repeating elements like Dialogue), this might not need (or want) to
     // be heere anymore.
-    public content: FormattedString | EditorState;
+    // public content: FormattedString | EditorState;
 
     // TODO: this state should be interdependent on who is selected as selfActor
     public markedAsContext: boolean = false;
 
     constructor(public text: string) {
         super();
-        this.content = renderBBCode(this.text);
-    }
-
-    get editing(): boolean {
-        return this.content instanceof EditorState;
+        // this.content = renderBBCode(this.text);
     }
 }
 
@@ -323,12 +318,18 @@ function lookupIn<T extends Keyed<T>>(pool: PoolType, key: Key<T>): Readonly<T> 
     return object as T;
 }
 
+export type EditingNodeState = {
+    editorState: EditorState;
+    nodeKey: Key<ContentfulScriptNode>;
+};
+
 export class ScriptEditorState {
     public name: string;
     public actors: Map<ActorKey, number>;
     public selfActor: ActorKey | null;
     public structure: Readonly<Structure>;
     public dialogueCount: number;
+    public editingNodeState: EditingNodeState | null;
     protected metadata: Map<Symbol, any>;
     protected pool: PoolType;
 
@@ -338,6 +339,7 @@ export class ScriptEditorState {
         selfActor: ActorKey | null,
         structure: Structure,
         dialogueCount: number,
+        editingNodeState: EditingNodeState | null,
         metadata: Map<Symbol, any>,
         nodePool: PoolType,
     ) {
@@ -346,6 +348,7 @@ export class ScriptEditorState {
         this.selfActor = selfActor;
         this.structure = structure;
         this.dialogueCount = dialogueCount;
+        this.editingNodeState = editingNodeState;
         this.metadata = metadata;
         this.pool = nodePool;
     }
@@ -382,6 +385,7 @@ export class ScriptEditorState {
             selfActor,
             structure,
             dialogueCount,
+            null,
             new Map(),
             pool,
         );
@@ -407,6 +411,7 @@ export class ScriptEditorState {
                 this.selfActor,
                 this.structure,
                 this.dialogueCount,
+                this.editingNodeState,
                 new Map(),
                 pool,
             );
@@ -429,6 +434,7 @@ export class ScriptEditorState {
                 trans.selfActor,
                 trans.structure,
                 trans.dialogueCount,
+                trans.editingNodeState,
                 trans.metadata,
                 pool,
             ),

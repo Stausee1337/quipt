@@ -5,6 +5,7 @@ import { StepMap, Transform } from 'prosemirror-transform';
 import { type FormatNode, parseBBCode } from 'quipt/formatted-string';
 import { type ContentfulScriptNode, type Key } from './state';
 import { type ScriptEditorStore, stateAction } from './store';
+import * as actions from './actions';
 
 export type FontStyle = 'italic' | 'bold' | 'underline';
 export type FontStyles = Set<FontStyle>;
@@ -131,15 +132,23 @@ export type UpdateItemContentProps = {
 };
 
 const updateItemContent = stateAction<UpdateItemContentProps>({
-    apply({ itemKey, tr: transaction, editorState }, state) {
+    apply({ itemKey, tr: transaction, editorState }, state, schedule) {
         state.setMeta(updateItemContentKey, transaction);
 
-        const item = state.lookup(itemKey);
-        if (item.content === editorState) return;
+        if (state.editingNodeState?.editorState === editorState) return;
         state.replaceNode(itemKey, {
-            content: editorState,
             text: convertDocToBBCode(editorState.doc),
         });
+        if (state.editingNodeState)
+            schedule(actions.setEditingNodeState, {
+                ...state.editingNodeState,
+                editorState
+            });
+    },
+    makeHistory(currentState) {
+        const prev = currentState.getMeta(updateItemContentKey);
+        if (!(prev instanceof Transaction)) return true;
+        return prev.steps.length > 0;
     },
     merge(prevState, currentState) {
         const prev = prevState.getMeta(updateItemContentKey);
@@ -216,12 +225,9 @@ function listenDocumentChange(
         },
     });
 }
-export function createEditorState(
-    itemKey: Key<ContentfulScriptNode>,
-    text: string,
-    store: ScriptEditorStore,
-): EditorState {
-    const doc = bbCodeToDocument(text);
+export function createEditorState(store: ScriptEditorStore, itemKey: Key<ContentfulScriptNode>): EditorState {
+    const item = store.editorState.lookup(itemKey);
+    const doc = bbCodeToDocument(item.text);
     return EditorState.create({
         doc,
         plugins: [listenDocumentChange(itemKey, store)],
