@@ -215,11 +215,11 @@ export class ScriptEditorManager {
     }
 
     undo() {
-        if (!this.history.length) return;
-        const { state, changes, transactionsStartIndex: startTransactionIndex } = this.history.pop()!;
+        if (this.history.length === 0) return;
+        const { state, changes, transactionsStartIndex } = this.history.pop()!;
 
-        if (startTransactionIndex !== undefined)
-            this.transactionStack.length = startTransactionIndex;
+        if (transactionsStartIndex !== undefined)
+            this.transactionStack.length = transactionsStartIndex;
 
         this.state = state;
         this.runChangeListeners(changes);
@@ -253,7 +253,7 @@ export class ScriptEditorManager {
         action: BoxedAction,
         prevTransactionStackSize?: number | undefined
     ) {
-        if (!changes.size) return;
+        if (!changes.size && !prevTransactionStackSize) return;
         const tos = this.history.at(-1);
         if (
             this.originAction?.action === action.action &&
@@ -329,7 +329,9 @@ export class ScriptEditorManager {
             .map(scheduleTransaction);
         const { result: didCommit, ...updateInfo } = this.state.update(trans => commit && this.runScheduledActions(trans, scheduledActions));
         this.handleStateUpdate(updateInfo, boxTransaction(item.transaction, item.input));
-        this.history.length = item.historyIndex + 1;
+
+        if (this.history.length > item.historyIndex + 1)
+            this.history.length = item.historyIndex + 1;
         this.transactionStack.length = index;
         
         console.log('didCommit', didCommit);

@@ -326,7 +326,6 @@ export class ScriptEditorState {
     public selfActor: ActorKey | null;
     public structure: Readonly<Structure>;
     public dialogueCount: number;
-    public currentEditedItem: Key<ContentfulScriptNode> | null;
     protected metadata: Map<Symbol, any>;
     protected pool: PoolType;
 
@@ -336,7 +335,6 @@ export class ScriptEditorState {
         selfActor: ActorKey | null,
         structure: Structure,
         dialogueCount: number,
-        currentEditedItem: Key<ContentfulScriptNode> | null,
         metadata: Map<Symbol, any>,
         nodePool: PoolType,
     ) {
@@ -345,7 +343,6 @@ export class ScriptEditorState {
         this.selfActor = selfActor;
         this.structure = structure;
         this.dialogueCount = dialogueCount;
-        this.currentEditedItem = currentEditedItem;
         this.metadata = metadata;
         this.pool = nodePool;
     }
@@ -382,7 +379,6 @@ export class ScriptEditorState {
             selfActor,
             structure,
             dialogueCount,
-            null,
             new Map(),
             pool,
         );
@@ -404,7 +400,6 @@ export class ScriptEditorState {
                 this.selfActor,
                 this.structure,
                 this.dialogueCount,
-                this.currentEditedItem,
                 new Map(),
                 pool,
             );
@@ -427,7 +422,6 @@ export class ScriptEditorState {
                 trans.selfActor,
                 trans.structure,
                 trans.dialogueCount,
-                trans.currentEditedItem,
                 trans.metadata,
                 pool,
             ),

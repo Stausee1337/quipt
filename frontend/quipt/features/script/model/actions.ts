@@ -20,7 +20,6 @@ export const editContentfulNodeTransaction = stateTransaction<Key<ContentfulScri
     commit(itemKey, state) {
         const item = state.lookup(itemKey);
         state.replaceNode(itemKey, { content: renderBBCode(item.text) });
-        state.currentEditedItem = null;
         if (item.text.trim().length === 0)
             return false;
         if (item instanceof DialogueNode && item.actors.length === 0)
@@ -29,33 +28,16 @@ export const editContentfulNodeTransaction = stateTransaction<Key<ContentfulScri
     },
 });
 
-// TODO: make actions able to opt out of "making history"
 
 export const editContentfulNodeBegin = stateAction({
     transactionStart: editContentfulNodeTransaction,
     apply(itemKey: Key<ContentfulScriptNode>, state) {
-        // if (state.currentEditedItem !== null) {
-        //     const prevItem = state.lookup(state.currentEditedItem);
-        //     state.replaceNode(state.currentEditedItem, { content: renderBBCode(prevItem.text) });
-        // }
         const item = state.lookup(itemKey);
         state.replaceNode(itemKey, {
             content: createEditorState(item.key, item.text, this),
         });
-        state.currentEditedItem = itemKey;
     },
 });
-
-// NOTE: this is one "lever" to start building transactions, because really this thing in the wild
-// doesn't make a lot of sense
-
-// export const editContentfulNodeDone = stateAction({
-//     apply(itemKey: Key<ContentfulScriptNode>, state) {
-//         const item = state.lookup(itemKey);
-//         state.replaceNode(itemKey, { content: renderBBCode(item.text) });
-//         state.currentEditedItem = null;
-//     },
-// });
 
 export const changeDialogueActors = stateAction<{
     dialogue: Key<DialogueNode>;
@@ -115,7 +97,7 @@ export function getCreatedActor(state: ScriptEditorState): ActorKey {
 }
 
 export const createActorOnDialogue = stateAction<Key<DialogueNode>>({
-    apply(dialogueKey, state) {
+    apply(dialogueKey, state, schedule) {
         const newActor = state.allocate(Actor, '', randomColor());
         const dialogue = state.lookup(dialogueKey);
         state.replaceNode(dialogueKey, {
@@ -125,6 +107,7 @@ export const createActorOnDialogue = stateAction<Key<DialogueNode>>({
         state.actors.set(newActor.key, 1);
         state.setMeta(createActorKey, newActor.key);
         state.recomputeSectionMetaInfo();
+        schedule(editActorBegin, newActor.key);
     },
 });
 
@@ -188,6 +171,23 @@ function shouldBundleInputStates(prevState: ScriptEditorState, currentState: Scr
         currentMeta.timestamp - prevMeta.timestamp <= timestampMergeThreshold;
     return merge;
 }
+
+export const editActorTransaction = stateTransaction<ActorKey>({
+    commit(actorKey, state) {
+        let actor: Actor;
+        try {
+            actor = state.lookup(actorKey);
+        } catch {
+            return false;
+        }
+        return actor.name.trim().length > 0;
+    },
+});
+
+export const editActorBegin = stateAction<ActorKey>({
+    transactionStart: editActorTransaction,
+    apply() { },
+});
 
 export const renameActor = stateAction<RenameActorProps>({
     apply({ actorKey, name, inputId, event }, state) {
