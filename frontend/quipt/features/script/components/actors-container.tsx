@@ -18,7 +18,7 @@ import { type Color, colorToString, asLighterColor } from 'quipt/color-palette';
 import { MenuBox, MenuSeparator, popupClass, MenuCheckboxItem } from './menu';
 import {
     useKeyedState,
-    useScriptEditorManager,
+    useScriptEditorStore,
     useScriptEditorStateAccessor,
 } from '../model/hooks';
 import { type ActorKey } from '../model/state';
@@ -75,7 +75,7 @@ function ActorEditMenu(props: {
     actor: ActorKey;
 }): JSX.Element | null {
     const inputId = useId();
-    const manager = useScriptEditorManager();
+    const store = useScriptEditorStore();
     const isSelfActor = useScriptEditorStateAccessor(state => state.selfActor === props.actor);
 
     const actor = useKeyedState(props.actor, () => {
@@ -87,7 +87,7 @@ function ActorEditMenu(props: {
     // useLayoutEffect(() => {
     //     console.log('count', countRef.current);
     //     if (countRef.current === 0) {
-    //         manager.dispatchStateAction(actions.editActorBegin, props.actor);
+    //         store.dispatchStateAction(actions.editActorBegin, props.actor);
     //         countRef.current++;
     //     }
     // }, []);
@@ -102,7 +102,7 @@ function ActorEditMenu(props: {
                 id={inputId}
                 value={actor.name}
                 onValueChange={(value, event) =>
-                    manager.dispatchStateAction(actions.renameActor, {
+                    store.dispatchStateAction(actions.renameActor, {
                         actorKey: props.actor,
                         name: value,
                         inputId,
@@ -117,7 +117,7 @@ function ActorEditMenu(props: {
             <ColorPicker
                 color={actor.color}
                 onColorPicked={color =>
-                    manager.dispatchStateAction(actions.changeActorColor, {
+                    store.dispatchStateAction(actions.changeActorColor, {
                         actorKey: props.actor,
                         newColor: color,
                     })
@@ -127,7 +127,7 @@ function ActorEditMenu(props: {
             <MenuCheckboxItem
                 checked={isSelfActor}
                 onCheckedChange={() =>
-                    manager.dispatchStateAction(actions.toggleActorMarkedAsSelf, props.actor)
+                    store.dispatchStateAction(actions.toggleActorMarkedAsSelf, props.actor)
                 }>
                 Als "ich selbst" markieren
             </MenuCheckboxItem>

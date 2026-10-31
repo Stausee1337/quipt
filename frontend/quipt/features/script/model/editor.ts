@@ -4,7 +4,7 @@ import { StepMap, Transform } from 'prosemirror-transform';
 
 import { type FormatNode, parseBBCode } from 'quipt/formatted-string';
 import { type ContentfulScriptNode, type Key } from './state';
-import { type ScriptEditorManager, stateAction } from './manager';
+import { type ScriptEditorStore, stateAction } from './store';
 
 export type FontStyle = 'italic' | 'bold' | 'underline';
 export type FontStyles = Set<FontStyle>;
@@ -194,7 +194,7 @@ function bbCodeToDocument(bbCode: string): Node {
 
 function listenDocumentChange(
     itemKey: Key<ContentfulScriptNode>,
-    manager: ScriptEditorManager,
+    store: ScriptEditorStore,
 ): Plugin {
     return new Plugin({
         state: {
@@ -207,7 +207,7 @@ function listenDocumentChange(
                     prevState.selection.eq(newState.selection)
                 )
                     return;
-                manager.dispatchStateAction(updateItemContent, {
+                store.dispatchStateAction(updateItemContent, {
                     itemKey,
                     tr,
                     editorState: newState,
@@ -219,12 +219,12 @@ function listenDocumentChange(
 export function createEditorState(
     itemKey: Key<ContentfulScriptNode>,
     text: string,
-    manager: ScriptEditorManager,
+    store: ScriptEditorStore,
 ): EditorState {
     const doc = bbCodeToDocument(text);
     return EditorState.create({
         doc,
-        plugins: [listenDocumentChange(itemKey, manager)],
+        plugins: [listenDocumentChange(itemKey, store)],
         selection: Selection.atEnd(doc),
     });
 }

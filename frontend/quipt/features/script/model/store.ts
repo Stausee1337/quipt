@@ -19,7 +19,7 @@ export type ScheduleActionCallback = {
 
 export type StateAction<Input> = {
     apply(
-        this: ScriptEditorManager,
+        this: ScriptEditorStore,
         input: Input,
         state: TransientState,
         schedule: ScheduleActionCallback,
@@ -31,7 +31,7 @@ export type StateAction<Input> = {
     merge?(
         prevState: ScriptEditorState,
         currentState: ScriptEditorState,
-        manager: ScriptEditorManager,
+        store: ScriptEditorStore,
     ): boolean;
 };
 
@@ -52,12 +52,18 @@ export type HistoryEntry = {
 export type TeardownCallback = () => void;
 
 type ScheduledAction = (
-    manager: ScriptEditorManager,
+    store: ScriptEditorStore,
     state: TransientState,
     schedule: ScheduleActionCallback,
 ) => void;
 
-type Selector<State> = (state: State) => any;
+type Selector<State> = (state: State, ...args: any[]) => any;
+
+type Tail<T extends readonly any[]> = T extends readonly [any, ...infer Rest] ? Rest : [];
+
+type SelectorArgs<Selector> = Selector extends (...params: infer Params) => any
+    ? Tail<Params>
+    : never;
 
 abstract class BaseStore<
     State extends Record<string, any>,
@@ -66,13 +72,16 @@ abstract class BaseStore<
     private listeners: Set<() => void> = new Set();
 
     constructor(
-        protected _state: State,
+        protected state: State,
         private selectors: Selectors,
     ) {}
 
     useState<K extends keyof State>(key: K): State[K];
-    useState<K extends keyof Selectors>(key: K): ReturnType<Selectors[K]>;
-    useState(key: string): any {
+    useState<K extends keyof Selectors>(
+        key: K,
+        ...args: SelectorArgs<Selectors[K]>
+    ): ReturnType<Selectors[K]>;
+    useState(key: string, ...args: any[]): any {
         const cacheRef = useRef<{
             state: State;
             key: string;
@@ -81,27 +90,30 @@ abstract class BaseStore<
         const getSnapshot = useCallback(() => {
             if (
                 cacheRef.current === null ||
-                cacheRef.current.state !== this._state ||
+                cacheRef.current.state !== this.state ||
                 cacheRef.current.key !== key
             ) {
-                let result = this.readState(key);
+                let result = this.readState(key, ...args as any);
                 cacheRef.current = {
-                    state: this._state,
+                    state: this.state,
                     key,
                     result,
                 };
                 return result;
             }
             return cacheRef.current.result;
-        }, [key]);
+        }, [key, ...args]);
         return useSyncExternalStore(this.subscribe.bind(this), getSnapshot);
     }
 
     readState<K extends keyof State>(key: K): State[K];
-    readState<K extends keyof Selectors>(key: K): ReturnType<Selectors[K]>;
-    readState(key: string): any {
-        if (key in this._state) return this._state[key];
-        if (key in this.selectors) return this.selectors[key](this._state);
+    readState<K extends keyof Selectors>(
+        key: K,
+        ...args: SelectorArgs<Selectors[K]>
+    ): ReturnType<Selectors[K]>;
+    readState(key: string, ...args: any[]): any {
+        if (key in this.state) return this.state[key];
+        if (key in this.selectors) return this.selectors[key](this.state);
         throw `use invalid key '${key} on store'`;
     }
 
@@ -114,10 +126,10 @@ abstract class BaseStore<
 
     update(newState: Partial<State>) {
         const hasChanged = Object.entries(newState).some(
-            ([key, value]) => this._state[key] !== value,
+            ([key, value]) => this.state[key] !== value,
         );
         if (!hasChanged) return;
-        this._state = { ...this._state, ...newState };
+        this.state = { ...this.state, ...newState };
         for (let listener of this.listeners) listener();
     }
 }
@@ -126,21 +138,21 @@ export interface EditorViewState {
     history: HistoryEntry[];
     contextHidden: boolean;
     activeSection: Key<SectionNode> | null;
-    viewState: ScriptEditorState; // FIXME: This is NOT the view state!
+    editorState: ScriptEditorState; // FIXME: This is NOT the view state!
 }
 
 function getActiveSection(state: EditorViewState): SectionNode | null {
     if (state.activeSection === null) return null;
     let activeSection: SectionNode;
     try {
-        activeSection = state.viewState.lookup(state.activeSection);
+        activeSection = state.editorState.lookup(state.activeSection);
     } catch {
         return null;
     }
     if (activeSection.parent === null) return activeSection;
     let activeSupersection: SectionNode;
     try {
-        activeSupersection = state.viewState.lookup(activeSection.parent);
+        activeSupersection = state.editorState.lookup(activeSection.parent);
     } catch {
         return null;
     }
@@ -201,7 +213,7 @@ export function processMapScriptItems(
 }
 
 function toFlatContent(state: EditorViewState): FlatContentItem[] {
-    const { viewState, contextHidden } = state;
+    const { editorState: viewState, contextHidden } = state;
     const structure = viewState.structure;
     switch (structure.depth) {
         case 0:
@@ -240,7 +252,7 @@ const scriptEditorSelectors = {
 
 type ScriptEditorSelectors = typeof scriptEditorSelectors;
 
-export class ScriptEditorManager extends BaseStore<EditorViewState, ScriptEditorSelectors> {
+export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSelectors> {
     private viewStateListeners = new Map<string, Set<() => void>>();
     private originAction: StateAction<any> | undefined;
 
@@ -250,14 +262,14 @@ export class ScriptEditorManager extends BaseStore<EditorViewState, ScriptEditor
                 history: [],
                 contextHidden: false,
                 activeSection: null,
-                viewState: ScriptEditorState.build(script),
+                editorState: ScriptEditorState.build(script),
             },
             scriptEditorSelectors,
         );
     }
 
-    get state(): ScriptEditorState {
-        return this._state.viewState;
+    get editorState(): ScriptEditorState {
+        return this.state.editorState;
     }
 
     onStateChange(listener: () => void): TeardownCallback;
@@ -285,41 +297,41 @@ export class ScriptEditorManager extends BaseStore<EditorViewState, ScriptEditor
     }
 
     undo() {
-        if (this._state.history.length === 0) return;
-        const { state, changes } = this._state.history.pop()!;
-        this.update({ viewState: state });
+        if (this.state.history.length === 0) return;
+        const { state, changes } = this.state.history.pop()!;
+        this.update({ editorState: state });
         this.runChangeListeners(changes);
     }
 
     dispatchStateAction<Input>(action: StateAction<Input>, input: Input) {
-        const { changes, state } = this.state.update(trans =>
+        const { changes, state } = this.editorState.update(trans =>
             this.runScheduledActions(trans, [scheduleStateAction(action, input)]),
         );
 
         if (!changes.size) return;
-        const tos = this._state.history.at(-1);
+        const tos = this.state.history.at(-1);
         let history: HistoryEntry[];
         if (
             this.originAction === action &&
             action.merge !== undefined &&
-            action.merge(this.state, state, this) &&
+            action.merge(this.editorState, state, this) &&
             tos
         ) {
             const mergedChanges = tos.changes.union(changes);
             // replace
-            history = this._state.history.toSpliced(this._state.history.length - 1, 1, {
-                ...this._state.history.at(-1)!,
+            history = this.state.history.toSpliced(this.state.history.length - 1, 1, {
+                ...this.state.history.at(-1)!,
                 changes: mergedChanges,
             });
         } else {
             // push
             const entry: HistoryEntry = {
-                state: this.state,
+                state: this.editorState,
                 changes,
             };
-            history = [...this._state.history, entry];
+            history = [...this.state.history, entry];
         }
-        this.update({ viewState: state, history });
+        this.update({ editorState: state, history });
         this.originAction = action;
         this.runChangeListeners(changes);
     }
@@ -336,7 +348,7 @@ export class ScriptEditorManager extends BaseStore<EditorViewState, ScriptEditor
 }
 
 function scheduleStateAction<T>(action: StateAction<T>, input: T): ScheduledAction {
-    return (manager, state, schedule) => action.apply.call(manager, input, state, schedule);
+    return (store, state, schedule) => action.apply.call(store, input, state, schedule);
 }
 
 function mapAdd<T, V>(map: Map<T, Set<V>>, key: T, value: V) {

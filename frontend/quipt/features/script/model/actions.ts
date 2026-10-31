@@ -1,6 +1,6 @@
 import { renderBBCode } from 'quipt/formatted-string';
 import type { Color } from 'quipt/color-palette';
-import { stateAction } from './manager';
+import { stateAction } from './store';
 import {
     type ActorKey,
     type ContentfulScriptNode,

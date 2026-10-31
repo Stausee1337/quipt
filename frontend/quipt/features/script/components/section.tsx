@@ -32,7 +32,7 @@ import { Editor } from './editor';
 import { ActorPill, ActorsContainer } from './actors-container';
 import {
     useKeyedState,
-    useScriptEditorManager,
+    useScriptEditorStore,
     useScriptEditorStateAccessor,
 } from '../model/hooks';
 import {
@@ -65,7 +65,7 @@ export function SectionInfoHeader({
     const inputId = useId();
 
     const breakpoints = useBreakpointsOnce();
-    const manager = useScriptEditorManager();
+    const store = useScriptEditorStore();
     const [sectionState, setSectionState] = useState<SectionInfoState>(() =>
         breakpoints.sm ? 'expanded' : 'collapsed',
     );
@@ -98,7 +98,7 @@ export function SectionInfoHeader({
                             <IconButton
                                 iconName="input-cursor-text"
                                 onClick={() =>
-                                    manager.dispatchStateAction(
+                                    store.dispatchStateAction(
                                         actions.editSectionBegin,
                                         section.key,
                                     )
@@ -110,7 +110,7 @@ export function SectionInfoHeader({
                             <IconButton
                                 iconName="trash"
                                 onClick={() =>
-                                    manager.dispatchStateAction(actions.removeSection, section.key)
+                                    store.dispatchStateAction(actions.removeSection, section.key)
                                 }
                                 render={<Tooltip.Trigger />}
                             />
@@ -126,10 +126,10 @@ export function SectionInfoHeader({
                         id={inputId}
                         autoFocus
                         onBlur={() =>
-                            manager.dispatchStateAction(actions.editSectionEnd, section.key)
+                            store.dispatchStateAction(actions.editSectionEnd, section.key)
                         }
                         onValueChange={(value, event) =>
-                            manager.dispatchStateAction(actions.renameSection, {
+                            store.dispatchStateAction(actions.renameSection, {
                                 sectionKey: section.key,
                                 name: value,
                                 inputId,
@@ -152,13 +152,13 @@ export function SectionInfoHeader({
 }
 
 function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNode> }) {
-    const manager = useScriptEditorManager();
+    const store = useScriptEditorStore();
 
     const node = useKeyedState(nodeKey);
 
     let actorMarksAsResponse = false;
-    if (node instanceof DialogueNode && manager.state.selfActor)
-        actorMarksAsResponse = node.actors.includes(manager.state.selfActor);
+    if (node instanceof DialogueNode && store.editorState.selfActor)
+        actorMarksAsResponse = node.actors.includes(store.editorState.selfActor);
 
     const markedAsContext = actorMarksAsResponse || node.markedAsContext;
 
@@ -168,7 +168,7 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
             <MenuItem
                 iconName="pencil"
                 onClick={() =>
-                    manager.dispatchStateAction(actions.editContentfulNodeBegin, nodeKey)
+                    store.dispatchStateAction(actions.editContentfulNodeBegin, nodeKey)
                 }>
                 Bearbeiten
             </MenuItem>
@@ -177,9 +177,9 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
             <MenuCheckboxItem
                 checked={markedAsContext}
                 onClick={() =>
-                    manager.dispatchStateAction(actions.toggleNodeMarkedAsContext, nodeKey)
+                    store.dispatchStateAction(actions.toggleNodeMarkedAsContext, nodeKey)
                 }
-                disabled={actorMarksAsResponse || manager.state.selfActor === null}>
+                disabled={actorMarksAsResponse || store.editorState.selfActor === null}>
                 {keyOfType(nodeKey, DialogueNode)
                     ? 'Als Antwort markieren'
                     : 'Als Kontext markieren'}
@@ -206,7 +206,7 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
                                 <MenuItem
                                     iconName="chat-text"
                                     onClick={() =>
-                                        manager.dispatchStateAction(actions.insertNewItemBefore, {
+                                        store.dispatchStateAction(actions.insertNewItemBefore, {
                                             refNodeKey: nodeKey,
                                             kind: 'dialogue',
                                         })
@@ -216,7 +216,7 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
                                 <MenuItem
                                     iconName="card-text"
                                     onClick={() =>
-                                        manager.dispatchStateAction(actions.insertNewItemBefore, {
+                                        store.dispatchStateAction(actions.insertNewItemBefore, {
                                             refNodeKey: nodeKey,
                                             kind: 'action',
                                         })
@@ -230,7 +230,7 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
             </Menu.SubmenuRoot>
             <MenuItem
                 iconName="trash"
-                onClick={() => manager.dispatchStateAction(actions.removeContentfulNode, nodeKey)}
+                onClick={() => store.dispatchStateAction(actions.removeContentfulNode, nodeKey)}
 
                 className="text-red-500 data-highlighted:before:bg-red-500/20!">
                 Löschen
@@ -265,13 +265,13 @@ function HoverActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode>
 }
 
 function EditActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
-    const manager = useScriptEditorManager();
+    const store = useScriptEditorStore();
     return (
         <ActionsContainer>
             <IconButton
                 iconName="check2"
                 className="text-foreground"
-                onClick={() => manager.dispatchStateAction(actions.editContentfulNodeEnd, itemKey)}
+                onClick={() => store.dispatchStateAction(actions.editContentfulNodeEnd, itemKey)}
             />
         </ActionsContainer>
     );
@@ -395,7 +395,7 @@ const DialogueView = memo(function DialogueView({
     ...props
 }: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element | null {
     const dialogue = useKeyedState(dialogueKey);
-    const manager = useScriptEditorManager();
+    const store = useScriptEditorStore();
     const actorsContainerActionsRef = useRef<ActorsContainer.Actions>(null);
 
     const actorMarksAsCue = useScriptEditorStateAccessor(state =>
@@ -406,9 +406,9 @@ const DialogueView = memo(function DialogueView({
 
     // NOTE: Not replaceable by a store
     // Solution: just like in the `scrollToNode` case, actually process stuff
-    // in here instead of relying on manager to do it.
+    // in here instead of relying on store to do it.
 
-    // useScriptEditorManagerListener(info => {
+    // useScriptEditorStoreListener(info => {
     //     if (info.action !== actions.createActorOnDialogue) return;
     //     let actionInfo = info as { input: Key<DialogueNode>; state: ScriptEditorState };
     //     if (actionInfo.input === dialogueKey) {
@@ -420,7 +420,7 @@ const DialogueView = memo(function DialogueView({
     // }, dispatchStateActionEvent);
 
     function handleActorAdd() {
-        manager.dispatchStateAction(actions.createActorOnDialogue, dialogueKey);
+        store.dispatchStateAction(actions.createActorOnDialogue, dialogueKey);
     }
 
     return (
@@ -457,7 +457,7 @@ const DialogueView = memo(function DialogueView({
                                         <DialogueActorsEditMenu
                                             actors={dialogue.actors}
                                             onActorsChange={actors =>
-                                                manager.dispatchStateAction(
+                                                store.dispatchStateAction(
                                                     actions.changeDialogueActors,
                                                     {
                                                         dialogue: dialogueKey,

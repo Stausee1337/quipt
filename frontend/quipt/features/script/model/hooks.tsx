@@ -6,11 +6,11 @@ import {
     useRef,
     useSyncExternalStore,
 } from 'react';
-import type { ScriptEditorManager } from './manager';
+import type { ScriptEditorStore } from './store';
 import type { Key, Keyed, ScriptEditorState } from './state';
 
-export function useScriptEditorManager(): ScriptEditorManager {
-    return useContext(ScriptEditorContextObject).manager!;
+export function useScriptEditorStore(): ScriptEditorStore {
+    return useContext(ScriptEditorContextObject).store!;
 }
 
 export function useScrollContainer(): HTMLElement | null {
@@ -18,10 +18,10 @@ export function useScrollContainer(): HTMLElement | null {
 }
 
 export function useScriptEditorStateAccessor<T>(accessor: (state: ScriptEditorState) => T): T {
-    const manager = useScriptEditorManager();
+    const store = useScriptEditorStore();
     return useSyncExternalStore(
-        listener => manager.onStateChange(listener),
-        () => accessor(manager.state),
+        listener => store.onStateChange(listener),
+        () => accessor(store.editorState),
     );
 }
 
@@ -39,7 +39,7 @@ export function useKeyedState<T extends Keyed<T>>(
     keyOrKeys: Key<T> | readonly Key<T>[],
     onLookupError?: (error: unknown) => void,
 ): Readonly<T>[] | Readonly<T> | null {
-    const manager = useScriptEditorManager();
+    const store = useScriptEditorStore();
     const cacheRef = useRef<{
         state: ScriptEditorState;
         keys: readonly Key<T>[];
@@ -48,14 +48,14 @@ export function useKeyedState<T extends Keyed<T>>(
 
     return useSyncExternalStore(
         listener =>
-            manager.onStateChange(
+            store.onStateChange(
                 typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys,
                 listener,
             ),
         () => {
             if (typeof keyOrKeys === 'string')
                 try {
-                    return manager.state.lookup(keyOrKeys);
+                    return store.editorState.lookup(keyOrKeys);
                 } catch (e) {
                     if (onLookupError) {
                         onLookupError(e);
@@ -66,12 +66,12 @@ export function useKeyedState<T extends Keyed<T>>(
 
             if (
                 cacheRef.current === null ||
-                cacheRef.current.state !== manager.state ||
+                cacheRef.current.state !== store.editorState ||
                 cacheRef.current.keys !== keyOrKeys
             ) {
                 let result;
                 try {
-                    result = keyOrKeys.map(key => manager.state.lookup(key));
+                    result = keyOrKeys.map(key => store.editorState.lookup(key));
                 } catch (e) {
                     if (onLookupError) {
                         onLookupError(e);
@@ -80,7 +80,7 @@ export function useKeyedState<T extends Keyed<T>>(
                     throw e;
                 }
                 cacheRef.current = {
-                    state: manager.state,
+                    state: store.editorState,
                     keys: keyOrKeys,
                     result,
                 };
@@ -92,27 +92,27 @@ export function useKeyedState<T extends Keyed<T>>(
 }
 
 type ScriptEditorContext = {
-    manager: ScriptEditorManager | null;
+    store: ScriptEditorStore | null;
     scrollContainer: HTMLElement | null;
 };
 
 const ScriptEditorContextObject = createContext<ScriptEditorContext>({
-    manager: null,
+    store: null,
     scrollContainer: null,
 });
 
 export function ScriptEditorContextProivder({
     children,
-    manager,
+    store,
     scrollContainer,
 }: {
     children: ReactNode;
-    manager: ScriptEditorManager;
+    store: ScriptEditorStore;
     scrollContainer: HTMLElement | null;
 }): JSX.Element {
     return (
         <ScriptEditorContextObject.Provider
-            value={{ manager, scrollContainer }}
+            value={{ store, scrollContainer }}
             children={children}
         />
     );
