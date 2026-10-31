@@ -44,6 +44,7 @@ import {
 import * as actions from '../model/actions';
 import type { ScriptEditorStore } from '../model/store';
 import { createEditorState } from '../model/editor';
+import { useLongPress } from '../long-press';
 
 type VirtualizedElementProps = Omit<ComponentProps<'div'>, 'className'>;
 
@@ -248,14 +249,20 @@ function getOffset({ side }: { side: Menu.Positioner.Props['side'] }) {
     return side === 'top' || side === 'bottom' ? 4 : -4;
 }
 
-function HoverActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
+function HoverActionsContainer({
+    itemKey,
+    handle
+}: {
+    itemKey: Key<ContentfulScriptNode>,
+    handle: Menu.Handle<unknown>
+}): JSX.Element {
     return (
         <ActionsContainer className="invisible group-hover:not-group-data-editing:visible has-data-popup-open:visible">
-            <Menu.Root>
+            <Menu.Root handle={handle}>
                 <IconButton
                     iconName="three-dots-vertical"
                     className="text-foreground"
-                    render={<Menu.Trigger />}
+                    render={<Menu.Trigger id="trigger"/>}
                 />
                 <Menu.Portal>
                     <Menu.Positioner sideOffset={8} align="start" className="outline-hidden">
@@ -410,8 +417,11 @@ const DialogueView = memo(function DialogueView({
     const store = useScriptEditorStore();
 
     const dialogue = useKeyedState(dialogueKey);
-    const actorsContainerActionsRef = useRef<ActorsContainer.Actions>(null);
     const isEditing = store.useState('isEditing', dialogue.key);
+    const actorsContainerActionsRef = useRef<ActorsContainer.Actions>(null);
+    const handleRef = useRef<Menu.Handle<unknown>>(null);
+    if (handleRef.current === null)
+        handleRef.current = Menu.createHandle();
 
     const actorMarksAsCue = useScriptEditorStateAccessor(state =>
         state.selfActor ? dialogue.actors.includes(state.selfActor) : false,
@@ -434,6 +444,10 @@ const DialogueView = memo(function DialogueView({
     //     }
     // }, dispatchStateActionEvent);
 
+    const longPressResult = useLongPress(() => {
+        handleRef.current?.open('trigger');
+    });
+
     function handleActorAdd() {
         store.dispatchStateAction(actions.createActorOnDialogue, dialogueKey);
     }
@@ -442,8 +456,9 @@ const DialogueView = memo(function DialogueView({
         <HoverableSectionItem
             className="data-editing:before:bg-accent-100/20 data-editing:gap-y-1 sm:data-editing:gap-y-2"
             data-editing={isEditing ? '' : undefined}
-            {...props}>
-            <HoverActionsContainer itemKey={dialogue.key} />
+            {...props}
+            {...longPressResult}>
+            <HoverActionsContainer handle={handleRef.current} itemKey={dialogue.key} />
             {isEditing && <EditActionsContainer itemKey={dialogue.key} />}
             <div className="flex items-center gap-x-2">
                 {!isEditing ? (
@@ -502,12 +517,21 @@ const ActionView = memo(function ActionView({
     const action = useKeyedState(actionKey);
     const isEditing = store.useState('isEditing', action.key);
 
+    const handleRef = useRef<Menu.Handle<unknown>>(null);
+    if (handleRef.current === null)
+        handleRef.current = Menu.createHandle();
+
+    const longPressResult = useLongPress(() => {
+        handleRef.current?.open('trigger');
+    });
+
     return (
         <HoverableSectionItem
             className="data-editing:before:bg-accent-100/20"
             data-editing={isEditing ? '' : undefined}
-            {...props}>
-            <HoverActionsContainer itemKey={action.key} />
+            {...props}
+            {...longPressResult}>
+            <HoverActionsContainer handle={handleRef.current} itemKey={action.key} />
             {isEditing && <EditActionsContainer itemKey={action.key} />}
             <NodeContentRenderer className="mx-auto w-31/40" node={action} />
         </HoverableSectionItem>
