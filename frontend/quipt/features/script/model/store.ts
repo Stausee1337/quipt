@@ -95,7 +95,7 @@ abstract class BaseStore<
                 cacheRef.current.state !== this.state ||
                 cacheRef.current.key !== key
             ) {
-                let result = this.readState(key, ...args as any);
+                let result = this.readState(key, ...(args as any));
                 cacheRef.current = {
                     state: this.state,
                     key,
@@ -223,7 +223,11 @@ function toFlatContent(state: EditorViewState): FlatContentItem[] {
             return processMapScriptItems(structure.children, editorState, contextHidden);
         case 1:
             return structure.children.flatMap(sectionPack => {
-                const items = processMapScriptItems(sectionPack.children, editorState, contextHidden);
+                const items = processMapScriptItems(
+                    sectionPack.children,
+                    editorState,
+                    contextHidden,
+                );
                 return items.length > 0
                     ? [{ key: sectionPack.key, estimatedHeight: 150 }, ...items]
                     : [];
@@ -251,9 +255,8 @@ const scriptEditorSelectors = {
     hasHistory: state => state.history.length > 0,
     activeSectionNode: getActiveSection,
     flatContent: toFlatContent,
-    isEditing: (state, nodeKey: Key<ContentfulScriptNode>) => 
-        state.editingNode === nodeKey &&
-        state.editorState.editingNodeState?.nodeKey === nodeKey
+    isEditing: (state, nodeKey: Key<ContentfulScriptNode>) =>
+        state.editingNode === nodeKey && state.editorState.editingNodeState?.nodeKey === nodeKey,
 } satisfies Record<string, Selector<EditorViewState>>;
 
 type ScriptEditorSelectors = typeof scriptEditorSelectors;

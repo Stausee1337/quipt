@@ -30,11 +30,7 @@ import {
 import { ContentInfoView, HLine, PlayButton } from './common';
 import { Editor } from './editor';
 import { ActorPill, ActorsContainer } from './actors-container';
-import {
-    useKeyedState,
-    useScriptEditorStore,
-    useScriptEditorStateAccessor,
-} from '../model/hooks';
+import { useKeyedState, useScriptEditorStore, useScriptEditorStateAccessor } from '../model/hooks';
 import {
     ActionNode,
     type ActorKey,
@@ -100,10 +96,7 @@ export function SectionInfoHeader({
                             <IconButton
                                 iconName="input-cursor-text"
                                 onClick={() =>
-                                    store.dispatchStateAction(
-                                        actions.editSectionBegin,
-                                        section.key,
-                                    )
+                                    store.dispatchStateAction(actions.editSectionBegin, section.key)
                                 }
                                 render={<Tooltip.Trigger />}
                             />
@@ -155,9 +148,9 @@ export function SectionInfoHeader({
 
 function editContentfulNodeBegin(store: ScriptEditorStore, nodeKey: Key<ContentfulScriptNode>) {
     const editorState = createEditorState(store, nodeKey);
-    store.dispatchStateAction(actions.setEditingNodeState, { 
+    store.dispatchStateAction(actions.setEditingNodeState, {
         editorState,
-        nodeKey
+        nodeKey,
     });
     store.update({ editingNode: nodeKey });
 }
@@ -181,9 +174,7 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
     return (
         <MenuBox>
             <MenuItem iconName="check2-circle">Auswählen</MenuItem>
-            <MenuItem
-                iconName="pencil"
-                onClick={() => editContentfulNodeBegin(store, nodeKey)}>
+            <MenuItem iconName="pencil" onClick={() => editContentfulNodeBegin(store, nodeKey)}>
                 Bearbeiten
             </MenuItem>
             <MenuItem iconName="play-fill">Ab hier üben</MenuItem>
@@ -278,7 +269,7 @@ function HoverActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode>
     );
 }
 
-function EditActionsContainer({ }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
+function EditActionsContainer({}: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
     const store = useScriptEditorStore();
     return (
         <ActionsContainer>
@@ -315,8 +306,8 @@ function NodeContentRenderer({
     const editingNodeState = useScriptEditorStateAccessor(state => state.editingNodeState);
 
     const content = useMemo(
-        () => isEditing ? null : renderBBCode(node.text),
-        [node.text, isEditing]
+        () => (isEditing ? null : renderBBCode(node.text)),
+        [node.text, isEditing],
     );
     return (
         <div
@@ -527,7 +518,7 @@ function HoverableSectionItem({ className, ...props }: ComponentProps<'div'>): J
     return (
         <div
             className={classnames(
-                'has-data-popup-open:before:bg-accent-100/10 hover:before:bg-accent-100/10 group absolute top-0 right-0 left-0 flex w-auto flex-col px-3 before:absolute before:-top-1 before:right-0 before:-bottom-1 before:left-0 before:-z-1 before:rounded-xl sm:mx-3 sm:px-6 sm:before:-top-2 sm:before:-bottom-2',
+                'has-data-popup-open:before:bg-accent-100/10 active:before:bg-accent-100/10 hover:before:bg-accent-100/10 group absolute top-0 right-0 left-0 flex w-auto flex-col px-3 before:absolute before:-top-1 before:right-0 before:-bottom-1 before:left-0 before:-z-1 before:rounded-xl sm:mx-3 sm:px-6 sm:before:-top-2 sm:before:-bottom-2',
                 className,
             )}
             {...props}

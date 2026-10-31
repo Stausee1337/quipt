@@ -16,11 +16,7 @@ import {
 } from 'quipt/components/actor-pill';
 import { type Color, colorToString, asLighterColor } from 'quipt/color-palette';
 import { MenuBox, MenuSeparator, popupClass, MenuCheckboxItem } from './menu';
-import {
-    useKeyedState,
-    useScriptEditorStore,
-    useScriptEditorStateAccessor,
-} from '../model/hooks';
+import { useKeyedState, useScriptEditorStore, useScriptEditorStateAccessor } from '../model/hooks';
 import { type ActorKey } from '../model/state';
 import * as actions from '../model/actions';
 

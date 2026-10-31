@@ -48,10 +48,7 @@ export function useKeyedState<T extends Keyed<T>>(
 
     return useSyncExternalStore(
         listener =>
-            store.onStateChange(
-                typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys,
-                listener,
-            ),
+            store.onStateChange(typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys, listener),
         () => {
             if (typeof keyOrKeys === 'string')
                 try {

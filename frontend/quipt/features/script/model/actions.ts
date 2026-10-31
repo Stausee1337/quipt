@@ -20,7 +20,7 @@ export const setEditingNodeState = stateAction<EditingNodeState | null>({
     apply(editingNodeState, state) {
         state.editingNodeState = editingNodeState;
     },
-    makeHistory: false
+    makeHistory: false,
 });
 
 // export const editContentfulNodeBegin = stateAction({
@@ -31,7 +31,7 @@ export const setEditingNodeState = stateAction<EditingNodeState | null>({
 //         });
 //     },
 // });
-// 
+//
 // export const editContentfulNodeEnd = stateAction<Key<ContentfulScriptNode>>({
 //     apply(itemKey, state) {
 //         const item = state.lookup(itemKey);

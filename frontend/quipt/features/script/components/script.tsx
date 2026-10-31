@@ -29,12 +29,7 @@ import { useNativeElementListener } from 'quipt/utils';
 import { type Script } from '../script';
 import { renderContentNode } from './section';
 import { HLine, VLine, ContentInfoView, PlayButton } from './common';
-import {
-    SectionNode,
-    type Key,
-    ScriptNode,
-    keyOfType,
-} from '../model/state';
+import { SectionNode, type Key, ScriptNode, keyOfType } from '../model/state';
 import {
     ScriptEditorContextProivder,
     useKeyedState,
@@ -116,7 +111,7 @@ function ScriptSectionNavigatorContent({
     const store = useScriptEditorStore();
     const contextHidden = store.useState('contextHidden');
     const structure = store.editorState.structure;
-    
+
     const content = useMemo(() => {
         switch (structure.depth) {
             case 0:
@@ -183,7 +178,9 @@ function ScriptSectionNavigatorContent({
     return <>{content}</>;
 }
 
-function ScriptSectionNavigator(props: { onScrollToNode: (key: Key<ScriptNode>) => void; }): JSX.Element {
+function ScriptSectionNavigator(props: {
+    onScrollToNode: (key: Key<ScriptNode>) => void;
+}): JSX.Element {
     const popoverHandleRef = useRef<Popover.Handle<void>>(null!);
     if (popoverHandleRef.current === null) popoverHandleRef.current = Popover.createHandle();
 
@@ -220,7 +217,11 @@ function ScriptSectionNavigator(props: { onScrollToNode: (key: Key<ScriptNode>) 
     );
 }
 
-function ScriptContentViewHeader({ contentListActionsRef }: { contentListActionsRef: RefObject<ContentListActions | null>; }): JSX.Element {
+function ScriptContentViewHeader({
+    contentListActionsRef,
+}: {
+    contentListActionsRef: RefObject<ContentListActions | null>;
+}): JSX.Element {
     const breakpoints = useBreakpoints();
     const store = useScriptEditorStore();
     const hasSelfActor = useScriptEditorStateAccessor(state => state.selfActor !== null);
@@ -274,14 +275,17 @@ function ScriptContentViewHeader({ contentListActionsRef }: { contentListActions
                         />
                     }
                 </Tooltip>
-                {hasStructure && <ScriptSectionNavigator onScrollToNode={scrollToNodeHandler}/>}
+                {hasStructure && <ScriptSectionNavigator onScrollToNode={scrollToNodeHandler} />}
             </div>
         </header>
     );
 }
 
-
-function ScriptStickyHeader({ onScrollToNode }: { onScrollToNode: (key: Key<ScriptNode>) => void; }): JSX.Element {
+function ScriptStickyHeader({
+    onScrollToNode,
+}: {
+    onScrollToNode: (key: Key<ScriptNode>) => void;
+}): JSX.Element {
     const store = useScriptEditorStore();
     const scriptName = useScriptEditorStateAccessor(state => state.name);
     const hasSelfActor = useScriptEditorStateAccessor(state => state.selfActor !== null);
@@ -303,7 +307,7 @@ function ScriptStickyHeader({ onScrollToNode }: { onScrollToNode: (key: Key<Scri
 
     return (
         <div className="bg-background sticky top-0 z-100 w-auto">
-            <div className="border-accent-30 mx-3 sm:mx-9 flex items-center border-b py-2">
+            <div className="border-accent-30 mx-3 flex items-center border-b py-2 sm:mx-9">
                 <div className="flex items-center gap-x-5">
                     <h2 className="text-heading-2">{activeSection?.name ?? scriptName}</h2>
                     <div className="flex items-center gap-x-2">
@@ -332,7 +336,7 @@ function ScriptStickyHeader({ onScrollToNode }: { onScrollToNode: (key: Key<Scri
                                 />
                             }
                         </Tooltip>
-                        {hasStructure && <ScriptSectionNavigator onScrollToNode={onScrollToNode}/>}
+                        {hasStructure && <ScriptSectionNavigator onScrollToNode={onScrollToNode} />}
                     </div>
                 </div>
                 <PlayButton className="ms-auto" />
@@ -348,7 +352,7 @@ interface ContentListActions {
 interface ContentListProps {
     gap: number;
     content: FlatContentItem[];
-    actionsRef: RefObject<ContentListActions | null>
+    actionsRef: RefObject<ContentListActions | null>;
 }
 
 const VirtualizedContentList = memo(
@@ -438,7 +442,7 @@ const VirtualizedContentList = memo(
 
         return (
             <div className="relative" ref={onContainerRefUpdate}>
-                {stickyHeaderActive && <ScriptStickyHeader onScrollToNode={scrollToNode}/>}
+                {stickyHeaderActive && <ScriptStickyHeader onScrollToNode={scrollToNode} />}
 
                 {virtualizer.getVirtualItems().map(item => {
                     const node = renderContentNode(content[item.index].key);
@@ -456,7 +460,7 @@ const VirtualizedContentList = memo(
     (a, b) => a.gap == b.gap && a.content === b.content,
 );
 
-function ScriptContentView({ className }: { className?: string; }): JSX.Element {
+function ScriptContentView({ className }: { className?: string }): JSX.Element {
     const breakpoints = useBreakpoints();
     const store = useScriptEditorStore();
     const contentListActionsRef = useRef<ContentListActions>(null);
@@ -465,8 +469,12 @@ function ScriptContentView({ className }: { className?: string; }): JSX.Element 
 
     return (
         <div className={classnames('flex flex-col gap-y-2 sm:gap-y-4', className)}>
-            <ScriptContentViewHeader contentListActionsRef={contentListActionsRef}/>
-            <VirtualizedContentList gap={breakpoints.sm ? 16 : 8} content={content} actionsRef={contentListActionsRef}/>
+            <ScriptContentViewHeader contentListActionsRef={contentListActionsRef} />
+            <VirtualizedContentList
+                gap={breakpoints.sm ? 16 : 8}
+                content={content}
+                actionsRef={contentListActionsRef}
+            />
         </div>
     );
 }
@@ -534,7 +542,7 @@ function ScriptViewLayout(): JSX.Element {
                 </>
             )}
             <div className={breakpoints.lg ? 'flex max-w-full flex-1' : 'contents'}>
-                <ScriptContentView className="flex-1"/>
+                <ScriptContentView className="flex-1" />
                 {breakpoints.lg && (
                     <>
                         <div className="pointer-events-none">
@@ -564,7 +572,6 @@ export function ScriptEditorView({
             event.preventDefault();
             storeRef.current?.undo();
         }
-
     });
 
     return storeRef.current !== null ? (

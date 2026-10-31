@@ -142,7 +142,7 @@ const updateItemContent = stateAction<UpdateItemContentProps>({
         if (state.editingNodeState)
             schedule(actions.setEditingNodeState, {
                 ...state.editingNodeState,
-                editorState
+                editorState,
             });
     },
     makeHistory(currentState) {
@@ -225,7 +225,10 @@ function listenDocumentChange(
         },
     });
 }
-export function createEditorState(store: ScriptEditorStore, itemKey: Key<ContentfulScriptNode>): EditorState {
+export function createEditorState(
+    store: ScriptEditorStore,
+    itemKey: Key<ContentfulScriptNode>,
+): EditorState {
     const item = store.editorState.lookup(itemKey);
     const doc = bbCodeToDocument(item.text);
     return EditorState.create({
