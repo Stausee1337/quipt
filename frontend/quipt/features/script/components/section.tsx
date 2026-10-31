@@ -264,19 +264,14 @@ function HoverActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode>
     );
 }
 
-function EditActionsContainer(): JSX.Element {
+function EditActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
     const manager = useScriptEditorManager();
     return (
         <ActionsContainer>
             <IconButton
                 iconName="check2"
                 className="text-foreground"
-                onClick={() => manager.commitTransaction(actions.editContentfulNodeTransaction)}
-            />
-            <IconButton
-                iconName="x"
-                className="text-foreground"
-                onClick={() => manager.dismissTransaction(actions.editContentfulNodeTransaction)}
+                onClick={() => manager.dispatchStateAction(actions.editContentfulNodeEnd, itemKey)}
             />
         </ActionsContainer>
     );
@@ -346,12 +341,12 @@ function ActorsSelector({ actors, onActorsChange }: ActorsSelectorProps): JSX.El
             {actors.map(actor => (
                 <ActorsSelectorPill key={actor} actor={actor} />
             ))}
-            {allActors
-                .keys()
-                .filter(actor => !actors.includes(actor))
-                .map(actor => (
-                    <ActorsSelectorPill key={actor} actor={actor} />
-                ))}
+            {Array.from(
+                allActors
+                    .keys()
+                    .filter(actor => !actors.includes(actor))
+                    .map(actor => <ActorsSelectorPill key={actor} actor={actor} />),
+            )}
         </ToggleGroup>
     );
 }
@@ -398,7 +393,7 @@ function ActorsLineRenderer({ actorKeys }: { actorKeys: readonly ActorKey[] }): 
 const DialogueView = memo(function DialogueView({
     dialogueKey,
     ...props
-}: { dialogueKey: Key<DialogueNode>;  } & VirtualizedElementProps): JSX.Element | null {
+}: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element | null {
     const dialogue = useKeyedState(dialogueKey);
     const manager = useScriptEditorManager();
     const actorsContainerActionsRef = useRef<ActorsContainer.Actions>(null);
@@ -434,7 +429,7 @@ const DialogueView = memo(function DialogueView({
             data-editing={dialogue.editing ? '' : undefined}
             {...props}>
             <HoverActionsContainer itemKey={dialogue.key} />
-            {dialogue.editing && <EditActionsContainer/>}
+            {dialogue.editing && <EditActionsContainer itemKey={dialogue.key} />}
             <div className="flex items-center gap-x-2">
                 {!dialogue.editing ? (
                     <>
@@ -496,7 +491,7 @@ const ActionView = memo(function ActionView({
             data-editing={action.editing ? '' : undefined}
             {...props}>
             <HoverActionsContainer itemKey={action.key} />
-            {action.editing && <EditActionsContainer/>}
+            {action.editing && <EditActionsContainer itemKey={action.key} />}
             <NodeContentRenderer className="mx-auto w-31/40" node={action} />
         </HoverableSectionItem>
     );

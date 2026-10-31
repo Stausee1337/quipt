@@ -1,4 +1,4 @@
-import React, {
+import {
     useId,
     useImperativeHandle,
     useRef,
@@ -83,7 +83,7 @@ function ActorEditMenu(props: {
     });
 
     // const countRef = useRef(0);
- 
+
     // useLayoutEffect(() => {
     //     console.log('count', countRef.current);
     //     if (countRef.current === 0) {
@@ -165,23 +165,6 @@ function displayForCount(count: number | undefined) {
         : {};
 }
 
-type DetectActorEditProps = {
-    onClick: React.MouseEventHandler<HTMLElement>
-};
-
-function detectActorEdit(onActorEdit: () => void): DetectActorEditProps {
-    // Specificially detects user intent to edit an actor, not popup open
-    return {
-        onClick(event) {
-            const target = event.currentTarget;
-            setTimeout(() => {
-                if ('popupOpen' in target.dataset)
-                    onActorEdit();
-            });
-        },
-    }
-}
-
 export function ActorsContainer({
     actors,
     actionsRef,
@@ -201,17 +184,11 @@ export function ActorsContainer({
               ? actors.has(selfActor)
               : actors.includes(selfActor);
 
-    const manager = useScriptEditorManager();
-
     useImperativeHandle(actionsRef, () => ({
         editActor(actor) {
             actorMenuHandleRef.current?.open(actor);
         },
     }));
-
-    function handleEditActor(actorKey: ActorKey) {
-        manager.dispatchStateAction(actions.editActorBegin, actorKey);
-    }
 
     return (
         <div className={className} {...props}>
@@ -231,25 +208,28 @@ export function ActorsContainer({
                             )}
                         />
                     }
-                    {...detectActorEdit(() => handleEditActor(selfActor))}
                 />
             )}
-            {Array.from(actorsIterator(actors)
-                .filter(([actor]) => actor !== selfActor)
-                .map(([actor, count]) => (
-                    <Menu.Trigger
-                        key={actor}
-                        id={actor}
-                        handle={actorMenuHandleRef.current}
-                        payload={{ actor }}
-                        render={
-                            <ActorPill actorKey={actor} interactable {...displayForCount(count)} />
-                        }
-                        {...detectActorEdit(() => handleEditActor(actor))}
-                    />
-                )))}
-            <Menu.Root handle={actorMenuHandleRef.current}
-                onOpenChangeComplete={open => !open && manager.commitTransaction(actions.editActorTransaction)}>
+            {Array.from(
+                actorsIterator(actors)
+                    .filter(([actor]) => actor !== selfActor)
+                    .map(([actor, count]) => (
+                        <Menu.Trigger
+                            key={actor}
+                            id={actor}
+                            handle={actorMenuHandleRef.current}
+                            payload={{ actor }}
+                            render={
+                                <ActorPill
+                                    actorKey={actor}
+                                    interactable
+                                    {...displayForCount(count)}
+                                />
+                            }
+                        />
+                    )),
+            )}
+            <Menu.Root handle={actorMenuHandleRef.current}>
                 {({ payload }) => (
                     <Menu.Portal>
                         <Menu.Positioner sideOffset={8} align="start" className="outline-hidden">

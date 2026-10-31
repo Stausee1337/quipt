@@ -17,7 +17,7 @@ import { keymap } from 'prosemirror-keymap';
 import { toggleMark } from 'prosemirror-commands';
 
 import { IconButton } from 'quipt/components/icon-button';
-import { useScriptEditorManager } from '../model/hooks';
+import { useScrollContainer } from '../model/hooks';
 import { type FontStyle, type FontStyles, formattedStringSchema } from '../model/editor';
 
 const editorKeymap = keymap({
@@ -189,14 +189,14 @@ export function Editor({ state }: { state: EditorState }): JSX.Element {
     const [currentSelection, setCurrentSelection] = useState<Selection>();
 
     const viewRef = useRef<EditorView>(null);
-    const manager = useScriptEditorManager();
+    const scrollContainer = useScrollContainer();
 
     const setupEditor = useCallback((container: HTMLDivElement) => {
         return new EditorView(container, {
             state,
             plugins: [
                 editorKeymap,
-                selectionObserver(setCurrentSelection, manager.scrollContainer ?? undefined),
+                selectionObserver(setCurrentSelection, scrollContainer ?? undefined),
             ],
         });
     }, []);

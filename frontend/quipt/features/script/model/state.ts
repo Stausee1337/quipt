@@ -165,6 +165,9 @@ export abstract class ScriptNode {
 
 export abstract class ContentfulScriptNode extends ScriptNode {
     abstract key: Key<ContentfulScriptNode>;
+    // TODO: if we can figure out a way to have the new store system host (most of) the state of
+    // the view (even those of repeating elements like Dialogue), this might not need (or want) to
+    // be heere anymore.
     public content: FormattedString | EditorState;
 
     // TODO: this state should be interdependent on who is selected as selfActor
@@ -392,7 +395,11 @@ export class ScriptEditorState {
         return this.metadata.get(key);
     }
 
-    update<T>(updater: (trans: TransientState) => T): { state: ScriptEditorState; changes: Set<Key<any>>; result: T } {
+    update<T>(updater: (trans: TransientState) => T): {
+        state: ScriptEditorState;
+        changes: Set<Key<any>>;
+        result: T;
+    } {
         const [pool, [trans, result]] = poolWithMutations(this.pool, pool => {
             const trans = new TransientState(
                 this.name,

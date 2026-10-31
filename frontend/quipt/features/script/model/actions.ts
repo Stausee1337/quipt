@@ -1,6 +1,6 @@
 import { renderBBCode } from 'quipt/formatted-string';
 import type { Color } from 'quipt/color-palette';
-import { stateAction, stateTransaction } from './manager';
+import { stateAction } from './manager';
 import {
     type ActorKey,
     type ContentfulScriptNode,
@@ -16,26 +16,22 @@ import {
 } from './state';
 import { createEditorState } from './editor';
 
-export const editContentfulNodeTransaction = stateTransaction<Key<ContentfulScriptNode>>({
-    commit(itemKey, state) {
-        const item = state.lookup(itemKey);
-        state.replaceNode(itemKey, { content: renderBBCode(item.text) });
-        if (item.text.trim().length === 0)
-            return false;
-        if (item instanceof DialogueNode && item.actors.length === 0)
-            return false;
-        return true;
-    },
-});
-
-
 export const editContentfulNodeBegin = stateAction({
-    transactionStart: editContentfulNodeTransaction,
     apply(itemKey: Key<ContentfulScriptNode>, state) {
         const item = state.lookup(itemKey);
         state.replaceNode(itemKey, {
             content: createEditorState(item.key, item.text, this),
         });
+    },
+});
+
+export const editContentfulNodeEnd = stateAction<Key<ContentfulScriptNode>>({
+    apply(itemKey, state) {
+        const item = state.lookup(itemKey);
+        state.replaceNode(itemKey, { content: renderBBCode(item.text) });
+        if (item.text.trim().length === 0) return false;
+        if (item instanceof DialogueNode && item.actors.length === 0) return false;
+        return true;
     },
 });
 
@@ -163,23 +159,6 @@ function shouldBundleInputStates(prevState: ScriptEditorState, currentState: Scr
         currentMeta.timestamp - prevMeta.timestamp <= timestampMergeThreshold;
     return merge;
 }
-
-export const editActorTransaction = stateTransaction<ActorKey>({
-    commit(actorKey, state) {
-        let actor: Actor;
-        try {
-            actor = state.lookup(actorKey);
-        } catch {
-            return false;
-        }
-        return actor.name.trim().length > 0;
-    },
-});
-
-export const editActorBegin = stateAction<ActorKey>({
-    transactionStart: editActorTransaction,
-    apply() { },
-});
 
 export const renameActor = stateAction<RenameActorProps>({
     apply({ actorKey, name, inputId, event }, state) {

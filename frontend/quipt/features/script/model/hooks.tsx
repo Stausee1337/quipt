@@ -47,10 +47,11 @@ export function useKeyedState<T extends Keyed<T>>(
     }>(null);
 
     return useSyncExternalStore(
-        listener => manager.onStateChange(
-            typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys,
-            listener
-        ),
+        listener =>
+            manager.onStateChange(
+                typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys,
+                listener,
+            ),
         () => {
             if (typeof keyOrKeys === 'string')
                 try {
