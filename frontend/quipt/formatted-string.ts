@@ -19,7 +19,7 @@ declare interface ArrayBackedObject<T> extends ArrayLike<T> {
 }
 
 declare interface ArrayBackedObjectConstructor {
-    new <T>(items: Iterable<T> | ArrayLike<T>): ArrayBackedObject<T>;
+    new <T>(items?: Iterable<T> | ArrayLike<T>): ArrayBackedObject<T>;
     readonly prototype: ArrayBackedObject<any>;
 }
 
@@ -37,10 +37,10 @@ export type FormattedStringElement = {
 };
 
 function makeConstructor(): ArrayBackedObjectConstructor {
-    function ArrayBackedObject<T>(items: Iterable<T> | ArrayLike<T>): ArrayBackedObject<T> {
+    function ArrayBackedObject<T>(items?: Iterable<T> | ArrayLike<T>): ArrayBackedObject<T> {
         return Reflect.construct(
             Array,
-            Symbol.iterator in items ? [...items] : items,
+            items ? (Symbol.iterator in items ? [...items] : items) : [],
             new.target || ArrayBackedObject,
         );
     }
@@ -72,7 +72,7 @@ export class FormattedString extends ArrayBackedObject<FormattedStringElement> {
      */
     input?: string;
 
-    constructor(elements: Iterable<FormattedStringElement>, input?: string) {
+    constructor(elements?: Iterable<FormattedStringElement>, input?: string) {
         super(elements);
 
         this.raw = Array.from(this.map(x => x.content)).join('');

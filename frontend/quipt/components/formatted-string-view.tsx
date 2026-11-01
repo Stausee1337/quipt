@@ -27,14 +27,14 @@ export function FormattedStringView({ string }: { string: FormattedString }): JS
     return (
         <>
             {Array.from(
-                string.map(element =>
+                string.map((element, idx) =>
                     element.content.trim().length > 0 ? (
                         hasStyle(element) ? (
-                            <span style={styleToProperties(element)} key={element.content}>
+                            <span style={styleToProperties(element)} key={idx}>
                                 {element.content}
                             </span>
                         ) : (
-                            <Fragment key={element.content}>{element.content}</Fragment>
+                            <Fragment key={idx}>{element.content}</Fragment>
                         )
                     ) : (
                         element.content

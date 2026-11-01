@@ -164,17 +164,12 @@ export abstract class ScriptNode {
 
 export abstract class ContentfulScriptNode extends ScriptNode {
     abstract key: Key<ContentfulScriptNode>;
-    // TODO: if we can figure out a way to have the new store system host (most of) the state of
-    // the view (even those of repeating elements like Dialogue), this might not need (or want) to
-    // be heere anymore.
-    // public content: FormattedString | EditorState;
 
     // TODO: this state should be interdependent on who is selected as selfActor
     public markedAsContext: boolean = false;
 
     constructor(public text: string) {
         super();
-        // this.content = renderBBCode(this.text);
     }
 }
 
@@ -326,6 +321,10 @@ export type EditingNodeState = {
 export class ScriptEditorState {
     public name: string;
     public actors: Map<ActorKey, number>;
+    // NOTE (bug): currently there is a chance the `selfActor` is removed from the script, while
+    // still set here. When context is hidden, this can create a situation where the entire script
+    // vanishes. It would be concievalbe to remove `selfActor` from `ScriptEditorState` entirely.
+    // This would need to be done under consideration of the comment on `markedAsContext`.
     public selfActor: ActorKey | null;
     public structure: Readonly<Structure>;
     public dialogueCount: number;

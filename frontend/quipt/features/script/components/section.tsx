@@ -40,6 +40,7 @@ import {
     type ScriptNode,
     SectionNode,
     keyOfType,
+    Actor,
 } from '../model/state';
 import * as actions from '../model/actions';
 import type { ScriptEditorStore } from '../model/store';
@@ -237,7 +238,7 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
                                     onClick={() =>
                                         store.dispatchStateAction(actions.insertNewItemBefore, {
                                             kind: 'action',
-                                            refNodeKey: nodeKey,
+                                            referenceKey: nodeKey,
                                         })
                                     }>
                                     Handlung erstellen
@@ -264,18 +265,20 @@ function getOffset({ side }: { side: Menu.Positioner.Props['side'] }) {
 
 function HoverActionsContainer({
     itemKey,
-    handle,
+    menuOpen,
+    onMenuOpenChange,
 }: {
+    menuOpen: boolean;
     itemKey: Key<ContentfulScriptNode>;
-    handle: Menu.Handle<unknown>;
+    onMenuOpenChange: (open: boolean, eventDetails: Menu.Root.ChangeEventDetails) => void;
 }): JSX.Element {
     return (
         <ActionsContainer className="invisible group-hover:not-group-data-editing:visible has-data-popup-open:visible">
-            <Menu.Root handle={handle}>
+            <Menu.Root open={menuOpen} onOpenChange={onMenuOpenChange}>
                 <IconButton
                     iconName="three-dots-vertical"
                     className="text-foreground"
-                    render={<Menu.Trigger id="trigger" />}
+                    render={<Menu.Trigger />}
                 />
                 <Menu.Portal>
                     <Menu.Positioner sideOffset={8} align="start" className="outline-hidden">
@@ -316,21 +319,24 @@ function ActionsContainer({ className, ...props }: ComponentProps<'div'>): JSX.E
     );
 }
 
-function NodeContentRenderer({
+function NodeContentView({
     className,
-    node,
+    itemKey,
 }: {
     className?: string;
-    node: ContentfulScriptNode;
+    itemKey: Key<ContentfulScriptNode>;
 }): JSX.Element {
+    const item = useKeyedState(itemKey);
+
     const store = useScriptEditorStore();
-    const isEditing = store.useState('isEditing', node.key);
+    const isEditing = store.useState('isEditing', itemKey);
     const editingNodeState = useScriptEditorStateAccessor(state => state.editingNodeState);
 
     const content = useMemo(
-        () => (isEditing ? null : renderBBCode(node.text)),
-        [node.text, isEditing],
+        () => (isEditing ? null : renderBBCode(item.text)),
+        [item.text, isEditing],
     );
+
     return (
         <div
             className={classnames(
@@ -406,46 +412,19 @@ function DialogueActorsEditMenu({
     );
 }
 
-function ActorsLineRenderer({ actorKeys }: { actorKeys: readonly ActorKey[] }): JSX.Element {
-    const selfActor = useScriptEditorStateAccessor(state => state.selfActor);
+function DialogueActorsLine({ dialogueKey }: { dialogueKey: Key<DialogueNode> }): JSX.Element {
+    const actorsContainerActionsRef = useRef<ActorsContainer.Actions>(null);
 
-    const memoizedModifiedActorsKeys = useMemo(() => {
-        if (selfActor && actorKeys.includes(selfActor))
-            return [selfActor, ...actorKeys.filter(actor => actor != selfActor)];
-        return actorKeys;
-    }, [actorKeys, selfActor]);
-
-    const actors = useKeyedState(memoizedModifiedActorsKeys);
-    const string = formatActorsArray(actors);
-
-    return (
-        <p className="font-semibold">
-            <FormattedStringView string={string} />
-        </p>
-    );
-}
-
-const DialogueView = memo(function DialogueView({
-    dialogueKey,
-    ...props
-}: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element | null {
     const store = useScriptEditorStore();
 
+    const isEditing = store.useState('isEditing', dialogueKey);
+
     const dialogue = useKeyedState(dialogueKey);
-    const isEditing = store.useState('isEditing', dialogue.key);
-    const actorsContainerActionsRef = useRef<ActorsContainer.Actions>(null);
-    const handleRef = useRef<Menu.Handle<unknown>>(null);
-    if (handleRef.current === null) handleRef.current = Menu.createHandle();
+    const actors = useKeyedState(dialogue.actors);
+    const selfActor = useScriptEditorStateAccessor(state => state.selfActor);
 
-    const actorMarksAsContext = useScriptEditorStateAccessor(state =>
-        state.selfActor ? dialogue.actors.includes(state.selfActor) : false,
-    );
-
+    const actorMarksAsContext = selfActor ? dialogue.actors.includes(selfActor) : false;
     const markedAsContext = actorMarksAsContext || dialogue.markedAsContext;
-
-    const longPressResult = useLongPress(() => {
-        handleRef.current?.open('trigger');
-    });
 
     function handleActorAdd() {
         const actorsContainerActions = actorsContainerActionsRef.current;
@@ -458,59 +437,82 @@ const DialogueView = memo(function DialogueView({
         });
     }
 
+    const actorsString = useMemo(() => {
+        if (isEditing) return new FormattedString();
+
+        const selfActorIndex = dialogue.actors.indexOf(selfActor!);
+        let modifiedActors: Actor[];
+        if (selfActor && selfActorIndex !== -1) {
+            modifiedActors = [...actors];
+            modifiedActors.splice(selfActorIndex, 1);
+            modifiedActors.splice(0, 0, actors[selfActorIndex]);
+        } else {
+            modifiedActors = actors;
+        }
+        return formatActorsArray(modifiedActors);
+    }, [actors, selfActor, isEditing]);
+
+    return (
+        <div className="flex items-center gap-x-2">
+            {!isEditing ? (
+                <>
+                    <p className="font-semibold">
+                        <FormattedStringView string={actorsString} />
+                    </p>
+                    {markedAsContext && <ResponseMarker />}
+                </>
+            ) : (
+                <ActorsContainer
+                    className="flex gap-x-1"
+                    actors={dialogue.actors}
+                    actionsRef={actorsContainerActionsRef}>
+                    <Menu.Root>
+                        <BaseButton
+                            className="bg-primary hover:bg-light-primary cursor-pointer rounded-full p-1.5"
+                            aria-label="Spieler hinzufügen"
+                            render={<Menu.Trigger />}>
+                            <Icon iconName="pencil" className="text-white" />
+                        </BaseButton>
+                        <Menu.Portal>
+                            <Menu.Positioner
+                                sideOffset={8}
+                                align="start"
+                                className="outline-hidden">
+                                <Menu.Popup className={popupClass}>
+                                    <DialogueActorsEditMenu
+                                        actors={dialogue.actors}
+                                        onActorsChange={actors =>
+                                            store.dispatchStateAction(
+                                                actions.changeDialogueActors,
+                                                {
+                                                    dialogue: dialogueKey,
+                                                    actors,
+                                                },
+                                            )
+                                        }
+                                        onActorAdd={handleActorAdd}
+                                    />
+                                </Menu.Popup>
+                            </Menu.Positioner>
+                        </Menu.Portal>
+                    </Menu.Root>
+                </ActorsContainer>
+            )}
+        </div>
+    );
+}
+
+const DialogueView = memo(function DialogueView({
+    dialogueKey,
+    ...props
+}: { dialogueKey: Key<DialogueNode> } & VirtualizedElementProps): JSX.Element | null {
     return (
         <HoverableSectionItem
-            className="data-editing:before:bg-accent-100/20 data-editing:gap-y-1 sm:data-editing:gap-y-2"
-            data-editing={isEditing ? '' : undefined}
-            {...props}
-            {...longPressResult}>
-            <HoverActionsContainer handle={handleRef.current} itemKey={dialogue.key} />
-            {isEditing && <EditActionsContainer itemKey={dialogue.key} />}
-            <div className="flex items-center gap-x-2">
-                {!isEditing ? (
-                    <>
-                        <ActorsLineRenderer actorKeys={dialogue.actors} />
-                        {markedAsContext && <ResponseMarker />}
-                    </>
-                ) : (
-                    <ActorsContainer
-                        className="flex gap-x-1"
-                        actors={dialogue.actors}
-                        actionsRef={actorsContainerActionsRef}>
-                        <Menu.Root>
-                            <BaseButton
-                                className="bg-primary hover:bg-light-primary cursor-pointer rounded-full p-1.5"
-                                aria-label="Spieler hinzufügen"
-                                render={<Menu.Trigger />}>
-                                <Icon iconName="pencil" className="text-white" />
-                            </BaseButton>
-                            <Menu.Portal>
-                                <Menu.Positioner
-                                    sideOffset={8}
-                                    align="start"
-                                    className="outline-hidden">
-                                    <Menu.Popup className={popupClass}>
-                                        <DialogueActorsEditMenu
-                                            actors={dialogue.actors}
-                                            onActorsChange={actors =>
-                                                store.dispatchStateAction(
-                                                    actions.changeDialogueActors,
-                                                    {
-                                                        dialogue: dialogueKey,
-                                                        actors,
-                                                    },
-                                                )
-                                            }
-                                            onActorAdd={handleActorAdd}
-                                        />
-                                    </Menu.Popup>
-                                </Menu.Positioner>
-                            </Menu.Portal>
-                        </Menu.Root>
-                    </ActorsContainer>
-                )}
-            </div>
-            <NodeContentRenderer node={dialogue} />
+            className="data-editing:gap-y-1 sm:data-editing:gap-y-2"
+            itemKey={dialogueKey}
+            {...props}>
+            <DialogueActorsLine dialogueKey={dialogueKey} />
+            <NodeContentView itemKey={dialogueKey} />
         </HoverableSectionItem>
     );
 });
@@ -519,39 +521,45 @@ const ActionView = memo(function ActionView({
     actionKey,
     ...props
 }: { actionKey: Key<ActionNode> } & VirtualizedElementProps): JSX.Element | null {
-    const store = useScriptEditorStore();
-    const action = useKeyedState(actionKey);
-    const isEditing = store.useState('isEditing', action.key);
-
-    const handleRef = useRef<Menu.Handle<unknown>>(null);
-    if (handleRef.current === null) handleRef.current = Menu.createHandle();
-
-    const longPressResult = useLongPress(() => {
-        handleRef.current?.open('trigger');
-    });
-
     return (
-        <HoverableSectionItem
-            className="data-editing:before:bg-accent-100/20"
-            data-editing={isEditing ? '' : undefined}
-            {...props}
-            {...longPressResult}>
-            <HoverActionsContainer handle={handleRef.current} itemKey={action.key} />
-            {isEditing && <EditActionsContainer itemKey={action.key} />}
-            <NodeContentRenderer className="mx-auto w-31/40" node={action} />
+        <HoverableSectionItem itemKey={actionKey} {...props}>
+            <NodeContentView className="mx-auto w-31/40" itemKey={actionKey} />
         </HoverableSectionItem>
     );
 });
 
-function HoverableSectionItem({ className, ...props }: ComponentProps<'div'>): JSX.Element {
+function HoverableSectionItem({
+    className,
+    children,
+    itemKey,
+    ...props
+}: { itemKey: Key<ContentfulScriptNode> } & ComponentProps<'div'>): JSX.Element {
+    const store = useScriptEditorStore();
+    const isEditing = store.useState('isEditing', itemKey);
+
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    const longPressResult = useLongPress(() => {
+        setMenuOpen(true);
+    });
+
     return (
         <div
             className={classnames(
-                'has-data-popup-open:before:bg-accent-100/10 active:before:bg-accent-100/10 hover:before:bg-accent-100/10 group absolute top-0 right-0 left-0 flex w-auto flex-col px-3 before:absolute before:-top-1 before:right-0 before:-bottom-1 before:left-0 before:-z-1 before:rounded-xl sm:mx-3 sm:px-6 sm:before:-top-2 sm:before:-bottom-2',
+                'has-data-popup-open:before:bg-accent-100/10 active:before:bg-accent-100/10 hover:before:bg-accent-100/10 group data-editing:before:bg-accent-100/20 absolute top-0 right-0 left-0 flex w-auto flex-col px-3 before:absolute before:-top-1 before:right-0 before:-bottom-1 before:left-0 before:-z-1 before:rounded-xl sm:mx-3 sm:px-6 sm:before:-top-2 sm:before:-bottom-2',
                 className,
             )}
+            data-editing={isEditing ? '' : undefined}
             {...props}
-        />
+            {...longPressResult}>
+            <HoverActionsContainer
+                itemKey={itemKey}
+                menuOpen={menuOpen}
+                onMenuOpenChange={setMenuOpen}
+            />
+            {isEditing && <EditActionsContainer itemKey={itemKey} />}
+            {children}
+        </div>
     );
 }
 
