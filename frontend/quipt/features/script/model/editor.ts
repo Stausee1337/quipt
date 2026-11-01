@@ -5,7 +5,6 @@ import { StepMap, Transform } from 'prosemirror-transform';
 import { type FormatNode, parseBBCode } from 'quipt/formatted-string';
 import { type ContentfulScriptNode, type Key } from './state';
 import { type ScriptEditorStore, stateAction } from './store';
-import * as actions from './actions';
 
 export type FontStyle = 'italic' | 'bold' | 'underline';
 export type FontStyles = Set<FontStyle>;
@@ -132,7 +131,7 @@ export type UpdateItemContentProps = {
 };
 
 const updateItemContent = stateAction<UpdateItemContentProps>({
-    apply({ itemKey, tr: transaction, editorState }, state, schedule) {
+    apply({ itemKey, tr: transaction, editorState }, state) {
         state.setMeta(updateItemContentKey, transaction);
 
         if (state.editingNodeState?.editorState === editorState) return;
@@ -140,10 +139,10 @@ const updateItemContent = stateAction<UpdateItemContentProps>({
             text: convertDocToBBCode(editorState.doc),
         });
         if (state.editingNodeState)
-            schedule(actions.setEditingNodeState, {
+            state.editingNodeState = {
                 ...state.editingNodeState,
                 editorState,
-            });
+            };
     },
     makeHistory(_, currentState) {
         const prev = currentState.getMeta(updateItemContentKey);

@@ -27,12 +27,7 @@ export type StateAction<Input, Result = void> = {
               prevState: ScriptEditorState,
               currentState: ScriptEditorState,
           ) => boolean);
-    apply(
-        this: ScriptEditorStore,
-        input: Input,
-        state: TransientState,
-        schedule: ScheduleActionCallback,
-    ): Result;
+    apply(this: ScriptEditorStore, input: Input, state: TransientState): Result;
     remote?: {
         forward: (context: RemoteContext, input: Input) => Promise<void>;
         backward: (context: RemoteContext, input: Input) => Promise<void>;
@@ -43,11 +38,6 @@ export type StateAction<Input, Result = void> = {
         currentState: ScriptEditorState,
     ): boolean;
 };
-
-// At best: `Action`s track wether they begin/end a *trans*action as well
-//  - `Action`s that end a transaction, are only valid if that transaction is active
-//  - `Action`s that start a transaction, will first end current transaction of that kind
-//  - different kinds of transactions can nest
 
 export function stateAction<Input, Result = void>(
     action: StateAction<Input, Result>,
@@ -61,12 +51,6 @@ export type HistoryEntry = {
 };
 
 export type TeardownCallback = () => void;
-
-type ScheduledAction = (
-    store: ScriptEditorStore,
-    state: TransientState,
-    schedule: ScheduleActionCallback,
-) => any;
 
 type Selector<State> = (state: State, ...args: any[]) => any;
 
@@ -338,7 +322,7 @@ export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSe
 
     dispatchStateAction<Input, Result>(action: StateAction<Input, Result>, input: Input): Result {
         const { changes, state, result } = this.editorState.update(trans =>
-            this.runScheduledActions(trans, scheduleStateAction(action, input)),
+            action.apply.call(this, input, trans),
         );
 
         if (!changes.size) return result;
@@ -375,32 +359,6 @@ export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSe
             return action.makeHistory.call(this, this.editorState, currentState);
         return action.makeHistory ?? true;
     }
-
-    private runScheduledActions(state: TransientState, actionThisCycle: ScheduledAction): any;
-    private runScheduledActions(
-        state: TransientState,
-        ...actionsThisCycle: ScheduledAction[]
-    ): void;
-    private runScheduledActions(
-        state: TransientState,
-        ...actionsThisCycle: ScheduledAction[]
-    ): any {
-        const actionsNextCycle: ScheduledAction[] = [];
-        const schedule: ScheduleActionCallback = (action, input) =>
-            actionsNextCycle.push(scheduleStateAction(action, input));
-
-        let result = undefined;
-        for (let scheduledAction of actionsThisCycle)
-            result = scheduledAction(this, state, schedule);
-
-        if (actionsNextCycle.length > 0) this.runScheduledActions(state, ...actionsNextCycle);
-
-        if (actionsThisCycle.length === 1) return result;
-    }
-}
-
-function scheduleStateAction<T>(action: StateAction<T>, input: T): ScheduledAction {
-    return (store, state, schedule) => action.apply.call(store, input, state, schedule);
 }
 
 function mapAdd<T, V>(map: Map<T, Set<V>>, key: T, value: V) {
