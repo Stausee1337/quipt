@@ -147,7 +147,8 @@ export function SectionInfoHeader({
     );
 }
 
-function editContentfulNodeBegin(store: ScriptEditorStore, nodeKey: Key<ContentfulScriptNode>) {
+function editItemBegin(store: ScriptEditorStore, nodeKey: Key<ContentfulScriptNode>) {
+    if (!editItemEnd(store)) return;
     const editorState = createEditorState(store, nodeKey);
     store.dispatchStateAction(actions.setEditingNodeState, {
         editorState,
@@ -156,9 +157,26 @@ function editContentfulNodeBegin(store: ScriptEditorStore, nodeKey: Key<Contentf
     store.update({ editingNode: nodeKey });
 }
 
-function editContentfulNodeEnd(store: ScriptEditorStore) {
+function editItemEnd(store: ScriptEditorStore): boolean {
+    const editingNode = store.readState('editingNode');
+    if (editingNode === null || !store.readState('isEditing', editingNode)) return true;
+    if (!store.readState('isValid', editingNode)) return false;
     store.dispatchStateAction(actions.setEditingNodeState, null);
     store.update({ editingNode: null });
+    return true;
+}
+
+function createNewItem(
+    store: ScriptEditorStore,
+    kind: 'action' | 'dialogue',
+    referenceKey: Key<ContentfulScriptNode>,
+) {
+    if (!editItemEnd(store)) return;
+    const newNodeKey = store.dispatchStateAction(actions.insertNewItemBefore, {
+        kind,
+        referenceKey,
+    });
+    editItemBegin(store, newNodeKey);
 }
 
 function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNode> }) {
@@ -175,7 +193,7 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
     return (
         <MenuBox>
             <MenuItem iconName="check2-circle">Auswählen</MenuItem>
-            <MenuItem iconName="pencil" onClick={() => editContentfulNodeBegin(store, nodeKey)}>
+            <MenuItem iconName="pencil" onClick={() => editItemBegin(store, nodeKey)}>
                 Bearbeiten
             </MenuItem>
             <MenuItem iconName="play-fill">Ab hier üben</MenuItem>
@@ -211,20 +229,15 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
                             <MenuBox>
                                 <MenuItem
                                     iconName="chat-text"
-                                    onClick={() =>
-                                        store.dispatchStateAction(actions.insertNewItemBefore, {
-                                            refNodeKey: nodeKey,
-                                            kind: 'dialogue',
-                                        })
-                                    }>
+                                    onClick={() => createNewItem(store, 'dialogue', nodeKey)}>
                                     Dialog erstellen
                                 </MenuItem>
                                 <MenuItem
                                     iconName="card-text"
                                     onClick={() =>
                                         store.dispatchStateAction(actions.insertNewItemBefore, {
-                                            refNodeKey: nodeKey,
                                             kind: 'action',
+                                            refNodeKey: nodeKey,
                                         })
                                     }>
                                     Handlung erstellen
@@ -251,10 +264,10 @@ function getOffset({ side }: { side: Menu.Positioner.Props['side'] }) {
 
 function HoverActionsContainer({
     itemKey,
-    handle
+    handle,
 }: {
-    itemKey: Key<ContentfulScriptNode>,
-    handle: Menu.Handle<unknown>
+    itemKey: Key<ContentfulScriptNode>;
+    handle: Menu.Handle<unknown>;
 }): JSX.Element {
     return (
         <ActionsContainer className="invisible group-hover:not-group-data-editing:visible has-data-popup-open:visible">
@@ -262,7 +275,7 @@ function HoverActionsContainer({
                 <IconButton
                     iconName="three-dots-vertical"
                     className="text-foreground"
-                    render={<Menu.Trigger id="trigger"/>}
+                    render={<Menu.Trigger id="trigger" />}
                 />
                 <Menu.Portal>
                     <Menu.Positioner sideOffset={8} align="start" className="outline-hidden">
@@ -276,14 +289,16 @@ function HoverActionsContainer({
     );
 }
 
-function EditActionsContainer({}: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
+function EditActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
     const store = useScriptEditorStore();
+    const isValid = store.useState('isValid', itemKey);
     return (
         <ActionsContainer>
             <IconButton
                 iconName="check2"
                 className="text-foreground"
-                onClick={() => editContentfulNodeEnd(store)}
+                disabled={!isValid}
+                onClick={() => editItemEnd(store)}
             />
         </ActionsContainer>
     );
@@ -420,36 +435,27 @@ const DialogueView = memo(function DialogueView({
     const isEditing = store.useState('isEditing', dialogue.key);
     const actorsContainerActionsRef = useRef<ActorsContainer.Actions>(null);
     const handleRef = useRef<Menu.Handle<unknown>>(null);
-    if (handleRef.current === null)
-        handleRef.current = Menu.createHandle();
+    if (handleRef.current === null) handleRef.current = Menu.createHandle();
 
-    const actorMarksAsCue = useScriptEditorStateAccessor(state =>
+    const actorMarksAsContext = useScriptEditorStateAccessor(state =>
         state.selfActor ? dialogue.actors.includes(state.selfActor) : false,
     );
 
-    const markedAsContext = actorMarksAsCue || dialogue.markedAsContext;
-
-    // NOTE: Not replaceable by a store
-    // Solution: just like in the `scrollToNode` case, actually process stuff
-    // in here instead of relying on store to do it.
-
-    // useScriptEditorStoreListener(info => {
-    //     if (info.action !== actions.createActorOnDialogue) return;
-    //     let actionInfo = info as { input: Key<DialogueNode>; state: ScriptEditorState };
-    //     if (actionInfo.input === dialogueKey) {
-    //         const createdActor = actions.getCreatedActor(actionInfo.state);
-    //         setTimeout(() => {
-    //             actorsContainerActionsRef.current?.editActor(createdActor);
-    //         });
-    //     }
-    // }, dispatchStateActionEvent);
+    const markedAsContext = actorMarksAsContext || dialogue.markedAsContext;
 
     const longPressResult = useLongPress(() => {
         handleRef.current?.open('trigger');
     });
 
     function handleActorAdd() {
-        store.dispatchStateAction(actions.createActorOnDialogue, dialogueKey);
+        const actorsContainerActions = actorsContainerActionsRef.current;
+        if (actorsContainerActions === null) return;
+        const resetIndex = store.readState('historyIndex');
+        const newActorKey = store.dispatchStateAction(actions.createActorOnDialogue, dialogueKey);
+        actorsContainerActions.editActor({
+            actorKey: newActorKey,
+            resetIndex,
+        });
     }
 
     return (
@@ -518,8 +524,7 @@ const ActionView = memo(function ActionView({
     const isEditing = store.useState('isEditing', action.key);
 
     const handleRef = useRef<Menu.Handle<unknown>>(null);
-    if (handleRef.current === null)
-        handleRef.current = Menu.createHandle();
+    if (handleRef.current === null) handleRef.current = Menu.createHandle();
 
     const longPressResult = useLongPress(() => {
         handleRef.current?.open('trigger');

@@ -2,6 +2,7 @@ import {
     useId,
     useImperativeHandle,
     useRef,
+    useState,
     type ComponentProps,
     type JSX,
     type RefObject,
@@ -78,16 +79,6 @@ function ActorEditMenu(props: {
         props.menuHandle.close();
     });
 
-    // const countRef = useRef(0);
-
-    // useLayoutEffect(() => {
-    //     console.log('count', countRef.current);
-    //     if (countRef.current === 0) {
-    //         store.dispatchStateAction(actions.editActorBegin, props.actor);
-    //         countRef.current++;
-    //     }
-    // }, []);
-
     if (actor === null) return null;
 
     return (
@@ -135,15 +126,6 @@ function ActorEditMenu(props: {
     );
 }
 
-export interface ActorsContainerActions {
-    editActor(actor: ActorKey): void;
-}
-
-export interface ActorsContainerProps extends ComponentProps<'div'> {
-    actors: readonly ActorKey[] | Map<ActorKey, number>;
-    actionsRef?: RefObject<ActorsContainerActions | null> | undefined;
-}
-
 function* actorsIterator(
     actors: readonly ActorKey[] | Map<ActorKey, number>,
 ): Generator<[ActorKey, number | undefined]> {
@@ -161,6 +143,20 @@ function displayForCount(count: number | undefined) {
         : {};
 }
 
+export type EditActorProps = {
+    actorKey: ActorKey;
+    resetIndex: number;
+};
+
+export interface ActorsContainerActions {
+    editActor(props: EditActorProps): void;
+}
+
+export interface ActorsContainerProps extends ComponentProps<'div'> {
+    actors: readonly ActorKey[] | Map<ActorKey, number>;
+    actionsRef?: RefObject<ActorsContainerActions | null> | undefined;
+}
+
 export function ActorsContainer({
     actors,
     actionsRef,
@@ -168,10 +164,12 @@ export function ActorsContainer({
     children,
     ...props
 }: ActorsContainerProps): JSX.Element {
-    const actorMenuHandleRef = useRef<Menu.Handle<{ actor: ActorKey }>>(undefined);
-    if (actorMenuHandleRef.current === undefined)
-        actorMenuHandleRef.current = Menu.createHandle<{ actor: ActorKey }>();
+    const actorMenuHandleRef = useRef<Menu.Handle<undefined>>(undefined);
+    if (actorMenuHandleRef.current === undefined) actorMenuHandleRef.current = Menu.createHandle();
 
+    const store = useScriptEditorStore();
+
+    const [openActor, setOpenActor] = useState<EditActorProps | undefined>(undefined);
     const selfActor = useScriptEditorStateAccessor(state => state.selfActor);
     const hasSelfActor =
         selfActor === null
@@ -181,10 +179,23 @@ export function ActorsContainer({
               : actors.includes(selfActor);
 
     useImperativeHandle(actionsRef, () => ({
-        editActor(actor) {
-            actorMenuHandleRef.current?.open(actor);
+        editActor(props) {
+            if (openActor === undefined) setOpenActor(props);
         },
     }));
+
+    function handleOpenChange(open: boolean, eventDetails: Menu.Root.ChangeEventDetails) {
+        if (open && eventDetails.trigger instanceof HTMLElement) {
+            setOpenActor({
+                actorKey: eventDetails.trigger.id as ActorKey,
+                resetIndex: store.readState('historyIndex'),
+            });
+            return;
+        }
+        if (open || openActor === undefined) return;
+        if (!store.readState('isActorValid', openActor.actorKey)) store.undo(openActor.resetIndex);
+        setOpenActor(undefined);
+    }
 
     return (
         <div className={className} {...props}>
@@ -193,7 +204,6 @@ export function ActorsContainer({
                     key={selfActor}
                     id={selfActor}
                     handle={actorMenuHandleRef.current}
-                    payload={{ actor: selfActor }}
                     render={
                         <ActorPill
                             actorKey={selfActor}
@@ -214,7 +224,6 @@ export function ActorsContainer({
                             key={actor}
                             id={actor}
                             handle={actorMenuHandleRef.current}
-                            payload={{ actor }}
                             render={
                                 <ActorPill
                                     actorKey={actor}
@@ -225,21 +234,23 @@ export function ActorsContainer({
                         />
                     )),
             )}
-            <Menu.Root handle={actorMenuHandleRef.current}>
-                {({ payload }) => (
-                    <Menu.Portal>
-                        <Menu.Positioner sideOffset={8} align="start" className="outline-hidden">
-                            <Menu.Popup className={popupClass}>
-                                {payload?.actor && (
-                                    <ActorEditMenu
-                                        menuHandle={actorMenuHandleRef.current!}
-                                        actor={payload.actor}
-                                    />
-                                )}
-                            </Menu.Popup>
-                        </Menu.Positioner>
-                    </Menu.Portal>
-                )}
+            <Menu.Root
+                handle={actorMenuHandleRef.current}
+                triggerId={openActor?.actorKey ?? null}
+                open={openActor !== undefined}
+                onOpenChange={handleOpenChange}>
+                <Menu.Portal>
+                    <Menu.Positioner sideOffset={8} align="start" className="outline-hidden">
+                        <Menu.Popup className={popupClass}>
+                            {openActor && (
+                                <ActorEditMenu
+                                    menuHandle={actorMenuHandleRef.current!}
+                                    actor={openActor.actorKey}
+                                />
+                            )}
+                        </Menu.Popup>
+                    </Menu.Positioner>
+                </Menu.Portal>
             </Menu.Root>
             {children}
         </div>

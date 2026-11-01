@@ -145,7 +145,7 @@ const updateItemContent = stateAction<UpdateItemContentProps>({
                 editorState,
             });
     },
-    makeHistory(currentState) {
+    makeHistory(_, currentState) {
         const prev = currentState.getMeta(updateItemContentKey);
         if (!(prev instanceof Transaction)) return true;
         return prev.steps.length > 0;

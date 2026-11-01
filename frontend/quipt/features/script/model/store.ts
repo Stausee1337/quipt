@@ -8,6 +8,7 @@ import {
     ActionNode,
     DialogueNode,
     ContentfulScriptNode,
+    type ActorKey,
 } from './state';
 import type { Script } from '../script';
 import { useCallback, useRef, useSyncExternalStore } from 'react';
@@ -15,17 +16,23 @@ import { useCallback, useRef, useSyncExternalStore } from 'react';
 export type RemoteContext = {};
 
 export type ScheduleActionCallback = {
-    <T>(action: StateAction<T>, input: T): void;
+    <T>(action: StateAction<T, any>, input: T): void;
 };
 
-export type StateAction<Input> = {
-    makeHistory?: boolean | ((this: ScriptEditorStore, currentState: ScriptEditorState) => boolean);
+export type StateAction<Input, Result = void> = {
+    makeHistory?:
+        | boolean
+        | ((
+              this: ScriptEditorStore,
+              prevState: ScriptEditorState,
+              currentState: ScriptEditorState,
+          ) => boolean);
     apply(
         this: ScriptEditorStore,
         input: Input,
         state: TransientState,
         schedule: ScheduleActionCallback,
-    ): void;
+    ): Result;
     remote?: {
         forward: (context: RemoteContext, input: Input) => Promise<void>;
         backward: (context: RemoteContext, input: Input) => Promise<void>;
@@ -42,7 +49,9 @@ export type StateAction<Input> = {
 //  - `Action`s that start a transaction, will first end current transaction of that kind
 //  - different kinds of transactions can nest
 
-export function stateAction<Input>(action: StateAction<Input>): StateAction<Input> {
+export function stateAction<Input, Result = void>(
+    action: StateAction<Input, Result>,
+): StateAction<Input, Result> {
     return action;
 }
 
@@ -57,7 +66,7 @@ type ScheduledAction = (
     store: ScriptEditorStore,
     state: TransientState,
     schedule: ScheduleActionCallback,
-) => void;
+) => any;
 
 type Selector<State> = (state: State, ...args: any[]) => any;
 
@@ -252,11 +261,22 @@ function toFlatContent(state: EditorViewState): FlatContentItem[] {
 }
 
 const scriptEditorSelectors = {
+    historyIndex: state => state.history.length,
     hasHistory: state => state.history.length > 0,
     activeSectionNode: getActiveSection,
     flatContent: toFlatContent,
     isEditing: (state, nodeKey: Key<ContentfulScriptNode>) =>
         state.editingNode === nodeKey && state.editorState.editingNodeState?.nodeKey === nodeKey,
+    isValid(state, nodeKey: Key<ContentfulScriptNode>) {
+        const node = state.editorState.lookup(nodeKey);
+        if (node.text.trim().length === 0) return false;
+        if (node instanceof DialogueNode) return node.actors.length > 0;
+        return true;
+    },
+    isActorValid(state, actorKey: ActorKey) {
+        const actor = state.editorState.lookup(actorKey);
+        return actor.name.trim().length > 0;
+    },
 } satisfies Record<string, Selector<EditorViewState>>;
 
 type ScriptEditorSelectors = typeof scriptEditorSelectors;
@@ -306,19 +326,22 @@ export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSe
             for (let listener of this.editorStateListeners.get(key) ?? []) listener();
     }
 
-    undo() {
+    undo(index?: number) {
+        if (index !== undefined && this.state.history.length > index + 1) {
+            this.state.history.length = index + 1;
+        }
         if (this.state.history.length === 0) return;
         const { state, changes } = this.state.history.pop()!;
         this.update({ editorState: state });
         this.runChangeListeners(changes);
     }
 
-    dispatchStateAction<Input>(action: StateAction<Input>, input: Input) {
-        const { changes, state } = this.editorState.update(trans =>
-            this.runScheduledActions(trans, [scheduleStateAction(action, input)]),
+    dispatchStateAction<Input, Result>(action: StateAction<Input, Result>, input: Input): Result {
+        const { changes, state, result } = this.editorState.update(trans =>
+            this.runScheduledActions(trans, scheduleStateAction(action, input)),
         );
 
-        if (!changes.size) return;
+        if (!changes.size) return result;
         const tos = this.state.history.at(-1);
         let history: HistoryEntry[] = this.state.history;
         if (
@@ -344,22 +367,35 @@ export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSe
         this.update({ editorState: state, history });
         this.originAction = action;
         this.runChangeListeners(changes);
+        return result;
     }
 
     private actionMakesHistory(action: StateAction<any>, currentState: ScriptEditorState): boolean {
         if (typeof action.makeHistory === 'function')
-            return action.makeHistory.call(this, currentState);
+            return action.makeHistory.call(this, this.editorState, currentState);
         return action.makeHistory ?? true;
     }
 
-    private runScheduledActions(state: TransientState, actionsThisCycle: ScheduledAction[]) {
+    private runScheduledActions(state: TransientState, actionThisCycle: ScheduledAction): any;
+    private runScheduledActions(
+        state: TransientState,
+        ...actionsThisCycle: ScheduledAction[]
+    ): void;
+    private runScheduledActions(
+        state: TransientState,
+        ...actionsThisCycle: ScheduledAction[]
+    ): any {
         const actionsNextCycle: ScheduledAction[] = [];
         const schedule: ScheduleActionCallback = (action, input) =>
             actionsNextCycle.push(scheduleStateAction(action, input));
 
-        for (let scheduledAction of actionsThisCycle) scheduledAction(this, state, schedule);
+        let result = undefined;
+        for (let scheduledAction of actionsThisCycle)
+            result = scheduledAction(this, state, schedule);
 
-        if (actionsNextCycle.length > 0) this.runScheduledActions(state, actionsNextCycle);
+        if (actionsNextCycle.length > 0) this.runScheduledActions(state, ...actionsNextCycle);
+
+        if (actionsThisCycle.length === 1) return result;
     }
 }
 

@@ -57,7 +57,8 @@ function ScriptViewHeader({ name }: { name: string }): JSX.Element {
 function BackButton({ className }: Omit<BaseButton.Props, 'children'>): JSX.Element {
     const navigate = useNavigate();
     return (
-        <BaseButton className={classnames('bg-accent-10 rounded-full p-2', className)}
+        <BaseButton
+            className={classnames('bg-accent-10 rounded-full p-2', className)}
             onClick={() => navigate(-1)}>
             <Icon iconName="chevron-left" className="icon-lg" />
         </BaseButton>
@@ -67,7 +68,7 @@ function BackButton({ className }: Omit<BaseButton.Props, 'children'>): JSX.Elem
 function MobileScriptViewHeader({ name }: { name: string }): JSX.Element {
     return (
         <div className="flex flex-col items-start gap-y-2 px-3 pt-2">
-            <BackButton/>
+            <BackButton />
             <h1 className="text-heading-1">{name}</h1>
         </div>
     );
@@ -318,7 +319,7 @@ function ScriptStickyHeader({
         <div className="bg-background sticky top-0 z-100 w-auto">
             <div className="border-accent-30 mx-3 flex items-center border-b py-2 sm:mx-9">
                 <div className="flex items-center">
-                    <BackButton className="sm:hidden me-3"/>
+                    <BackButton className="me-3 sm:hidden" />
                     <h2 className="text-heading-2 me-5">{activeSection?.name ?? scriptName}</h2>
                     <div className="flex items-center gap-x-2">
                         <Tooltip label="Rückgängig">

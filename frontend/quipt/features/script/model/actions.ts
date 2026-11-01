@@ -15,7 +15,6 @@ import {
     type EditingNodeState,
 } from './state';
 
-// This should not be "making history"
 export const setEditingNodeState = stateAction<EditingNodeState | null>({
     apply(editingNodeState, state) {
         state.editingNodeState = editingNodeState;
@@ -23,28 +22,11 @@ export const setEditingNodeState = stateAction<EditingNodeState | null>({
     makeHistory: false,
 });
 
-// export const editContentfulNodeBegin = stateAction({
-//     apply(itemKey: Key<ContentfulScriptNode>, state) {
-//         const item = state.lookup(itemKey);
-//         state.replaceNode(itemKey, {
-//             content: createEditorState(item.key, item.text, this),
-//         });
-//     },
-// });
-//
-// export const editContentfulNodeEnd = stateAction<Key<ContentfulScriptNode>>({
-//     apply(itemKey, state) {
-//         const item = state.lookup(itemKey);
-//         state.replaceNode(itemKey, { content: renderBBCode(item.text) });
-//     },
-// });
-
 export const changeDialogueActors = stateAction<{
     dialogue: Key<DialogueNode>;
     actors: ActorKey[];
 }>({
     apply({ dialogue, actors }, state) {
-        if (actors.length < 1) return;
         state.replaceNode(dialogue, { actors });
         state.recomputeSectionMetaInfo();
     },
@@ -57,13 +39,16 @@ export const removeContentfulNode = stateAction({
     },
 });
 
-export const insertNewItemBefore = stateAction<{
-    refNodeKey: Key<ContentfulScriptNode>;
-    kind: 'action' | 'dialogue';
-}>({
-    apply({ kind, refNodeKey }, state) {
-        const referenceNode = state.lookup(refNodeKey);
-        const newlyCreatedNode =
+export const insertNewItemBefore = stateAction<
+    {
+        referenceKey: Key<ContentfulScriptNode>;
+        kind: 'action' | 'dialogue';
+    },
+    Key<ContentfulScriptNode>
+>({
+    apply({ kind, referenceKey }, state) {
+        const referenceNode = state.lookup(referenceKey);
+        const createdNode =
             kind === 'action'
                 ? state.allocate(ActionNode, '')
                 : state.allocate(DialogueNode, [], '');
@@ -72,11 +57,11 @@ export const insertNewItemBefore = stateAction<{
             referenceNode.parent !== null ? state.lookup(referenceNode.parent) : undefined;
         const index =
             parent !== undefined
-                ? parent.children.findIndex(child => child.key === refNodeKey)
-                : structureGetChildIndex(state.structure, refNodeKey);
-        state.insertNode(newlyCreatedNode, index, parent);
+                ? parent.children.findIndex(child => child.key === referenceKey)
+                : structureGetChildIndex(state.structure, referenceKey);
+        state.insertNode(createdNode, index, parent);
         state.recomputeSectionMetaInfo();
-        // schedule(editContentfulNodeBegin, newlyCreatedNode.key);
+        return createdNode.key;
     },
 });
 
@@ -90,7 +75,7 @@ function randomColor(): Color {
     return (1 + Math.floor(Math.random() * 24)) as Color;
 }
 
-export const createActorOnDialogue = stateAction<Key<DialogueNode>>({
+export const createActorOnDialogue = stateAction<Key<DialogueNode>, ActorKey>({
     apply(dialogueKey, state) {
         const newActor = state.allocate(Actor, '', randomColor());
         const dialogue = state.lookup(dialogueKey);
@@ -100,6 +85,7 @@ export const createActorOnDialogue = stateAction<Key<DialogueNode>>({
         state.actors = new Map(state.actors);
         state.actors.set(newActor.key, 1);
         state.recomputeSectionMetaInfo();
+        return newActor.key;
     },
 });
 
