@@ -27,7 +27,10 @@ export const changeDialogueActors = stateAction<{
     actors: ActorKey[];
 }>({
     apply({ dialogue, actors }, state) {
-        state.replaceNode(dialogue, { actors });
+        state.replaceNode(dialogue, {
+            actors,
+            validity: state.lookup(dialogue).getCurrentValidity()
+        });
         state.recomputeSectionMetaInfo();
     },
 });
@@ -50,8 +53,8 @@ export const insertNewItemBefore = stateAction<
         const referenceNode = state.lookup(referenceKey);
         const createdNode =
             kind === 'action'
-                ? state.allocate(ActionNode, '')
-                : state.allocate(DialogueNode, [], '');
+                ? state.allocate(ActionNode, '', 'invalid')
+                : state.allocate(DialogueNode, [], '', 'invalid');
 
         const parent =
             referenceNode.parent !== null ? state.lookup(referenceNode.parent) : undefined;
@@ -77,7 +80,7 @@ function randomColor(): Color {
 
 export const createActorOnDialogue = stateAction<Key<DialogueNode>, ActorKey>({
     apply(dialogueKey, state) {
-        const newActor = state.allocate(Actor, '', randomColor());
+        const newActor = state.allocate(Actor, '', randomColor(), 'invalid');
         const dialogue = state.lookup(dialogueKey);
         state.replaceNode(dialogueKey, {
             actors: [...dialogue.actors, newActor.key],
@@ -171,7 +174,10 @@ export const renameActor = stateAction<RenameActorProps>({
             state.recomputeSectionMetaInfo();
         }
         addBundleInputEventMeta(state, name, event, inputId);
-        state.replaceNode(actorKey, { name });
+        state.replaceNode(actorKey, {
+            name,
+            validity: name.trim().length > 0 ? 'valid' : 'invalid'
+        });
     },
     merge(prevState, currentState) {
         return shouldBundleInputStates(prevState, currentState);

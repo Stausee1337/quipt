@@ -193,7 +193,7 @@ export function ActorsContainer({
             return;
         }
         if (open || openActor === undefined) return;
-        if (!store.readState('isActorValid', openActor.actorKey)) store.undo(openActor.resetIndex);
+        if (!store.editorState.lookup(openActor.actorKey).isValid) store.undo(openActor.resetIndex);
         setOpenActor(undefined);
     }
 

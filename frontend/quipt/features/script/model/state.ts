@@ -27,7 +27,7 @@ function buildScriptItems(
     for (const item of content.items) {
         switch (item.kind) {
             case 'action': {
-                const node = allocateIn(pool, ActionNode, item.content);
+                const node = allocateIn(pool, ActionNode, item.content, 'valid');
                 nodes.push(node);
                 keys.push(node.key);
                 break;
@@ -38,6 +38,7 @@ function buildScriptItems(
                     DialogueNode,
                     item.actors.map(actor => actorLookup[actor].key),
                     item.content,
+                    'valid'
                 );
                 nodes.push(node);
                 keys.push(node.key);
@@ -145,6 +146,8 @@ export function keyOfType<T extends Keyed<T>>(key: Key<any>, klass: Constructor<
     return klass.prototype === prototype || klass.prototype.isPrototypeOf(prototype);
 }
 
+export type Validity = 'valid' | 'invalid';
+
 export class Actor implements BaseActor {
     static readonly prefix = makePrefix();
 
@@ -152,7 +155,12 @@ export class Actor implements BaseActor {
         public key: ActorKey,
         public name: string,
         public color: Color,
+        public validity: Validity
     ) {}
+
+    get isValid(): boolean {
+        return this.validity === 'valid';
+    }
 }
 
 export type ActorKey = Key<Actor>;
@@ -164,13 +172,23 @@ export abstract class ScriptNode {
 
 export abstract class ContentfulScriptNode extends ScriptNode {
     abstract key: Key<ContentfulScriptNode>;
+    
 
     // TODO: this state should be interdependent on who is selected as selfActor
     public markedAsContext: boolean = false;
 
-    constructor(public text: string) {
+    constructor(
+        public text: string,
+        public validity: Validity
+    ) {
         super();
     }
+
+    get isValid(): boolean {
+        return this.validity === 'valid';
+    }
+
+    abstract getCurrentValidity(): Validity;
 }
 
 export class ActionNode extends ContentfulScriptNode {
@@ -179,8 +197,14 @@ export class ActionNode extends ContentfulScriptNode {
     constructor(
         public key: Key<ActionNode>,
         text: string,
+        validity: Validity
     ) {
-        super(text);
+        super(text, validity);
+    }
+
+
+    getCurrentValidity(): Validity {
+        return this.text.length > 0 ? 'valid' : 'invalid';
     }
 }
 
@@ -191,8 +215,13 @@ export class DialogueNode extends ContentfulScriptNode {
         public key: Key<DialogueNode>,
         public actors: readonly ActorKey[],
         text: string,
+        validity: Validity
     ) {
-        super(text);
+        super(text, validity);
+    }
+
+    getCurrentValidity(): Validity {
+        return (this.text.trim().length > 0 && this.actors.length > 0) ? 'valid' : 'invalid';
     }
 }
 
@@ -329,6 +358,7 @@ export class ScriptEditorState {
     public structure: Readonly<Structure>;
     public dialogueCount: number;
     public editingNodeState: EditingNodeState | null;
+    public validity: Validity;
     protected metadata: Map<Symbol, any>;
     protected pool: PoolType;
 
@@ -339,6 +369,7 @@ export class ScriptEditorState {
         structure: Structure,
         dialogueCount: number,
         editingNodeState: EditingNodeState | null,
+        validity: Validity,
         metadata: Map<Symbol, any>,
         nodePool: PoolType,
     ) {
@@ -348,8 +379,13 @@ export class ScriptEditorState {
         this.structure = structure;
         this.dialogueCount = dialogueCount;
         this.editingNodeState = editingNodeState;
+        this.validity = validity,
         this.metadata = metadata;
         this.pool = nodePool;
+    }
+
+    get isValid(): boolean {
+        return this.validity === 'valid';
     }
 
     lookup<T extends Keyed<T>>(key: Key<T>): Readonly<T> {
@@ -366,6 +402,7 @@ export class ScriptEditorState {
                     Actor,
                     name,
                     ensureColor(script.settings.colors[name]),
+                    'valid',
                 );
                 actorLookup[name] = actor;
             }
@@ -385,6 +422,7 @@ export class ScriptEditorState {
             structure,
             dialogueCount,
             null,
+            'valid',
             new Map(),
             pool,
         );
@@ -411,6 +449,7 @@ export class ScriptEditorState {
                 this.structure,
                 this.dialogueCount,
                 this.editingNodeState,
+                this.validity,
                 new Map(),
                 pool,
             );
@@ -426,6 +465,15 @@ export class ScriptEditorState {
             return [trans, result];
         });
 
+        let validity: Validity = 'valid';
+        for (let key of trans.pool.keys()) {
+            if (keyOfType(key, Actor) || keyOfType(key, ActionNode) || keyOfType(key, DialogueNode))
+                validity = trans.lookup(key as Key<any>).validity;
+            else continue;
+            if (validity === 'invalid')
+                break;
+        }
+
         return {
             state: new ScriptEditorState(
                 trans.name,
@@ -434,6 +482,7 @@ export class ScriptEditorState {
                 trans.structure,
                 trans.dialogueCount,
                 trans.editingNodeState,
+                validity,
                 trans.metadata,
                 pool,
             ),
@@ -673,5 +722,7 @@ export class TransientState extends ScriptEditorState {
         const { actors, dialogueCount } = computeMetaInformation(getNodesIterator(this));
         this.actors = actors;
         this.dialogueCount = dialogueCount;
+        if (this.selfActor !== null && !actors.has(this.selfActor))
+            this.selfActor = null;
     }
 }

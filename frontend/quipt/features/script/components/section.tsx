@@ -161,7 +161,7 @@ function editItemBegin(store: ScriptEditorStore, nodeKey: Key<ContentfulScriptNo
 function editItemEnd(store: ScriptEditorStore): boolean {
     const editingNode = store.readState('editingNode');
     if (editingNode === null || !store.readState('isEditing', editingNode)) return true;
-    if (!store.readState('isValid', editingNode)) return false;
+    if (!store.editorState.lookup(editingNode).isValid) return false;
     store.dispatchStateAction(actions.setEditingNodeState, null);
     store.update({ editingNode: null });
     return true;
@@ -235,12 +235,7 @@ function ContentfulScriptNodeMenu({ nodeKey }: { nodeKey: Key<ContentfulScriptNo
                                 </MenuItem>
                                 <MenuItem
                                     iconName="card-text"
-                                    onClick={() =>
-                                        store.dispatchStateAction(actions.insertNewItemBefore, {
-                                            kind: 'action',
-                                            referenceKey: nodeKey,
-                                        })
-                                    }>
+                                    onClick={() => createNewItem(store, 'action', nodeKey)}>
                                     Handlung erstellen
                                 </MenuItem>
                             </MenuBox>
@@ -294,7 +289,8 @@ function HoverActionsContainer({
 
 function EditActionsContainer({ itemKey }: { itemKey: Key<ContentfulScriptNode> }): JSX.Element {
     const store = useScriptEditorStore();
-    const isValid = store.useState('isValid', itemKey);
+    const isValid = useKeyedState(itemKey).isValid;
+
     return (
         <ActionsContainer>
             <IconButton

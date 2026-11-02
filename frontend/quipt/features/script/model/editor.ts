@@ -135,8 +135,10 @@ const updateItemContent = stateAction<UpdateItemContentProps>({
         state.setMeta(updateItemContentKey, transaction);
 
         if (state.editingNodeState?.editorState === editorState) return;
+        const item = state.lookup(itemKey);
         state.replaceNode(itemKey, {
             text: convertDocToBBCode(editorState.doc),
+            validity: item.getCurrentValidity()
         });
         if (state.editingNodeState)
             state.editingNodeState = {

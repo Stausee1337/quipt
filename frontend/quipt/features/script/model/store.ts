@@ -8,7 +8,6 @@ import {
     ActionNode,
     DialogueNode,
     ContentfulScriptNode,
-    type ActorKey,
 } from './state';
 import type { Script } from '../script';
 import { useCallback, useRef, useSyncExternalStore } from 'react';
@@ -251,16 +250,6 @@ const scriptEditorSelectors = {
     flatContent: toFlatContent,
     isEditing: (state, nodeKey: Key<ContentfulScriptNode>) =>
         state.editingNode === nodeKey && state.editorState.editingNodeState?.nodeKey === nodeKey,
-    isValid(state, nodeKey: Key<ContentfulScriptNode>) {
-        const node = state.editorState.lookup(nodeKey);
-        if (node.text.trim().length === 0) return false;
-        if (node instanceof DialogueNode) return node.actors.length > 0;
-        return true;
-    },
-    isActorValid(state, actorKey: ActorKey) {
-        const actor = state.editorState.lookup(actorKey);
-        return actor.name.trim().length > 0;
-    },
 } satisfies Record<string, Selector<EditorViewState>>;
 
 type ScriptEditorSelectors = typeof scriptEditorSelectors;
@@ -324,10 +313,23 @@ export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSe
         const { changes, state, result } = this.editorState.update(trans =>
             action.apply.call(this, input, trans),
         );
-
         if (!changes.size) return result;
+
+        const history = this.getNextHistory(action, changes, state);
+        this.update({ editorState: state, history });
+        this.originAction = action;
+        this.runChangeListeners(changes);
+        return result;
+    }
+
+    private getNextHistory(
+        action: StateAction<any>,
+        changes: Set<Key<any>>,
+        state: ScriptEditorState
+    ): HistoryEntry[] {
+        if (!this.editorState.isValid)
+            return this.state.history;
         const tos = this.state.history.at(-1);
-        let history: HistoryEntry[] = this.state.history;
         if (
             this.originAction === action &&
             action.merge !== undefined &&
@@ -336,22 +338,20 @@ export class ScriptEditorStore extends BaseStore<EditorViewState, ScriptEditorSe
         ) {
             const mergedChanges = tos.changes.union(changes);
             // replace
-            history = this.state.history.toSpliced(this.state.history.length - 1, 1, {
-                ...this.state.history.at(-1)!,
+            return this.state.history.toSpliced(this.state.history.length - 1, 1, {
+                ...tos,
                 changes: mergedChanges,
             });
-        } else if (this.actionMakesHistory(action, state)) {
+        }
+        if (this.actionMakesHistory(action, state)) {
             // push
             const entry: HistoryEntry = {
                 state: this.editorState,
                 changes,
             };
-            history = [...this.state.history, entry];
+            return [...this.state.history, entry];
         }
-        this.update({ editorState: state, history });
-        this.originAction = action;
-        this.runChangeListeners(changes);
-        return result;
+        return this.state.history;
     }
 
     private actionMakesHistory(action: StateAction<any>, currentState: ScriptEditorState): boolean {
